@@ -254,7 +254,7 @@ describe("ServiceRegistry", () => {
 			await registry.registerInstance(otherServiceInstance());
 			const names = registry.instanceStore.listServiceNames();
 			expect(names).toContain("financial-scraper");
-			expect(names).toContain("message-manager");
+			expect(names).toContain("audit-logger");
 			expect(names).toHaveLength(2);
 		});
 	});

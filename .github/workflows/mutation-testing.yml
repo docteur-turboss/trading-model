@@ -1,8 +1,7 @@
 name: Mutation Testing
 
 # Weekly Stryker run (issue #656). Not part of the PR gates or pre-push.
-# Scope: trader-trainer `src/domain/**` (dlq-service left the scope: ADR-0073
-# retires it) and model-runtime `src/env/**` (portfolio simulator, ADR-0066).
+# Scope: trader-trainer `src/domain/**` and model-runtime `src/env/**` (portfolio simulator, ADR-0066).
 # `break` 60 per shard, 50 for the two GA shards (MUTATION_BREAK, read by
 # services/trader-trainer/stryker.config.mjs; model-runtime sets 60 in its
 # config). A single run over all of `src/domain` stalled at 38 %

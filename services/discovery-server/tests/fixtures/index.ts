@@ -43,7 +43,7 @@ export const secondServiceInstance = (
 export const otherServiceInstance = (
 	overrides?: Partial<ServiceInstance>
 ): ServiceInstance => ({
-	serviceName: "message-manager" as ServiceId,
+	serviceName: "audit-logger" as ServiceId,
 	instanceId: "msg-instance-1" as InstanceId,
 	host: "192.168.1.20" as IPAddress,
 	port: 8445 as Port,

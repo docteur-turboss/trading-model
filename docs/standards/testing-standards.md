@@ -95,12 +95,10 @@ All workspaces enforce an **80%** global threshold (statements, branches, functi
 | @trading-model/address-manager | 80%      | 80%       | 80%   | 80%        | Jest      |
 | @trading-model/broker-message  | 75%      | 80%       | 80%   | 80%        | Jest      |
 | discovery-server               | 80%      | 80%       | 80%   | 80%        | Jest      |
-| message-manager                | 79%      | 80%       | 80%   | 80%        | Jest      |
 | financial-scraper              | 80%      | 80%       | 80%   | 80%        | Jest      |
 | trader-trainer                 | 80%      | 80%       | 80%   | 80%        | Jest      |
 | api-gateway                    | 80%      | 80%       | 80%   | 80%        | Jest      |
 | audit-logger                   | 80%      | 80%       | 80%   | 80%        | Jest      |
-| dlq-service                    | 79%      | 80%       | 80%   | 80%        | Jest      |
 
 Coverage is checked by Jest on every test run (`bun run test:coverage`).
 

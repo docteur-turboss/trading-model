@@ -55,8 +55,8 @@ FACTOR="${DEPLOY_TIMEOUT_FACTOR:-1}"
 }
 
 # Deployments a release rolls out and a failed release rolls back.
-DEPLOYMENTS="discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer
-  api-gateway audit-logger dlq-service model-evaluator risk-execution edge-proxy"
+DEPLOYMENTS="discovery-server financial-scraper financial-scraper-collector trader-trainer
+  api-gateway audit-logger model-evaluator risk-execution edge-proxy"
 
 # Redis and its sentinels: the services' credentials (ADR-0047) only work
 # against the nodes of their own release, so these roll out and back too.
@@ -65,7 +65,7 @@ STATEFULSETS="redis redis-sentinel"
 REVISIONS_CM=deploy-revisions
 
 # Finished init Jobs `release-replicas` deletes before the apply (immutable pod template).
-INIT_JOBS="mongo-audit-users mongo-dlq-users"
+INIT_JOBS="mongo-audit-users"
 
 # Documents of the render on stdin that are (keep=1) or are not (keep=0) a Redis StatefulSet.
 redis_statefulsets() {
@@ -260,7 +260,7 @@ diagnose() {
 }
 
 # A Recreate Deployment starts its new pod only once the old one is gone, and
-# a draining pod may use its whole grace (collector and message-manager: 360 s
+# a draining pod may use its whole grace (collector: 360 s
 # for in-flight publishes). The grace is added to each wait, or a healthy
 # release whose drain outlasts the timeout would be rolled back (PR #460).
 # Base timeout (180 s) measured in kind run 42498902230: forward rollout of the upgrade, slowest

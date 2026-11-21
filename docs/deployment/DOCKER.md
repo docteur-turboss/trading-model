@@ -13,12 +13,10 @@ The platform runs **7 microservices** (no frontend, see [ADR-0018](../adr/0018-t
 | `mongo`               | `mongo:7`               | `trading-mongo`     | —                                | `data-net` (internal)   |
 | `mysql`               | `mysql:8`               | `trading-mysql`     | —                                | `data-net` (internal)   |
 | `discovery-server`    | Build local             | `trading-discovery` | `${DISCOVERY_PORT:-8443}` → 3000 | `backend-net`            |
-| `message-manager`     | Build local             | `trading-message`   | `${MESSAGE_PORT:-8444}` → 3000   | `backend-net`, `data-net` |
 | `financial-scraper`   | Build local             | `trading-scraper`   | `${SCRAPER_PORT:-8445}` → 3000   | `backend-net`, `data-net` |
 | `trader-trainer`      | Build local             | `trading-trainer`   | `${TRAINER_PORT:-8446}` → 3000   | `backend-net`            |
 | `api-gateway`         | Build local             | `trading-gateway`   | `${GATEWAY_PORT:-8448}` → 3000   | `backend-net`            |
 | `audit-logger`        | Build local             | `trading-audit`     | `${AUDIT_PORT:-8450}` → 3000     | `backend-net`, `data-net` |
-| `dlq-service`         | Build local             | `trading-dlq`       | `${DLQ_PORT:-8452}` → 3000       | `backend-net`, `data-net` |
 | `edge-proxy`          | `nginx` (digest-pinned) | `trading-edge`      | `${EDGE_PORT:-8449}` → 8080      | `backend-net`            |
 
 ### Networks
@@ -75,17 +73,15 @@ ghcr.io/<owner>/trading-model/<service>:<major>
 ghcr.io/<owner>/trading-model/<service>:<sha-commit>
 ```
 
-All **7 microservices** are built and published by the release workflow:
+All **5 listed microservices** are built and published by the release workflow:
 
 | Service               | Image                                                        |
 | --------------------- | ------------------------------------------------------------ |
 | discovery-server      | `ghcr.io/trading-model/discovery-server`                     |
-| message-manager       | `ghcr.io/trading-model/message-manager`                      |
 | financial-scraper     | `ghcr.io/trading-model/financial-scraper`                    |
 | trader-trainer        | `ghcr.io/trading-model/trader-trainer`                       |
 | api-gateway           | `ghcr.io/trading-model/api-gateway`                          |
 | audit-logger          | `ghcr.io/trading-model/audit-logger`                         |
-| dlq-service           | `ghcr.io/trading-model/dlq-service`                          |
 
 ---
 
@@ -109,15 +105,13 @@ Variables expected inside the container:
 | Variable         | Default | Service               |
 | ---------------- | ------- | --------------------- |
 | `DISCOVERY_PORT` | `8443`  | discovery-server      |
-| `MESSAGE_PORT`   | `8444`  | message-manager       |
 | `SCRAPER_PORT`   | `8445`  | financial-scraper     |
 | `TRAINER_PORT`   | `8446`  | trader-trainer        |
 | `GATEWAY_PORT`   | `8448`  | api-gateway           |
 | `AUDIT_PORT`     | `8450`  | audit-logger          |
-| `DLQ_PORT`       | `8452`  | dlq-service           |
 | `EDGE_PORT`      | `8449`  | edge-proxy (HTTP)     |
 
-Every published port (these seven, plus Prometheus 9090, Alertmanager 9093, Grafana 3001, Loki 3100 and Jaeger 16686) is bound to `127.0.0.1`: only the Docker host reaches them, never the LAN. Loki has no authentication and the edge speaks plain HTTP.
+Every published port (these six, plus Prometheus 9090, Alertmanager 9093, Grafana 3001, Loki 3100 and Jaeger 16686) is bound to `127.0.0.1`: only the Docker host reaches them, never the LAN. Loki has no authentication and the edge speaks plain HTTP.
 
 ---
 
@@ -138,12 +132,10 @@ depends_on:
 ### Service dependency graph
 
 ```
-mongo ─────┬── message-manager ───────┤
-           ├── audit-logger ──────────┤
+mongo ─────┬── audit-logger ──────────┤
            │                          ├── discovery-server ──┬── financial-scraper
 mysql ─────┘                          │                     ├── trader-trainer
                                       │                     ├── api-gateway
-                                      │                     ├── dlq-service
                                       │                     └── edge-proxy (after api-gateway)
 ```
 
@@ -160,7 +152,7 @@ mysql ─────┘                          │                     ├─
 
 ## Load balancing
 
-Inbound load balancing is handled by the platform's own entry points (api-gateway, discovery-server, message-manager) rather than external nginx LBs. Each workload serves TLS directly with its SPIRE SVID (ADR-0011); no `proxy_ssl_verify off` passthrough is needed.
+Inbound load balancing is handled by the platform's own entry points (api-gateway, discovery-server) rather than external nginx LBs. Each workload serves TLS directly with its SPIRE SVID (ADR-0011); no `proxy_ssl_verify off` passthrough is needed.
 
 ---
 

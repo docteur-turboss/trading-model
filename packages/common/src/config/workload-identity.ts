@@ -24,10 +24,8 @@ export const PLATFORM_SERVICES = [
 	"api-gateway",
 	"audit-logger",
 	"discovery-server",
-	"dlq-service",
 	"edge-proxy",
 	"financial-scraper",
-	"message-manager",
 	"model-evaluator",
 	"risk-execution",
 	"trader-trainer",
@@ -42,7 +40,6 @@ export const LEGACY_SERVICE_NAME_ALIASES: Readonly<Record<string, string>> = {
 	"audit-logger-service": "audit-logger",
 	"discovery-service": "discovery-server",
 	"financial-scraper-service": "financial-scraper",
-	"message-delivery-service": "message-manager",
 	"trader-training-service": "trader-trainer",
 };
 

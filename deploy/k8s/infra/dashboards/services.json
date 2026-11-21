@@ -10,11 +10,11 @@
       "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
       "targets": [
         {
-          "expr": "count(up{job=~\"api-gateway|audit-logger|discovery-server|dlq-service|financial-scraper.*|message-manager|model-evaluator|trader-trainer\"} == 1)",
+          "expr": "count(up{job=~\"api-gateway|audit-logger|discovery-server|financial-scraper.*|model-evaluator|trader-trainer\"} == 1)",
           "legendFormat": "Healthy"
         },
         {
-          "expr": "count(up{job=~\"api-gateway|audit-logger|discovery-server|dlq-service|financial-scraper.*|message-manager|model-evaluator|trader-trainer\"} == 0)",
+          "expr": "count(up{job=~\"api-gateway|audit-logger|discovery-server|financial-scraper.*|model-evaluator|trader-trainer\"} == 0)",
           "legendFormat": "Unhealthy"
         }
       ]
@@ -38,17 +38,6 @@
         {
           "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{path!~\"/ping|/health/ready|/metrics\"}[5m])) by (le, job))",
           "legendFormat": "{{job}}"
-        }
-      ]
-    },
-    {
-      "title": "DLQ Size (entries)",
-      "type": "timeseries",
-      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 12 },
-      "targets": [
-        {
-          "expr": "max(dlq_collection_size)",
-          "legendFormat": "entries"
         }
       ]
     },

@@ -5,7 +5,7 @@ import {
 } from "@trading-model/common/utils/errors";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 
-/** Error code factory for message-manager errors. */
+/** Error code factory for bus errors. */
 export const messageManagerError = makeErrorCode(
 	ErrorCode.MessageManager,
 	HTTP_STATUS.SERVICE_UNAVAILABLE

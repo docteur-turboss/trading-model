@@ -159,7 +159,7 @@ check_broken "an unbroken oplog chain: not broken" 0 mongodb-audit "$GO"
 mkdir -p "$BACKUP_DIR/mongodb/2026-11-01_020000" "$BACKUP_DIR/mongodb/2026-11-01_050000"
 : >"$BACKUP_DIR/mongodb/2026-11-01_020000/mongodb-audit.pitr.age"
 : >"$BACKUP_DIR/mongodb/2026-11-01_050000/mongodb.pitr.age"
-check_broken "an oplog break after the newest dump of that replica set: broken (another set's dump does not count)" 1 mongodb-audit "$GO"
+check_broken "an oplog break after the newest dump of that replica set: broken" 1 mongodb-audit "$GO"
 : >"$BACKUP_DIR/mongodb/2026-11-01_050000/mongodb-audit.pitr.age"
 check_broken "an oplog dump taken after the break: repaired" 0 mongodb-audit "$GO"
 
@@ -287,9 +287,9 @@ TIMESTAMP=2026-11-01_020000
 DUMP_EPOCH="$(stamp_epoch "$TIMESTAMP")"
 OUTPUTS=()
 MANIFEST_ENTRIES=()
-mkdir -p "$BACKUP_DIR/mongodb/$TIMESTAMP" "$BACKUP_DIR/mysql" "$BACKUP_DIR/mongodb/oplog/mongodb" "$BACKUP_DIR/mongodb/oplog/mongodb-audit"
+mkdir -p "$BACKUP_DIR/mongodb/$TIMESTAMP" "$BACKUP_DIR/mysql" "$BACKUP_DIR/mongodb/oplog/mongodb-audit"
 gz_of() { printf '%s\n' "$1" | gzip; }
-for label in mongodb mongodb-audit; do
+for label in mongodb-audit; do
 	write_dump "$label" "$BACKUP_DIR/mongodb/$TIMESTAMP/$label.archive.gz" gz_of "$label" 2>/dev/null
 	echo "oplog_ts=$((DUMP_EPOCH - 10)).1" >"$BACKUP_DIR/mongodb/$TIMESTAMP/$label.pitr"
 	gz_of oplog >"$BACKUP_DIR/mongodb/oplog/$label/$((DUMP_EPOCH - 3600)).1_$((DUMP_EPOCH + 7200)).1.bson.gz"
@@ -316,9 +316,9 @@ gz_of binlog >"$BACKUP_DIR/mysql/binlog/u-1/mysql-bin.000001_2026-11-01_033000.g
 : >"$KUBECTL_LOG"
 if PATH="$STUB:$PATH" BACKUP_DIR="$BACKUP_DIR" bash "$ROOT/scripts/restore-k8s.sh" --components mongodb,mysql \
 	--until "2026-11-01 03:00:00" >"$R/out" 2>&1 &&
-	[ "$(grep -c 'mongorestore --quiet --gzip --archive --drop --oplogReplay' "$KUBECTL_LOG")" -eq 2 ] &&
-	[ "$(grep -c 'Checksum verified' "$R/out")" -eq 3 ]; then
-	pass "once every chain reaches the instant, both stores are restored, each dump checksummed once"
+	[ "$(grep -c 'mongorestore --quiet --gzip --archive --drop --oplogReplay' "$KUBECTL_LOG")" -eq 1 ] &&
+	[ "$(grep -c 'Checksum verified' "$R/out")" -eq 2 ]; then
+	pass "once every chain reaches the instant, both stores (audit trail and MySQL) are restored, each dump checksummed once"
 else
 	failed "complete chains: $(tail -8 "$R/out")"
 fi

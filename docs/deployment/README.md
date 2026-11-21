@@ -14,7 +14,7 @@
 | [Deployment](DEPLOY.md)                | Local `docker compose up`, rollback procedures               |
 | [CI/CD Pipeline](../ci-cd/README.md)| GitHub Actions: lint, typecheck, test, Docker image build & publish on `vX.Y.Z` tag push     |
 | [Environment Variables](ENV.md)        | Exhaustive table of all variables across all services: type, default, required, description |
-| [Database](DATABASE.md)                | MySQL (financial-scraper), MongoDB (audit-logger, dlq-service), volumes, migration, reset     |
+| [Database](DATABASE.md)                | MySQL (financial-scraper), MongoDB (audit-logger), volumes, migration, reset     |
 | [Kubernetes](KUBERNETES.md)            | K8s manifests, Kustomize overlays (staging/production), HPA, mTLS, observability stack    |
 | [Local staging](STAGING_LOCAL.md)      | Environment `staging` on a local kind cluster: MinIO, self-hosted runner, overlay `staging-local` |
 | [Backup & Disaster Recovery](BACKUP_DR.md) | Automated backups (MongoDB, MySQL, SPIRE), restore, DR plan, verification CI |

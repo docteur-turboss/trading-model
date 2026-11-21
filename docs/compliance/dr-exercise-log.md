@@ -65,7 +65,7 @@ summary with the steps done.
 |---|---|---|---|
 | Detection and decision | | | |
 | Fetch from the off-site bucket | | | |
-| Restore MongoDB (audit, dlq) | | | |
+| Restore MongoDB (audit) | | | |
 | Restore MySQL (market data) | | | |
 | Restore SPIRE datastore and CA keys | | | |
 | Restore checkpoints | | | |
@@ -87,7 +87,7 @@ summary with the steps done.
 |---|---|
 | **Type** | Automated drill |
 | **Environment** | kind (`ci.yml`, job `k8s`, run 41643357917) and Docker (`backup-test.yml`, job `test-restore`, run 41643357972), GitHub-hosted runners |
-| **Scenario** | Both drills time every step. kind: audit and dlq databases, markers, `market_candles` and the SPIRE server volume destroyed, restored from the in-cluster S3 to an instant. Docker: containers and volumes deleted, restored |
+| **Scenario** | Both drills time every step. kind: audit database, markers, `market_candles` and the SPIRE server volume destroyed, restored from the in-cluster S3 to an instant. Docker: containers and volumes deleted, restored |
 | **Data restored from** | the backup run of the drill (kind: daily dump plus incremental archives, `--until` the recorded instant) |
 
 kind (seconds):

@@ -29,7 +29,6 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 		TOKEN_REFRESH_INTERVAL_MS: "60000",
 		TTL_REFRESH_INTERVAL_MS: "15000",
 		ADDRESS_MANAGER_URL: "https://address-manager.example.com",
-		MESSAGE_CALLBACK_PATH: "message",
 		SYMBOLS_TO_TRACK: [],
 		SCRAPE_INTERVAL: "*/1 * * * *",
 		SCRAPE_SCHEDULER_ENABLED: true,

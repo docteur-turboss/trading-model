@@ -85,8 +85,6 @@ describe("API Gateway E2E", () => {
 	it.each([
 		["/v1/discovery-server/register", "POST"],
 		["/v1/discovery-server/heartbeat", "POST"],
-		["/v1/message-manager/message", "POST"],
-		["/v1/message-manager/subscribe", "DELETE"],
 	])("does not lend its identity to %s (%s)", async (path, method) => {
 		// The gateway calls services with its own SVID: service-to-service
 		// routes stay out of reach of API clients.

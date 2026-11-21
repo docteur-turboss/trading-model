@@ -36,7 +36,7 @@ const LAG_EVERY_MS = 15_000;
 export interface BusConsumerOptions {
 	journal: RedisMessageJournal;
 	deadStreams: DeadStreams;
-	/** Consumer group: the subscriber service, shared with message-manager's workers. */
+	/** Consumer group: the subscriber service, one group per service. */
 	service: string;
 	/** Name of this replica in the group. */
 	consumer?: string;
@@ -54,7 +54,7 @@ export interface BusConsumerOptions {
 /**
  * In-process consumer of the journal (ADR-0073): one loop per topic,
  * `XREADGROUP` for new entries, `XPENDING` + `XCLAIM` for retries that are
- * due (same backoff and limits as message-manager), `XACK` on success.
+ * due (backoff and limits of ADR-0048), `XACK` on success.
  * Replicas of a service share the group: one of them gets each entry.
  */
 export class BusConsumer {

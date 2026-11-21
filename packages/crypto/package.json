@@ -7,13 +7,10 @@
   "exports": {
     "./node-crypto": "./dist/node-crypto.js",
     "./prng": "./dist/prng.js",
-    "./request-signer": "./dist/request-signer.js",
     "./token-service": "./dist/token-service.js"
   },
   "dependencies": {
-    "@trading-model/primitives": "*",
-    "@trading-model/contracts": "*",
-    "@trading-model/common": "*"
+    "@trading-model/primitives": "*"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

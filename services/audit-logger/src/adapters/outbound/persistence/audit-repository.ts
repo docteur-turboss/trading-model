@@ -58,7 +58,7 @@ const LEASE_YIELD_MS = 100;
 
 /** Events chained in one ordered insertMany. */
 const MAX_BATCH = 100;
-/** Queue cap: 10 batches bound memory when Mongo is slow; beyond it, 503 and message-manager retries. */
+/** Queue cap: 10 batches bound memory when Mongo is slow; beyond it, 503 and the bus retries. */
 const MAX_PENDING = 10 * MAX_BATCH;
 
 interface LeaseDocument {

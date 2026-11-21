@@ -83,21 +83,18 @@ run --component signing
 grep -q "MYSQL_ROOT_PASSWORD: b2xk" "$WORK/sealed.yaml" && ! grep -q "SIGNING_SECRET: b2xk" "$WORK/sealed.yaml" && pass "merge keeps other keys, replaces the rotated one" || failed "merge result: $(cat "$WORK/sealed.yaml")"
 ! grep -q SECRETVALUE <<<"$OUT" && pass "no value printed" || failed "value printed"
 
-run --component dlq
-[ "$(restarts)" = "dlq-service" ] && grep -q "DLQ_AUTH_HMAC_SECRET:" "$WORK/sealed.yaml" && pass "dlq restarts dlq-service" || failed "dlq: restarts=$(restarts)"
-
-SEED_TOKENS='ops:read:old1,team:read+dlq:write:keep2' run --component tokens
+SEED_TOKENS='ops:read:old1,team:read:keep2' run --component tokens
 tok=$(base64 -d <<<"$(sed -n 's/^    AUTH_TOKENS: //p' "$WORK/sealed.yaml")")
-[ "$(restarts)" = "api-gateway" ] && [ "$tok" = "team:read+dlq:write:keep2,ops:read+dlq:write:SECRETVALUE24" ] && pass "tokens: other key kept, ops replaced, api-gateway restarted" || failed "tokens: restarts=$(restarts) value=$tok"
+[ "$(restarts)" = "api-gateway" ] && [ "$tok" = "team:read:keep2,ops:read:SECRETVALUE24" ] && pass "tokens: other key kept, ops replaced, api-gateway restarted" || failed "tokens: restarts=$(restarts) value=$tok"
 vf=$(sed -n 's/.*written to \(.*\) (0600).*/\1/p' <<<"$OUT")
-[ -f "$vf" ] && grep -q '^ops:read+dlq:write:SECRETVALUE24$' "$vf" && pass "new API key delivered in a 0600 file" || failed "key file: '$vf'"
+[ -f "$vf" ] && grep -q '^ops:read:SECRETVALUE24$' "$vf" && pass "new API key delivered in a 0600 file" || failed "key file: '$vf'"
 rm -f "$vf"
 ! grep -rq SECRETVALUE "$WORK/state/calls" && pass "no value in kubectl/kubeseal argv" || failed "value in argv"
 
 run
-[ "$(restarts)" = "api-gateway discovery-server dlq-service" ] && pass "default rotates all" || failed "all: restarts=$(restarts)"
+[ "$(restarts)" = "api-gateway discovery-server" ] && pass "default rotates all" || failed "all: restarts=$(restarts)"
 
-STUB_DECRYPT=0 run --component dlq
+STUB_DECRYPT=0 run --component signing
 [ "$RC" = 1 ] && [ -z "$(restarts)" ] && pass "no restart when the controller did not decrypt" || failed "undecrypted: rc=$RC restarts=$(restarts)"
 
 run --component signing
@@ -106,19 +103,19 @@ printf 'spec:
   encryptedData:
     A: AgCHANGE_ME_RUN_KUBESEAL_Ag==
 ' >"$WORK/sealed.yaml"
-RC=0; OUT=$(SEALED_SECRETS_FILE="$WORK/sealed.yaml" bash "$SCRIPT" --component dlq 2>&1) || RC=$?
+RC=0; OUT=$(SEALED_SECRETS_FILE="$WORK/sealed.yaml" bash "$SCRIPT" --component signing 2>&1) || RC=$?
 [ "$RC" = 1 ] && grep -q SEALED_SECRETS_FILE <<<"$OUT" && [ -z "$(calls)" ] && pass "placeholder file refused before kubeseal/apply" || failed "placeholders: rc=$RC calls=$(calls)"
 
-STUB_KUBESEAL_FAIL=1 run --component dlq
+STUB_KUBESEAL_FAIL=1 run --component signing
 [ "$RC" = 1 ] && ! calls | grep -q "kubectl apply" && pass "kubeseal failure stops before apply" || failed "kubeseal failure: rc=$RC"
 
-run --component dlq
+run --component signing
 rm -f "$WORK/state/calls"; printf 'x' >"$WORK/state/live_MYSQL_MIGRATE_PASSWORD"
-RC=0; OUT=$(SEALED_SECRETS_FILE="$WORK/sealed.yaml" bash "$SCRIPT" --component dlq 2>&1) || RC=$?
+RC=0; OUT=$(SEALED_SECRETS_FILE="$WORK/sealed.yaml" bash "$SCRIPT" --component signing 2>&1) || RC=$?
 [ "$RC" = 1 ] && grep -q "MYSQL_MIGRATE_PASSWORD" <<<"$OUT" && ! calls | grep -q "kubectl apply" && pass "live key absent from file refused before apply" || failed "live key guard: rc=$RC"
 
-run --component dlq
-RC=0; OUT=$(SEALED_SECRETS_FILE="$WORK/missing.yaml" bash "$SCRIPT" --component dlq 2>&1) || RC=$?
+run --component signing
+RC=0; OUT=$(SEALED_SECRETS_FILE="$WORK/missing.yaml" bash "$SCRIPT" --component signing 2>&1) || RC=$?
 [ "$RC" = 1 ] && pass "missing sealed file refused" || failed "missing file: rc=$RC"
 
 exit "$FAILED"

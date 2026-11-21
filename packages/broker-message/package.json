@@ -17,6 +17,7 @@
     "./bus/publisher": "./dist/bus/publisher.js",
     "./bus/redis-journal": "./dist/bus/redis-journal.js",
     "./create-message-manager": "./dist/create-message-manager.js",
+    "./messages.controller": "./dist/messages.controller.js",
     "./shared/barrel/message.schema": "./dist/shared/barrel/message.schema.js",
     "./shared/errors": "./dist/shared/errors.js",
     "./shared/trace-context": "./dist/shared/trace-context.js"
@@ -25,7 +26,6 @@
     "@trading-model/primitives": "*",
     "@trading-model/contracts": "*",
     "@opentelemetry/api": "^1.10.0",
-    "@trading-model/address-manager": "*",
     "@trading-model/common": "*",
     "@trading-model/http": "*",
     "@trading-model/persistence": "*",

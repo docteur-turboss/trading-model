@@ -15,8 +15,6 @@ export const AddressManagerEnvSchema = z.object({
 	TTL_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
 	ADDRESS_MANAGER_URL: z.url(),
 
-	MESSAGE_CALLBACK_PATH: z.string().min(1).default("message"),
-
 	DNS_NAME_MAP: z
 		.string()
 		.default("{}")

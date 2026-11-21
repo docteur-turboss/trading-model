@@ -57,9 +57,7 @@ const API_MAJOR_VERSION = 1;
 const PROXIED_SERVICES = [
 	"audit-logger",
 	"discovery-server",
-	"dlq-service",
 	"financial-scraper",
-	"message-manager",
 	"model-evaluator",
 	"risk-execution",
 	"trader-trainer",
@@ -74,10 +72,7 @@ const SERVICE_TO_SERVICE = {
 		"POST /token/rotate",
 		"POST /unregister",
 	],
-	"audit-logger": ["POST /message"],
-	"model-evaluator": ["POST /message"],
 	"risk-execution": ["POST /intents", "POST /prices", "POST /orders/:clientOrderId/cancel", "GET /admin/status", "POST /admin/kill-switch", "POST /admin/kill-switch/rearm"],
-	"message-manager": ["POST /message", "POST /message/replay", "POST /subscribe", "DELETE /subscribe"],
 	// Model weights: never through the gateway (ADR-0022).
 	"trader-trainer": ["GET /models/:symbol/:version/weights"],
 };
@@ -93,12 +88,6 @@ const CALLERS = {
 	"discovery-server POST /heartbeat": { caller: "packages/address-manager", call: /_url\("\/heartbeat"\)/ },
 	"discovery-server POST /token/rotate": { caller: "packages/address-manager", call: /\/token\/rotate`/ },
 	"discovery-server POST /unregister": { caller: "packages/address-manager", call: /_url\("\/unregister"\)/ },
-	"message-manager POST /message": { caller: "packages/broker-message", call: /\}\/message`/ },
-	"message-manager POST /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
-	"message-manager DELETE /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
-	"message-manager POST /message/replay": { caller: "services/dlq-service", call: /"\/message\/replay"/ },
-	"audit-logger POST /message": { caller: "services/audit-logger", call: /\.intents\(/ },
-	"model-evaluator POST /message": { caller: "services/model-evaluator", call: /\.intents\(/ },
 	"trader-trainer GET /models/:symbol/:version/weights": { caller: "services/model-evaluator", call: /\/weights`/ },
 };
 
@@ -253,7 +242,7 @@ const SOURCE_PATHS = join(ROOT, "scripts/api-contract.tsconfig.json");
 	}
 	const probe = Bun.resolveSync(
 		"@trading-model/http/api-route/api-route",
-		join(ROOT, "services/dlq-service/src")
+		join(ROOT, "services/audit-logger/src")
 	);
 	if (!probe.replaceAll("\\", "/").includes("/packages/http/src/")) {
 		console.error(`@trading-model/* resolves to ${probe}, not to the sources: run through \`bun run api:check\``);
@@ -593,7 +582,7 @@ const SECURITY_SCHEMES = {
 			in: "header",
 			name: "x-signature",
 			description:
-				"Hex HMAC-SHA256(secret, '<x-service-name>:<x-timestamp>:<sha256 hex of the JSON body, or of {} without body>:<METHOD>:<service path>'), see examples/manage-dlq.sh",
+				"Hex HMAC-SHA256(secret, '<x-service-name>:<x-timestamp>:<sha256 hex of the JSON body, or of {} without body>:<METHOD>:<service path>')",
 		},
 	},
 	InstanceToken: {
@@ -655,8 +644,8 @@ function schemaOperation(lines, method, path, { tag, entry, operation: key }, ga
 	}
 	if (gateway) {
 		responses["401"] ??= { $ref: "#/components/responses/Unauthorized" };
-		// The API key lacks the scope of the route: read for GET, dlq:write otherwise (ADR-0059).
-		responses["403"] ??= { description: "API key without the scope of the route (read for GET, dlq:write otherwise)" };
+		// The API key lacks the scope of the route: read (ADR-0059).
+		responses["403"] ??= { description: "API key without the scope of the route (read)" };
 		responses["404"] ??= { $ref: "#/components/responses/NotFound" };
 	}
 	op.responses = responses;

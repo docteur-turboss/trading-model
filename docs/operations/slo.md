@@ -41,7 +41,7 @@ rate(http_request_duration_seconds_bucket{path!~"/ping|/health/ready|/metrics"}[
 - **Definition:** Proportion of delivery outcomes that succeed: a message accepted but not delivered (subscriber down, retries pending) no longer counts as success once it is dead-lettered.
 - **Measurement:** Prometheus `rate(mm_messages_delivered_total{status="success"}[5m]) /
 (rate(mm_messages_delivered_total{status="success"}[5m]) + rate(mm_messages_dlq_total[5m]))`.
-- **Source:** message-manager.
+- **Source:** the bus library of each subscriber service.
 
 ### 5. Training Completion Rate
 
@@ -62,11 +62,10 @@ rate(tt_training_sessions_total[12h])`.
 | ------------------- | -------- | ------ | ------ |
 | Availability        | ≥ 99.9%  | 30d    | fast: 5xx > 1.44% over 1h and 5m (14.4x); slow: > 0.6% over 6h and 30m (6x) |
 | Latency P95         | ≤ 2s     | 30d    | fast: P95 > 5s over 5m; slow: P95 > 3s over 1h (single window) |
-| Message Delivery    | ≥ 99.95% | 30d    | `MessageDeliveryLowSuccessRate`: < 99.5% over 5m (no slow burn) |
 | Training Completion | ≥ 99%    | 30d    | `TrainingCompletionRateLow` (warning): < 95% over 12h; `TrainingCompletionRateCritical` (critical, pages): < 50% over 12h (no slow burn) |
 | Data Freshness      | ≤ 15 min | 30d    | `MarketDataStale` / `TrainerMarketDataStale` |
 
-The Message Delivery and Training SLOs have no slow-burn alert: their
+The Training SLO has no slow-burn alert: its
 traffic is low and bursty, so a 1h ratio flaps on a handful of events. A
 dead-lettered message already raises `MessagesDeadLettered`, and the existing
 alert on each SLI catches sustained loss. Adding them needs a minimum-volume
@@ -145,7 +144,7 @@ The following alerts are configured in `deploy/k8s/infra/config/alerting.yml`:
 - `SLOAvailabilityFastBurn`, `SLOAvailabilitySlowBurn`: 99.9% SLO, multi-window multi-burn-rate (1h/5m at 14.4x, 6h/30m at 6x).
 - `SLOErrorBudgetLow`: less than 20% of the 30d budget left (recording rule `slo:sli_error:ratio_rate30d`).
 - `SLOLatencyFastBurn`, `SLOLatencySlowBurn`: P95 ≤ 2s SLO, 5m and 1h windows.
-- `MessageDeliveryLowSuccessRate`, `TrainingCompletionRateLow`: one alert per SLI.
+- `TrainingCompletionRateLow`: one alert per SLI.
 
 The burn-rate rules and the budget read the recording rules `slo:sli_error:ratio_rate{5m,30m,1h,6h,30d}`, which exclude `/ping`, `/health/ready` and `/metrics`.
 

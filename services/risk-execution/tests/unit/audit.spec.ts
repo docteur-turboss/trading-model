@@ -4,14 +4,10 @@ const POST = jest.fn<(...args: any[]) => Promise<void>>();
 const CREATE = jest.fn<(...args: any[]) => unknown>();
 
 jest.mock("@trading-model/broker-message/create-message-manager", () => ({
-	createMessageManager: (...args: any[]) => CREATE(...args),
+	createServiceMessageManager: (...args: any[]) => CREATE(...args),
 }));
-jest.mock("../../src/config/address-manager", () => ({ AddressManager: {} }));
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: { INSTANCE_ID: "risk-execution-1", SERVICE_NAME: "risk-execution" },
-}));
-jest.mock("@trading-model/common/config/tls-paths", () => ({
-	buildTlsFromEnv: () => ({}),
 }));
 
 import { publishRiskEvent } from "../../src/config/audit";
@@ -19,7 +15,7 @@ import { publishRiskEvent } from "../../src/config/audit";
 describe("publishRiskEvent", () => {
 	it("does not throw when the bus client cannot be built", () => {
 		CREATE.mockImplementationOnce(() => {
-			throw new Error("no SVID");
+			throw new Error("REDIS_URL or REDIS_SENTINELS is required by the bus");
 		});
 		expect(() => publishRiskEvent("order.transition", {})).not.toThrow();
 	});

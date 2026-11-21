@@ -114,7 +114,7 @@ describe("env", () => {
 		it("should refuse to start with a malformed API key, without logging its secret", () => {
 			process.env.AUTH_TOKENS = "ops:admin:top-secret-value";
 			const issues = refusal();
-			expect(issues).toContain("scopes must be among read, dlq:write");
+			expect(issues).toContain("scopes must be among read");
 			expect(issues).not.toContain("top-secret-value");
 		});
 

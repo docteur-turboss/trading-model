@@ -34,12 +34,6 @@ updates:
       interval: "weekly"
 
   - package-ecosystem: "docker"
-    directory: "/services/message-manager"
-    target-branch: "development"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
     directory: "/services/trader-trainer"
     target-branch: "development"
     schedule:
@@ -53,12 +47,6 @@ updates:
 
   - package-ecosystem: "docker"
     directory: "/services/audit-logger"
-    target-branch: "development"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/services/dlq-service"
     target-branch: "development"
     schedule:
       interval: "weekly"

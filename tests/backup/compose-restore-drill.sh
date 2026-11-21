@@ -16,7 +16,7 @@ export GRAFANA_PASSWORD="drill-grafana"
 export DLQ_AUTH_HMAC_SECRET="drill-dlq-hmac-0123456789abcdefghijkl"
 export MYSQL_EXPORTER_PASSWORD="drill-exporter"
 export MONGO_ROOT_PASSWORD="drill-mongo-root" MONGO_EXPORTER_PASSWORD="drill-mongo-exporter" MONGO_BACKUP_PASSWORD="drill-mongo-backup"
-export MONGO_AUDIT_PASSWORD="drill-mongo-audit" MONGO_DLQ_PASSWORD="drill-mongo-dlq"
+export MONGO_AUDIT_PASSWORD="drill-mongo-audit"
 SERVICES="mongo mysql redis spire-server"
 WORK="$(mktemp -d)"
 # Git Bash: a C:/... path is understood by bash and by the native age/docker.
@@ -67,7 +67,7 @@ log "starting ${SERVICES}"
 start
 
 log "seeding known data"
-for db in message-manager audit-logger dlq; do
+for db in audit-logger drill-extra; do
 	mongo_eval "db.getSiblingDB('${db}').restore_drill.insertMany([{_id: 1, db: '${db}'}, {_id: 2}, {_id: 3}])" >/dev/null
 done
 mysql_q "CREATE DATABASE restore_drill; CREATE TABLE restore_drill.markers (id INT PRIMARY KEY, label VARCHAR(32)); INSERT INTO restore_drill.markers VALUES (1, 'drill'), (2, 'drill'), (3, 'drill');"
@@ -99,7 +99,7 @@ log "disaster: containers and volumes deleted, recreated empty"
 drill_disaster
 $COMPOSE down -v >/dev/null
 drill_time recreate_empty_stack start
-[ "$(mongo_eval "db.getSiblingDB('dlq').restore_drill.countDocuments()")" = "0" ] || die "MongoDB was not wiped"
+[ "$(mongo_eval "db.getSiblingDB('audit-logger').restore_drill.countDocuments()")" = "0" ] || die "MongoDB was not wiped"
 [ "$(spire_bundle)" != "$bundle_before" ] || die "the recreated SPIRE server kept its CA"
 [ "$(audit_chain | json_field count)" = "0" ] || die "the audit trail survived the disaster"
 
@@ -109,7 +109,7 @@ BACKUP_DIR="$WORK/backups" BACKUP_AGE_IDENTITY="$WORK/identity" \
 
 log "checking the restored data"
 verify_started=$SECONDS
-for db in message-manager audit-logger dlq; do
+for db in audit-logger drill-extra; do
 	count="$(mongo_eval "db.getSiblingDB('${db}').restore_drill.countDocuments()")"
 	[ "$count" = "3" ] || die "MongoDB ${db}: ${count} documents instead of 3"
 done

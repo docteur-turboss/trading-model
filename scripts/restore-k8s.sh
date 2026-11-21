@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 #  Trading Model — Database Restore Script (Kubernetes)
-#  Usage:  bash scripts/restore-k8s.sh [--dry-run] [--components mongodb,mongodb-audit,mysql,mysql-core,checkpoints,spire]
+#  Usage:  bash scripts/restore-k8s.sh [--dry-run] [--components mongodb-audit,mysql,mysql-core,checkpoints,spire]
 #          [--timestamp 2025-01-01_120000 | --until 2025-01-01T13:45:00Z]
 #          [--no-retention]
 #          [--allow-mixed-runs] [--ns <db.coll|db.*>]... [--into-scratch]
@@ -61,7 +61,7 @@ set -euo pipefail
 BACKUP_DIR="${BACKUP_DIR:-/backups}"
 RESTORE_TIMESTAMP="${RESTORE_TIMESTAMP:-latest}"
 DRY_RUN=false
-COMPONENTS="mongodb,mysql,checkpoints,spire"
+COMPONENTS="mongodb-audit,mysql,checkpoints,spire"
 K8S_NAMESPACE="${K8S_NAMESPACE:-trading-model}"
 # Writes the SPIRE datastore and CA keys into the server volume while the
 # server is stopped (the spire-server image has neither a shell nor tar).
@@ -155,6 +155,7 @@ fail() { log "✗ $*"; RESTORE_FAILURES=$((RESTORE_FAILURES + 1)); }
 
 # shellcheck source=backup-lib.sh
 source "$(dirname "$0")/backup-lib.sh"
+COMPONENTS="$(normalize_components "$COMPONENTS")"
 
 # Field `$2` of PITR metadata file `$1` (decrypted).
 pitr_value() {
@@ -586,7 +587,6 @@ RUN_KEYS=()
 IFS=',' read -ra REQUESTED <<< "$COMPONENTS"
 for part in "${REQUESTED[@]}"; do
   case "$part" in
-    mongodb)       RUN_KEYS+=(mongodb mongodb-audit) ;;
     mongodb-audit|mysql|mysql-core|checkpoints|spire) RUN_KEYS+=("$part") ;;
   esac
 done
@@ -609,12 +609,6 @@ echo "════════════════════════�
 echo ""
 
 IFS=',' read -ra PARTS <<< "$COMPONENTS"
-# mongodb already restores the audit replica set: never restore it twice.
-if [[ " ${PARTS[*]} " == *" mongodb "* ]]; then
-  KEPT=()
-  for part in "${PARTS[@]}"; do [ "$part" = mongodb-audit ] || KEPT+=("$part"); done
-  PARTS=("${KEPT[@]}")
-fi
 # Logs `restore-timing component=<c> seconds=<n>` after each component really
 # restored (not in the checking pass): tests/backup/drill-timings.sh reads these
 # lines, and an operator sees what each component costs of the RTO.
@@ -623,14 +617,13 @@ run_components() {
   for part in "${PARTS[@]}"; do
     started=$SECONDS
     case "$part" in
-      mongodb)     restore_mongodb mongodb mongodb-audit ;;
       mongodb-audit) restore_mongodb mongodb-audit ;;
       mysql)       restore_mysql ;;
       mysql-core)  restore_mysql mysql-core ;;
       checkpoints) restore_checkpoints ;;
       spire)       restore_spire ;;
-      # Derived state only (discovery registrations and tokens, DLQ retry queue
-      # rebuilt from MongoDB): rebuilt by the services, never restored.
+      # Derived state only (discovery registrations and tokens): rebuilt by the
+      # services, never restored.
       redis)       warn "Redis is not backed up: its content is rebuilt by the services" ;;
       *)           fail "Unknown component: ${part}" ;;
     esac

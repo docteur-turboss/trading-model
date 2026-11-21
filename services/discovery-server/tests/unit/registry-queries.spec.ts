@@ -145,7 +145,7 @@ describe("discovery-server public API (DISCOVERY_API)", () => {
 			],
 			[
 				"an instance of another service",
-				"/services/dlq-service/i1",
+				"/services/api-gateway/i1",
 				"Instance not found",
 			],
 			["an unknown service", "/services/unknown-service/i1", "Unknown service"],

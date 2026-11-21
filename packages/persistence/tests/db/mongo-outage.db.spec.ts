@@ -86,7 +86,7 @@ describe("MongoConnectionManager — MongoDB unreachable", () => {
 		expect(manager.isConnected()).toBe(true);
 
 		partition.cut();
-		// dlq-service answers 503 STORAGE_UNAVAILABLE from this flag instead of
+		// audit-logger answers 503 STORAGE_UNAVAILABLE from this flag instead of
 		// holding each write for the server selection timeout.
 		await until(() => !manager.isConnected(), 5000);
 

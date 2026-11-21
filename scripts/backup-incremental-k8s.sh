@@ -3,7 +3,7 @@
 #  Trading Model — Incremental Backup (Kubernetes): MySQL binlogs and MongoDB
 #  oplogs for point-in-time recovery (ADR-0031). Run every hour by the
 #  db-backup-incremental CronJob: RPO 1 h.
-#  Usage:  bash scripts/backup-incremental-k8s.sh [--components mysql,mongodb,mongodb-audit]
+#  Usage:  bash scripts/backup-incremental-k8s.sh [--components mysql,mongodb-audit]
 #          BACKUP_DIR=/backups BACKUP_AGE_RECIPIENTS=age1... BACKUP_S3_BUCKET=s3://...
 #          INCREMENTAL_RETENTION_HOURS=72 (archives older than that are deleted:
 #          past 72 h only the daily dumps of backup-k8s.sh remain)
@@ -19,7 +19,7 @@ set -euo pipefail
 
 BACKUP_DIR="${BACKUP_DIR:-/backups}"
 TIMESTAMP="$(date -u +%Y-%m-%d_%H%M%S)"
-COMPONENTS="mysql,mongodb,mongodb-audit"
+COMPONENTS="mysql,mongodb-audit"
 INCREMENTAL_RETENTION_HOURS="${INCREMENTAL_RETENTION_HOURS:-72}"
 K8S_NAMESPACE="${K8S_NAMESPACE:-trading-model}"
 METRICS_FILE="${METRICS_FILE:-}"
@@ -169,7 +169,7 @@ report_pitr_gaps() {
         uuid_dir=$(find "${BACKUP_DIR}/mysql/binlog" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' 2>/dev/null |
           sort -n | tail -1 | cut -d' ' -f2-)
         store=mysql dir="$uuid_dir" component=mysql-binlog ;;
-      mongodb | mongodb-audit)
+      mongodb-audit)
         store="$part" dir="${BACKUP_DIR}/mongodb/oplog/${part}" component="${part}-oplog" ;;
       *) continue ;;
     esac
@@ -211,11 +211,11 @@ if ! init_encryption; then
   exit 1
 fi
 
-IFS=',' read -ra PARTS <<< "$COMPONENTS"
+IFS=',' read -ra PARTS <<< "$(normalize_components "$COMPONENTS")"
 for part in "${PARTS[@]}"; do
   case "$part" in
     mysql)                   archive_binlogs ;;
-    mongodb | mongodb-audit) archive_oplog "$part" ;;
+    mongodb-audit)           archive_oplog "$part" ;;
     *)                       fail "Unknown component: ${part}"; write_metric "$part" 0 ;;
   esac
 done

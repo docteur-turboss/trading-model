@@ -36,7 +36,7 @@ The monorepo has **12 shared packages** under the `@trading-model/*` scope. Buil
 | 9 | `@trading-model/http` | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry | primitives, contracts, common, http |
 | 10 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness | primitives, contracts, common, validation |
 | 11 | `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing | primitives, contracts, common, persistence, http, reliability, validation |
-| 12 | `@trading-model/broker-message` | Inter-service messaging SDK: message-manager client, event emitter, controller/routes | primitives, contracts, address-manager, common, http, validation |
+| 12 | `@trading-model/broker-message` | Inter-service messaging SDK: journal publisher and consumer, dead streams | primitives, contracts, common, http, validation, persistence |
 
 ## What Remains in `common`
 
@@ -64,7 +64,6 @@ The monorepo has **12 shared packages** under the `@trading-model/*` scope. Buil
 | `cache.ts` | `SyncCachePort<T>` — cache abstraction (get/set/delete/clear/has/invalidate with TTL) |
 | `sanitize.ts` | `sanitizeForLog()` — strips PEM blocks and secrets before logging |
 | `safe-stringify.ts` | Cycle-safe JSON stringification |
-| `deterministic-stringify.ts` | Deterministic JSON serialization for cryptographic signing (recursively sorts object keys) |
 | `anonymize-ip.ts` | IP anonymization for privacy-safe logging |
 | `comma-separated.ts` | Parse comma-separated env strings into arrays |
 | `timer-handle.ts` | Timer handle abstraction (clear-safe timers) |
@@ -139,11 +138,10 @@ Provides the platform's SPIFFE trust domain, ID scheme, canonical service identi
 
 ```ts
 import { sleep } from '@trading-model/common/utils/sleep';
-import { deterministicStringify } from '@trading-model/common/utils/deterministic-stringify';
 import { sanitizeForLog } from '@trading-model/common/utils/sanitize';
 ```
 
-`deterministicStringify` produces deterministic JSON for cryptographic signing (recursively sorts object keys; preserves array order; handles primitives, nulls, nested objects). `sanitizeForLog` strips PEM blocks and secrets before logging.
+`sanitizeForLog` strips PEM blocks and secrets before logging.
 
 ## Moved-Out Modules (Where They Are Now)
 

@@ -132,13 +132,6 @@ spec:
           env:
             - name: NODE_OPTIONS
               value: --max-old-space-size=192
-            - name: MONGO_USERNAME
-              value: audit-logger
-            - name: MONGO_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: trading-model-secrets
-                  key: MONGO_AUDIT_PASSWORD
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -149,6 +142,13 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: REDIS_INTERNAL_PASSWORD
+            - name: MONGO_USERNAME
+              value: audit-logger
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MONGO_AUDIT_PASSWORD
             - name: INSTANCE_ID
               valueFrom:
                 fieldRef:
@@ -161,6 +161,9 @@ spec:
               cpu: 500m
               memory: 256Mi
           volumeMounts:
+            - name: redis-tls
+              mountPath: /etc/redis-tls
+              readOnly: true
             - name: svid
               mountPath: /run/spire/svid
             - name: tmp
@@ -220,6 +223,12 @@ spec:
                   - -c
                   - sleep 10
       volumes:
+        - name: redis-tls
+          secret:
+            secretName: redis-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
         - name: spiffe-helper-config
           configMap:
             name: spiffe-helper-config

@@ -11,12 +11,10 @@ import {
 /** In-mesh hostnames of the services that answer /health/ready over mTLS. */
 const MESH_SERVICES = [
 	"discovery-server",
-	"message-manager",
 	"financial-scraper",
 	"trader-trainer",
 	"api-gateway",
 	"audit-logger",
-	"dlq-service",
 	"model-evaluator",
 	"risk-execution",
 ];

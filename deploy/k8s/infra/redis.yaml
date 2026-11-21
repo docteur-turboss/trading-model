@@ -171,16 +171,6 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: REDIS_DISCOVERY_PASSWORD
-            - name: REDIS_MESSAGE_MANAGER_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: trading-model-secrets
-                  key: REDIS_MESSAGE_MANAGER_PASSWORD
-            - name: REDIS_DLQ_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: trading-model-secrets
-                  key: REDIS_DLQ_PASSWORD
             # Bus users (redis-ha.sh bus_user, ADR-0073): absent key = user not created.
             - name: REDIS_AUDIT_LOGGER_PASSWORD
               valueFrom:
@@ -193,6 +183,12 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: REDIS_TRADER_TRAINER_PASSWORD
+                  optional: true
+            - name: REDIS_RISK_EXECUTION_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_RISK_EXECUTION_PASSWORD
                   optional: true
             - name: REDIS_MODEL_EVALUATOR_PASSWORD
               valueFrom:
@@ -600,10 +596,9 @@ spec:
                 operator: In
                 values:
                   - discovery-server
-                  - message-manager
-                  - dlq-service
                   - audit-logger
                   - trader-trainer
+                  - risk-execution
                   - model-evaluator
                   - redis
                   - redis-sentinel

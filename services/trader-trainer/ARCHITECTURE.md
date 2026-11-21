@@ -2,12 +2,12 @@
 
 ## Overview
 
-**Trader-Trainer** is a microservice that autonomously trains trading AI agents using a **Genetic Algorithm (GA) + Deep Q-Learning** approach. It receives real market data from the **Message Manager** service and prepares the best-performing agent from each training session as a versioned model export (ADR-0022). No executor service exists yet.
+**Trader-Trainer** is a microservice that autonomously trains trading AI agents using a **Genetic Algorithm (GA) + Deep Q-Learning** approach. It reads real market data from financial-scraper and prepares the best-performing agent from each training session as a versioned model export (ADR-0022). No executor service exists yet.
 
 ### Key Responsibilities
 
 1. **Agent Evolution**: Continuously improve agents through genetic algorithm and Q-learning
-2. **Data Integration**: Consume real market data from Message Manager service
+2. **Data Integration**: Read real market data from financial-scraper
 3. **Performance Evaluation**: Calculate fitness metrics (Sharpe, Sortino, Calmar, PnL)
 4. **Memory Optimization**: Dynamically allocate population size based on available physical memory
 5. **Agent Export**: Publish versioned model artifacts (`GET /v1/trader-trainer/models/:symbol/:version`) and the best-agent summary (`GET /v1/trader-trainer/best-agent`)
@@ -37,7 +37,7 @@ The GA loop stops when **any** of these conditions is met (checked in order):
 
 ### Service Dependencies
 
-**Financial Scraper**: candle window read over HTTP at each session (ADR-0044); the trainer subscribes to no bus topic (ADR-0078). **Message Manager** (`@trading-model/broker-message`): only used to publish models.
+**Financial Scraper**: candle window read over HTTP at each session (ADR-0044); the trainer subscribes to no bus topic (ADR-0078). **Bus library** (`@trading-model/broker-message`): only used to publish models.
 
 **Address Manager** (`@trading-model/address-manager`): Service discovery and health monitoring. Every instance registers with the address manager for dynamic endpoint resolution, health check pings, and TTL management.
 
@@ -82,7 +82,7 @@ The GA loop stops when **any** of these conditions is met (checked in order):
 │  └──────────────────────┘    └──────────────────────┘  │
 │                                                          │
 └─────────────────────────────────────────────────────────┘
-            ↓ Real market data from Message Manager
+            ↓ Real market data from financial-scraper
         ↓ Best agent + versioned model export (ADR-0022)
 ```
 
@@ -275,7 +275,7 @@ Genomes are evaluated sequentially on the training worker thread (CPU-bound, no 
 ### Input: Real Market Data
 
 ```
-Message Manager Service
+financial-scraper (HTTP, ADR-0044)
     ↓
 [Market events: price, volume, indicators]
     ↓

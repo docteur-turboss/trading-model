@@ -36,12 +36,10 @@ import { WORKSPACE_ROOTS, walk as walkFiles } from "./lib/fs.mjs";
 const ROOT = resolve(import.meta.dirname, "..");
 const SERVICES = [
   "discovery-server",
-  "message-manager",
   "financial-scraper",
   "trader-trainer",
   "api-gateway",
   "audit-logger",
-  "dlq-service",
   "model-evaluator",
   "risk-execution",
 ];
@@ -231,7 +229,7 @@ const INFRA_EXPORTER_JOBS = {
   node_: "node-exporter",
   mysql_: "mysql",
   redis_: "redis",
-  mongodb_: "mongo-dlq",
+  mongodb_: "mongo-audit",
 };
 const k8sPrometheus = k8sConfigFile("prometheus.yml") + k8sConfigFile("kubelet-scrape.yml");
 for (const [prefix, job] of Object.entries(INFRA_EXPORTER_JOBS)) {

@@ -11,10 +11,7 @@ import { MongoConnectionManager } from "@trading-model/persistence/mongo-connect
 import { mongoAuthFromEnv } from "@trading-model/persistence/mongo-utils";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import type { Db } from "mongodb";
-import {
-	createAuditRecorder,
-	createMessageHandler,
-} from "../adapters/inbound/subscription/audit-subscriber";
+import { createMessageHandler } from "../adapters/inbound/subscription/audit-subscriber";
 import { S3AnchorStore } from "../adapters/outbound/anchor/s3-anchor-store";
 import {
 	MongoAuditChainReader,
@@ -200,11 +197,10 @@ export async function createAuditLoggerApp() {
 	const server = await createServer(
 		lazyRepo,
 		mongoManager,
-		createMessageHandler(lazyRepo, ENV.AUDIT_RETENTION_DAYS),
 		() => repo !== null
 	);
 	const { brokerMessage } = await createBrokerMessage(
-		createAuditRecorder(lazyRepo, ENV.AUDIT_RETENTION_DAYS)
+		createMessageHandler(lazyRepo, ENV.AUDIT_RETENTION_DAYS)
 	);
 	return {
 		server,

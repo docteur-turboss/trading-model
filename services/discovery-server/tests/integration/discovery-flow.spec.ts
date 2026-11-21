@@ -175,7 +175,7 @@ describe("Discovery Service — Full Flow Integration", () => {
 		});
 
 		await registry.registerInstance({
-			serviceName: "message-manager" as ServiceId,
+			serviceName: "audit-logger" as ServiceId,
 			instanceId: "msg-1" as InstanceId,
 			host: "10.0.0.2" as IPAddress,
 			port: 8445 as Port,
@@ -202,8 +202,6 @@ describe("Discovery Service — Full Flow Integration", () => {
 				instanceId: "node-1" as InstanceId,
 			})
 		).toBe(false);
-		expect(registry.instanceStore.listServiceNames()).toEqual([
-			"message-manager",
-		]);
+		expect(registry.instanceStore.listServiceNames()).toEqual(["audit-logger"]);
 	});
 });

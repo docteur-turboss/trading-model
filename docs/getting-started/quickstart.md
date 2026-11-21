@@ -45,7 +45,7 @@ Edit `.env` and replace the example values of these variables with your own secr
 - `MYSQL_ROOT_PASSWORD` — MySQL root password
 - `GRAFANA_PASSWORD` — Grafana admin password (required, no default)
 - `MYSQL_EXPORTER_PASSWORD` — password of the read-only MySQL user of the metrics exporter (required, no default)
-- `MONGO_ROOT_PASSWORD`, `MONGO_EXPORTER_PASSWORD`, `MONGO_BACKUP_PASSWORD`, `MONGO_AUDIT_PASSWORD`, `MONGO_DLQ_PASSWORD` — MongoDB users, one per client (required, no default; ADR-0067). A Mongo volume created before authentication needs `docker compose down -v` (or the localhost exception, see the `mongo` service)
+- `MONGO_ROOT_PASSWORD`, `MONGO_EXPORTER_PASSWORD`, `MONGO_BACKUP_PASSWORD`, `MONGO_AUDIT_PASSWORD` — MongoDB users, one per client (required, no default; ADR-0067). A Mongo volume created before authentication needs `docker compose down -v` (or the localhost exception, see the `mongo` service)
 - `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated; you use one in Step 3
 - `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
 
@@ -60,9 +60,9 @@ The Compose stack runs with `NODE_ENV=production` by default: without these valu
 > generation or `./certs` bundle is required.
 
 ```bash
-# Start discovery-server + message-manager + databases
+# Start discovery-server + databases
 docker compose up -d redis mysql mongo
-docker compose up -d discovery-server message-manager
+docker compose up -d discovery-server
 
 # Verify they're healthy
 # Services only accept mTLS clients with a SPIRE identity: check the
@@ -97,13 +97,13 @@ curl -s http://localhost:8449/v1/trader-trainer/training-status \
   -H "x-api-key: $ADMIN_TOKEN"
 ```
 
-You should see `discovery-server` and `message-manager` listed.
+You should see `discovery-server` listed.
 
 ## Step 4: Let the Scraper Publish Market Data
 
 Messages are published by the services themselves: the gateway only exposes the
 public API (`docs/services/openapi/api-gateway.yaml`), not service-to-service
-routes such as message-manager `POST /message`. Start the scraper, which
+routes such as the discovery `POST /register`. Start the scraper, which
 publishes the market data it collects every `SCRAPE_INTERVAL` (one minute by
 default):
 

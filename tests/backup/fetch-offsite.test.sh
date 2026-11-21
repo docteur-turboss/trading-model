@@ -56,7 +56,7 @@ plain() {
 # way backup-k8s.sh does (write_dump, then write_manifest). `$3`: `nomanifest`
 # for a run whose manifest was not written.
 backup_run() {
-	local ts="$1" part label
+	local ts="$1" part
 	BACKUP_DIR="$WORK/local/$ts"
 	TIMESTAMP="$ts"
 	OUTPUTS=()
@@ -64,15 +64,9 @@ backup_run() {
 	IFS=',' read -ra parts <<<"$2"
 	for part in "${parts[@]}"; do
 		case "$part" in
-		mongodb)
+		mongodb-audit)
 			mkdir -p "$BACKUP_DIR/mongodb/$ts"
-			for label in mongodb mongodb-audit; do
-				write_dump "$label" "$BACKUP_DIR/mongodb/$ts/$label.archive.gz.age" plain "$label $ts"
-			done
-			;;
-		mongodb-only)
-			mkdir -p "$BACKUP_DIR/mongodb/$ts"
-			write_dump mongodb "$BACKUP_DIR/mongodb/$ts/mongodb.archive.gz.age" plain "mongodb $ts"
+			write_dump mongodb-audit "$BACKUP_DIR/mongodb/$ts/mongodb-audit.archive.gz.age" plain "mongodb-audit $ts"
 			;;
 		mysql)
 			mkdir -p "$BACKUP_DIR/mysql"
@@ -87,10 +81,8 @@ backup_run() {
 		pitr)
 			# PITR starting points (backup-k8s.sh, ADR-0031).
 			mkdir -p "$BACKUP_DIR/mongodb/$ts" "$BACKUP_DIR/mysql"
-			for label in mongodb mongodb-audit; do
-				echo "oplog_ts=1.1" | seal >"$BACKUP_DIR/mongodb/$ts/$label.pitr.age"
-				record_output "$BACKUP_DIR/mongodb/$ts/$label.pitr.age"
-			done
+			echo "oplog_ts=1.1" | seal >"$BACKUP_DIR/mongodb/$ts/mongodb-audit.pitr.age"
+			record_output "$BACKUP_DIR/mongodb/$ts/mongodb-audit.pitr.age"
 			echo "binlog_file=binlog.000002" | seal >"$BACKUP_DIR/mysql/financial_scraper_$ts.pitr.age"
 			record_output "$BACKUP_DIR/mysql/financial_scraper_$ts.pitr.age"
 			;;
@@ -121,19 +113,18 @@ GOOD=2026-10-31_020000
 BROKEN=2026-11-01_020000
 # Every dump, but no run manifest: restore-k8s.sh could not check it.
 NOMANIFEST=2026-11-02_020000
-backup_run "$OLD" mongodb,mysql,checkpoints,spire nomanifest
-backup_run "$GOOD" mongodb,mysql,checkpoints,spire,pitr
-backup_run "$BROKEN" mongodb-only,mysql,checkpoints,spire-tar
-backup_run "$NOMANIFEST" mongodb,mysql,checkpoints,spire nomanifest
+backup_run "$OLD" mongodb-audit,mysql,checkpoints,spire nomanifest
+backup_run "$GOOD" mongodb-audit,mysql,checkpoints,spire,pitr
+backup_run "$BROKEN" mysql,checkpoints,spire-tar
+backup_run "$NOMANIFEST" mongodb-audit,mysql,checkpoints,spire nomanifest
 # Binlog and oplog archives (backup-incremental-k8s.sh): one before GOOD
 # (never needed by it), two after.
 GOOD_EPOCH="$(stamp_epoch "$GOOD")"
 BACKUP_DIR="$WORK/local/archives"
 OUTPUTS=()
 ARCHIVES_BEFORE="mysql/binlog/uuid-1/binlog.000001_2026-10-30_230000.gz.age
-mongodb/oplog/mongodb/$((GOOD_EPOCH - 7200)).1_$((GOOD_EPOCH - 3600)).4.bson.gz.age"
+mongodb/oplog/mongodb-audit/$((GOOD_EPOCH - 7200)).1_$((GOOD_EPOCH - 3600)).4.bson.gz.age"
 ARCHIVES_AFTER="mongodb/oplog/mongodb-audit/$((GOOD_EPOCH - 60)).1_$((GOOD_EPOCH + 3600)).2.bson.gz.age
-mongodb/oplog/mongodb/$((GOOD_EPOCH - 3600)).4_$((GOOD_EPOCH + 3600)).1.bson.gz.age
 mysql/binlog/uuid-1/binlog.000002_${GOOD}.gz.age
 mysql/binlog/uuid-1/binlog.000003_2026-10-31_030000.gz.age"
 while read -r file; do
@@ -162,7 +153,6 @@ fi
 expected="checkpoints/checkpoints_${GOOD}.tar.gz.age
 manifests/manifest_${GOOD}.json.age
 mongodb/${GOOD}/mongodb-audit.archive.gz.age
-mongodb/${GOOD}/mongodb.archive.gz.age
 mysql/financial_scraper_${GOOD}.sql.gz.age
 spire/keys_${GOOD}.json.age"
 actual="$(cd "$DEST" 2>/dev/null && find . -type f | sed 's|^\./||' | sort)"
@@ -190,7 +180,7 @@ restore_lookup() {
 	)
 }
 layout=true
-for key in mongodb mongodb-audit mysql checkpoints spire; do
+for key in mongodb-audit mysql checkpoints spire; do
 	for ts in latest "$GOOD"; do
 		resolved="$(restore_lookup "$DEST" "$ts" "$key")" || resolved=""
 		case "$resolved" in
@@ -256,7 +246,6 @@ else
 fi
 expected="$(printf '%s\n' "checkpoints/checkpoints_${GOOD}.tar.gz.age" \
 	"mongodb/${GOOD}/mongodb-audit.archive.gz.age" "mongodb/${GOOD}/mongodb-audit.pitr.age" \
-	"mongodb/${GOOD}/mongodb.archive.gz.age" "mongodb/${GOOD}/mongodb.pitr.age" \
 	"manifests/manifest_${GOOD}.json.age" \
 	"mysql/financial_scraper_${GOOD}.pitr.age" "mysql/financial_scraper_${GOOD}.sql.gz.age" \
 	"spire/keys_${GOOD}.json.age"; echo "$ARCHIVES_AFTER")"
@@ -280,8 +269,8 @@ fi
 
 echo "--dry-run"
 if fetch --dest "$WORK/fetched-dry" --dry-run && [ ! -e "$WORK/fetched-dry" ] &&
-	[ "$(grep -c "Would fetch" "$WORK/out")" = 6 ] && grep -q "$GOOD" "$WORK/out"; then
-	pass "lists the 6 files of ${GOOD} (manifest included) and copies nothing"
+	[ "$(grep -c "Would fetch" "$WORK/out")" = 5 ] && grep -q "$GOOD" "$WORK/out"; then
+	pass "lists the 5 files of ${GOOD} (manifest included) and copies nothing"
 else
 	failed "--dry-run: $(cat "$WORK/out")"
 fi
@@ -289,14 +278,13 @@ fi
 echo "--tier (BACKUP_OFFSITE_LAYOUT=tiered)"
 TIERED=2026-11-02_030000
 TIERED_EPOCH="$(stamp_epoch "$TIERED")"
-BACKUP_S3_BUCKET=s3://backups/tiered BACKUP_OFFSITE_LAYOUT=tiered backup_run "$TIERED" mongodb,mysql,checkpoints,spire,pitr
+BACKUP_S3_BUCKET=s3://backups/tiered BACKUP_OFFSITE_LAYOUT=tiered backup_run "$TIERED" mongodb-audit,mysql,checkpoints,spire,pitr
 # The incremental job (backup-incremental-cronjob.yaml) uploads tiered too:
 # its archives go under daily/ only, next to the dumps and .pitr files.
 BACKUP_DIR="$WORK/local/tiered-archives"
 OUTPUTS=()
 TIERED_ARCHIVES="mysql/binlog/uuid-2/binlog.000010_${TIERED}.gz.age
-mongodb/oplog/mongodb-audit/$((TIERED_EPOCH - 60)).1_$((TIERED_EPOCH + 3600)).1.bson.gz.age
-mongodb/oplog/mongodb/$((TIERED_EPOCH - 60)).1_$((TIERED_EPOCH + 3600)).1.bson.gz.age"
+mongodb/oplog/mongodb-audit/$((TIERED_EPOCH - 60)).1_$((TIERED_EPOCH + 3600)).1.bson.gz.age"
 while read -r file; do
 	mkdir -p "$BACKUP_DIR/$(dirname "$file")"
 	echo "$file" | seal >"$BACKUP_DIR/$file"
@@ -312,7 +300,7 @@ else
 	failed "long tiers hold: $long_tiers"
 fi
 if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-tiered" &&
-	[ "$(find "$WORK/fetched-tiered" -type f | grep -c "$TIERED")" = 6 ] &&
+	[ "$(find "$WORK/fetched-tiered" -type f | grep -c "$TIERED")" = 5 ] &&
 	[ -f "$WORK/fetched-tiered/mysql/financial_scraper_${TIERED}.sql.gz.age" ]; then
 	pass "a tiered bucket is read from daily/ by default, in the layout restore-k8s.sh reads"
 else
@@ -320,7 +308,7 @@ else
 fi
 if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-tiered-pitr" --pitr &&
 	[ "$(cd "$WORK/fetched-tiered-pitr" && find . -type f -path './*/binlog/*' -o -type f -path './*/oplog/*' | sed 's|^\./||' | sort)" = "$(sort <<<"$TIERED_ARCHIVES")" ] &&
-	[ "$(find "$WORK/fetched-tiered-pitr" -type f -name '*.pitr.age' | wc -l | tr -d ' ')" = 3 ]; then
+	[ "$(find "$WORK/fetched-tiered-pitr" -type f -name '*.pitr.age' | wc -l | tr -d ' ')" = 2 ]; then
 	pass "--pitr on a tiered bucket fetches the run, its starting points and the archives, all from daily/"
 else
 	failed "--pitr on a tiered bucket: $(cd "$WORK/fetched-tiered-pitr" 2>/dev/null && find . -type f | sort) $(cat "$WORK/out")"
@@ -346,12 +334,6 @@ if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-weekly-long"
 	pass "--tier weekly --components mongodb-audit,mysql-core fetches both long-term dumps"
 else
 	failed "--tier weekly --components mongodb-audit,mysql-core: $(cat "$WORK/out")"
-fi
-if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-monthly-mongodb" --tier monthly --components mongodb; then
-	failed "the monthly tier gave the operational MongoDB, which is never promoted"
-else
-	grep -q "mongodb.archive.gz.age" "$WORK/out" && pass "exit 1 for --components mongodb on the monthly tier (the operational dump is never promoted)" ||
-		failed "monthly mongodb refusal: $(cat "$WORK/out")"
 fi
 if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-monthly-all" --tier monthly; then
 	failed "the monthly tier gave a complete run for every component"
@@ -394,15 +376,6 @@ if PATH="$STUB:$PATH" BACKUP_DIR="$AUDIT_DIR" BACKUP_AGE_IDENTITY="$WORK/key.txt
 	pass "--components mongodb-audit restores the monthly audit dump alone (checksum verified, exit 0)"
 else
 	failed "restore of the monthly audit dump: $(tail -8 "$WORK/out")"
-fi
-: >"$KUBECTL_LOG"
-if PATH="$STUB:$PATH" BACKUP_DIR="$AUDIT_DIR" BACKUP_AGE_IDENTITY="$WORK/key.txt" \
-	bash "$ROOT/scripts/restore-k8s.sh" --timestamp "$TIERED" --components mongodb >"$WORK/out" 2>&1; then
-	failed "--components mongodb succeeded without the operational dump"
-elif ! grep -q mongorestore "$KUBECTL_LOG"; then
-	pass "--components mongodb on the audit-only run is refused before any write (operational dump missing)"
-else
-	failed "--components mongodb restored something: $(grep mongorestore "$KUBECTL_LOG" | head -1)"
 fi
 unset KUBECTL_LOG
 echo "off-site catch-up of the incremental archives"
@@ -491,7 +464,7 @@ echo "verify-backup-key.sh --offsite (issue #327)"
 # The key the runs were sealed for decrypts the newest complete run; another
 # key does not. The run is fetched into a temporary directory, removed after.
 if bash "$ROOT/scripts/verify-backup-key.sh" --identity "$WORK/key.txt" --offsite >"$WORK/out" 2>&1 &&
-	grep -q "Run: ${GOOD}" "$WORK/out" && grep -q "Result: PASS (5 component(s) decrypted)" "$WORK/out"; then
+	grep -q "Run: ${GOOD}" "$WORK/out" && grep -q "Result: PASS (4 component(s) decrypted)" "$WORK/out"; then
 	pass "the backup key decrypts every component of ${GOOD}, fetched from the bucket"
 else
 	failed "verify-backup-key.sh --offsite: $(cat "$WORK/out")"

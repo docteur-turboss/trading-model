@@ -403,7 +403,6 @@ NAME               IMAGE                                                   STATU
 trading-mongo      mongo:7                                                 Up (healthy)
 trading-mysql      mysql:8                                                 Up (healthy)
 trading-discovery  ghcr.io/trading-model/discovery-server:latest           Up (healthy)
-trading-message    ghcr.io/trading-model/message-manager:latest            Up (healthy)
 trading-scraper    ghcr.io/trading-model/financial-scraper:latest          Up (healthy)
 trading-trainer    ghcr.io/trading-model/trader-trainer:latest             Up (healthy)
 trading-gateway    ghcr.io/trading-model/api-gateway:latest                Up (healthy)

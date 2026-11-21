@@ -21,7 +21,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /**
  * Workspaces whose specs still carry type errors, with the count at the time
  * of exclusion. Remove an entry once its specs pass; never add one
- * (dlq-service and trader-trainer must never be listed).
+ * (trader-trainer must never be listed).
  */
 const EXCLUDED = new Map([
 ]);

@@ -18,8 +18,8 @@ This policy defines the Business Continuity (BC) and Disaster Recovery (DR) fram
 | Tier | Definition | Services | Maximum Tolerable Downtime (MTD) |
 |---|---|---|---|
 | **T1 — Critical** | Core platform function; loss immediately impacts compliance or security | spire-server, discovery-server | 15 minutes |
-| **T2 — High** | Core business function; loss significantly impacts platform capability | message-manager, audit-logger, trader-trainer | 1 hour |
-| **T3 — Medium** | Supporting function; loss impacts operations but not compliance | financial-scraper, dlq-service, api-gateway | 4 hours |
+| **T2 — High** | Core business function; loss significantly impacts platform capability | audit-logger, trader-trainer | 1 hour |
+| **T3 — Medium** | Supporting function; loss impacts operations but not compliance | financial-scraper, api-gateway | 4 hours |
 | **T4 — Low** | Non-critical; loss has minimal operational impact | monitoring stack | 24 hours |
 
 ### 2.2 Recovery Objectives
@@ -34,7 +34,7 @@ This policy defines the Business Continuity (BC) and Disaster Recovery (DR) fram
 **Two RTOs, two meanings.** The service-tier RTO above is the time to get the
 *service* running again when its data store is intact (restart, reschedule,
 failover to a replica, SVID re-issue): T1 spire-server and discovery-server
-15 minutes, T2 audit-logger, message-manager and trader-trainer 1 hour. The
+15 minutes, T2 audit-logger and trader-trainer 1 hour. The
 **data-store RTO** of [BACKUP_DR.md](../deployment/BACKUP_DR.md) (4 hours;
 1 hour for trained agents and the SealedSecrets controller keys) is the time to
 rebuild the *data* from backups after the store is lost: new volume or cluster,
@@ -45,7 +45,7 @@ example spire-server (T1) is restarted in 15 minutes from its volume, but
 needs up to 4 hours when its datastore and CA keys must be restored.
 
 **Data RPO, as committed (ADR-0031):** the databases are recovered to within
-**1 hour** of an incident: MongoDB `mongo-audit` and `mongo-dlq`, MySQL
+**1 hour** of an incident: MongoDB `mongo-audit`, MySQL
 `financial_scraper` (hourly binlog / oplog archives,
 point-in-time restore over the last 72 hours, daily backups for 30 days before
 that). The SPIRE datastore and CA keys (SQLite on the server volume, ADR-0065)
@@ -81,7 +81,7 @@ met for its data, which is recovered to within 1 hour.
 1. **Detection:** Prometheus alert — MongoDB replica set state change
 2. **Response:** Automatic failover to secondary replica (MongoDB replica set, ≤ 5s)
 3. **Recovery:** Failed node re-joins as secondary after repair
-4. **Backup:** Daily `mongodump --oplog` of each replica set (dlq, audit), plus the oplog archived every hour: `restore-k8s.sh --until <instant>` restores to any point of the last 72 h (RPO 1 h, ADR-0031).
+4. **Backup:** Daily `mongodump --oplog` of each replica set (audit), plus the oplog archived every hour: `restore-k8s.sh --until <instant>` restores to any point of the last 72 h (RPO 1 h, ADR-0031).
 5. **Verification:** Replica set status: `rs.status().ok === 1`
 
 #### 3.2.3 SPIRE Server Outage
@@ -112,11 +112,11 @@ met for its data, which is recovered to within 1 hour.
 | Data | Type | Frequency | Retention | Location |
 |---|---|---|---|---|
 | SPIRE datastore + CA keys (SQLite + `keys-sqlite.json`, ADR-0065) | Online SQLite snapshot + file copy, one tar | Daily (CronJob) | 30 days local, 31 days off-site (never promoted) | `backup-data` volume + S3-compatible store (mandatory) |
-| MongoDB (dlq, audit) | `mongodump --oplog` | Daily | 30 days local, 31 days off-site; audit dump also off-site weekly 12 weeks, monthly 60 months (ADR-0032) | `backup-data` volume + S3-compatible store (mandatory) |
+| MongoDB (audit) | `mongodump --oplog` | Daily | 30 days local, 31 days off-site; audit dump also off-site weekly 12 weeks, monthly 60 months (ADR-0032) | `backup-data` volume + S3-compatible store (mandatory) |
 | MySQL (market data) | Dump | Daily | 30 days local, 31 days off-site; also off-site weekly 12 weeks, monthly 60 months (ADR-0032) | `backup-data` volume + S3-compatible store (mandatory) |
 | MySQL binlogs (market data) | Closed binlogs (`backup-incremental-k8s.sh`) | Hourly (CronJob `db-backup-incremental`) | 72 h local, bucket lifecycle off-site (3 days), never promoted | `backup-data` volume + S3-compatible store (mandatory) |
-| MongoDB oplog (dlq, audit) | Oplog entries since the previous archive | Hourly (CronJob `db-backup-incremental`) | 72 h local, bucket lifecycle off-site (3 days), never promoted | `backup-data` volume + S3-compatible store (mandatory) |
-| Redis (message journal, discovery registrations, DLQ retry queue) | Not backed up | — | — | Registrations and DLQ queue rebuilt by the services; the journal is not rebuildable, see the RPO in [BACKUP_DR.md](../deployment/BACKUP_DR.md) |
+| MongoDB oplog (audit) | Oplog entries since the previous archive | Hourly (CronJob `db-backup-incremental`) | 72 h local, bucket lifecycle off-site (3 days), never promoted | `backup-data` volume + S3-compatible store (mandatory) |
+| Redis (message journal and dead streams, discovery registrations) | Not backed up | — | — | Registrations rebuilt by the services; the journal is not rebuildable, see the RPO in [BACKUP_DR.md](../deployment/BACKUP_DR.md) |
 
 Every dump is age-encrypted before it is written; the off-site copy only sends encrypted files.
 | K8s manifests | Git | Every commit | Full history | GitHub |
@@ -124,7 +124,7 @@ Every dump is age-encrypted before it is written; the off-site copy only sends e
 
 ### 4.2 Backup Verification
 
-- Restore drill on every CI run (`k8s` job, `tests/k8s/run-kind.sh`): the daily CronJob backs up, the drill writes markers, audit events and a dead letter after the dump, stops the writers, records the instant, runs the hourly archive CronJob, drops data (the real `audit` and `dlq` databases, markers, `market_candles`, the SPIRE server volume), then restores as after the loss of the cluster: `fetch-offsite.sh --pitr` fetches the newest complete run and the binlog / oplog archives from the off-site bucket into a pod that never mounts the `backup-data` volume, and `restore-k8s.sh --until <instant>` restores MongoDB (dlq + audit), MySQL and the SPIRE CA; it passes only if every audit event of the instant (those written after the dump included) comes back with the same hashes and a verified hash chain, nothing written after the instant comes back, the data and the trust bundle come back and mTLS still works
+- Restore drill on every CI run (`k8s` job, `tests/k8s/run-kind.sh`): the daily CronJob backs up, the drill writes markers, audit events and a dead letter after the dump, stops the writers, records the instant, runs the hourly archive CronJob, drops data (the real `audit` database, markers, `market_candles`, the SPIRE server volume), then restores as after the loss of the cluster: `fetch-offsite.sh --pitr` fetches the newest complete run and the binlog / oplog archives from the off-site bucket into a pod that never mounts the `backup-data` volume, and `restore-k8s.sh --until <instant>` restores MongoDB (audit), MySQL and the SPIRE CA; it passes only if every audit event of the instant (those written after the dump included) comes back with the same hashes and a verified hash chain, nothing written after the instant comes back, the data and the trust bundle come back and mTLS still works
 - Weekly restore drill of the Docker scripts (`backup-test.yml`, `tests/backup/compose-restore-drill.sh`): containers and volumes deleted, then restored
 - Both drills time every step and compare the recovery with a budget (`RESTORE_DRILL_BUDGET_SECONDS`): table in the job summary, `restore-drill-timings.json` as an artifact; see the [DR Exercise Log](dr-exercise-log.md)
 - Off-site fetch tests (`backup-test.yml`, `tests/backup/fetch-offsite.test.sh`): newest complete run chosen from an S3 store, files still encrypted, refusal on an incomplete or absent run and on an empty or unreachable bucket
@@ -187,7 +187,7 @@ automated restore drills time each step and compare the recovery with a budget
 | `docs/operations/runbooks/runbook-service-down.md` | Single service recovery procedure |
 | `docs/operations/runbooks/runbook-certificate-expiry.md` | SVID / certificate expiry runbook |
 | `docs/operations/runbooks/runbook-data-corruption.md` | Data corruption recovery |
-| `docs/operations/runbooks/runbook-message-bus-outage.md` | Redis/message-manager recovery |
+| `docs/operations/runbooks/runbook-message-bus-outage.md` | Redis bus journal recovery |
 | `docs/operations/runbooks/runbook-deployment-failure.md` | Deployment failure recovery |
 | `docs/deployment/BACKUP_DR.md` | Technical backup and DR configuration |
 | [DR Exercise Log](dr-exercise-log.md) | Record of DR exercises and restore drill timings |

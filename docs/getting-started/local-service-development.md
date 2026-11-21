@@ -1,10 +1,10 @@
 # Local service development
 
-How to change one service and see it run. Supported method: **rebuild that service's container in the Compose stack**. Running a service outside a container (`bun run dev`) is **not supported**, for any service (`discovery-server`, `message-manager`, `financial-scraper`, `trader-trainer`, `api-gateway`, `audit-logger`, `dlq-service`, `model-evaluator`): they all share the same `dev` script and the same TLS requirement.
+How to change one service and see it run. Supported method: **rebuild that service's container in the Compose stack**. Running a service outside a container (`bun run dev`) is **not supported**, for any service (`discovery-server`, `financial-scraper`, `trader-trainer`, `api-gateway`, `audit-logger`, `model-evaluator`): they all share the same `dev` script and the same TLS requirement.
 
 ## Why `bun run dev` does not work alone
 
-Checked by running `bun run dev` in `services/message-manager` without Compose:
+Checked by running `bun run dev` in `services/audit-logger` without Compose:
 
 1. Env validation fails first: `TLS_KEY_PATH`, `TLS_CERT_PATH`, `TLS_CA_PATH`, `APP_NAME`, `SERVICE_NAME`, `INSTANCE_ID` and `ADDRESS_MANAGER_URL` are `Invalid input: expected string, received undefined`. These variables are set by `docker-compose.yml`, not by any file read by `bun run dev`.
 2. With them set to the Compose values (`/run/spire/svid/svid_key.pem`, `svid.pem`, `bundle.pem`), startup stops with `Failed to read TLS CA certificate from "/run/spire/svid/bundle.pem": ENOENT` (`packages/http/src/http-tls-loader.ts`).
@@ -38,11 +38,9 @@ Dependencies started by step 1 besides SPIRE (`spire-server`, `spire-bootstrap`,
 | --- | --- |
 | `discovery-server` | `redis` |
 | `api-gateway` | `redis`, `discovery-server` |
-| `message-manager` | `redis`, `discovery-server` |
-| `trader-trainer` | `redis`, `discovery-server`, `message-manager` |
-| `financial-scraper` | `redis`, `mysql`, `migrate` (one-shot), `discovery-server`, `message-manager` |
+| `trader-trainer` | `redis`, `discovery-server` |
+| `financial-scraper` | `redis`, `mysql`, `migrate` (one-shot), `discovery-server` |
 | `audit-logger` | `redis`, `mongo`, `discovery-server` |
-| `dlq-service` | `redis`, `mongo`, `discovery-server` |
 
 Use `--no-deps` only after step 1 has run once; with it Compose does not start missing dependencies.
 

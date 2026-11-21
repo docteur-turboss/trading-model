@@ -9,7 +9,7 @@ import {
 import { MS_PER_DAY } from "../../../domain/audit-chain";
 import type { AuditEventDocument } from "./audit-repository";
 
-/** A message as message-manager delivers it: only the topic is guaranteed. */
+/** A message as the bus delivers it: only the topic is guaranteed. */
 export interface DeliveredEnvelope {
 	metadata: {
 		topic: string;

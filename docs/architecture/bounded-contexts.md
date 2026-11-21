@@ -14,10 +14,8 @@ graph TD
         TS["trading-agent (RL + NN)"]
     end
     subgraph "Messaging Context"
-        MM["message-manager"]
-        DLQ["dlq-service"]
-        MT["message transport"]
-        SUB["subscriptions (Redis)"]
+        BUS["bus library (Redis Streams)"]
+        DS2["dead streams + dlq-cli"]
     end
     subgraph "Security Context"
         SP["spire-server / spiffe-helper"]
@@ -32,12 +30,10 @@ graph TD
         GW["api-gateway"]
     end
 
-    TT -->|"AgentPayload (published)"| MM
-    MM -->|"events"| AL
-    AL -.->|"subscribe (audit, training, dlq topics)"| MM
-    MM -->|"dead letters"| DLQ
-    DLQ -->|"replay"| MM
-    DLQ -->|"dlq.* events"| MM
+    TT -->|"AgentPayload (published)"| BUS
+    BUS -->|"events"| AL
+    AL -.->|"subscribe (audit, training, dlq topics)"| BUS
+    BUS -->|"dead letters"| AL
     DS --> GW
     GW --> DS
 ```
@@ -63,11 +59,11 @@ graph TD
 
 ### 3. Messaging Context
 
-- **Owner:** `message-manager` + `dlq-service` (dead letters and replay are part of delivery, not observability)
-- **Core entities:** Message, Subscription, DeliveryAttempt, DeadLetterEntry
-- **Responsibilities:** Topic routing, delivery guarantees, retry (message-manager); dead-letter storage and replay back to message-manager (dlq-service). The broker keeps accepted messages in its Redis Streams journal until delivery (ADR-0048)
-- **Internal interfaces:** `MessageDeliveryPort`, `SubscriptionStorePort`
-- **Publishes (dlq-service):** `dlq.entry.added`, `dlq.replay.completed`, `dlq.entries.deleted`
+- **Owner:** `@trading-model/broker-message`, a library every service links (ADR-0073); the operator CLI `dlq-cli` lives in audit-logger
+- **Core entities:** Message, ConsumerGroup, DeliveryAttempt, DeadLetterEntry
+- **Responsibilities:** Publish (`XADD`), in-process consumption per consumer group, retry with backoff, dead-letter storage in dead streams, replay by the operator CLI. Accepted messages stay in the Redis Streams journal until delivered (ADR-0048, ADR-0073)
+- **Internal interfaces:** `MessageJournalPort`
+- **Publishes (library and `dlq-cli`):** `dlq.entry.added`, `dlq.replay.completed`, `dlq.entries.deleted`
 
 ### 4. Security Context
 
@@ -114,7 +110,7 @@ The historical single `EnumEventMessage` enum (mixing market data, certificate, 
 
 1. `AuditEvent` — `@trading-model/contracts/audit-events`
 2. `TrainingEvent` — `@trading-model/contracts/training-events`
-3. `DlqEvent` — `@trading-model/contracts/dlq-events`: dlq-service publishes `dlq.entry.added`, `dlq.replay.completed` and `dlq.entries.deleted` so the audit trail records what happens to undelivered messages
-5. Certificate/security events were **removed** with the CA decommission (ADR-0011)
+3. `DlqEvent` — `@trading-model/contracts/dlq-events`: the bus library and `dlq-cli` publish `dlq.entry.added`, `dlq.replay.completed` and `dlq.entries.deleted` so the audit trail records what happens to undelivered messages
+4. Certificate/security events were **removed** with the CA decommission (ADR-0011)
 
 Per-context Zod schemas live in `@trading-model/broker-message/messages/schemas` (metadata, message payload, market events, audit events).

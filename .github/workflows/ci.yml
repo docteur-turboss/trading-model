@@ -116,13 +116,11 @@ jobs:
         run: bun run build
       - name: Type-check services
         run: |
-          bun run --filter message-manager build
           bun run --filter discovery-server build
           bun run --filter financial-scraper build
           bun run --filter trader-trainer build
           bun run --filter api-gateway build
           bun run --filter audit-logger build
-          bun run --filter dlq-service build
           bun run --filter model-evaluator build
           bun run --filter risk-execution build
       - name: Type-check the test files of every workspace
@@ -273,9 +271,6 @@ jobs:
       MONGO_EXPORTER_PASSWORD: ci-mongo-exporter
       MONGO_BACKUP_PASSWORD: ci-mongo-backup
       MONGO_AUDIT_PASSWORD: ci-mongo-audit
-      MONGO_DLQ_PASSWORD: ci-mongo-dlq
-      DLQ_AUTH_HMAC_SECRET: test-hmac-secret-for-e2e-0123456789
-      DLQ_ALLOWED_SERVICES: message-manager,admin,e2e-test-runner
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -314,8 +309,8 @@ jobs:
         run: >-
           docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml
           up -d --wait --wait-timeout 600
-          discovery-server message-manager financial-scraper trader-trainer
-          api-gateway audit-logger dlq-service model-evaluator risk-execution edge-proxy
+          discovery-server financial-scraper trader-trainer
+          api-gateway audit-logger model-evaluator risk-execution edge-proxy
       # Issue #844: no container of the started stack may publish on every interface.
       - name: "No port published on 0.0.0.0 or ::"
         run: |
@@ -359,7 +354,7 @@ jobs:
           name: zap-baseline-report
           path: zap-out/zap-report.html
           if-no-files-found: warn
-      # Last: restarts message-manager and discovery to check the mesh heals.
+      # Last: restarts the scraper and discovery to check the mesh heals.
       - name: Resilience (service restarts)
         run: bun run test:e2e -- resilience
       - name: Dump service logs
@@ -486,7 +481,7 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # A failing git diff must run the drill, never skip it.
             changed=$(git diff --name-only HEAD^1 HEAD) || changed='?'
-            if ! printf '%s\n' "$changed" | grep -qE '^(\?|scripts/[^/]*(backup|restore|sealed-secrets|fetch-offsite|retention|migrat)|deploy/(backup|mongo|spire|compose/spire|k8s/jobs|k8s/spire|k8s/scripts|migrate)/|deploy/k8s/infra/(mongo|mysql)|services/(audit-logger|dlq-service)/|tests/(backup|k8s)/|\.github/workflows/(ci|backup-test))'; then
+            if ! printf '%s\n' "$changed" | grep -qE '^(\?|scripts/[^/]*(backup|restore|sealed-secrets|fetch-offsite|retention|migrat)|deploy/(backup|mongo|spire|compose/spire|k8s/jobs|k8s/spire|k8s/scripts|migrate)/|deploy/k8s/infra/(mongo|mysql)|services/audit-logger/|tests/(backup|k8s)/|\.github/workflows/(ci|backup-test))'; then
               echo "skip=true" >> "$GITHUB_OUTPUT"
             fi
           fi

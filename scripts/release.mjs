@@ -73,8 +73,6 @@ const SCOPE_TO_PACKAGE = {
   'api-gateway': 'services/api-gateway',
   'audit-logger': 'services/audit-logger',
   'model-evaluator': 'services/model-evaluator',
-  'dlq-service': 'services/dlq-service',
-  'message-manager': 'services/message-manager',
   discovery: 'services/discovery-server',
   'discovery-server': 'services/discovery-server',
   'financial-scraper': 'services/financial-scraper',

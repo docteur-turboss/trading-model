@@ -35,10 +35,12 @@ CLUSTER="${KIND_CLUSTER:-trading-model-ci}"
 NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
 CERT_MANAGER="v1.21.3" # same as deploy/staging-local/bootstrap.sh
-API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
-SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator risk-execution"
+API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read:<secret> injected by ci-render.mjs
+SERVICES="discovery-server financial-scraper trader-trainer api-gateway audit-logger model-evaluator risk-execution"
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
+# Services only release N-1 runs (retired by #1241): built for N-1 only; drop once N-1 is the release after.
+RETIRED="message-manager dlq-service"
 PREVIOUS_REF="${KIND_PREVIOUS_REF:-HEAD^1}"
 # Release N-1 checkout, image digests, recorded revisions: kept between the
 # steps of the CI job, removed by `delete`.
@@ -51,7 +53,7 @@ export MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-kind-ci}"
 export GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-kind-ci}"
 export MYSQL_EXPORTER_PASSWORD="${MYSQL_EXPORTER_PASSWORD:-kind-ci}"
 export DLQ_AUTH_HMAC_SECRET="${DLQ_AUTH_HMAC_SECRET:-kind-ci-dlq-hmac-0123456789abcdefghij}"
-# compose interpolates these (ADR-0067) even for `build`
+# compose interpolates these (ADR-0067) even for `build` (N-1 still has MONGO_DLQ_PASSWORD)
 for v in MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD; do
 	export "$v=${!v:-kind-ci}"
 done
@@ -106,11 +108,13 @@ retry() {
 
 # Builds the 10 images of the checkout `$1` as ghcr.io/trading-model/<image>:$2.
 build_images() {
-	local root="$1" tag="$2" svc
+	local root="$1" tag="$2" svc services="$SERVICES${3:+ $3}"
 	# N-1 may predate a service: its image is a stand-in built from this checkout.
 	local have="" missing=""
-	for svc in $SERVICES; do
-		if docker compose -f "$root/docker-compose.yml" config --services | grep -qx "$svc"; then have="$have $svc"; else missing="$missing $svc"; fi
+	# list first: `| grep -q` exits early and SIGPIPEs compose under pipefail
+	local listed; listed=$(docker compose -f "$root/docker-compose.yml" config --services)
+	for svc in $services; do
+		if grep -qx "$svc" <<<"$listed"; then have="$have $svc"; else missing="$missing $svc"; fi
 	done
 	# shellcheck disable=SC2086
 	retry 3 docker compose -f "$root/docker-compose.yml" build $have spire-bootstrap
@@ -122,7 +126,7 @@ build_images() {
 	[ -f "$root/deploy/migrate/Dockerfile" ] || mroot="$ROOT"
 	retry 3 docker build -q -t "ghcr.io/trading-model/db-migrate:$tag" -f "$mroot/deploy/migrate/Dockerfile" "$mroot"
 	docker tag "${COMPOSE_PROJECT_NAME}-spire-bootstrap" "ghcr.io/trading-model/spire-tools:$tag"
-	for svc in $SERVICES; do
+	for svc in $services; do
 		docker tag "${COMPOSE_PROJECT_NAME}-${svc}" "ghcr.io/trading-model/${svc}:$tag"
 	done
 }
@@ -135,6 +139,7 @@ previous_checkout() {
 	mkdir -p "$WORK"
 	git -C "$ROOT" worktree add --detach "$PREVIOUS" "$PREVIOUS_REF" >/dev/null
 	local file
+	grep -q "^  message-manager:" "$PREVIOUS/docker-compose.yml" || RETIRED=""
 	for file in "$PREVIOUS"/deploy/k8s/config/*.properties; do
 		printf '\nKIND_RELEASE_MARKER=previous\n' >>"$file"
 	done
@@ -148,7 +153,7 @@ previous_checkout() {
 # only: a reference by digest is added, so pods pinned by digest find them.
 node_digests() {
 	local node="${CLUSTER}-control-plane" img ref digest
-	for img in $IMAGES; do
+	for img in $IMAGES${2:+ $2}; do
 		ref="ghcr.io/trading-model/$img"
 		digest="$(docker exec "$node" ctr -n k8s.io images ls "name==$ref:$1" | awk 'NR == 2 {print $3}')"
 		[ -n "$digest" ] || {
@@ -164,16 +169,16 @@ images() {
 	local started=$SECONDS img
 	previous_checkout
 	log "building the images of release N-1"
-	build_images "$PREVIOUS" previous
+	build_images "$PREVIOUS" previous "$RETIRED"
 	# Same sources build the same image: a label keeps N-1 digests apart from N.
-	for img in $IMAGES; do
+	for img in $IMAGES $RETIRED; do
 		echo "FROM ghcr.io/trading-model/$img:previous" |
 			docker build -q --label trading-model.kind-release=previous -t "ghcr.io/trading-model/$img:previous" - >/dev/null
 	done
 	log "  release N-1 images built in $((SECONDS - started)) s"
 	log "building the images of release N (this checkout)"
 	build_images "$ROOT" latest
-	local images=""
+	local images="" ; for img in $RETIRED; do images="$images ghcr.io/trading-model/$img:previous"; done
 	for img in $IMAGES; do images="$images ghcr.io/trading-model/$img:latest ghcr.io/trading-model/$img:previous"; done
 	# One archive for every cluster job (ci.yml `k8s-images`): built once, loaded by `load`.
 	log "saving the images to $IMAGE_ARCHIVE"
@@ -190,7 +195,7 @@ load() {
 	# Also into the docker daemon: the drills run `docker run` on backup-tools:latest.
 	docker load -i "$IMAGE_ARCHIVE" >/dev/null
 	"$KIND" load image-archive --name "$CLUSTER" "$IMAGE_ARCHIVE"
-	node_digests previous >"$WORK/digests-previous"
+	node_digests previous "$RETIRED" >"$WORK/digests-previous"
 	node_digests latest >"$WORK/digests-current"
 }
 
@@ -359,7 +364,7 @@ deploy() {
 	log "waiting for MySQL, then applying the migrations of release N-1"
 	# 600 s/300 s: run 42498902230, cold deploy of N-1 took 4 m 25 s in all, slowest Deployment
 	# (collector) ~65 s, api-gateway ~77 s; DaemonSets ready within 3 s. Verify rollouts (3 replicas,
-	# rolling restart): message-manager 89 s, discovery-server 35 s. Margins kept for slower runners.
+	# rolling restart): discovery-server 35 s. Margins kept for slower runners.
 	$K -n "$NS" rollout status statefulset/mysql --timeout=600s
 	migrations "$PREVIOUS"
 
@@ -903,7 +908,7 @@ mongo_ping() {
 verify_mongo_ingress() {
 	local host component
 	log "MongoDB 27017: refused to an unlisted pod, allowed to the init Job label"
-	for host in mongo-audit-0.mongo-audit-headless:mongodb-audit-init mongo-dlq-0.mongo-dlq-headless:mongodb-init; do
+	for host in mongo-audit-0.mongo-audit-headless:mongodb-audit-init; do
 		component="${host#*:}"
 		host="${host%%:*}"
 		retry 3 mongo_ping mongo-probe-allowed "app.kubernetes.io/component=$component" "$host" >/dev/null || {
@@ -941,7 +946,7 @@ tcp_probe() {
 verify_db_ingress() {
 	local target host label
 	log "MySQL 3306, Redis 6379 and api-gateway 3000: refused to an unlisted pod, allowed to a listed component (issue #813)"
-	for target in mysql-primary:3306:financial-scraper redis-sentinel-0.redis-sentinel-headless:26379:message-manager api-gateway:3000:edge-proxy; do
+	for target in mysql-primary:3306:financial-scraper redis-sentinel-0.redis-sentinel-headless:26379:audit-logger api-gateway:3000:edge-proxy; do
 		label="${target##*:}"
 		host="${target%:*}"
 		retry 3 tcp_probe db-probe-allowed "app.kubernetes.io/component=$label" "$host" >/dev/null || {
@@ -988,15 +993,14 @@ verify_redis_tls() {
 }
 
 # Bus library (ADR-0073, issue #1835): model-evaluator reads its topic in process
-# (consumer model-evaluator-<uuid>, message-manager's are message-manager-<uuid>)
-# with its own ACL user, and the audit-dlq CLI reaches the dead streams.
-# The group is shared with message-manager's workers: wait until the trainer's
-# publications have given at least one entry to the BusConsumer, handled without error.
+# (consumer model-evaluator-<uuid>) with its own ACL user, and the audit-dlq CLI
+# reaches the dead streams. Wait until the trainer's publications have given at
+# least one entry to the BusConsumer, handled without error.
 verify_bus() {
 	local key=trading-model:message-manager:journal:training.model.published
 	local metrics="$K -n $NS exec deploy/model-evaluator -c model-evaluator -- curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/metrics"
 	log "bus: BusConsumer of model-evaluator, audit-dlq in audit-logger"
-	wait_for 120 "$K -n $NS exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=\$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli --user message-manager XINFO CONSUMERS $key model-evaluator' | grep -q '^model-evaluator-'"
+	wait_for 120 "$K -n $NS exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=\$REDIS_MODEL_EVALUATOR_PASSWORD redis-cli --user model-evaluator XINFO CONSUMERS $key model-evaluator' | grep -q '^model-evaluator-'"
 	wait_for 600 "$metrics | grep '^mm_messages_delivered_total{' | grep 'topic=\"training.model.published\"' | grep 'status=\"success\"' | awk '\$2 > 0' | grep -q ."
 	log "  $($metrics | grep '^mm_messages_delivered_total{.*training.model.published')"
 	$K -n "$NS" exec deploy/audit-logger -c audit-logger -- node services/audit-logger/dist/application/dlq-cli.js kind list training.model.published
@@ -1031,17 +1035,16 @@ verify_mysql_tls() {
 	log "  TLS session verified, plain and certificate-less connections refused"
 }
 
-# Production runs message-manager and discovery with 3 replicas (staging: 1).
-# Subscriptions and instance tokens live in Redis. A rolling restart of both
-# must leave every pod scraped and ready.
+# Production runs discovery with 3 replicas (staging: 1). Instance tokens live in
+# Redis. A rolling restart must leave every pod scraped and ready.
 verify_replicas() {
-	local deployments="deployment/message-manager deployment/discovery-server"
-	log "3 replicas of message-manager and discovery, then a rolling restart of both"
+	local deployments="deployment/discovery-server"
+	log "3 replicas of discovery, then a rolling restart"
 	# shellcheck disable=SC2086
 	$K -n "$NS" scale $deployments --replicas=3
 	for d in $deployments; do $K -n "$NS" rollout status "$d" --timeout=300s; done
 	local job
-	for job in message-manager discovery-server; do
+	for job in discovery-server; do
 		wait_for 120 '[ "$(prometheus_up_count '"$job"')" -eq 3 ]' || {
 			log "Prometheus does not scrape the 3 pods of $job (up=$(prometheus_up_count "$job"))"
 			return 1
@@ -1052,7 +1055,7 @@ verify_replicas() {
 	# shellcheck disable=SC2086
 	$K -n "$NS" rollout restart $deployments
 	for d in $deployments; do $K -n "$NS" rollout status "$d" --timeout=300s; done
-	log "  rolling restart of both done"
+	log "  rolling restart done"
 
 	# shellcheck disable=SC2086
 	$K -n "$NS" scale $deployments --replicas=1
@@ -1137,9 +1140,9 @@ verify_alerts() {
 # fresh market data, no critical alert. One pass (no observation window).
 verify_release() {
 	log "release gate (deploy-k8s.sh verify-release)"
-	# The upgrade restarts message-manager: its deliberate 503 "no subscriber" refusals can
-	# fire SLOAvailabilityFastBurn for a few minutes (5 m window, low kind traffic). Wait for
-	# it to clear (max 8 min) so the gate judges the settled stack; a persistent alert still fails it.
+	# The upgrade can fire SLOAvailabilityFastBurn for a few minutes (5 m window, low kind
+	# traffic). Wait for it to clear (max 8 min) so the gate judges the settled stack; a
+	# persistent alert still fails it.
 	local waited=0
 	while [[ -n "$(deploy_script firing-critical 2>/dev/null)" ]] && (( waited < 480 )); do
 		sleep 30
@@ -1189,29 +1192,16 @@ audit_chain() {
 	mongo_eval mongodb-audit "const AUDIT_DB = 'audit'; $(cat "$ROOT/tests/backup/audit-chain.js")"
 }
 
-# Stores a dead letter in the dlq-service MongoDB (nothing posts them over HTTP
-# since ADR-0073; the entry stays readable there) and prints its id. A second,
-# throwaway entry is deleted through the API so dlq.entries.deleted grows the chain.
-seed_dead_letter() {
-	local ts keep drop
-	ts="$(date +%s%N)"
-	local doc="topic: 'restore-drill', message: {drill: 'restore'}, service: 'message-manager', reason: 'restore drill', deliveryAttempt: 3, retryCount: 0, dlqPassCount: 1, createdAt: new Date()"
-	keep="$(mongo_eval mongodb "print(db.getSiblingDB('dlq').dlq_entries.insertOne({messageId: 'restore-drill-$ts', contentHash: 'k$ts', $doc}).insertedId.toHexString())" | tail -1)"
-	drop="$(mongo_eval mongodb "print(db.getSiblingDB('dlq').dlq_entries.insertOne({messageId: 'restore-drill-d$ts', contentHash: 'd$ts', $doc}).insertedId.toHexString())" | tail -1)"
-	# From api-gateway, the only caller the dlq-service ACL admits (#1591); the
-	# HMAC secret goes in on stdin, never on the command line.
-	{
-		printf 'process.env.DLQ_AUTH_HMAC_SECRET = Buffer.from("%s", "base64").toString();\n' \
-			"$($K -n "$NS" get secret trading-model-secrets -o jsonpath='{.data.DLQ_AUTH_HMAC_SECRET}')"
-		cat "$ROOT/tests/k8s/dlq-seed.cjs"
-	} | $K -n "$NS" exec -i deployment/api-gateway -c api-gateway -- node - "$drop" >&2 || return 1
-	echo "$keep"
+# Publishes a dlq.entries.deleted audit event (dlq-cli delete of an unknown id still
+# publishes it; exit 1 is expected).
+seed_audit_event() {
+	$K -n "$NS" exec deployment/audit-logger -c audit-logger -- \
+		node services/audit-logger/dist/application/dlq-cli.js drill delete restore-drill none >/dev/null 2>&1 || true
 }
 
 # Waits up to 300 s for field `$1` (count or last) of the audit chain to exceed
 # `$2`. Market data is no longer chained (#992): the chain only grows on audit,
-# training and DLQ events, so a dead letter is seeded (and one deleted) every
-# 30 s until it does; dlq-service publishes without waiting, one can be lost.
+# training and DLQ events, so one is published every 30 s until it does.
 audit_grows() {
 	local waited=0
 	until [ "$(audit_chain | json_field "$1")" -gt "$2" ] 2>/dev/null; do
@@ -1219,7 +1209,7 @@ audit_grows() {
 			log "the audit chain did not grow in 300 s ($1 still not above $2)"
 			return 1
 		fi
-		[ $((waited % 30)) -ne 0 ] || seed_dead_letter >/dev/null || true
+		[ $((waited % 30)) -ne 0 ] || seed_audit_event
 		sleep 5
 		waited=$((waited + 5))
 	done
@@ -1228,11 +1218,6 @@ audit_grows() {
 # Field `$1` of the JSON object read on stdin.
 json_field() {
 	node -e 'const v = JSON.parse(require("fs").readFileSync(0, "utf8"))[process.argv[1]]; console.log(v === null ? "null" : v)' "$1"
-}
-
-# Ids of the real dead letters (dlq-service), one per line.
-dlq_ids() {
-	mongo_eval mongodb "db.getSiblingDB('dlq').dlq_entries.find({}, {_id: 1}).sort({_id: 1}).forEach((d) => print(d._id.toHexString ? d._id.toHexString() : String(d._id)))"
 }
 
 # Metric `$1` of the audit-logger pods (one value per pod).
@@ -1248,17 +1233,17 @@ audit_metric() {
 # (BACKUP_DR.md): a write between the dump restore and the binlog / oplog
 # replay would make the replay fail. The SPIRE server (SQLite on its own
 # volume, ADR-0065) is stopped and restarted by restore-k8s.sh itself.
-MONGO_WRITERS="audit-logger dlq-service"
+MONGO_WRITERS="audit-logger"
 MYSQL_WRITERS="financial-scraper financial-scraper-collector"
 
 # Restore drill: seeds known data, records the real audit trail (hash chain
-# written by audit-logger from the live flow) and dead letters, runs the
+# written by audit-logger from the live flow), runs the
 # db-backup CronJob once (age key generated here, off-site copy to an
 # in-cluster S3). Then point-in-time recovery (ADR-0031): more markers, audit
-# events and a dead letter written after the dump, the writers stopped, the
+# events written after the dump, the writers stopped, the
 # instant recorded, one marker written after it, and the
-# db-backup-incremental CronJob run once. Destroys the data (the audit and
-# dlq databases, drill markers, the market_candles table, the SPIRE server
+# db-backup-incremental CronJob run once. Destroys the data (the audit
+# database, drill markers, the market_candles table, the SPIRE server
 # volume) and restores everything as after the loss of the cluster: the run
 # and its binlog / oplog archives are fetched from the off-site bucket
 # (scripts/fetch-offsite.sh --pitr) into a pod that never mounts backup-data,
@@ -1270,7 +1255,7 @@ verify_backup() {
 	drill_begin kind
 	log "restore drill: seeding known data"
 	local label
-	for label in mongodb mongodb-audit; do
+	for label in mongodb-audit; do
 		mongo_eval "$label" "db.getSiblingDB('restore_drill').markers.insertMany([{_id: 1}, {_id: 2}, {_id: 3}])" >/dev/null
 		# Its password changes after the instant (issue #1050): the restore must keep the current one.
 		mongo_eval "$label" "const a = db.getSiblingDB('admin'); try { a.dropUser('drill') } catch (e) {} a.createUser({user: 'drill', pwd: 'drill-old', roles: []})" >/dev/null
@@ -1281,29 +1266,16 @@ verify_backup() {
 	local bundle_before
 	bundle_before="$(spire_bundle)"
 
-	log "restore drill: recording the real audit trail and dead letters"
+	log "restore drill: recording the real audit trail"
 	audit_grows count 0
-	local audit_before audit_last dlq_before
+	local audit_before audit_last
 	audit_before="$(audit_chain)"
 	[ "$(echo "$audit_before" | json_field broken)" = "null" ] || {
 		log "the audit chain is broken before any backup: $audit_before"
 		return 1
 	}
 	audit_last="$(echo "$audit_before" | json_field last)"
-	# A real dead letter, stored the way message-manager stores them: the flow
-	# rarely produces one by itself.
-	local dlq_seeded
-	dlq_seeded="$(seed_dead_letter)" || {
-		log "could not seed a dead letter (or delete the throwaway one through dlq-service)"
-		return 1
-	}
-	wait_for 60 'dlq_ids | grep -qx "'"$dlq_seeded"'"' || {
-		log "dead letter $dlq_seeded is not in MongoDB"
-		return 1
-	}
-	dlq_before="$(dlq_ids)"
-	log "  audit chain verified: $(echo "$audit_before" | json_field count) events up to sequence $audit_last;" \
-		"$(echo -n "$dlq_before" | grep -c . || true) dead letter(s)"
+	log "  audit chain verified: $(echo "$audit_before" | json_field count) events up to sequence $audit_last"
 
 	log "encrypted backup (db-backup CronJob, age, off-site copy)"
 	$K -n "$NS" apply -f "$ROOT/tests/k8s/backup-s3.yaml"
@@ -1352,22 +1324,13 @@ verify_backup() {
 	}
 	log "  every file is age-encrypted, $offsite copied off-site, run manifest written"
 
-	log "point-in-time: writes after the daily dump (markers, audit events, a dead letter)"
+	log "point-in-time: writes after the daily dump (markers, audit events)"
 	local audit_dumped
 	audit_dumped="$(audit_chain | json_field last)"
-	for label in mongodb mongodb-audit; do
+	for label in mongodb-audit; do
 		mongo_eval "$label" "db.getSiblingDB('restore_drill').markers.insertOne({_id: 4})" >/dev/null
 	done
 	mysql_root "INSERT INTO restore_drill.markers VALUES (4);"
-	local dlq_late
-	dlq_late="$(seed_dead_letter)" || {
-		log "could not seed a dead letter (or delete the throwaway one through dlq-service)"
-		return 1
-	}
-	wait_for 60 'dlq_ids | grep -qx "'"$dlq_late"'"' || {
-		log "dead letter $dlq_late is not in MongoDB"
-		return 1
-	}
 	# Audit events written by audit-logger after the dump.
 	audit_grows last "$audit_dumped"
 
@@ -1390,24 +1353,22 @@ verify_backup() {
 	done
 
 	# The state to get back: everything written up to the instant.
-	local audit_pitr dlq_pitr until
+	local audit_pitr until
 	audit_pitr="$(audit_chain)"
 	[ "$(echo "$audit_pitr" | json_field broken)" = "null" ] || {
 		log "the audit chain is broken before the incremental backup: $audit_pitr"
 		return 1
 	}
-	dlq_pitr="$(dlq_ids)"
 	sleep 2
 	until="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 	sleep 2
 	# After the instant: archived, but must not come back.
-	for label in mongodb mongodb-audit; do
+	for label in mongodb-audit; do
 		mongo_eval "$label" "db.getSiblingDB('restore_drill').markers.insertOne({_id: 5})" >/dev/null
 		mongo_eval "$label" "db.getSiblingDB('admin').updateUser('drill', {pwd: 'drill-new'})" >/dev/null
 	done
 	mysql_root "INSERT INTO restore_drill.markers VALUES (5);"
-	log "  instant $until: audit chain up to sequence $(echo "$audit_pitr" | json_field last) (dump: $audit_dumped)," \
-		"$(echo -n "$dlq_pitr" | grep -c . || true) dead letter(s)"
+	log "  instant $until: audit chain up to sequence $(echo "$audit_pitr" | json_field last) (dump: $audit_dumped)"
 
 	log "point-in-time: binlog and oplog archives (db-backup-incremental CronJob)"
 	$K -n "$NS" delete job backup-incremental-ci --ignore-not-found
@@ -1441,12 +1402,9 @@ verify_backup() {
 
 	drill_disaster
 	step_started=$SECONDS
-	log "restore drill: disaster (audit + dlq databases, markers, market_candles dropped, SPIRE volume deleted)"
-	for label in mongodb mongodb-audit; do
-		mongo_eval "$label" "db.getSiblingDB('restore_drill').dropDatabase()" >/dev/null
-	done
+	log "restore drill: disaster (audit database, markers, market_candles dropped, SPIRE volume deleted)"
+	mongo_eval mongodb-audit "db.getSiblingDB('restore_drill').dropDatabase()" >/dev/null
 	mongo_eval mongodb-audit "db.getSiblingDB('audit').dropDatabase()" >/dev/null
-	mongo_eval mongodb "db.getSiblingDB('dlq').dropDatabase()" >/dev/null
 	[ "$(audit_chain | json_field count)" = "0" ] || {
 		log "the audit database survived its drop: the drill tests nothing"
 		return 1
@@ -1578,16 +1536,6 @@ verify_backup() {
 			return 1
 		}
 	done
-	local missing
-	missing="$(comm -23 <(echo -n "$dlq_pitr" | sort) <(dlq_ids | sort))"
-	[ -z "$missing" ] || {
-		log "dead letters not restored: $missing"
-		return 1
-	}
-	echo "$dlq_pitr" | grep -qx "$dlq_late" || {
-		log "the dead letter written after the dump was not recorded"
-		return 1
-	}
 	log "  audit trail restored up to the instant: $(echo "$audit_restored" | json_field count) events" \
 		"(sequence $audit_dumped at the dump, $(echo "$audit_restored" | json_field last) restored), same hashes, chain verified"
 
@@ -1650,7 +1598,7 @@ verify_backup() {
 		return 1
 	}
 	log "  audit-logger verified the restored chain up to $(audit_metric audit_chain_verified_sequence | sort -n | tail -1)"
-	log "  MongoDB (dlq + audit), MySQL and the SPIRE CA restored"
+	log "  MongoDB (audit), MySQL and the SPIRE CA restored"
 	log "  workloads still get trusted SVIDs: Prometheus scrapes every target over mTLS"
 	wait_for 300 prometheus_targets_down
 	drill_record verify_services $((SECONDS - step_started))
@@ -1688,7 +1636,7 @@ dump() {
 	echo "===== mysql-0 (mysql)"
 	$K -n "$NS" logs mysql-0 -c mysql --tail=60 2>&1 | cut -c1-300 || true
 	# The databases of pods that look healthy: a restarted member may not serve.
-	for pod in mongo-audit-0 mongo-dlq-0; do
+	for pod in mongo-audit-0; do
 		echo "===== $pod"
 		$K -n "$NS" logs "$pod" -c mongodb --tail=40 2>&1 | cut -c1-300 || true
 		$K -n "$NS" exec "$pod" -c mongodb -- mongosh --quiet --eval 'JSON.stringify(rs.status())' 2>&1 | cut -c1-600 || true
@@ -1702,17 +1650,10 @@ dump() {
 	$K -n "$NS" logs deploy/spire-server -c spire-entries --tail=40 2>&1 || true
 	$K -n trading-model-node logs daemonset/spire-agent --tail=40 || true
 	# The market data path and the audit trail, even when their pods look healthy (verify checks them).
-	for workload in binance-stub financial-scraper-collector financial-scraper message-manager audit-logger discovery-server api-gateway; do
+	for workload in binance-stub financial-scraper-collector financial-scraper audit-logger discovery-server api-gateway; do
 		echo "===== deployment/$workload"
 		$K -n "$NS" logs "deployment/$workload" --all-containers --tail=80 2>&1 | grep -v 'x509 context' || true
 	done
-	echo "===== message-manager drops and trainer subscription renewals (every pod)"
-	$K -n "$NS" get pods -l app.kubernetes.io/component=message-manager \
-		-o custom-columns=NAME:.metadata.name,STARTED:.status.startTime,READY:.status.conditions[?\(@.type==\"Ready\"\)].lastTransitionTime || true
-	$K -n "$NS" logs -l app.kubernetes.io/component=message-manager -c message-manager --tail=-1 --prefix 2>/dev/null |
-		grep -E "no subscriber|Subscri|Shutting|drain|listening" | cut -c1-400 || true
-	$K -n "$NS" logs deployment/trader-trainer -c trader-trainer --tail=-1 2>/dev/null |
-		grep -iE "subscri" | cut -c1-400 | tail -40 || true
 	prometheus_diagnostics
 	echo "===== market data in MySQL"
 	mysql_root "SELECT 'candles', COUNT(*) FROM financial_scraper.market_candles UNION ALL SELECT 'trades', COUNT(*) FROM financial_scraper.market_trades" 2>&1 || true

@@ -1,57 +1,8 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type {
-	FilePath,
-	InstanceId,
-} from "@trading-model/primitives/primitives";
+import { describe, expect, it } from "@jest/globals";
+import { busJournalFromEnv } from "../../src/create-message-manager";
 
-const MOCK_MESSAGE_MANAGER_INSTANCE = {};
-
-jest.mock("../../src/broker-message", () => ({
-	__esModule: true,
-	default: jest
-		.fn<(...args: any[]) => any>()
-		.mockImplementation(() => MOCK_MESSAGE_MANAGER_INSTANCE),
-}));
-
-jest.mock("@trading-model/address-manager", () => ({}));
-
-import { createMessageManager } from "../../src/create-message-manager";
-
-describe("createMessageManager", () => {
-	const options = {
-		addressManagerClient: {} as any,
-		tlsPaths: {
-			certPath: "/path/to/cert.pem" as FilePath,
-			keyPath: "/path/to/key.pem" as FilePath,
-			caPath: "/path/to/ca.pem" as FilePath,
-		},
-		instanceId: "550e8400-e29b-41d4-a716-446655440000" as InstanceId,
-		serviceName: ServiceInstanceName.MessageManagerService,
-		callbackPath: "/callback",
-	};
-
-	beforeEach(() => {
-		jest.clearAllMocks();
-	});
-
-	it("should create a MessageManager instance with correct options", () => {
-		const MessageManagerClass = require("../../src/broker-message").default;
-
-		createMessageManager(options);
-
-		expect(MessageManagerClass).toHaveBeenCalledWith({
-			addressManagerClient: options.addressManagerClient,
-			tlsPaths: options.tlsPaths,
-			instanceId: options.instanceId,
-			serviceName: options.serviceName,
-			callbackPath: options.callbackPath,
-		});
-	});
-
-	it("should return MessageManager instance", () => {
-		const result = createMessageManager(options);
-
-		expect(result.messageManager).toBe(MOCK_MESSAGE_MANAGER_INSTANCE);
+describe("busJournalFromEnv", () => {
+	it("should refuse an env without Redis settings: the bus has no other transport", () => {
+		expect(() => busJournalFromEnv({})).toThrow("REDIS_URL or REDIS_SENTINELS");
 	});
 });

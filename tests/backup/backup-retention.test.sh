@@ -61,13 +61,13 @@ component_path() {
 	local d="$1" ts="${1}_020000"
 	P=""
 	case "$2" in
-	mongodb | mongodb-audit) P="mongodb/${ts}/${2}.archive.gz.age" ;;
+	mongodb-audit) P="mongodb/${ts}/${2}.archive.gz.age" ;;
 	mysql) mysql_failed "$d" || P="mysql/financial_scraper_${ts}.sql.gz.age" ;;
 	checkpoints) [[ "$d" > "$CHECKPOINTS_STOP" ]] || P="checkpoints/checkpoints_${ts}.tar.gz.age" ;;
 	spire) P="spire/keys_${ts}.json.age" ;;
 	esac
 }
-COMPONENTS=(mongodb mongodb-audit mysql checkpoints spire)
+COMPONENTS=(mongodb-audit mysql checkpoints spire)
 
 # Point-in-time recovery files (ADR-0031), written when WITH_PITR=true: a
 # `.pitr` starting point next to each MongoDB and MySQL dump, and binlog /
@@ -86,8 +86,7 @@ pitr_path() {
 # (no timestamp in the name, old mtime).
 ARCHIVES="mysql/binlog/uuid-1/binlog.000001_2025-04-17_013000.gz.age
 mysql/binlog/uuid-1/binlog.000002_${NOW_DAY}_033000.gz.age
-mongodb/oplog/mongodb-audit/1000.1_2000.1.bson.gz.age
-mongodb/oplog/mongodb/1000.1_2000.1.bson.gz.age"
+mongodb/oplog/mongodb-audit/1000.1_2000.1.bson.gz.age"
 
 build_tree() {
 	rm -rf "$BACKUP_DIR"
@@ -225,8 +224,8 @@ has "mysql/financial_scraper_2025-11-03_020000.sql.gz.age" &&
 	has "mysql/financial_scraper_2026-01-03_020000.sql.gz.age" &&
 	pass "a failed run is never promoted: January's monthly is the 3rd" ||
 	failed "January 2026 monthly mysql dump: wrong run kept"
-! has "mongodb/2026-01-01_020000/mongodb.archive.gz.age" && has "mongodb/2026-01-01_020000/mongodb-audit.archive.gz.age" &&
-	pass "only long components are promoted (mongodb-audit kept, mongodb dropped)" ||
+has "mongodb/2026-01-01_020000/mongodb-audit.archive.gz.age" &&
+	pass "long components are promoted (mongodb-audit kept)" ||
 	failed "promotion applied to the wrong components"
 for d in "${RUN_DAYS[@]}"; do
 	if no_manifest "$d" && [ $((TODAY - EPOCH[$d])) -gt 30 ]; then
@@ -250,8 +249,8 @@ has "mysql/binlog/uuid-1/binlog.000001_2025-04-17_013000.gz.age" &&
 	pass "a .pitr file goes with its dump" || failed "the .pitr of a pruned dump survived"
 check_prune "gfs 12w/60m + pitr" 12 60
 has "mysql/financial_scraper_2025-11-03_020000.pitr.age" &&
-	has "mongodb/2026-01-01_020000/mongodb-audit.pitr.age" && ! has "mongodb/2026-01-01_020000/mongodb.pitr.age" &&
-	pass "a .pitr file stays as long as its promoted dump on the volume, and only that one" ||
+	has "mongodb/2026-01-01_020000/mongodb-audit.pitr.age" &&
+	pass "a .pitr file stays as long as its promoted dump on the volume" ||
 	failed "a .pitr file does not follow its dump"
 build_tree
 TIMESTAMP="$NOW"
@@ -271,12 +270,12 @@ WITH_PITR=false
 echo "off-site tiers"
 build_tree
 TIMESTAMP="$NOW" RETENTION_DAYS=30
-OUTPUTS=("mongodb/${NOW}/mongodb-audit.archive.gz.age" "mongodb/${NOW}/mongodb.archive.gz.age"
+OUTPUTS=("mongodb/${NOW}/mongodb-audit.archive.gz.age" "checkpoints/checkpoints_${NOW}.tar.gz.age"
 	"mysql/financial_scraper_${NOW}.sql.gz.age" "manifests/manifest_${NOW}.json.age")
 # 2026-11-03 is a Tuesday: Monday 2026-11-02 already holds a complete run
 # (unless it has no manifest), the 1st of the month too.
-[ "$(offsite_tiers "mongodb/${NOW}/mongodb.archive.gz.age")" = "daily" ] &&
-	pass "a short component is daily only" || failed "mongodb got $(offsite_tiers "mongodb/${NOW}/mongodb.archive.gz.age")"
+[ "$(offsite_tiers "checkpoints/checkpoints_${NOW}.tar.gz.age")" = "daily" ] &&
+	pass "a short component is daily only" || failed "checkpoints got $(offsite_tiers "checkpoints/checkpoints_${NOW}.tar.gz.age")"
 want_audit="daily"
 no_manifest 2026-11-02 && ! no_manifest 2026-11-03 && want_audit="daily weekly"
 got="$(offsite_tiers "mongodb/${NOW}/mongodb-audit.archive.gz.age")"
@@ -355,11 +354,10 @@ echo "off-site catch-up of a promoted copy that failed (rclone stub)"
 # Writes the dumps and the manifest of a complete run `$1` and sets OUTPUTS.
 mkrun() {
 	mkdir -p "$BACKUP_DIR"/{mongodb/"$1",mysql,manifests}
-	echo x >"$BACKUP_DIR/mongodb/$1/mongodb.archive.gz.age"
 	echo x >"$BACKUP_DIR/mongodb/$1/mongodb-audit.archive.gz.age"
 	echo x >"$BACKUP_DIR/mysql/financial_scraper_$1.sql.gz.age"
 	echo '{}' >"$BACKUP_DIR/manifests/manifest_$1.json.age"
-	OUTPUTS=("mongodb/$1/mongodb.archive.gz.age" "mongodb/$1/mongodb-audit.archive.gz.age"
+	OUTPUTS=("mongodb/$1/mongodb-audit.archive.gz.age"
 		"mysql/financial_scraper_$1.sql.gz.age" "manifests/manifest_$1.json.age")
 }
 # upload_offsite of run `$1` in the tiered layout.
@@ -393,9 +391,9 @@ cat >"$WORK/want-copies" <<EOF
 :s3:bucket/prod/weekly mysql/financial_scraper_${R2}.sql.gz.age
 EOF
 diff -u "$WORK/want-copies" "$WORK/copies" &&
-	pass "the next daily run sends the failed weekly and monthly copies of the 1st again (no mongodb, no CA keys)" ||
+	pass "the next daily run sends the failed weekly and monthly copies of the 1st again (no CA keys)" ||
 	failed "catch-up copies differ"
-[ "$(grep -c '/daily ' "$RCLONE_LOG")" -eq 4 ] && pass "daily/ only gets the files of the run" ||
+[ "$(grep -c '/daily ' "$RCLONE_LOG")" -eq 3 ] && pass "daily/ only gets the files of the run" ||
 	failed "daily copies: $(grep '/daily ' "$RCLONE_LOG")"
 # Hourly incremental run (no manifest in OUTPUTS): no catch-up.
 mkdir -p "$BACKUP_DIR/mysql/binlog/uuid-1"

@@ -144,7 +144,7 @@ laptop. For production, delete `SEALED_SECRETS_BACKUP_RUNNER` and
 ## Database pods across releases
 
 The staging overlay runs one pod per data StatefulSet (`mysql`, `redis`,
-`redis-sentinel`, `mongo-dlq`, `mongo-audit`) and one per observability StatefulSet (`alertmanager`,
+`redis-sentinel`, `mongo-audit`) and one per observability StatefulSet (`alertmanager`,
 `grafana`, `loki`, `prometheus`; issue #709). A rolling update deletes that pod
 before its replacement starts, so a release that changes their pod template
 (3.1.0: exporter sidecars) would cut the database for the stop, the image pull
@@ -186,7 +186,7 @@ alone waits for the master its sentinel still names, the dead pod (PR #579).
 
 ```bash
 NS=trading-model-staging
-for sts in redis redis-sentinel; do   # or: mysql, mongo-dlq, mongo-audit, alertmanager, grafana, loki, prometheus (one at a time)
+for sts in redis redis-sentinel; do   # or: mysql, mongo-audit, alertmanager, grafana, loki, prometheus (one at a time)
   kubectl -n "$NS" patch sts "$sts" -p '{"spec":{"updateStrategy":{"rollingUpdate":{"partition":0}}}}'
 done
 for sts in redis redis-sentinel; do kubectl -n "$NS" rollout status "sts/$sts" --timeout=1800s; done

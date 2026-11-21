@@ -24,14 +24,12 @@ trading-model/
 │   └── broker-message/      # @trading-model/broker-message
 ├── services/           # Microservices
 │   ├── discovery-server/
-│   ├── message-manager/
 │   ├── financial-scraper/
 │   ├── trader-trainer/
 │   ├── api-gateway/
 │   ├── audit-logger/
 │   ├── model-evaluator/
-│   ├── risk-execution/
-│   └── dlq-service/
+│   └── risk-execution/
 ├── .github/workflows/  # CI/CD
 ├── docs/               # Centralized documentation
 ├── scripts/            # Utilities (commit, release, migrations)
@@ -63,7 +61,7 @@ All developers contributing to the codebase. Every architectural decision aims t
 | API          | Express.js                                           |
 | Frontend     | None for now (ADR-0018)                              |
 | Security     | mTLS (all services)                                  |
-| Database     | MongoDB (audit-logger, dlq-service), MySQL (financial-scraper), SQLite (SPIRE datastore, ADR-0065), Redis (discovery registry, message-manager subscriptions, dlq-service) |
+| Database     | MongoDB (audit-logger), MySQL (financial-scraper), SQLite (SPIRE datastore, ADR-0065), Redis (discovery registry, message bus journal and dead streams) |
 | Validation   | Zod                                                  |
 | Scheduling   | node-cron                                            |
 | Formatting   | Biome                                                |
@@ -100,11 +98,9 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 | api-gateway | common, contracts, http, primitives, validation |
 | audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives, validation |
 | discovery-server | common, contracts, crypto, http, persistence, primitives, validation |
-| dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, validation |
 | model-evaluator | address-manager, broker-message, common, contracts, http, model-runtime, primitives, validation |
 | risk-execution | address-manager, broker-message, common, contracts, http, primitives, validation |
 | financial-scraper | address-manager, common, contracts, crypto, http, primitives, reliability, validation |
-| message-manager | address-manager, broker-message, common, contracts, http, persistence, primitives, reliability, validation |
 | trader-trainer | address-manager, broker-message, common, contracts, crypto, http, model-runtime, primitives, reliability, validation |
 
 There is no frontend workspace: `admin-interface` was removed until a new one is specified ([ADR-0018](../adr/0018-temporary-frontend-removal.md)). A future frontend talks to the backend only through the **api-gateway**.
@@ -146,11 +142,9 @@ Each service exposes an HTTPS server with mTLS enabled. The internal container p
 | Service           | Host port (dev) | Container port | Notes         |
 | ----------------- | --------------- | -------------- | ------------- |
 | discovery-server  | 8443            | 3000           |               |
-| message-manager   | 8444            | 3000           |               |
 | financial-scraper | 8445            | 3000           |               |
 | trader-trainer    | 8446            | 3000           |               |
 | audit-logger      | 8450            | 3000           |               |
-| dlq-service       | 8452            | 3000           |               |
 | model-evaluator   | 8453            | 3000           |               |
 | risk-execution    | 8454            | 3000           |               |
 | api-gateway       | 8448            | 3000           |               |

@@ -122,7 +122,7 @@ describe("Model training flow E2E", () => {
 
 	it("refuses the weights to a service that is not listed", () => {
 		const { status } = meshRequest(
-			CALLER.message,
+			CALLER.discovery,
 			`${TRAINER}/models/${SYMBOL}/${version}/weights`
 		);
 		expect(status).toBe(403);
