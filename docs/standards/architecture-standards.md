@@ -102,7 +102,7 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 | discovery-server | common, contracts, crypto, http, persistence, primitives, validation |
 | dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, validation |
 | model-evaluator | address-manager, broker-message, common, contracts, http, model-runtime, primitives, validation |
-| risk-execution | address-manager, common, contracts, http, primitives, validation |
+| risk-execution | address-manager, broker-message, common, contracts, http, primitives, validation |
 | financial-scraper | address-manager, common, contracts, crypto, http, primitives, reliability, validation |
 | message-manager | address-manager, broker-message, common, contracts, http, persistence, primitives, reliability, validation |
 | trader-trainer | address-manager, broker-message, common, contracts, crypto, http, model-runtime, primitives, reliability, validation |

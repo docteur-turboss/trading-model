@@ -1,6 +1,7 @@
 ﻿import { beforeAll, describe, expect, it, jest } from "@jest/globals";
 import { AuditEvent } from "@trading-model/contracts/audit-events";
 import { DlqEvent } from "@trading-model/contracts/dlq-events";
+import { RiskEvent } from "@trading-model/contracts/risk-events";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
 import { toSymbol } from "@trading-model/primitives/primitives";
 import {
@@ -32,6 +33,7 @@ import { createAuditSubscriber } from "./support/subscribers";
 
 const mockTrainerBroker = createRecordingBrokerClient("trader-trainer");
 const mockDlqBroker = createRecordingBrokerClient("dlq-service");
+const mockRiskBroker = createRecordingBrokerClient("risk-execution");
 
 jest.mock("../../services/message-manager/src/config/metrics", () => ({
 	MESSAGES_DLQ_TOTAL: { inc: () => undefined },
@@ -39,16 +41,35 @@ jest.mock("../../services/message-manager/src/config/metrics", () => ({
 jest.mock("../../services/audit-logger/src/config/metrics", () => ({
 	EVENTS_INGESTED_TOTAL: { inc: () => undefined },
 }));
-// dlq-service publishes its events through the real broker client.
+// dlq-service and risk-execution publish their events through the real broker client.
 jest.mock("@trading-model/broker-message/create-message-manager", () => ({
 	createMessageManager: () => ({
 		messageManager: {
 			post: {
-				indirect: (payload: unknown, metadata: never) =>
-					mockDlqBroker.client.publish(payload, metadata),
+				indirect: (
+					payload: unknown,
+					metadata: { publisher: { serviceName: string } }
+				) =>
+					(metadata.publisher.serviceName === "risk-execution"
+						? mockRiskBroker
+						: mockDlqBroker
+					).client.publish(payload, metadata as never),
 			},
 		},
 	}),
+}));
+jest.mock(
+	"../../services/risk-execution/src/infrastructure/config/env",
+	() => ({
+		ENV: {
+			INSTANCE_ID: "risk-execution-1",
+			SERVICE_NAME: "risk-execution",
+			MESSAGE_CALLBACK_PATH: "message",
+		},
+	})
+);
+jest.mock("../../services/risk-execution/src/config/address-manager", () => ({
+	AddressManager: {},
 }));
 jest.mock("../../services/dlq-service/src/infrastructure/config/env", () => ({
 	ENV: {
@@ -68,6 +89,7 @@ import {
 	notifyDeleteAudit,
 	notifyReplayAudit,
 } from "../../services/dlq-service/src/adapters/outbound/audit-notifier";
+import { publishRiskEvent } from "../../services/risk-execution/src/config/audit";
 import { ModelPublisher } from "../../services/trader-trainer/src/adapters/outbound/model-publisher";
 
 /**
@@ -87,6 +109,7 @@ const ALL_TOPICS: string[] = [
 	...Object.values(AuditEvent),
 	...Object.values(TrainingEvent),
 	...Object.values(DlqEvent),
+	...Object.values(RiskEvent),
 ];
 
 interface Publication {
@@ -124,6 +147,34 @@ async function publishDlqEvents(): Promise<Publication[]> {
 		true
 	);
 	return publicationsOf("dlq-service", mockDlqBroker.requests);
+}
+
+async function publishRiskEvents(): Promise<Publication[]> {
+	const mode = "paper";
+	publishRiskEvent("order.transition", {
+		mode,
+		clientOrderId: "rx-1",
+		symbol: "BTCUSDT",
+		status: "filled",
+		reason: undefined,
+	});
+	publishRiskEvent("kill_switch.engaged", {
+		mode,
+		scope: "global",
+		symbol: null,
+		reason: "drawdown",
+		actor: "system",
+	});
+	publishRiskEvent("kill_switch.rearmed", {
+		mode,
+		scope: "global",
+		symbol: undefined,
+		reason: "checked",
+		actor: "owner",
+	});
+	// Fire and forget: let the publishes settle.
+	await new Promise((resolve) => setImmediate(resolve));
+	return publicationsOf("risk-execution", mockRiskBroker.requests);
 }
 
 async function publishTrainedModel(): Promise<Publication[]> {
@@ -180,6 +231,7 @@ describe("service message contracts", () => {
 		publications = [
 			...(await publishTrainedModel()),
 			...(await publishDlqEvents()),
+			...(await publishRiskEvents()),
 		];
 	});
 

@@ -20,6 +20,7 @@
     "./publish-timeout": "./dist/publish-timeout.js",
     "./service-registry-types": "./dist/service-registry-types.js",
     "./signed-request": "./dist/signed-request.js",
+    "./risk-events": "./dist/risk-events.js",
     "./training-events": "./dist/training-events.js"
   },
   "dependencies": {
