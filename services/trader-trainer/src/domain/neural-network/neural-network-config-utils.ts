@@ -39,9 +39,6 @@ function _buildLayerMemory(
 			dims,
 			config.rng
 		),
-		output: new Float32Array(dims.fanOut),
-		preActivation: new Float32Array(dims.fanOut),
-		delta: new Float32Array(dims.fanOut),
 		gradW: new Float32Array(dims.fanIn * dims.fanOut),
 		gradB: new Float32Array(dims.fanOut),
 	};

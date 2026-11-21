@@ -36,13 +36,7 @@ interface LayerDimensions {
 	fanOut: PositiveInt;
 }
 
-interface LayerActivations {
-	output: Float32Array;
-	preActivation: Float32Array;
-}
-
 interface LayerGradients {
-	delta: Float32Array;
 	gradW: Float32Array;
 	gradB: Float32Array;
 }
@@ -50,5 +44,4 @@ interface LayerGradients {
 export interface LayerMemory
 	extends LayerWeights,
 		LayerDimensions,
-		LayerActivations,
 		LayerGradients {}
