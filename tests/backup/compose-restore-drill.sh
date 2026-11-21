@@ -71,6 +71,8 @@ for db in message-manager audit-logger dlq; do
 	mongo_eval "db.getSiblingDB('${db}').restore_drill.insertMany([{_id: 1, db: '${db}'}, {_id: 2}, {_id: 3}])" >/dev/null
 done
 mysql_q "CREATE DATABASE restore_drill; CREATE TABLE restore_drill.markers (id INT PRIMARY KEY, label VARCHAR(32)); INSERT INTO restore_drill.markers VALUES (1, 'drill'), (2, 'drill'), (3, 'drill');"
+# the mysql-core dump needs the market tables it excludes (the drill stack runs no migration)
+mysql_q "CREATE DATABASE IF NOT EXISTS financial_scraper; CREATE TABLE IF NOT EXISTS financial_scraper.market_trades (id INT PRIMARY KEY); CREATE TABLE IF NOT EXISTS financial_scraper.market_candles (id INT PRIMARY KEY); CREATE TABLE IF NOT EXISTS financial_scraper.market_order_books (id INT PRIMARY KEY);"
 docker exec trading-redis redis-cli SET restore_drill marker >/dev/null
 bundle_before="$(spire_bundle)"
 
