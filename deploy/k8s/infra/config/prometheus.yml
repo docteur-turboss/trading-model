@@ -1,6 +1,8 @@
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
+  # Prometheus 3 rejects a target without a text Content-Type (busybox httpd of backup-metrics-exporter sends octet-stream).
+  fallback_scrape_protocol: PrometheusText0.0.4
   # Pod name (expanded by default since Prometheus 3): the two production replicas differ by
   # it. Dropped before sending (alert_relabel_configs), so both replicas'
   # copy of an alert is one alert for Alertmanager (issue #809, ADR-0062).
