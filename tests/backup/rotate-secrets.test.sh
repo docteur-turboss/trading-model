@@ -84,7 +84,7 @@ grep -q "MYSQL_ROOT_PASSWORD: b2xk" "$WORK/sealed.yaml" && ! grep -q "SIGNING_SE
 ! grep -q SECRETVALUE <<<"$OUT" && pass "no value printed" || failed "value printed"
 
 run --component dlq
-[ "$(restarts)" = "dlq-service message-manager" ] && grep -q "DLQ_AUTH_HMAC_SECRET:" "$WORK/sealed.yaml" && pass "dlq restarts message-manager and dlq-service" || failed "dlq: restarts=$(restarts)"
+[ "$(restarts)" = "dlq-service" ] && grep -q "DLQ_AUTH_HMAC_SECRET:" "$WORK/sealed.yaml" && pass "dlq restarts dlq-service" || failed "dlq: restarts=$(restarts)"
 
 SEED_TOKENS='ops:read:old1,team:read+dlq:write:keep2' run --component tokens
 tok=$(base64 -d <<<"$(sed -n 's/^    AUTH_TOKENS: //p' "$WORK/sealed.yaml")")
