@@ -16,7 +16,10 @@ import { summaryFromManifest } from "../domain/genome-summary-builder";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
 import { DAY_MS, type TradingSymbol } from "../domain/market-data-types";
 import { assessAdmission } from "../domain/model-admission";
-import type { ModelReplayWindow } from "../domain/model-artifact";
+import type {
+	ModelComponent,
+	ModelReplayWindow,
+} from "../domain/model-artifact";
 import type { StoredModelRef } from "../domain/ports/model-publisher.port";
 import {
 	ArtifactTrainingInfo,
@@ -117,7 +120,8 @@ export class ModelArtifactService {
 	async store(
 		result: TrainingSuccess,
 		windowSets: WindowSet[],
-		summary: BestAgentSummary | null
+		summary: BestAgentSummary | null,
+		components?: ModelComponent[]
 	): Promise<{ ref: StoredModelRef; lastModel: LastModel } | undefined> {
 		const models = this._deps.models;
 		if (!models) {
@@ -150,6 +154,7 @@ export class ModelArtifactService {
 				summary,
 				admission,
 				window: this._replayWindow(result.symbol, last),
+				components,
 			});
 			MODEL_ARTIFACTS_TOTAL.inc({ result: "stored" });
 			const admissible = admission?.admissible ?? false;

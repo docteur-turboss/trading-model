@@ -10,6 +10,8 @@ import type { DeepReadonly } from "./shared-types";
 
 export interface WindowSet {
 	id: string;
+	/** FEATURE_SHARED_TRUNK: the symbol of this window; its head is swapped in around the window. */
+	symbol?: string;
 	train: MarketStep[];
 	validation: MarketStep[];
 	/**

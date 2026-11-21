@@ -27,6 +27,7 @@ interface WireMarketStep {
 
 export interface WireWindowSet {
 	id: string;
+	symbol?: string;
 	train: WireMarketStep[];
 	validation: WireMarketStep[];
 	test?: WireMarketStep[];
@@ -51,6 +52,7 @@ const fromWire = (steps: WireMarketStep[]): MarketStep[] =>
 export const encodeWindowSets = (sets: WindowSet[]): WireWindowSet[] =>
 	sets.map((set) => ({
 		id: set.id,
+		symbol: set.symbol,
 		train: toWire(set.train),
 		validation: toWire(set.validation),
 		test: set.test && toWire(set.test),
@@ -59,6 +61,7 @@ export const encodeWindowSets = (sets: WindowSet[]): WireWindowSet[] =>
 export const decodeWindowSets = (sets: WireWindowSet[]): WindowSet[] =>
 	sets.map((set) => ({
 		id: set.id,
+		symbol: set.symbol,
 		train: fromWire(set.train),
 		validation: fromWire(set.validation),
 		test: set.test && fromWire(set.test),
