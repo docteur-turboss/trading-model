@@ -323,6 +323,14 @@ export class RiskExecution {
 
 	private async _save(): Promise<void> {
 		if (!this._broken) {
+			// Final orders older than the longest window read by the pre-trade checks (rate: 60 s, duplicates).
+			const keepMs = Math.max(60_000, this._d.limits.duplicateWindowMs);
+			const cutoff = this._now() - keepMs;
+			for (const [id, order] of Object.entries(this._state.orders)) {
+				if (FINAL.has(order.status) && order.createdAt < cutoff) {
+					delete this._state.orders[id];
+				}
+			}
 			await this._d.store.save(this._state);
 		}
 	}

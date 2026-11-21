@@ -143,12 +143,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            # Signs the dead letters sent to dlq-service (same key as dlq-service).
-            - name: DLQ_AUTH_HMAC_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: trading-model-secrets
-                  key: DLQ_AUTH_HMAC_SECRET
           resources:
             requests:
               cpu: 200m

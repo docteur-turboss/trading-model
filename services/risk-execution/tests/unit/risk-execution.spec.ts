@@ -271,6 +271,20 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		expect((await ctx.broker.account()).positions.BTCUSDT).toBeCloseTo(0.05);
 	});
 
+	it("purges final orders past the longest window on save, after which the same intent is accepted", async () => {
+		const ctx = build();
+		await ctx.svc.start();
+		const first = await ctx.svc.submitIntent(intent({ allowRepeat: false }));
+		clock += 61_000;
+		const again = await ctx.svc.submitIntent(
+			intent({ allowRepeat: false, referenceAt: clock })
+		);
+		expect(again.status).not.toBe("rejected");
+		const orders = (ctx.store.value as RiskState).orders;
+		expect(orders[first.clientOrderId]).toBeUndefined();
+		expect(orders[again.clientOrderId]).toBeDefined();
+	});
+
 	it("a replay under the kill switch never rewrites the existing order", async () => {
 		const ctx = build();
 		await ctx.svc.start();
@@ -427,10 +441,7 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 		clock += 7_200_000; // 2 h later
 		await build({ store: a.store, broker: a.broker }).svc.start();
 		const orders = (a.store.value as RiskState).orders;
-		expect([orders.old.status, orders.off.status]).toEqual([
-			"expired",
-			"expired",
-		]);
+		expect([orders.old, orders.off?.status]).toEqual([undefined, "expired"]); // old: expired, then purged
 		expect(await a.broker.query("old")).toBeNull();
 	});
 
@@ -532,9 +543,9 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 		expect(r.status).toBe("acknowledged");
 		clock += LIMITS.orderTtlMs + 1;
 		await ctx.svc.tick();
-		expect((ctx.store.value as RiskState).orders[r.clientOrderId].status).toBe(
-			"expired"
-		);
+		expect(
+			(ctx.store.value as RiskState).orders[r.clientOrderId]
+		).toBeUndefined(); // expired, then purged
 		expect((await ctx.broker.account()).openOrders).toEqual([]);
 	});
 });

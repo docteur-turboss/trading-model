@@ -40,8 +40,7 @@ export class ResponseCache {
 
 	set<TData = unknown>(
 		key: string,
-		value: Omit<ResponseCacheEntry<TData>, "expiresAt">,
-		ttlMs?: DurationMs
+		value: Omit<ResponseCacheEntry<TData>, "expiresAt">
 	): void {
 		this._remove(key);
 		const bytes = value.bytes ?? 0;
@@ -54,7 +53,7 @@ export class ResponseCache {
 		}
 		this._store.set(key, {
 			...value,
-			expiresAt: Date.now() + (ttlMs ?? this._defaultTtlMs),
+			expiresAt: Date.now() + this._defaultTtlMs,
 		});
 		this._bytes += bytes;
 	}

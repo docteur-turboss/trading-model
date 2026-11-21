@@ -51,7 +51,3 @@ export enum TradeSide {
 	Buy = "buy",
 	Sell = "sell",
 }
-
-export namespace TradeSide {
-	export const values: () => TradeSide[] = createEnumValues(TradeSide);
-}
