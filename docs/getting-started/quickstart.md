@@ -88,7 +88,7 @@ curl -s http://localhost:8449/v1/discovery-server/services \
   -H "x-api-key: $ADMIN_TOKEN"
 ```
 
-You should see `discovery-server` and `message-manager` listed. This route goes away with discovery-server (ADR-0072, issue #1244).
+You should see `["message-manager"]`: the services with a registered instance (discovery-server does not register itself). This route goes away with discovery-server (ADR-0072, issue #1244).
 
 ## Step 4: Let the Scraper Publish Market Data
 
