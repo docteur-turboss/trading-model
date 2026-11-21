@@ -569,7 +569,7 @@ and Prometheus scrapes them (job `backup-metrics`).
 | `BackupIncrementalStale`  | a binlog / oplog archive last succeeded more than 2 h ago (2 × the interval) |
 | `BackupIncrementalMissing` | a binlog / oplog component reported nothing for 2 h                        |
 | `BackupIncrementalFailed` | the last hourly run of a binlog / oplog failed (warning; the next run retries) |
-| `SealedSecretsKeyBackupStale` | the newest off-site `sealed-secrets-key_<TS>.yaml.age` is over 48 h old, or none exists (production: `BACKUP_SEALED_KEY_CHECK=true`) |
+| `SealedSecretsKeyBackupStale` | the newest off-site `sealed-secrets-key_<TS>.yaml.age` is over 48 h old, none exists, or the prefix cannot be listed (production: `BACKUP_SEALED_KEY_CHECK=true`) |
 | `BackupPitrGap`           | a binlog / oplog chain has a break after the newest daily dump: no `--until` past it, until the next daily dump (stays firing while the runs succeed again) |
 | `BackupMetricsAbsent`     | no metric of the daily job (`run=""`: the incremental job's series do not count; job never ran, exporter down) |
 | `BackupUnencrypted`       | no age recipient                                                             |
@@ -759,7 +759,7 @@ MongoDB already brought back to the instant: exit 1, every database as it was.
 
 #### SealedSecretsKeyBackupStale
 
-`sealed-secrets-key-backup.yml` stopped (schedule disabled after 60 days
+`sealed-secrets-key-backup.yml` stopped, or `db-backup` cannot list the prefix (S3 credentials, endpoint) (schedule disabled after 60 days
 without activity, run held, kubeconfig or S3 credentials expired). Check
 `gh workflow list --all` and the last runs, re-enable or fix it, then run it
 once by hand (`gh workflow run sealed-secrets-key-backup.yml`): the alert
