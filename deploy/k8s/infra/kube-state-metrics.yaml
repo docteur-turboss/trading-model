@@ -99,7 +99,8 @@ spec:
                 - ALL
           livenessProbe:
             httpGet:
-              path: /livez
+              # /livez proxies the API server: its outage would restart a healthy pod.
+              path: /healthz
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 15
