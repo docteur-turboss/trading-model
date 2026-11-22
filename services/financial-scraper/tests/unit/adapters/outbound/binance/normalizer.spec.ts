@@ -84,6 +84,20 @@ describe("Binance normalizers", () => {
 			expect(result[0].timestamp).toBe(1499040000000);
 		});
 
+		it("should drop candles with empty or inconsistent prices, keep the others", () => {
+			const good = mockCandlestickResponse[0];
+			const result = normalizeCandles(
+				{ symbol: SYMBOL, interval: CandleInterval.Min1 },
+				[
+					good,
+					{ ...good, high: "0.001" },
+					{ ...good, open: "" },
+					{ ...good, openTime: 1 },
+				]
+			);
+			expect(result.map((c) => c.timestamp)).toEqual([good.openTime, 1]);
+		});
+
 		it("should keep a candle nobody traded in, with trades = 0", () => {
 			const result = normalizeCandles(
 				{ symbol: SYMBOL, interval: CandleInterval.Min1 },
