@@ -1,3 +1,4 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
 import type { Message } from "@trading-model/contracts/message-types";
 import { logger } from "@trading-model/http/logger";
 import { messageManagerError } from "../shared/errors";
@@ -8,7 +9,10 @@ import {
 	type JournalGroupLag,
 	type MessageJournalPort,
 } from "./journal.port";
-import { JOURNAL_TRIMMED_PENDING_TOTAL } from "./metrics";
+import {
+	JOURNAL_TRIMMED_PENDING_TOTAL,
+	JOURNAL_UNREADABLE_TOTAL,
+} from "./metrics";
 
 /** The ioredis commands the bus uses (a client of `@trading-model/persistence` fits). */
 export interface BusRedis {
@@ -89,9 +93,6 @@ export function openJournalWriter(
 		});
 	});
 }
-/** Approximate cap of a journal stream, applied every `CAP_EVERY` appends: bounds a burst the 24 h `MINID` would keep. Unmeasured: 100 000 × ~1 KB ≈ 100 MB per stream, against 512 Mi of Redis. */
-const JOURNAL_MAX_LENGTH = 100_000;
-const CAP_EVERY = 100;
 const FIELD = "message";
 const ONLY_FIELD = "only";
 
@@ -120,7 +121,6 @@ export class RedisMessageJournal implements MessageJournalPort {
 	>();
 	private readonly _readers = new Map<string, BlockingBusRedis>();
 	private _writer: Promise<BlockingBusRedis> | undefined;
-	private readonly _appends = new Map<string, number>();
 
 	constructor(private readonly _deps: RedisMessageJournalDeps) {
 		this._now = _deps.now ?? Date.now;
@@ -168,16 +168,12 @@ export class RedisMessageJournal implements MessageJournalPort {
 		await Promise.all(
 			services.map((service) => this._register(writer, { topic, service }))
 		);
-		// XADD takes MINID or MAXLEN, not both: the 24 h rule by default, the length cap every CAP_EVERY appends of the topic.
-		const count = (this._appends.get(topic) ?? 0) + 1;
-		this._appends.set(topic, count);
-		const capped = count % CAP_EVERY === 0;
 		const entryId = (await writer.call(
 			"XADD",
 			this.stream(topic),
-			...(capped
-				? ["MAXLEN", "~", String(JOURNAL_MAX_LENGTH)]
-				: ["MINID", "~", String(now - JOURNAL_RETENTION_MS)]),
+			"MINID",
+			"~",
+			String(now - JOURNAL_RETENTION_MS),
 			"*",
 			FIELD,
 			JSON.stringify(message),
@@ -419,11 +415,25 @@ export class RedisMessageJournal implements MessageJournalPort {
 			if (fields && at >= 0 && forOthers) {
 				await this.ack(group, id);
 			} else if (fields && at >= 0) {
-				entries.push({
-					id,
-					message: JSON.parse(fields[at + 1] as string) as Message,
-					deliveries: deliveries(),
-				});
+				let message: Message;
+				try {
+					message = JSON.parse(fields[at + 1] as string) as Message;
+				} catch (err) {
+					// Not JSON: no `Message` to dead-letter, so it is counted, logged and acked; the others go on.
+					JOURNAL_UNREADABLE_TOTAL.inc({
+						topic: group.topic,
+						service: group.service,
+					});
+					logger.error("Journal entry unreadable: dropped", {
+						topic: group.topic,
+						service: group.service,
+						entryId: id,
+						error: normalizeError(err),
+					});
+					await this.ack(group, id);
+					continue;
+				}
+				entries.push({ id, message, deliveries: deliveries() });
 			} else {
 				// Trimmed (24 h) before delivery: the message is gone for good, so it is counted, logged and alerted.
 				JOURNAL_TRIMMED_PENDING_TOTAL.inc({

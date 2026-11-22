@@ -7,6 +7,8 @@ import {
 	trace,
 } from "@opentelemetry/api";
 import type { Message } from "@trading-model/contracts/message-types";
+import { DurationMs } from "@trading-model/primitives/primitives";
+import * as backoff from "../../../src/bus/backoff";
 import { BusConsumer } from "../../../src/bus/consumer";
 import { DeadStreams } from "../../../src/bus/dead-streams";
 import {
@@ -293,6 +295,26 @@ describe("BusConsumer", () => {
 		expect(await streams.length(TOPIC)).toBe(0);
 	});
 
+	it("should abandon a handler that never ends and leave its entry pending", async () => {
+		jest.replaceProperty(backoff, "HANDLER_TIMEOUT_MS", DurationMs.of(50));
+		const {
+			consumer: c,
+			journal,
+			redis,
+		} = consumer(() => new Promise(() => {}));
+		await c.start([TOPIC]);
+		await publishToBus(journal, "a", METADATA);
+		await new Promise((resolve) => setTimeout(resolve, 300));
+		await c.stop();
+
+		expect(pendingOf(redis)).toBe(1);
+		expect(
+			(await MESSAGES_DELIVERED_TOTAL.get()).values.some(
+				(v) => v.labels.status === "failed" && v.value >= 1
+			)
+		).toBe(true);
+	});
+
 	it("should dead-letter a rejected message and report it", async () => {
 		MESSAGES_DLQ_TOTAL.reset();
 		const {
@@ -327,6 +349,32 @@ describe("BusConsumer", () => {
 			dead?.id
 		);
 		expect(pendingOf(redis)).toBe(0);
+	});
+
+	it("should drop a non-JSON entry, dead-letter one without publisher and still handle the valid one", async () => {
+		const handled: unknown[] = [];
+		const parts = bus();
+		const {
+			consumer: c,
+			journal,
+			redis,
+			streams,
+		} = consumer(async (m) => {
+			handled.push(m.payload);
+		}, parts);
+		await c.start([TOPIC]);
+		await redis.call("XADD", journal.stream(TOPIC), "*", "message", "not-json");
+		await redis.call("XADD", journal.stream(TOPIC), "*", "message", "{}");
+		await publishToBus(journal, "ok", METADATA);
+		await until(() => handled.length === 1 && pendingOf(redis) === 0);
+		await c.stop();
+
+		expect(handled).toEqual(["ok"]);
+		expect(await streams.list(TOPIC)).toEqual([
+			expect.objectContaining({
+				reason: expect.stringContaining("publisher.serviceName"),
+			}),
+		]);
 	});
 
 	it("should dead-letter on the last allowed attempt, counting deliveries of the pending list", async () => {

@@ -19,7 +19,7 @@ import { ENV } from "../infrastructure/config/env";
 export function openDlqCli() {
 	const journal = busJournalFromEnv(ENV);
 	if (!journal) {
-		throw new Error("REDIS_URL or REDIS_SENTINELS is required");
+		throw new Error("the DLQ CLI needs the bus: BUS_TRANSPORT=library");
 	}
 	return {
 		streams: new DeadStreams(journal),

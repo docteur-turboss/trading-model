@@ -57,6 +57,20 @@ test('application importing adapters or infrastructure fails, startup files are 
   }
 });
 
+test('domain importing config, adapters or an infrastructure package fails, type imports included', () => {
+  const root = fixture({
+    [`${S}/config/metrics.ts`]: 'export const m = 1;',
+    [`${S}/domain/a.ts`]: "import { m } from '../config/metrics';\nexport const a = m;",
+    [`${S}/domain/ports/p.ts`]: "import type { Request } from 'express';\nexport type P = Request;",
+    [`${S}/domain/ok.ts`]: "import { z } from 'zod';\nexport const ok = z;",
+  });
+  try {
+    assert.deepEqual(analyze(root).layers, [`${S}/domain/a.ts -> ../config/metrics`, `${S}/domain/ports/p.ts -> express`]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('fixed baseline entry is reported as stale (ratchet)', () => {
   assert.deepEqual(compare(none, { cycles: ['x | y'], layers: [] }), ['stale baseline cycles entry (fixed, remove it): x | y']);
 });

@@ -160,10 +160,13 @@ describe("Dispatcher", () => {
 
 	it("should keep journaling for the group of an unsubscribed instance", async () => {
 		await dispatcher.subscribe(mockSubscribeParams);
-		await dispatcher.unsubscribe({
-			topic: "test.topic" as Topic,
-			instanceId: mockSubscriberIdentity.instanceId as InstanceId,
-		});
+		await dispatcher.unsubscribe(
+			{
+				topic: "test.topic" as Topic,
+				instanceId: mockSubscriberIdentity.instanceId as InstanceId,
+			},
+			mockSubscriberIdentity.serviceName
+		);
 
 		await dispatcher.publish({ price: 1 }, METADATA);
 

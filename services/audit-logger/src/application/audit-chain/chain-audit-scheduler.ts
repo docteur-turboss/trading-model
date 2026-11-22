@@ -1,6 +1,7 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import { runJob } from "@trading-model/http/correlation-id";
 import { DurationMs } from "@trading-model/primitives/primitives";
 
 /** First cycle shortly after start: a restarted pod reports at once. */
@@ -40,12 +41,14 @@ export class ChainAuditScheduler {
 	}
 
 	private async _cycle(): Promise<void> {
-		try {
-			await this._audit.runCycle();
-		} catch (err) {
-			getLogger().error("Audit chain cycle failed", {
-				error: normalizeError(err).message,
-			});
-		}
+		// biome-ignore lint/plugin: logged by onError, inside the job context
+		await runJob(
+			"audit-logger.chain-cycle",
+			() => this._audit.runCycle(),
+			(err) =>
+				getLogger().error("Audit chain cycle failed", {
+					error: normalizeError(err).message,
+				})
+		).catch(() => undefined);
 	}
 }

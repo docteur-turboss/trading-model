@@ -36,7 +36,7 @@ NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
 CERT_MANAGER="v1.21.3" # same as deploy/staging-local/bootstrap.sh
 API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
-SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator risk-execution"
+SERVICES="$(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$ROOT/deploy/k8s/services/kustomization.yaml" | grep -vx edge-proxy | tr '\n' ' ')" # edge-proxy is not a first-party image
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
 PREVIOUS_REF="${KIND_PREVIOUS_REF:-HEAD^1}"
@@ -241,7 +241,15 @@ identities() {
 		log "deploy-app can read Secrets of kube-system"
 		return 1
 	}
-	log "  deploy-cluster: self-bind Forbidden, no nodes/proxy; deploy-app: no Secret in kube-system"
+	if out="$($as_cluster label namespace "$NS" pod-security.kubernetes.io/enforce=privileged --overwrite 2>&1)" || ! grep -qi forbidden <<<"$out"; then
+		log "deploy-cluster could relabel the application namespace (or failed other than Forbidden): $out"
+		return 1
+	fi
+	if out="$($as_cluster -n trading-model-node create -f - 2>&1 <<<'{"apiVersion":"apps/v1","kind":"DaemonSet","metadata":{"name":"rogue"},"spec":{"selector":{"matchLabels":{"a":"b"}},"template":{"metadata":{"labels":{"a":"b"}},"spec":{"containers":[{"name":"c","image":"busybox"}]}}}}')" || ! grep -qi forbidden <<<"$out"; then
+		log "deploy-cluster could create a DaemonSet in trading-model-node (or failed other than Forbidden): $out"
+		return 1
+	fi
+	log "  deploy-cluster: self-bind, namespace relabel and DaemonSet create Forbidden, no nodes/proxy; deploy-app: no Secret in kube-system"
 }
 
 # deploy-release.sh (the release steps of deploy.yml) against the kind cluster.
@@ -824,35 +832,40 @@ verify_identity_without_mysql() {
 # Express recorded nothing). Jaeger is read through a port-forward, which the
 # NetworkPolicies do not filter.
 traces_span_services() {
-	curl -sf "http://localhost:18686/api/traces?service=api-gateway&limit=50&lookback=1h" |
+	# The trace ID is the one verify_traces sends in `traceparent`: looking it up
+	# tells a lost propagation (api-gateway spans only) from an absent trace.
+	curl -sf "http://localhost:18686/api/traces/$TRACE_ID" |
 		node -e '
-			const traces = JSON.parse(require("fs").readFileSync(0, "utf8")).data ?? [];
-			const best = traces
-				.map((t) => [...new Set(Object.values(t.processes).map((p) => p.serviceName))])
-				.sort((a, b) => b.length - a.length)[0] ?? [];
-			console.error(`traces=${traces.length} widest=${best.join(",")}`);
-			process.exit(best.length >= 2 ? 0 : 1)'
+			const [trace] = JSON.parse(require("fs").readFileSync(0, "utf8")).data ?? [];
+			const names = [...new Set(Object.values(trace?.processes ?? {}).map((p) => p.serviceName))];
+			console.error(`trace=${process.argv[1]} widest=${names.join(",")}`);
+			process.exit(names.includes("api-gateway") && names.includes("trader-trainer") ? 0 : 1)' "$TRACE_ID"
 }
 
 verify_traces() {
-	log "a request through edge-proxy gives a Jaeger trace with 2+ services"
+	log "a request through edge-proxy gives a Jaeger trace spanning api-gateway and trader-trainer"
 	$K -n "$NS" port-forward svc/edge-proxy 18451:8080 >/dev/null 2>&1 &
 	local edge=$!
 	$K -n "$NS" port-forward svc/jaeger 18686:16686 >/dev/null 2>&1 &
 	local jaeger=$!
-	local result=0
+	local result=0 codes=""
+	TRACE_ID="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
 	wait_for 30 'curl -s -o /dev/null http://localhost:18451/ && curl -s -o /dev/null http://localhost:18686/' || result=1
-	# 30 requests: the collector keeps 20 % of traces, 1 - 0.8^30 ~ 99.9 % that one survives.
+	# ci-render.mjs samples 100 % and the sent traceparent is sampled: all requests join one trace.
 	if [ "$result" = 0 ]; then
-		for _ in $(seq 30); do
-			curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18451/v1/trader-trainer/training-status
-		done
+		codes="$(for _ in $(seq 30); do
+			curl -s -o /dev/null -w '%{http_code}\n' -H "x-api-key: $API_KEY" \
+				-H "traceparent: 00-$TRACE_ID-00f067aa0ba902b7-01" \
+				http://localhost:18451/v1/trader-trainer/training-status
+		done | sort | uniq -c | tr '\n' ' ')"
 	fi
-	# Batch exporter (5 s) then collector batch (1 s): a few polls at most.
+	# Batch exporter (5 s), tail_sampling decision_wait (10 s) then collector batch (1 s): a few polls at most.
 	if [ "$result" = 0 ] && wait_for 120 traces_span_services; then
 		log "  $(traces_span_services 2>&1)"
 	else
 		traces_span_services || true
+		log "  http codes: ${codes:-none}"
+		log "  trader-trainer traces in Jaeger: $(curl -s "http://localhost:18686/api/traces?service=trader-trainer&limit=50&lookback=1h" | node -e 'try{console.log((JSON.parse(require("fs").readFileSync(0,"utf8")).data??[]).length)}catch{console.log("unreadable")}')"
 		result=1
 	fi
 	# No RETURN trap: it would replace the one of verify (traps are global).
@@ -1000,7 +1013,7 @@ bus_delivered() {
 # (consumer model-evaluator-<uuid>, message-manager's are message-manager-<uuid>)
 # with its own ACL user, and the audit-dlq CLI reaches the dead streams.
 # The group is shared with message-manager's workers: wait until the trainer's
-# publications have given at least one entry to the BusConsumer, handled without error.
+# publications have been read by the group (whichever consumer won them), none pending or failed.
 verify_bus() {
 	local key=trading-model:message-manager:journal:training.model.published
 	# staging-local keeps model-evaluator and audit-logger on message-manager over HTTP (issue #1931):
@@ -1013,8 +1026,10 @@ verify_bus() {
 	fi
 	log "bus: BusConsumer of model-evaluator, audit-dlq in audit-logger"
 	wait_for 120 "$K -n $NS exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=\$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli --user message-manager XINFO CONSUMERS $key model-evaluator' | grep -q '^model-evaluator-'"
-	wait_for 600 "bus_delivered model-evaluator | grep 'status=\"success\"' | awk '\$2 > 0' | grep -q ."
-	log "  $(bus_delivered model-evaluator)"
+	# The group is shared with message-manager's HTTP workers, so the counter of model-evaluator
+	# alone may stay at 0: assert on the group (read, nothing pending, no lag) and on no failed delivery.
+	wait_for 600 "$K -n $NS exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=\$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli --user message-manager XINFO GROUPS $key' | awk 'prev==\"name\"{g=(\$0==\"model-evaluator\")} g&&prev==\"entries-read\"{r=\$0} g&&prev==\"pending\"{p=\$0} g&&prev==\"lag\"{l=\$0} {prev=\$0} END{exit !(r>=1 && p==0 && l==0)}'"
+	! bus_delivered model-evaluator | grep -q 'status="failed"' || { log "  model-evaluator failed deliveries: $(bus_delivered model-evaluator)"; return 1; }
 	$K -n "$NS" exec deploy/audit-logger -c audit-logger -- node services/audit-logger/dist/application/dlq-cli.js kind list training.model.published
 }
 
@@ -1609,10 +1624,35 @@ verify_backup() {
 
 	# Operator command (issue #322): same checks a real restore gets, read-only.
 	log "restore drill: scripts/verify-restore-k8s.sh on the restored data"
-	K8S_NAMESPACE="$NS" bash "$ROOT/scripts/verify-restore-k8s.sh" || {
-		log "verify-restore-k8s.sh failed on a correctly restored cluster"
+	# The run manifest, decrypted in the runner, gives it the row counts of the dump.
+	local mdir verify_out comp
+	mdir="$(mktemp -d)"
+	mkdir "$mdir/manifests"
+	echo "$key" | $K -n "$NS" exec -i restore-runner -- sh -c \
+		"umask 077 && cat > /tmp/identity && age -d -i /tmp/identity /restore/manifests/manifest_*.json.age; rc=\$?; rm -f /tmp/identity; exit \$rc" \
+		>"$mdir/manifests/manifest_drill.json"
+	for comp in mysql mongodb-audit mongodb; do
+		grep "\"component\":\"$comp\"" "$mdir/manifests/manifest_drill.json" | grep -q '"rows":{' || {
+			log "the run manifest has no rows for $comp: the row count at the dump failed silently"
+			return 1
+		}
+	done
+	verify_out="$(BACKUP_DIR="$mdir" K8S_NAMESPACE="$NS" bash "$ROOT/scripts/verify-restore-k8s.sh" 2>&1)" || {
+		log "verify-restore-k8s.sh failed on a correctly restored cluster: $verify_out"
 		return 1
 	}
+	echo "$verify_out" | grep -q "rows (manifest" || {
+		log "verify-restore-k8s.sh compared no row counts: $verify_out"
+		return 1
+	}
+	# Negative test: a manifest counting more rows than restored (partial restore) must fail.
+	sed -i 's/"audit.audit_events":[0-9]*/"audit.audit_events":999999999/' "$mdir/manifests/manifest_drill.json"
+	if BACKUP_DIR="$mdir" K8S_NAMESPACE="$NS" bash "$ROOT/scripts/verify-restore-k8s.sh" >/dev/null 2>&1; then
+		log "verify-restore-k8s.sh accepted a table with fewer rows than the manifest"
+		return 1
+	fi
+	rm -rf "$mdir"
+	log "  row counts of the manifest compared; a table below the manifest fails"
 	# Negative test: one altered audit event must make it fail (then put back).
 	local audit_hash
 	audit_hash="$(mongo_eval mongodb-audit "const e = db.getSiblingDB('audit').audit_events.find().sort({chainSequence: -1}).limit(1).next(); print(e.dataHash)" | tail -1)"
@@ -1624,6 +1664,22 @@ verify_backup() {
 	fi
 	mongo_eval mongodb-audit "db.getSiblingDB('audit').audit_events.updateOne({dataHash: 'tampered'}, {\$set: {dataHash: '$audit_hash'}})" >/dev/null
 	log "  verify-restore-k8s.sh passes on the restore and fails on an altered audit event"
+
+	# TTL indexes came back with mongorestore (no --noIndexRestore) and purge.
+	# audit_events is a hash chain: only its index is checked, never a document.
+	local ttl_audit ttl_dlq
+	ttl_audit="$(mongo_eval mongodb-audit "print(db.getSiblingDB('audit').audit_events.getIndexes().filter((i) => i.expireAfterSeconds === 0).length)" | tail -1)"
+	ttl_dlq="$(mongo_eval mongodb "print(db.getSiblingDB('dlq').dlq_entries.getIndexes().filter((i) => i.expireAfterSeconds === 2592000).length)" | tail -1)"
+	if [ "$ttl_audit" != 1 ] || [ "$ttl_dlq" != 1 ]; then
+		log "TTL index missing after restore (audit: $ttl_audit, dlq: $ttl_dlq)"
+		return 1
+	fi
+	mongo_eval mongodb "db.getSiblingDB('dlq').dlq_entries.insertOne({messageId: 'ttl-drill', createdAt: new Date(Date.now() - 31 * 86400000)})" >/dev/null
+	wait_for 120 '[ "$(mongo_eval mongodb "print(db.getSiblingDB(\"dlq\").dlq_entries.countDocuments({messageId: \"ttl-drill\"}))" | tail -1)" = 0 ]' || {
+		log "expired dead letter not purged by the TTL monitor after restore"
+		return 1
+	}
+	log "  TTL indexes restored (audit, dlq) and the DLQ one purges an expired document"
 
 	# The SPIRE server came back with the restored CA: the agents still hold
 	# SVIDs from the CA of the wiped volume until they bootstrap again
@@ -1718,7 +1774,7 @@ dump() {
 	$K -n "$NS" logs deploy/spire-server -c spire-entries --tail=40 2>&1 || true
 	$K -n trading-model-node logs daemonset/spire-agent --tail=40 || true
 	# The market data path and the audit trail, even when their pods look healthy (verify checks them).
-	for workload in binance-stub financial-scraper-collector financial-scraper message-manager audit-logger discovery-server api-gateway; do
+	for workload in binance-stub financial-scraper-collector financial-scraper message-manager audit-logger discovery-server api-gateway trader-trainer otel-collector; do
 		echo "===== deployment/$workload"
 		$K -n "$NS" logs "deployment/$workload" --all-containers --tail=80 2>&1 | grep -v 'x509 context' || true
 	done

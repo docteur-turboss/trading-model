@@ -1,7 +1,7 @@
-import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
-import { BaseEnvSchema } from "@trading-model/validation/config/env";
-import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
-import { validateEnv } from "@trading-model/validation/config/validate-env";
+import { AddressManagerEnvSchema } from "@trading-model/address-manager/config/address-manager-env";
+import { BaseEnvSchema } from "@trading-model/http/config/env";
+import { validateEnv } from "@trading-model/http/config/validate-env";
+import { BusEnvSchema } from "@trading-model/persistence/redis-env";
 import { z } from "zod";
 import { MongoUriSchema } from "./mongo-uri";
 
@@ -29,7 +29,7 @@ const AUDIT_LOGGER_ENV_SHAPE = {
 const AUDIT_LOGGER_ENV_SCHEMA = BaseEnvSchema.extend(
 	AddressManagerEnvSchema.shape
 )
-	.extend(RedisEnvSchema.shape)
+	.extend(BusEnvSchema.shape)
 	.extend(AUDIT_LOGGER_ENV_SHAPE);
 
 export const ENV = validateEnv(AUDIT_LOGGER_ENV_SCHEMA);

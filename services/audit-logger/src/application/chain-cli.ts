@@ -1,10 +1,4 @@
-import { mongoAuthFromEnv } from "@trading-model/persistence/mongo-utils";
-import {
-	chainAuditSettingsFromEnv,
-	createChainAudit,
-	createRepositories,
-} from "../config/container";
-import { ENV } from "../infrastructure/config/env";
+import { openChainCli } from "../config/chain-cli";
 import type { ChainAudit } from "./audit-chain/chain-audit";
 import { runCli } from "./run-cli";
 
@@ -60,16 +54,7 @@ export async function runChainCli(
 if (require.main === module) {
 	runCli(() =>
 		runChainCli(process.argv.slice(2), {
-			open: async () => {
-				const { mongoManager, db } = await createRepositories(
-					ENV.MONGODB_URI,
-					mongoAuthFromEnv(ENV)
-				);
-				return {
-					audit: createChainAudit(db, chainAuditSettingsFromEnv()),
-					close: () => mongoManager.close(),
-				};
-			},
+			open: openChainCli,
 			out: (text) => console.log(text),
 			err: (text) => console.error(text),
 		})

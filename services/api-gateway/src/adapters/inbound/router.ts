@@ -1,6 +1,7 @@
 import { lookup } from "node:dns/promises";
 import { normalizeServiceName } from "@trading-model/common/utils/spiffe";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
+import type { ResolvedEndpoint } from "@trading-model/contracts/wire/service-resolver.types";
 import { catchSync } from "@trading-model/http/catch-error";
 import { logger } from "@trading-model/http/logger";
 import { sendResponse } from "@trading-model/http/response-exception";
@@ -12,7 +13,6 @@ import {
 	parseCIDRList,
 	type ServiceId,
 } from "@trading-model/primitives/primitives";
-import type { ResolvedEndpoint } from "@trading-model/validation/wire/service-resolver.types";
 import type { Request } from "express";
 import { Router } from "express";
 import {
@@ -23,6 +23,7 @@ import { ResponseCache } from "../../infrastructure/cache";
 import type { Env } from "../../infrastructure/config/env";
 import {
 	metricsHandler,
+	PROXY_REQUEST_DURATION_SECONDS,
 	SERVICE_ERRORS_TOTAL,
 } from "../../infrastructure/config/metrics";
 import { requiredScope } from "../../shared/api-keys";
@@ -154,7 +155,12 @@ const createCatchAllRoute = (env: Env) => {
 			req,
 			target,
 			{ serviceName, majorVersion, cacheKey, path: `${path}${search}` },
-			{ forward: (opts) => forwardRequest(opts, env), cache: cache }
+			{
+				forward: (opts) => forwardRequest(opts, env),
+				cache: cache,
+				observeDuration: (labels, seconds) =>
+					PROXY_REQUEST_DURATION_SECONDS.observe(labels, seconds),
+			}
 		);
 		if (response.status >= HTTP_STATUS.SERVICE_UNAVAILABLE) {
 			SERVICE_ERRORS_TOTAL.inc({ service: serviceName });

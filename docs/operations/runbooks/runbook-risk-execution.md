@@ -1,23 +1,21 @@
 # Runbook: Risk/Execution Kill Switch, Reconciliation, Stale Prices
 
-**Severity:** L1 (`KillSwitchEngaged`, `ReconciliationMismatch`), L2 (`RiskMarketDataStale`)
-**Alerts:** `KillSwitchEngaged`, `ReconciliationMismatch`, `RiskMarketDataStale`
+**Severity:** L1 (`KillSwitchEngaged`, `ReconciliationMismatch`), L2 (`RiskRejectRatioHigh`, `RiskMarketDataStale`)
+**Alerts:** `KillSwitchEngaged`, `ReconciliationMismatch`, `RiskRejectRatioHigh`, `RiskMarketDataStale`
 **Decision:** [ADR-0064](../../adr/0064-risk-and-execution-context-before-order-flow.md) · **Policy:** [risk-limits-policy](../../compliance/risk-limits-policy.md) · **Drill log:** [risk-drill-log](../../compliance/risk-drill-log.md)
 
 `risk-execution` owns every order (paper only: simulated broker, no live adapter). The switch state is in `/data/risk-execution/state.json` on its PVC. Nothing re-arms the switch except an operator, by hand.
 
 ## Operate the service
 
-The admin routes accept only the service's own identity, so run them from the pod (the `kubectl exec` right is the authentication):
+The admin routes accept only the service's own identity, so `scripts/risk-admin.sh` runs them from the pod (the `kubectl exec` right is the authentication). The logged actor is your Kubernetes identity (`kubectl auth whoami`); `ACTOR=<name>` forces it (owner name for a `drawdown` re-arm, or kubectl < 1.28).
 
 ```bash
-POD=$(kubectl get pods -n trading-model -l app.kubernetes.io/component=risk-execution -o jsonpath='{.items[0].metadata.name}')
-CURL="curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem -H content-type:application/json https://localhost:3000"
-kubectl exec -n trading-model "$POD" -c risk-execution -- sh -c "$CURL/admin/status"
-# Engage (scope global, or symbol + "symbol":"BTCUSDT"):
-kubectl exec -n trading-model "$POD" -c risk-execution -- sh -c "$CURL/admin/kill-switch -d '{\"scope\":\"global\",\"reason\":\"<why>\",\"actor\":\"<you>\"}'"
+bash scripts/risk-admin.sh status
+# Engage (global, or add --symbol BTCUSDT):
+bash scripts/risk-admin.sh engage --reason "<why>"
 # Re-arm, after checking that the cause is gone:
-kubectl exec -n trading-model "$POD" -c risk-execution -- sh -c "$CURL/admin/kill-switch/rearm -d '{\"scope\":\"global\",\"reason\":\"<what you checked>\",\"actor\":\"<you>\"}'"
+bash scripts/risk-admin.sh rearm --reason "<what you checked>"
 ```
 
 Service unreachable, last resort: revoke the broker API key at the exchange, or delete the SPIRE entry of `risk-execution` (ADR-0064 §5). Closing positions is never automatic: decide it explicitly.
@@ -39,7 +37,15 @@ The service state and the broker differ (a position, an open order, or a balance
 1. Read the `reconciliation.mismatch` log line (`diffs`: `position:<symbol>`, `open_orders`, `balance`).
 2. Paper mode: compare `state.json` and `paper-ledger.json`. Someone or something changed one of them (restore of one file only, manual edit, crash between the two writes of a fill).
 3. Copy both files out of the pod (no backup covers the PVC), decide which side is right, make the other file match it (or remove both together to start flat), restart the pod, check `ready: true`, then re-arm.
-4. Broker unreachable instead (`reconciliation.error` log line, pod not ready, intents rejected `not_reconciled`): no switch is engaged; the service retries at every tick and is ready again once a reconciliation passes.
+4. Broker unreachable instead (`reconciliation.error` log line, pod not ready, intents rejected `not_reconciled`): this alert does not fire (`risk_reconciliation_mismatch` stays 0); no switch is engaged; the service retries at every tick and is ready again once a reconciliation passes.
+
+## RiskRejectRatioHigh
+
+More than 50% of the intents were rejected over 15 min (no alert without traffic). Dashboard `risk-execution`: panel "Rejects by reason" names the cause.
+
+1. `price_band`, `price_gap`, `stale_intent`: the decision consumer sends bad or old reference prices; check it and the feed ([runbook-market-data-stale](runbook-market-data-stale.md)).
+2. `global_exposure`, `instrument_exposure`, `loss_limit_*`: a limit is close (panels "Exposure" and "Daily loss"); this is the limit working, check the strategy.
+3. `not_reconciled`, `kill_switch`: see the sections above.
 
 ## RiskMarketDataStale
 

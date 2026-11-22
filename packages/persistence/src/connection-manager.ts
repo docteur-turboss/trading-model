@@ -36,7 +36,11 @@ export class ConnectionManager<_TConnection> {
 		if (this._connection) {
 			return Promise.resolve(this._connection);
 		}
-		this._connectionPromise ??= this._connectWithRetry();
+		this._connectionPromise ??= this._connectWithRetry().catch((err) => {
+			// A rejected promise left in cache would fail every later call.
+			this._connectionPromise = null;
+			throw err;
+		});
 		return this._connectionPromise;
 	}
 
