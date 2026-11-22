@@ -130,6 +130,8 @@ jobs:
 
   test:
     needs: gate
+    # Also on the merge push to development (gate skipped, see its if): two green PRs can still break the unit tests together.
+    if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -506,16 +508,17 @@ jobs:
         if: failure()
         run: bash tests/k8s/run-kind.sh dump
 
-  # One check for the development ruleset: a skipped matrix reports
-  # "k8s (${{ matrix.group }})", never "k8s (network)", so a required matrix
-  # name would wait forever on a PR the gate spares from kind.
+  # The one check the development and main rulesets require, so it aggregates every job of this
+  # workflow: a red or cancelled job fails it, a skipped one (gate, k8s=false) does not. Keep the
+  # name: renaming it breaks the rulesets. A skipped k8s matrix reports "k8s (${{ matrix.group }})",
+  # never "k8s (network)", so a required matrix name would wait forever on a PR the gate spares from kind.
   k8s-result:
-    needs: [gate, k8s-images, k8s]
+    needs: [gate, lint, security, typecheck, test, db-integration, observability, k8s-overlays, contract, e2e, k8s-images, k8s]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
-          echo "gate, k8s-images, k8s: $RESULTS"
+          echo "gate, lint, security, typecheck, test, db-integration, observability, k8s-overlays, contract, e2e, k8s-images, k8s: $RESULTS"
           case " $RESULTS " in *" failure "* | *" cancelled "*) exit 1 ;; esac
