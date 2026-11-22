@@ -164,8 +164,9 @@ describe("FEATURE_SHARED_TRUNK", () => {
 });
 
 describe("symbolsPerGeneration", () => {
-	it("defaults to ceil(N / 3), refuses k above N", () => {
-		expect(symbolsPerGeneration(0, 10)).toBe(4);
+	it("defaults to max(1, floor(N / 3)), refuses k above N", () => {
+		expect(symbolsPerGeneration(0, 10)).toBe(3);
+		expect(symbolsPerGeneration(0, 2)).toBe(1);
 		expect(symbolsPerGeneration(10, 10)).toBe(10);
 		expect(() => symbolsPerGeneration(11, 10)).toThrow(/\[1, 10\]/);
 	});

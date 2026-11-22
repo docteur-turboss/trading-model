@@ -55,7 +55,7 @@ const TRAINER_ENV_SHAPE = {
 	TRAINER_INPUT_MASK_PROTECT_CANDLE: featureFlag(false),
 	/** Feature flag (ADR-0039, ADR-0076 step 1): true trains all the symbols in one session, hidden layers shared, one head per symbol; false: one session per symbol. */
 	FEATURE_SHARED_TRUNK: featureFlag(false),
-	/** ADR-0076 step 1: symbols each generation trains on, in [1, number of symbols]; 0: ceil(N / 3); read only with FEATURE_SHARED_TRUNK. */
+	/** ADR-0076 step 1: symbols each generation trains on, in [1, number of symbols]; 0: max(1, floor(N / 3)); read only with FEATURE_SHARED_TRUNK. */
 	TRAINER_SHARED_TRUNK_SYMBOLS_PER_GENERATION: z.coerce
 		.number()
 		.int()
