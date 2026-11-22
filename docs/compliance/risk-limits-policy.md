@@ -30,7 +30,7 @@ Bound the loss of any order flow, including the worst case where the operator is
 | Drawdown stop | 10 % of allocated capital | High-water mark minus current equity | Global kill switch; re-arming also requires the owner's review of the strategy (§4.4) |
 | Daily loss per symbol | 1 % of allocated capital | Loss of the symbol's position and fees since 00:00 UTC | Kill switch of that symbol |
 
-The limits are checked on every fill and on every reference price update, and before every intent: an intent whose worst case (fill at the limit of the price band) would cross a limit is rejected (ADR-0064 §2). The daily figures restart at 00:00 UTC, but a switch engaged by a limit stays on until an operator re-arms it (§4.4).
+The limits are checked on every fill and on every reference price update, and before every intent: an intent whose worst case (fill at the limit of the price band) would cross a limit is rejected (ADR-0064 §2). The pre-trade worst case is bounded by the price band: a gap beyond the band crosses the limit after the fill, and the switch then engages on the next check. The daily figures restart at 00:00 UTC, but a switch engaged by a limit stays on until an operator re-arms it (§4.4).
 
 ### 3.1 Global exposure cap
 
@@ -97,7 +97,7 @@ A tighter bound needs positions reduced without an operator, for example stop or
 | Aspect | Rule |
 |---|---|
 | When | Before paper trading starts; then every quarter; before live trading (a drill passed within the last 90 days, ADR-0064 §9); after any change to the Risk/Execution service, its limits or its broker adapter |
-| Where | Paper environment (simulated broker or exchange testnet), never with live keys |
+| Where | Paper environment (simulated broker or exchange testnet), never with live keys. The drill before live trading, including step 7's reconciliation mismatch, runs against the exchange testnet or the real account without orders, never against the simulated broker alone: its ledger is written by the same process, so it only catches internal bugs (ADR-0064 §9) |
 | Scenario | 1. Run an order flow on at least two symbols. 2. Engage the per-symbol switch manually: that symbol stops, the other trades. 3. Engage the global switch manually: no new order, open orders cancelled. 4. Restart the service: the switch stays on. 5. Try to re-arm with an identity other than an operator: refused. 6. Re-arm manually. 7. Force each automatic trigger in turn: a loss past the daily limit (fake prices), stale data (stop the feed), a reconciliation mismatch (change the paper ledger), a reject storm (fake broker rejecting). |
 | Evidence | A dated entry with: the time from trigger to the last order sent and to the last open order cancelled, the audit trail records of each engagement and re-arming, the alert raised for each automatic trigger, the restart result, and the operator. Kept in a drill log under `docs/compliance/`, in the format of [dr-exercise-log.md](dr-exercise-log.md), created with the Risk/Execution service. A failed step blocks paper or live trading until a passing re-run. |
 
@@ -108,6 +108,6 @@ Runbook: [runbook-risk-execution](../operations/runbooks/runbook-risk-execution.
 | Control | Status |
 |---|---|
 | Loss limits and global exposure cap (§3) | ✅ Implemented and specified in `risk-execution` (paper); live still forbidden |
-| Kill switch, manual and automatic (§4) | ✅ Implemented and specified in `risk-execution` (paper); live still forbidden. Engagements and re-arming are logged, not yet in the audit trail (#1732); the owner-only re-arming after the drawdown stop trusts the declared `actor` of the admin request (anyone with `kubectl exec` on the pod) |
+| Kill switch, manual and automatic (§4) | ✅ Implemented and specified in `risk-execution` (paper); live still forbidden. Engagements and re-arming are published on the bus to audit-logger since #1732 (an engagement can be lost if the bus refuses it, #2133); the owner-only re-arming after the drawdown stop trusts the declared `actor` of the admin request (anyone with `kubectl exec` on the pod) |
 | Drill (§7) | ✅ Passed 2026-11-20 in-process ([risk-drill-log](risk-drill-log.md)); to repeat on the deployed paper environment before the 30 days start (#1733) |
 | Values | ✅ Validated by the project owner, 2026-11-20 (issue #1652) |
