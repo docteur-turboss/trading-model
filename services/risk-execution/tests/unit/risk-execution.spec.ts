@@ -314,6 +314,24 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 				price: { price: 60_000, at: T0 },
 			})
 		).toBe("instrument_exposure");
+		// Exposure is valued at the read price, not the intent's (gap 0.83 % < band).
+		const check = (quantity: number, positions: Record<string, number>) => {
+			const s = newState(CAPITAL, T0);
+			s.positions = positions;
+			s.marks.ETHUSDT = { price: 3_000, at: T0 };
+			return preTradeReject({
+				intent: intent({ quantity, referencePrice: 59_500 }),
+				limits: LIMITS,
+				state: s,
+				now: T0,
+				admissible: true,
+				reconciled: true,
+				halted: [],
+				price: { price: 60_000, at: T0 },
+			});
+		};
+		expect(check(0.051, { BTCUSDT: 0.2 })).toBe("instrument_exposure"); // 15 060 > 15 000
+		expect(check(0.001, { BTCUSDT: 0.2, ETHUSDT: 6 })).toBe("global_exposure"); // 30 060 > 30 000
 	});
 
 	it("caps the global exposure across two instruments (30 %)", async () => {
