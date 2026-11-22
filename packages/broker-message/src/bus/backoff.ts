@@ -20,6 +20,11 @@ export function backoffDelay(deliveryAttempt: SequenceNumber): number {
 /** One delivery attempt lasts at most this long (the HTTP client does not retry underneath). */
 export const DELIVERY_ATTEMPT_TIMEOUT_MS = DurationMs.of(10_000);
 
+/** A handler is abandoned (retryable failure) 2 s before the entry can be claimed by another replica. */
+export const HANDLER_TIMEOUT_MS = DurationMs.of(
+	DELIVERY_ATTEMPT_TIMEOUT_MS - 2000
+);
+
 /**
  * Idle time of a journal entry before the next attempt may start: the previous
  * attempt has timed out (so no replica still works on it) and the backoff of
