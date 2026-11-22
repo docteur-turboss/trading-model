@@ -12,6 +12,39 @@ evaluation_interval: 30s
 tests:
   # 1% errors on api-gateway: below every threshold. 10% on dlq-service:
   # fires, per job, with the real ratio.
+  # Recreate restart: a new pod down 3 m (startup) stays quiet, a pod down 10 m fires; other jobs keep the 1 m rule.
+  - name: Recreate jobs tolerate a startup window, a durable outage still fires ServiceDown
+    interval: 1m
+    input_series:
+      - series: 'up{job="risk-execution",instance="start"}'
+        values: '0x3 1x20'
+      - series: 'up{job="model-evaluator",instance="dead"}'
+        values: '0x20'
+      - series: 'up{job="api-gateway",instance="dead"}'
+        values: '0x20'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: ServiceDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: api-gateway, instance: dead}
+            exp_annotations:
+              summary: 'api-gateway is down'
+              description: 'Service api-gateway has been unreachable for over 1 minute.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md'
+      - eval_time: 10m
+        alertname: ServiceDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: api-gateway, instance: dead}
+            exp_annotations:
+              summary: 'api-gateway is down'
+              description: 'Service api-gateway has been unreachable for over 1 minute.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md'
+          - exp_labels: {severity: critical, job: model-evaluator, instance: dead}
+            exp_annotations:
+              summary: 'model-evaluator is down'
+              description: 'Service model-evaluator has been unreachable for over 1 minute.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md'
+
   - name: error ratios are computed per job
     interval: 1m
     input_series:
