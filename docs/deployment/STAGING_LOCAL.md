@@ -213,13 +213,13 @@ prints the same revision twice.
 
 `redis-0` creates the bus ACL users of 3.1.0 (`trader-trainer`, `audit-logger`,
 `model-evaluator`) only when it restarts. Until then the overlay sets
-`REDIS_SENTINELS=` for these three services (issue #1931): they publish and
+`BUS_TRANSPORT=http` for these three services (issue #1931): they publish and
 receive through message-manager over HTTP. `audit-dlq` (dead streams, runbook
 `BusDeadLetters`) is unavailable in staging-local until the switch: it needs
 the `audit-logger` user on Redis. Outside a deploy:
 
 1. Restart `redis` and `redis-sentinel` with the loop above.
-2. Merge the removal of the three `REDIS_SENTINELS=` entries from
+2. Merge the removal of the three `BUS_TRANSPORT=http` entries from
    `overlays/staging-local/kustomization.yaml`, with the three users added to
    `BUS_ON_PARTITIONED_REDIS` in `tests/k8s/check-overlays.mjs`, and deploy.
 3. Check that model-evaluator reads its topic in process:
@@ -243,7 +243,7 @@ the same two deploys: a deploy between them brings the outage back.
 1. Merge the removal of the three `configMapGenerator` entries and of the
    `mysql-client-tls` patch of issue #1066 from
    `overlays/staging-local/kustomization.yaml` (keep audit-logger's
-   `REDIS_SENTINELS=` until the bus switch), and of
+   `BUS_TRANSPORT=http` until the bus switch), and of
    `mysql-group-replication-config.yaml` (issue #1456): the next deploy must
    not bring them back.
 2. Restart `mongo-dlq`, then `mongo-audit`, then `mysql` with the loop above.

@@ -4,7 +4,7 @@ import { AssetType } from "@trading-model/contracts/wire/signals";
 import { BaseEnvSchema } from "@trading-model/http/config/env";
 import { featureFlag } from "@trading-model/http/config/feature-flags";
 import { validateEnv } from "@trading-model/http/config/validate-env";
-import { RedisEnvSchema } from "@trading-model/persistence/redis-env";
+import { BusEnvSchema } from "@trading-model/persistence/redis-env";
 import { z } from "zod";
 import { FitnessType } from "../../domain/genetic-algorithm/genome-control";
 import { SIGNAL_KEY_PATTERN } from "../../domain/signal-features";
@@ -100,7 +100,7 @@ const TRAINER_ENV_SHAPE = {
 export const TRADER_TRAINER_ENV_SCHEMA = BaseEnvSchema.merge(
 	AddressManagerEnvSchema
 )
-	.extend(RedisEnvSchema.shape)
+	.extend(BusEnvSchema.shape)
 	.extend(TRAINER_ENV_SHAPE);
 
 export const ENV = validateEnv(TRADER_TRAINER_ENV_SCHEMA);
