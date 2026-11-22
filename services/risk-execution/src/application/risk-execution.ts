@@ -619,10 +619,9 @@ export class RiskExecution {
 		symbols: string[]
 	): Promise<Record<string, MarketPrice>> {
 		try {
-			const read = await withTimeout(
+			const read = await this._bounded(
 				this._d.prices.latest(symbols),
-				DurationMs.of(this._d.limits.submitTimeoutMs),
-				`price read timeout after ${this._d.limits.submitTimeoutMs} ms`
+				"price read"
 			);
 			for (const [symbol, mark] of Object.entries(read)) {
 				if (mark.at >= (this._state.marks[symbol]?.at ?? 0)) {
