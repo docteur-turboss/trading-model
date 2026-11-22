@@ -17,6 +17,7 @@ import { RiskLimits } from "../../src/domain/limits";
 import type { BrokerPort } from "../../src/domain/ports";
 import type { Intent } from "../../src/domain/pre-trade";
 import type { RiskState } from "../../src/domain/state";
+import { RestingBroker } from "../resting-broker";
 
 const LIMITS = RiskLimits.parse({
 	allocatedCapital: 100_000,
@@ -47,9 +48,11 @@ const intent = (
 });
 
 function boot(broker?: BrokerPort) {
-	const ledger = new PaperBroker(
-		new JsonFile(join(dir, "ledger.json")),
-		LIMITS.allocatedCapital
+	const ledger = new RestingBroker(
+		new PaperBroker(
+			new JsonFile(join(dir, "ledger.json")),
+			LIMITS.allocatedCapital
+		)
 	);
 	const svc = new RiskExecution({
 		limits: LIMITS,

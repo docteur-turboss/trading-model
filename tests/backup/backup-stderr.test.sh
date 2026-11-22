@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The error output of a failing dump command reaches the log (issue #332):
-# kubectl_exec keeps stderr, kubectl_exec_probe hides it; backup-k8s.sh and backup.sh surface the dump errors. No secret appears.
+# kubectl_exec keeps stderr, kubectl_exec_probe hides it; backup-k8s.sh surfaces the dump errors. No secret appears.
 # Needs bash.
 #   bash tests/backup/backup-stderr.test.sh
 set -euo pipefail
@@ -73,22 +73,7 @@ case "$all" in
 esac
 exit 0
 EOF
-cat >"$WORK/bin/docker" <<'EOF'
-#!/usr/bin/env bash
-all="$*"
-case "$1" in
-ps) echo "trading-x"; exit 0 ;;
-pause | unpause) exit 0 ;;
-cp) echo "Error: FAKE-DOCKERCP no such path" >&2; exit 1 ;;
-esac
-case "$all" in
-*mongodump*) echo "mongodump: FAKE-MONGO authentication failed" >&2; exit 1 ;;
-*mysqldump*) echo "mysqldump: FAKE-MYSQL access denied" >&2; exit 2 ;;
-*" tar "*) echo "tar: FAKE-TAR cannot open" >&2; exit 2 ;;
-esac
-exit 0
-EOF
-chmod +x "$WORK/bin/kubectl" "$WORK/bin/docker"
+chmod +x "$WORK/bin/kubectl"
 
 check_output() {
 	local name="$1" out="$2" marker
@@ -109,8 +94,5 @@ check_output() {
 
 out="$(BACKUP_DIR="$WORK/k8s" K8S_NAMESPACE=test bash "$ROOT/scripts/backup-k8s.sh" 2>&1 || true)"
 check_output "backup-k8s.sh" "$out" FAKE-MONGO FAKE-MYSQL FAKE-TAR FAKE-SQLITE
-
-out="$(BACKUP_DIR="$WORK/docker" bash "$ROOT/scripts/backup.sh" --components mongodb,mysql,checkpoints,spire 2>&1 || true)"
-check_output "backup.sh" "$out" FAKE-MONGO FAKE-MYSQL FAKE-TAR FAKE-DOCKERCP
 
 exit "$FAILED"

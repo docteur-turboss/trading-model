@@ -160,7 +160,9 @@ function balanceReject(ctx: PricedContext): string | null {
 			0
 		);
 	return state.cash - reserved <
-		intent.quantity * orderPrice(ctx) * (1 + limits.feeBps / 10_000)
+		intent.quantity *
+			orderPrice(ctx) *
+			(1 + (limits.feeBps + limits.slippageBps) / 10_000)
 		? "insufficient_balance"
 		: null;
 }

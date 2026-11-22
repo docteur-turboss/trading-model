@@ -191,7 +191,7 @@ export const logger = {
   warn: jest.fn(),
 };
 
-export const createSecureServer = jest.fn();
+export const createServiceServer = jest.fn();
 ```
 
 ### Unit Tests

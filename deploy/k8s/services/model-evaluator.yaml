@@ -41,7 +41,9 @@ spec:
         prometheus.io/scheme: "https"
     spec:
       serviceAccountName: model-evaluator
-      terminationGracePeriodSeconds: 30
+      # preStop 10 s + longest bus handler (HANDLER_TIMEOUT_MS, 85 s) + HTTP close.
+      # Recreate: a rollout waits at most this long for a running evaluation.
+      terminationGracePeriodSeconds: 120
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001

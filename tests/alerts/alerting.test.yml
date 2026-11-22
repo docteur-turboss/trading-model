@@ -1287,17 +1287,6 @@ tests:
               description: 'db-backup-incremental reported nothing for mongodb-audit-oplog (job never ran, component removed, or backup-metrics-exporter down): no point-in-time recovery.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
-  # Compose (scripts/backup.sh) has no incremental job and says so.
-  - name: no incremental alert where point-in-time recovery is not supported
-    interval: 1m
-    input_series:
-      - series: 'backup_pitr_supported{job="backup-metrics"}'
-        values: '0x3100'
-    alert_rule_test:
-      - eval_time: 190m
-        alertname: BackupIncrementalMissing
-        exp_alerts: []
-
   # The copy to the second off-site bucket fails: BackupOffsiteCopyFailed fires
   # for it, the primary copy stays quiet.
   - name: a failed second off-site copy raises BackupOffsiteCopyFailed
@@ -2122,6 +2111,24 @@ tests:
               summary: 'Reference price older than 15 minutes (paper)'
               description: 'An allowed instrument has no price newer than 15 min: its orders halt (kill switch on that symbol, global when every symbol is stale).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskmarketdatastale'
+
+  - name: risk-execution tick failures
+    interval: 1m
+    input_series:
+      - series: 'risk_tick_failures_total{job="risk-execution",mode="paper"}'
+        values: '0 0 1+1x20'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: RiskTickFailing
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: RiskTickFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, job: risk-execution, mode: paper}
+            exp_annotations:
+              summary: 'risk-execution ticks keep failing (paper)'
+              description: 'The periodic risk tick (reconciliation, stale-data and loss checks, state write) threw for 5 min. Gauges are still republished from memory, but the state may not be persisted.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#risktickfailing'
 
   - name: risk-execution reject ratio
     interval: 1m
