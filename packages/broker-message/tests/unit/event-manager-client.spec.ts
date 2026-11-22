@@ -19,8 +19,16 @@ describe("EVENT_MANAGER", () => {
 
 		await emitter.emit("test.event", { id: "txn-123" }, METADATA);
 
-		expect(callback1).toHaveBeenCalledWith({ id: "txn-123" }, METADATA);
-		expect(callback2).toHaveBeenCalledWith({ id: "txn-123" }, METADATA);
+		expect(callback1).toHaveBeenCalledWith(
+			{ id: "txn-123" },
+			METADATA,
+			undefined
+		);
+		expect(callback2).toHaveBeenCalledWith(
+			{ id: "txn-123" },
+			METADATA,
+			undefined
+		);
 		expect(other).not.toHaveBeenCalled();
 	});
 

@@ -80,7 +80,7 @@ describe("publishToBus", () => {
 
 describe("BusConsumer", () => {
 	function consumer(
-		handle: (message: Message) => Promise<void>,
+		handle: (message: Message, signal: AbortSignal) => Promise<void>,
 		parts = bus(),
 		onDeadLetter = jest.fn()
 	) {
@@ -297,16 +297,22 @@ describe("BusConsumer", () => {
 
 	it("should abandon a handler that never ends and leave its entry pending", async () => {
 		jest.replaceProperty(backoff, "HANDLER_TIMEOUT_MS", DurationMs.of(50));
+		jest.replaceProperty(backoff, "ABORT_GRACE_MS", DurationMs.of(50));
+		let signal: AbortSignal | undefined;
 		const {
 			consumer: c,
 			journal,
 			redis,
-		} = consumer(() => new Promise(() => {}));
+		} = consumer((_message, s) => {
+			signal = s;
+			return new Promise(() => {});
+		});
 		await c.start([TOPIC]);
 		await publishToBus(journal, "a", METADATA);
 		await new Promise((resolve) => setTimeout(resolve, 300));
 		await c.stop();
 
+		expect(signal?.aborted).toBe(true);
 		expect(pendingOf(redis)).toBe(1);
 		expect(
 			(await MESSAGES_DELIVERED_TOTAL.get()).values.some(
