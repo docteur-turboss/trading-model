@@ -45,4 +45,8 @@ export interface ResponseCachePort {
 export interface ProxyDeps {
 	forward: ForwardRequestPort;
 	cache: ResponseCachePort;
+	observeDuration(
+		labels: { service: string; status: string },
+		seconds: number
+	): void;
 }

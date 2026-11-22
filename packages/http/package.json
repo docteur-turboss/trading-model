@@ -42,6 +42,8 @@
     "./service-server-factory": "./dist/service-server-factory.js",
     "./shared/constants": "./dist/shared/constants.js",
     "./shared/node-env": "./dist/shared/node-env.js",
+    "./signals/scraper-signal-history": "./dist/signals/scraper-signal-history.js",
+    "./signals/signal-bar-history": "./dist/signals/signal-bar-history.js",
     "./signal-handler": "./dist/signal-handler.js",
     "./telemetry": "./dist/telemetry.js"
   },

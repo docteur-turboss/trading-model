@@ -36,7 +36,7 @@ NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
 CERT_MANAGER="v1.21.3" # same as deploy/staging-local/bootstrap.sh
 API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
-SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator risk-execution"
+SERVICES="$(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$ROOT/deploy/k8s/services/kustomization.yaml" | grep -vx edge-proxy | tr '\n' ' ')" # edge-proxy is not a first-party image
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
 PREVIOUS_REF="${KIND_PREVIOUS_REF:-HEAD^1}"
@@ -851,7 +851,7 @@ verify_traces() {
 				http://localhost:18451/v1/trader-trainer/training-status
 		done | sort | uniq -c | tr '\n' ' ')"
 	fi
-	# Batch exporter (5 s) then collector batch (1 s): a few polls at most.
+	# Batch exporter (5 s), tail_sampling decision_wait (10 s) then collector batch (1 s): a few polls at most.
 	if [ "$result" = 0 ] && wait_for 120 traces_span_services; then
 		log "  $(traces_span_services 2>&1)"
 	else

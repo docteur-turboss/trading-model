@@ -60,7 +60,7 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md'
 
       - alert: ServiceTargetsMissing
-        expr: absent(up{job="message-manager"}) or absent(up{job="discovery-server"}) or absent(up{job="dlq-service"}) or absent(up{job="api-gateway"}) or absent(up{job="audit-logger"}) or absent(up{job="financial-scraper"}) or absent(up{job="trader-trainer"}) or absent(up{job="model-evaluator"})
+        expr: absent(up{job="message-manager"}) or absent(up{job="discovery-server"}) or absent(up{job="dlq-service"}) or absent(up{job="api-gateway"}) or absent(up{job="audit-logger"}) or absent(up{job="financial-scraper"}) or absent(up{job="trader-trainer"}) or absent(up{job="model-evaluator"}) or absent(up{job="risk-execution"})
         for: 5m
         labels:
           severity: critical
@@ -578,15 +578,15 @@ groups:
 
       # The 451 counter stops growing while the source is quarantined (no call
       # between probes, up to 24 h), so this rule keeps the block visible; it
-      # also covers the 418 ban, which has no other alert.
+      # also covers the 429 and 418 bans, which has no other alert.
       - alert: BinanceQuarantined
         expr: max(fs_signal_source_quarantined{source="binance"}) == 1
         for: 0m
         labels:
           severity: critical
         annotations:
-          summary: 'Binance quarantined after a 418 or 451'
-          description: 'financial-scraper makes no Binance call until the quarantine ends (Retry-After or doubling backoff, 5 min to 24 h): market data collection is blocked. Check fs_binance_requests_total{status=~"418|451"} and runbook-market-data-stale.'
+          summary: 'Binance quarantined after a 429, 418 or 451'
+          description: 'financial-scraper makes no Binance call until the quarantine ends (Retry-After or doubling backoff, 5 min to 24 h): market data collection is blocked. Check fs_binance_requests_total{status=~"429|418|451"} and runbook-market-data-stale.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
 
       # ADR-0036: the signal sources publish daily (SEC, Wikimedia), on working
@@ -871,6 +871,19 @@ groups:
           summary: '{{ $labels.job }} {{ $labels.instance }} does not answer its exporter'
           description: 'redis_exporter of {{ $labels.instance }} ({{ $labels.job }}) cannot query Redis for 5 minutes: the node or sentinel is down, or the exporter ACL user is missing (WRONGPASS in the redis-exporter logs).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redisdown'
+
+      # Redis has no maxmemory (noeviction) and the journal is only trimmed by
+      # age (MINID 24 h, ADR-0048): a burst grows the container until it is
+      # OOMKilled, so the container limit is the bound to watch.
+      - alert: RedisMemoryHigh
+        expr: sum by (namespace, pod) (container_memory_working_set_bytes{container="redis"}) / sum by (namespace, pod) (container_spec_memory_limit_bytes{container="redis"} > 0) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Redis {{ $labels.pod }} uses over 80 % of its memory limit'
+          description: 'Redis {{ $labels.pod }} has used {{ $value | humanizePercentage }} of its container memory limit for 10 minutes. The journal is trimmed by age only (24 h), so a burst of messages is not cut: at the limit the container is OOMKilled.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redismemoryhigh'
 
       # Expected replicas = the StatefulSet size minus the master: single-node
       # environments (compose, staging) never fire.

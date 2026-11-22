@@ -21,6 +21,7 @@ import {
 	isOpen,
 	newState,
 	type RiskState,
+	SEEN_HORIZON_MS,
 	utcDate,
 } from "../domain/state";
 
@@ -160,7 +161,10 @@ export class RiskExecution {
 			this._rollDay(now);
 			const clientOrderId = `rx-${intent.decisionId}`;
 			// First: an existing idempotency key is never rewritten (ADR-0064 §3).
-			if (this._state.orders[clientOrderId]) {
+			if (
+				this._state.orders[clientOrderId] ||
+				this._state.seen?.[clientOrderId] !== undefined
+			) {
 				return {
 					status: "rejected",
 					reason: "duplicate_client_order_id",
@@ -345,9 +349,17 @@ export class RiskExecution {
 			// Final orders older than the longest window read by the pre-trade checks (rate: 60 s, duplicates).
 			const keepMs = Math.max(60_000, this._d.limits.duplicateWindowMs);
 			const cutoff = this._now() - keepMs;
+			const seen = this._state.seen ?? {};
+			this._state.seen = seen;
 			for (const [id, order] of Object.entries(this._state.orders)) {
 				if (FINAL.has(order.status) && order.createdAt < cutoff) {
+					seen[id] = order.createdAt;
 					delete this._state.orders[id];
+				}
+			}
+			for (const [id, at] of Object.entries(seen)) {
+				if (at < this._now() - SEEN_HORIZON_MS) {
+					delete seen[id];
 				}
 			}
 			await this._d.store.save(this._state);

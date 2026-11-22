@@ -78,42 +78,18 @@ describe("RedisMessageJournal", () => {
 		expect(redis.sadd).toHaveBeenCalledTimes(2);
 	});
 
-	it("should cap each topic on its own count, interleaved topics included", async () => {
-		const { redis, journal } = setup();
-
-		for (let i = 0; i < 100; i++) {
-			await journal.append(createMockMessage("a"), ["s"]);
-			await journal.append(
-				{
-					...createMockMessage("b"),
-					metadata: {
-						...createMockMessage("b").metadata,
-						topic: "other.topic",
-					},
-				} as never,
-				["s"]
-			);
-		}
-
-		const capped = redis.call.mock.calls.filter(
-			([name, , mode]) => name === "XADD" && mode === "MAXLEN"
-		);
-		expect(capped.map(([, stream]) => stream).sort()).toEqual([
-			"p:journal:other.topic",
-			"p:journal:test.topic",
-		]);
-	});
-
-	it("should cap the stream length every 100th append instead of the 24 h trim", async () => {
+	it("should trim by the 24 h MINID on every append, never by length", async () => {
 		const { redis, journal } = setup();
 
 		for (let i = 0; i < 100; i++) {
 			await journal.append(createMockMessage("a"), ["trader-trainer"]);
 		}
 
-		const xadds = redis.call.mock.calls.filter(([name]) => name === "XADD");
-		expect(xadds[98]?.[2]).toBe("MINID");
-		expect(xadds[99]?.slice(2, 5)).toEqual(["MAXLEN", "~", "100000"]);
+		const modes = redis.call.mock.calls
+			.filter(([name]) => name === "XADD")
+			.map(([, , mode]) => mode);
+		expect(modes).toHaveLength(100);
+		expect(new Set(modes)).toEqual(new Set(["MINID"]));
 	});
 
 	it("should write and WAIT on a connection of its own, apart from XACK", async () => {

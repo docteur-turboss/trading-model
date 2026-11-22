@@ -509,6 +509,8 @@ tests:
         values: '1x10'
       - series: 'up{job="model-evaluator",instance="i"}'
         values: '1x10'
+      - series: 'up{job="risk-execution",instance="i"}'
+        values: '1x10'
       - series: 'up{job="dlq-service",instance="i"}'
         values: '0x10'
     alert_rule_test:
@@ -539,6 +541,11 @@ tests:
             exp_annotations:
               summary: 'model-evaluator has no scrape target'
               description: 'Prometheus has had no up series for model-evaluator for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
+          - exp_labels: {severity: critical, job: risk-execution}
+            exp_annotations:
+              summary: 'risk-execution has no scrape target'
+              description: 'Prometheus has had no up series for risk-execution for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
           - exp_labels: {severity: critical, job: dlq-service}
             exp_annotations:
@@ -794,8 +801,8 @@ tests:
         exp_alerts:
           - exp_labels: {severity: critical}
             exp_annotations:
-              summary: 'Binance quarantined after a 418 or 451'
-              description: 'financial-scraper makes no Binance call until the quarantine ends (Retry-After or doubling backoff, 5 min to 24 h): market data collection is blocked. Check fs_binance_requests_total{status=~"418|451"} and runbook-market-data-stale.'
+              summary: 'Binance quarantined after a 429, 418 or 451'
+              description: 'financial-scraper makes no Binance call until the quarantine ends (Retry-After or doubling backoff, 5 min to 24 h): market data collection is blocked. Check fs_binance_requests_total{status=~"429|418|451"} and runbook-market-data-stale.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
       - eval_time: 50m
         alertname: BinanceQuarantined
@@ -1872,6 +1879,27 @@ tests:
               summary: 'StatefulSet trading-model-staging/mysql still runs an old revision'
               description: 'StatefulSet mysql has pods on a revision other than its update revision for 24 hours: a partition holds the rollout back, so new sidecars (exporters) and their alerts are not running.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#statefulsetstuckonoldrevision'
+
+  - name: a Redis container near its memory limit is reported
+    interval: 1m
+    input_series:
+      - series: 'container_memory_working_set_bytes{namespace="trading-model",pod="redis-0",container="redis"}'
+        values: '450000000x15'
+      - series: 'container_spec_memory_limit_bytes{namespace="trading-model",pod="redis-0",container="redis"}'
+        values: '500000000x15'
+      - series: 'container_memory_working_set_bytes{namespace="trading-model",pod="redis-1",container="redis"}'
+        values: '100000000x15'
+      - series: 'container_spec_memory_limit_bytes{namespace="trading-model",pod="redis-1",container="redis"}'
+        values: '500000000x15'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: RedisMemoryHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, namespace: trading-model, pod: redis-0}
+            exp_annotations:
+              summary: 'Redis redis-0 uses over 80 % of its memory limit'
+              description: 'Redis redis-0 has used 90% of its container memory limit for 10 minutes. The journal is trimmed by age only (24 h), so a burst of messages is not cut: at the limit the container is OOMKilled.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redismemoryhigh'
 
   # 3 Redis nodes: the master must have 2 replicas; it has 1.
   - name: a Redis master with fewer replicas than the StatefulSet is reported
