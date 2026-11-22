@@ -84,9 +84,7 @@ jobs:
             svc=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.service"}}' "$c")
             if grep -q "^  $svc:" "$RUNNER_TEMP/next.yml"; then
               docker tag "$(docker inspect -f '{{.Image}}' "$c")" "trading-model-rollback/$svc:prev"
-              printf '  %s:
-    image: trading-model-rollback/%s:prev
-' "$svc" "$svc" >> "$RUNNER_TEMP/prev.yml"
+              printf '  %s:\n    image: trading-model-rollback/%s:prev\n' "$svc" "$svc" >> "$RUNNER_TEMP/prev.yml"
             fi
           done
           docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' trading-discovery > "$RUNNER_TEMP/prev.dir" || true
