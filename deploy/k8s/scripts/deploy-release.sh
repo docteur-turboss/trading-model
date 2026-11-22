@@ -237,9 +237,13 @@ dry_run() {
 		return 0
 	fi
 	echo "Overlay (deploy-app):"
-	bash "$split" app <<<"$rendered" | awk -v jobs=" $INIT_JOBS " '
+	# StatefulSet redis still OrderedReady: podManagementPolicy is immutable and
+	# release-replicas recreates it (issue #2202), so the dry-run leaves it out.
+	local skip_redis=0
+	[ "$(kubectl get statefulset redis -n "$ns" -o jsonpath='{.spec.podManagementPolicy}' --ignore-not-found)" = OrderedReady ] && skip_redis=1
+	bash "$split" app <<<"$rendered" | awk -v jobs=" $INIT_JOBS " -v skip="$skip_redis" '
 function flush() {
-	if (doc != "" && !(kind == "Job" && index(jobs, " " name " "))) { printf "%s%s", sep, doc; sep = "---\n" }
+	if (doc != "" && !(kind == "Job" && index(jobs, " " name " ")) && !(skip == 1 && kind == "StatefulSet" && name == "redis")) { printf "%s%s", sep, doc; sep = "---\n" }
 	doc = ""; kind = ""; name = ""
 }
 /^---[ \t]*$/ { flush(); next }
