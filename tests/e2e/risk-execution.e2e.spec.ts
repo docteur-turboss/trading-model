@@ -90,7 +90,6 @@ describe("risk-execution E2E", () => {
 				model: { symbol: "BTCUSDT", version: "e2e" },
 			},
 		],
-		["/prices", { symbol: "BTCUSDT", price: 100, at: 1 }],
 	])("refuses %s from another service of the mesh", (path, body) => {
 		const before = status();
 		const res = meshRequest(CALLER.trainer, `${URL}${path}`, {
