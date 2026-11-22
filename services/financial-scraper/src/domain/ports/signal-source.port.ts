@@ -19,6 +19,8 @@ export interface Observation {
 interface AdapterContext {
 	/** The request `params`, already checked against the adapter's `params` schema. */
 	params: Readonly<Record<string, string>>;
+	/** Collection time; absent in a backfill, which keeps the theoretical date (no better one exists). */
+	ingestedAt?: number;
 }
 
 /**

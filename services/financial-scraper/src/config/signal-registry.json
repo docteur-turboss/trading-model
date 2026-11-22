@@ -548,7 +548,7 @@
 			],
 			"accessPolicy": {
 				"terms": "attribution",
-				"termsUrl": "https://www.sec.gov/privacy",
+				"termsUrl": "https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data",
 				"attribution": "Source: U.S. Securities and Exchange Commission (EDGAR)",
 				"auth": "none",
 				"maxRequestsPerMinute": 60,
@@ -573,7 +573,7 @@
 			"covers": [{ "assetType": "equity", "dimension": "fundamental" }],
 			"accessPolicy": {
 				"terms": "attribution",
-				"termsUrl": "https://www.sec.gov/privacy",
+				"termsUrl": "https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data",
 				"attribution": "Source: U.S. Securities and Exchange Commission (EDGAR)",
 				"auth": "none",
 				"maxRequestsPerMinute": 60,
@@ -609,7 +609,7 @@
 			"covers": [{ "assetType": "equity", "dimension": "fundamental" }],
 			"accessPolicy": {
 				"terms": "attribution",
-				"termsUrl": "https://www.sec.gov/privacy",
+				"termsUrl": "https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data",
 				"attribution": "Source: U.S. Securities and Exchange Commission (EDGAR)",
 				"auth": "none",
 				"maxRequestsPerMinute": 60,
