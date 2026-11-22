@@ -1,5 +1,6 @@
 import { actionLabels } from "@trading-model/model-runtime/agent/action-mapper";
 import type { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
+import type { ManifestGenome } from "@trading-model/model-runtime/model-manifest";
 import {
 	type Fitness,
 	NonNegativeInt,
@@ -13,9 +14,10 @@ import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import type { ModelManifest } from "./model-artifact";
 import type { BestAgentSummary } from "./training-state";
 
-function buildGASummary(
-	genome: DeepReadonly<LamarckGenome>
-): BestAgentSummary["gaControl"] {
+/** A trained genome or the one a manifest stores: both carry the genes the summary shows. */
+type GenomeGenes = ManifestGenome | DeepReadonly<LamarckGenome>;
+
+function buildGASummary(genome: GenomeGenes): BestAgentSummary["gaControl"] {
 	return {
 		populationSize: genome.gaControl.population.size,
 		elitismFraction: genome.gaControl.population.elitismFraction,
@@ -26,9 +28,7 @@ function buildGASummary(
 	};
 }
 
-function buildNetworkSummary(
-	genome: DeepReadonly<LamarckGenome>
-): BestAgentSummary["network"] {
+function buildNetworkSummary(genome: GenomeGenes): BestAgentSummary["network"] {
 	return {
 		inputDim: genome.network.inputDim,
 		outputDim: genome.network.outputDim,
@@ -42,9 +42,7 @@ function buildNetworkSummary(
 	};
 }
 
-function buildRLSummary(
-	genome: DeepReadonly<LamarckGenome>
-): BestAgentSummary["rl"] {
+function buildRLSummary(genome: GenomeGenes): BestAgentSummary["rl"] {
 	return {
 		gamma: genome.rl.gamma,
 		learningRate: genome.rl.learningRate,
@@ -89,8 +87,7 @@ export function buildSummary(
 
 /** Summary of a stored version: metrics from the manifest, genes from its genome. */
 export function summaryFromManifest(manifest: ModelManifest): BestAgentSummary {
-	// as unknown as: manifest genome carries genes only, no weights (ADR-0022)
-	const genome = manifest.genome as unknown as DeepReadonly<LamarckGenome>;
+	const { genome } = manifest;
 	const { metrics } = manifest;
 	return {
 		id: String(genome.id),

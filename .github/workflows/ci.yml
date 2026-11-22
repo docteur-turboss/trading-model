@@ -513,17 +513,29 @@ jobs:
         if: failure()
         run: bash tests/k8s/run-kind.sh dump
 
+<<<<<<< HEAD
   # The one check the development and main rulesets require, so it aggregates every job of this
   # workflow: a red or cancelled job fails it, a skipped one (gate, k8s=false) does not. Keep the
   # name: renaming it breaks the rulesets. A skipped k8s matrix reports "k8s (${{ matrix.group }})",
   # never "k8s (network)", so a required matrix name would wait forever on a PR the gate spares from kind.
   k8s-result:
     needs: [gate, lint, security, typecheck, test, db-integration, observability, k8s-overlays, contract, e2e, k8s-images, k8s]
+=======
+  # One check for the development ruleset (aggregates lint, so actionlint gates the merge): a skipped matrix reports
+  # "k8s (${{ matrix.group }})", never "k8s (network)", so a required matrix
+  # name would wait forever on a PR the gate spares from kind.
+  k8s-result:
+    needs: [gate, lint, k8s-images, k8s]
+>>>>>>> origin/development
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
+<<<<<<< HEAD
           echo "gate, lint, security, typecheck, test, db-integration, observability, k8s-overlays, contract, e2e, k8s-images, k8s: $RESULTS"
+=======
+          echo "gate, lint, k8s-images, k8s: $RESULTS"
+>>>>>>> origin/development
           case " $RESULTS " in *" failure "* | *" cancelled "*) exit 1 ;; esac
