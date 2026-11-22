@@ -289,6 +289,10 @@ export class SignalCollector {
 				context: { source: source.id, count: signals.length },
 			});
 		} catch (err) {
+			if (err instanceof HttpStatusError) {
+				// `result` is already "invalid_payload" here: without this, an HTTP failure an adapter finds in a 200 body would skip `_track` and never quarantine.
+				result = "fetch_error";
+			}
 			if (err instanceof InvalidPayloadError) {
 				result = "invalid_payload";
 			}

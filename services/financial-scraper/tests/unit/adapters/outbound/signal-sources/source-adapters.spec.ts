@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
 import { PAYLOADS } from "@trading-model/contracts/wire/signals";
+import { z } from "zod";
 import {
 	CFTC_COT_LEGACY,
 	newYorkLocalToUtc,
@@ -1058,6 +1059,17 @@ describe("twelvedata-daily-prices", () => {
 		});
 		// No release time: the collection time stands, never before the close.
 		expect(observations.every((o) => o.observedAt === undefined)).toBe(true);
+	});
+
+	it("throws a 429 HttpStatusError for a quota body sent with HTTP 200", () => {
+		const body = { code: 429, message: "out of API credits", status: "error" };
+
+		expect(() => TWELVEDATA_DAILY_PRICES.normalize(body, NO_PARAMS)).toThrow(
+			expect.objectContaining({ name: "HttpStatusError", status: 429 })
+		);
+		expect(() =>
+			TWELVEDATA_DAILY_PRICES.normalize({ ...body, code: 400 }, NO_PARAMS)
+		).toThrow(z.ZodError);
 	});
 
 	it("gives nothing for a day without quotation (no value)", () => {
