@@ -8,9 +8,7 @@
 #   all      the three above
 #   mysql    MYSQL_PASSWORD (user scraper) -> financial-scraper, no downtime: ALTER USER ... RETAIN CURRENT PASSWORD,
 #            Secret, restart, DISCARD OLD PASSWORD
-#   redis    --user <discovery|message-manager|audit-logger|trader-trainer|model-evaluator|dlq-service>:
-#            ACL SETUSER <u> >new on every data node, Secret, restart, then ACL SETUSER <u> resetpass >new
-# Other database passwords (MYSQL_*, MONGO_ROOT_PASSWORD, REDIS_*_PASSWORD) are refused: see
+# Other database passwords (MYSQL_*, MONGO_ROOT_PASSWORD, redis, REDIS_*_PASSWORD) are refused: see
 # docs/deployment/sealed-secrets.md "Rotate a database password".
 # Env: DRY_RUN=true (no kubeseal merge, apply or restart), NAMESPACE, SEALED_SECRETS_FILE.
 # The new value is merged into SEALED_SECRETS_FILE (kubeseal --merge-into), never printed.
@@ -51,26 +49,24 @@ merge_tokens() {
 PRE_HOOK="" # runs before the Secret is applied: adds the new password, the old one stays valid
 POST_HOOK="" # runs after the consumers restarted: removes the old password
 
-mysql_alter() { # $1 file, $2 clause ($p = the password read from the file)
-  local pod sql="ALTER USER 'scraper'@'%' $2"
+mysql_pod() {
+  local pod
   pod=$(kubectl get service -n "$NAMESPACE" mysql-primary -o 'jsonpath={.spec.selector.statefulset\.kubernetes\.io/pod-name}')
   [ -n "$pod" ] || die "no pod behind the mysql-primary Service"
-  kubectl exec -i -n "$NAMESPACE" "$pod" -c mysql -- sh -c     "IFS= read -r p; echo \"$sql;\" | MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\" mysql --user=root" <"$1"
+  echo "$pod"
 }
-mysql_add() { mysql_alter "$1" "IDENTIFIED BY '\$p' RETAIN CURRENT PASSWORD"; }
+mysql_alter() { # $1 file, $2 clause ($p = the password read from the file)
+  local sql="ALTER USER 'scraper'@'%' $2"
+  kubectl exec -i -n "$NAMESPACE" "$(mysql_pod)" -c mysql -- sh -c     "IFS= read -r p; echo \"$sql;\" | MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\" mysql --user=root" <"$1"
+}
+mysql_add() {
+  # RETAIN CURRENT on a user that already has a secondary password would discard the real old one.
+  local has
+  has=$(kubectl exec -n "$NAMESPACE" "$(mysql_pod)" -c mysql -- sh -c "MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\" mysql --user=root -N -e \"SELECT JSON_EXTRACT(User_attributes,'\\$.additional_password') IS NOT NULL FROM mysql.user WHERE User='scraper' AND Host='%'\"")
+  [ "$has" = 0 ] || die "scraper already has a secondary password (an earlier rotation stopped midway): check which value the live Secret holds, run ALTER USER 'scraper'@'%' DISCARD OLD PASSWORD by hand, then rerun"
+  mysql_alter "$1" "IDENTIFIED BY '\$p' RETAIN CURRENT PASSWORD"
+}
 mysql_discard() { mysql_alter "$1" "DISCARD OLD PASSWORD"; }
-
-# $1 file, $2 ACL rules after the user name ("%s" = the password). ACL changes are not replicated: every data node.
-redis_acl() {
-  local pod
-  for pod in $(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/component=redis -o 'jsonpath={.items[*].metadata.name}'); do
-    kubectl exec -i -n "$NAMESPACE" "$pod" -c redis -- sh -c       "IFS= read -r p; t=; [ \"\$REDIS_TLS_MODE\" = required ] && t=\"--tls --cacert \${REDIS_TLS_DIR:-/etc/redis-tls}/ca.crt --sni redis\"; printf 'ACL SETUSER ${REDIS_USER} $2
-' \"\$p\" | REDISCLI_AUTH=\"\$REDIS_INTERNAL_PASSWORD\" redis-cli \$t --user ha | grep -qx OK" <"$1" ||
-      die "ACL SETUSER ${REDIS_USER} failed on ${pod}"
-  done
-}
-redis_add() { redis_acl "$1" ">%s"; }
-redis_discard() { redis_acl "$1" "resetpass >%s"; }
 
 # $1 Secret key, $2 random bytes, $3 value prefix, rest: Deployments that read the key
 rotate_secret() {
@@ -116,7 +112,6 @@ rotate_secret() {
     on { match($0, /^ */); if (RLENGTH <= ind) { on = 0; next } sub(/^ */, ""); sub(/:.*/, ""); print }' "$SEALED_SECRETS_FILE" | sort)
   gone=$(comm -23 <(echo "$live_keys") <(echo "$file_keys") | paste -sd ' ' -)
   [ -z "$gone" ] || die "${SEALED_SECRETS_FILE} has no entry for live key ${gone}: applying it would erase that key from trading-model-secrets. Add the missing keys (kubeseal --merge-into, docs/deployment/sealed-secrets.md); nothing applied"
-  # shortcut: a failure between here and the restart leaves old + new valid in the database, rerun only after checking the Secret
   [ -z "$PRE_HOOK" ] || "$PRE_HOOK" "$secret_file"
   kubectl apply -n "$NAMESPACE" -f "$SEALED_SECRETS_FILE"
 
@@ -141,47 +136,28 @@ rotate_secret() {
   log "${key} rotated"
 }
 
-# --component redis --user <u>: the Secret key and consumer of one Redis service user.
-redis_component() {
-  local key deployment
-  case "$REDIS_USER" in
-    discovery) key=REDIS_DISCOVERY_PASSWORD deployment=discovery-server ;;
-    message-manager) key=REDIS_MESSAGE_MANAGER_PASSWORD deployment=message-manager ;;
-    audit-logger) key=REDIS_AUDIT_LOGGER_PASSWORD deployment=audit-logger ;;
-    trader-trainer) key=REDIS_TRADER_TRAINER_PASSWORD deployment=trader-trainer ;;
-    model-evaluator) key=REDIS_MODEL_EVALUATOR_PASSWORD deployment=model-evaluator ;;
-    dlq-service) key=REDIS_DLQ_PASSWORD deployment=dlq-service ;;
-    *) die "--user must be discovery|message-manager|audit-logger|trader-trainer|model-evaluator|dlq-service (ha, exporter: see docs/deployment/sealed-secrets.md)" ;;
-  esac
-  PRE_HOOK=redis_add POST_HOOK=redis_discard rotate_secret "$key" 24 "" "$deployment"
-}
-
 rotate_component() {
   case "$1" in
     signing) rotate_secret SIGNING_SECRET 32 "" discovery-server ;;
     tokens) rotate_secret AUTH_TOKENS 24 "${API_KEY_NAME}:${API_KEY_SCOPES}:" api-gateway ;;
     dlq) rotate_secret DLQ_AUTH_HMAC_SECRET 32 "" dlq-service ;;
     mysql) PRE_HOOK=mysql_add POST_HOOK=mysql_discard rotate_secret MYSQL_PASSWORD 24 "" financial-scraper financial-scraper-collector ;;
-    redis) redis_component ;;
     *) die "unknown component '$1'" ;;
   esac
 }
 
 COMPONENT=all
-REDIS_USER=""
-USAGE="Usage: $0 [--component signing|tokens|dlq|mysql|all] | --component redis --user <name>"
+USAGE="Usage: $0 [--component signing|tokens|dlq|mysql|all]"
 if [ $# -gt 0 ]; then
-  [ "$1" = --component ] && { [ $# -eq 2 ] || { [ $# -eq 4 ] && [ "$3" = --user ]; }; } || { echo "$USAGE" >&2; exit 1; }
+  [ $# -eq 2 ] && [ "$1" = --component ] || { echo "$USAGE" >&2; exit 1; }
   COMPONENT="$2"
-  REDIS_USER="${4:-}"
 fi
 
 case "$COMPONENT" in
   signing | tokens | dlq | mysql) rotate_component "$COMPONENT" ;;
-  redis) [ -n "$REDIS_USER" ] || { echo "$USAGE" >&2; exit 1; }; rotate_component redis ;;
   all) for c in signing tokens dlq; do rotate_component "$c"; done ;;
-  MYSQL_* | MONGO_ROOT_PASSWORD | REDIS_* | mongo)
-    die "this database password is not rotated by this script: follow 'Rotate a database password' in docs/deployment/sealed-secrets.md" ;;
+  MYSQL_* | MONGO_ROOT_PASSWORD | REDIS_* | redis | mongo)
+    die "this database password is not rotated by this script (Redis: ACL rights for a rotation identity are not granted, ADR-0047): follow 'Rotate a database password' in docs/deployment/sealed-secrets.md" ;;
   *) echo "$USAGE" >&2; exit 1 ;;
 esac
 log "Secret rotation complete"

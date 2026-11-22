@@ -35,8 +35,8 @@ case " $* " in
 *" get secret "*"go-template"*) for f in "$STUB_STATE"/live_*; do [ -f "$f" ] && printf '%s ' "${f##*/live_}"; done; true ;;
 *" get secret "*) f="$STUB_STATE/live_$(sed -E 's/.*\{\.data\.([A-Z_]+)\}.*/\1/' <<<"$*")"; [ -f "$f" ] && cat "$f" || true ;;
 *" get service "*) echo mysql-0 ;;
-*" get pods "*) echo "redis-0 redis-1" ;;
-*" exec "*) cat >/dev/null ;;
+*" exec -i "*) cat >/dev/null ;;
+*" exec "*) echo "${STUB_SECONDARY:-0}" ;;
 *" rollout status "*) [ "${STUB_ROLLOUT_FAIL:-0}" = 0 ] ;;
 esac
 STUB
@@ -107,14 +107,10 @@ run --component mysql
 [ "$RC" = 0 ] && [ "$(steps)" = "RETAIN CURRENT apply restart restart DISCARD OLD" ] && pass "mysql: RETAIN -> apply -> restart -> DISCARD" || failed "mysql order: rc=$RC steps=$(steps)"
 STUB_ROLLOUT_FAIL=1 run --component mysql
 [ "$RC" != 0 ] && ! calls | grep -q "DISCARD OLD" && pass "mysql: failed rollout keeps the old password" || failed "mysql rollout failure: rc=$RC"
-run --component redis --user dlq-service
-[ "$RC" = 0 ] && [ "$(restarts)" = "dlq-service" ] && [ "$(calls | grep -c 'exec .*-c redis')" = 4 ] && pass "redis: both nodes before and after the restart" || failed "redis: rc=$RC restarts=$(restarts) $OUT"
-STUB_ROLLOUT_FAIL=1 run --component redis --user dlq-service
-[ "$RC" != 0 ] && [ "$(calls | grep -c 'exec .*-c redis')" = 2 ] && pass "redis: failed rollout keeps the old password" || failed "redis rollout failure: rc=$RC"
-run --component redis --user ha
-[ "$RC" = 1 ] && [ -z "$(calls)" ] && pass "redis ha user refused" || failed "redis ha: rc=$RC"
-DRY_RUN=true run --component redis --user discovery
-[ "$RC" = 0 ] && [ -z "$(calls)" ] && pass "redis DRY_RUN calls nothing" || failed "redis DRY_RUN: rc=$RC"
+STUB_SECONDARY=1 run --component mysql
+[ "$RC" != 0 ] && ! calls | grep -q "RETAIN CURRENT" && [ -z "$(restarts)" ] && pass "mysql: existing secondary password refused before RETAIN" || failed "mysql guard: rc=$RC"
+run --component redis
+[ "$RC" = 1 ] && [ -z "$(calls)" ] && pass "redis refused with doc pointer" || failed "redis: rc=$RC"
 
 STUB_DECRYPT=0 run --component dlq
 [ "$RC" = 1 ] && [ -z "$(restarts)" ] && pass "no restart when the controller did not decrypt" || failed "undecrypted: rc=$RC restarts=$(restarts)"

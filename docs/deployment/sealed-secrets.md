@@ -126,13 +126,12 @@ For `tokens`, the new key is written to a `0600` temporary file whose path is lo
 No downtime: the old password stays valid until every consumer restarted on the new one.
 
 ```bash
-bash scripts/rotate-secrets.sh --component mysql                       # MYSQL_PASSWORD (user scraper)
-bash scripts/rotate-secrets.sh --component redis --user dlq-service    # discovery|message-manager|audit-logger|trader-trainer|model-evaluator|dlq-service
+bash scripts/rotate-secrets.sh --component mysql   # MYSQL_PASSWORD (user scraper)
 ```
 
-MySQL: `ALTER USER ... RETAIN CURRENT PASSWORD` on `mysql-primary`, Secret, restart, `DISCARD OLD PASSWORD`. Redis: `ACL SETUSER <user> >new` on every data node (as `ha`, which needs the `+acl|setuser` of `redis-ha.sh`: roll the StatefulSet once first), Secret, restart, `ACL SETUSER <user> resetpass >new`. Passwords travel on stdin, never argv. If the script fails before the restart, check the live Secret before rerunning.
+`ALTER USER ... RETAIN CURRENT PASSWORD` on `mysql-primary`, Secret, restart, `DISCARD OLD PASSWORD`. The password travels on stdin, never argv. The script refuses to start if `scraper` already has a secondary password (an earlier run stopped midway): check which value the live Secret holds, run `ALTER USER 'scraper'@'%' DISCARD OLD PASSWORD`, rerun.
 
-Still manual (the script refuses them): `MYSQL_ROOT_PASSWORD`; `MYSQL_MIGRATE_PASSWORD` and `MYSQL_RETENTION_PASSWORD` (merge, apply, rerun Job `db-migrate-user`); the exporter keys (merge, apply, restart the database pods, rerun `db-migrate-user`); `REDIS_INTERNAL_PASSWORD` (`ha`: ordered restart of the StatefulSets); Mongo `root` (`db.getSiblingDB("admin").changeUserPassword("root", <new>)`; the other Mongo users come from the `mongo-*-users` Jobs on release).
+Still manual (the script refuses them): `MYSQL_ROOT_PASSWORD`; `MYSQL_MIGRATE_PASSWORD` and `MYSQL_RETENTION_PASSWORD` (merge, apply, rerun Job `db-migrate-user`); the exporter keys (merge, apply, restart the database pods, rerun `db-migrate-user`); every `REDIS_*_PASSWORD`: `ACL SETUSER <user> >new` on every data node as an administrator, merge and apply the Secret, restart the consumer, then `ACL SETUSER <user> <old` (no service identity may hold `+acl|setuser`: every pod receives `REDIS_INTERNAL_PASSWORD`, ADR-0047); `REDIS_INTERNAL_PASSWORD` (`ha`: ordered restart of the StatefulSets); Mongo `root` (`db.getSiblingDB("admin").changeUserPassword("root", <new>)`; the other Mongo users come from the `mongo-*-users` Jobs on release).
 
 ### 3. Apply
 
