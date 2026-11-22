@@ -274,7 +274,7 @@ ACL
 		# one, or the 2 s before the marker follows a promotion) both bootstrap and
 		# Sentinel picks one; nodes that are not running yet share no channel to break
 		# the tie, and it takes a double fault. No peer, or a peer already running as replica, means
-# no cold start (single node, rolling update of redis-0): no grace, as before.
+		# no cold start (single node, rolling update of redis-0): no grace, as before.
 		elif [ -e "$MASTER_MARKER" ] || { [ "${SELF_NAME##*-}" = "0" ] &&
 			{ { [ ! -d "$DATA_DIR/appendonlydir" ] && [ ! -e "$DATA_DIR/dump.rdb" ]; } || [ "$waited" -ge "$COLD_START_GRACE_SECONDS" ] || no_cold_start; }; }; then
 			log "no master anywhere: bootstrapping the group as master"
