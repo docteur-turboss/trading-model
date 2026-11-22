@@ -1257,7 +1257,7 @@ tests:
       - series: 'backup_last_success_timestamp{job="backup-metrics",component="mongodb-audit-oplog",run="incremental"}'
         values: '0+60x200'
       - series: 'backup_last_success_timestamp{job="backup-metrics",component="mysql"}'
-        values: '0x200'
+        values: '0x3100'
     alert_rule_test:
       - eval_time: 175m
         alertname: BackupIncrementalStale
@@ -1300,7 +1300,7 @@ tests:
     interval: 1m
     input_series:
       - series: 'backup_pitr_supported{job="backup-metrics"}'
-        values: '0x200'
+        values: '0x3100'
     alert_rule_test:
       - eval_time: 190m
         alertname: BackupIncrementalMissing
@@ -1350,6 +1350,39 @@ tests:
       - eval_time: 70m
         alertname: BackupIncrementalFailed
         exp_alerts: []
+
+  - name: the newest off-site SealedSecrets key backup is older than 48 hours, or absent
+    interval: 1m
+    input_series:
+      - series: 'backup_sealed_secrets_key_timestamp{job="backup-metrics"}'
+        values: '3600x3100'
+    alert_rule_test:
+      - eval_time: 40h
+        alertname: SealedSecretsKeyBackupStale
+        exp_alerts: []
+      - eval_time: 51h
+        alertname: SealedSecretsKeyBackupStale
+        exp_alerts:
+          - exp_labels: {severity: critical, job: backup-metrics}
+            exp_annotations:
+              summary: 'SealedSecrets key backup is older than 48 hours (or missing)'
+              description: 'The newest sealed-secrets-key_<TS>.yaml.age of the off-site bucket is more than 48 hours old, none exists, or the bucket prefix cannot be listed: sealed-secrets-key-backup.yml stopped (schedule disabled, run held, kubeconfig expired).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#sealedsecretskeybackupstale'
+
+  - name: no key listed or listing failed publishes 0 and alerts
+    interval: 1m
+    input_series:
+      - series: 'backup_sealed_secrets_key_timestamp{job="backup-metrics"}'
+        values: '0x3100'
+    alert_rule_test:
+      - eval_time: 51h
+        alertname: SealedSecretsKeyBackupStale
+        exp_alerts:
+          - exp_labels: {severity: critical, job: backup-metrics}
+            exp_annotations:
+              summary: 'SealedSecrets key backup is older than 48 hours (or missing)'
+              description: 'The newest sealed-secrets-key_<TS>.yaml.age of the off-site bucket is more than 48 hours old, none exists, or the bucket prefix cannot be listed: sealed-secrets-key-backup.yml stopped (schedule disabled, run held, kubeconfig expired).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#sealedsecretskeybackupstale'
 
   # The audit oplog was overwritten before being archived: the run that found
   # it failed (status 0 for one hour), the next ones succeed again from after

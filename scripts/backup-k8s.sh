@@ -228,6 +228,7 @@ prune_old
 # failure is counted by write_metric (component "manifest"): the run exits 1.
 $DRY_RUN || write_manifest || true
 upload_offsite
+write_sealed_key_timestamp
 finalize_metrics
 
 echo ""
