@@ -289,7 +289,7 @@ groups:
           severity: critical
         annotations:
           summary: 'risk-execution state differs from the broker ({{ $labels.mode }})'
-          description: 'The last reconciliation found a position, open order or balance difference with the broker. The global kill switch is on and the service is not ready; the store is never fixed to match the broker.'
+          description: 'The last reconciliation that reached the broker found a position, open order or balance difference. The global kill switch is on and the service is not ready; the store is never fixed to match the broker.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#reconciliationmismatch'
 
       - alert: RiskMarketDataStale
@@ -301,6 +301,16 @@ groups:
           summary: 'Reference price older than 15 minutes ({{ $labels.mode }})'
           description: 'An allowed instrument has no price newer than 15 min: its orders halt (kill switch on that symbol, global when every symbol is stale).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskmarketdatastale'
+
+      - alert: RiskRejectRatioHigh
+        expr: '(sum by (job, mode) (rate(risk_orders_total{outcome=~"rejected:.*"}[15m])) / (sum by (job, mode) (rate(risk_orders_total[15m])) > 0)) > 0.5'
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'More than half of the order intents rejected ({{ $labels.mode }})'
+          description: 'risk-execution rejected over 50% of the intents for 15 min. A limit is close or the decision consumer sends bad intents (price band, exposure, stale price); repeated rejects also engage the kill switch.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskrejectratiohigh'
 
       # -- Authentication failures and ACL denials -------------------
 
