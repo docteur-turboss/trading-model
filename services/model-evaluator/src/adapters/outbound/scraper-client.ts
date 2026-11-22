@@ -46,6 +46,7 @@ export class ScraperClient {
 
 	constructor(tls: TlsPaths) {
 		this._http = HttpClient.createWithTls(tls);
+		// No asset-type map: every asset reads as equity (market label only, no effect on replay).
 		this._daily = new SignalBarHistory(
 			new ScraperSignalHistory(tls, FIND_A_SERVICE),
 			new Map()

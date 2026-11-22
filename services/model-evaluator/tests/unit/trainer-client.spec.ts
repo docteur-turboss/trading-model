@@ -140,4 +140,38 @@ describe("ScraperClient", () => {
 		);
 		expect(String(manifestGet.mock.calls[1][0])).toMatch(/&after=c1$/);
 	});
+	it("rebuilds daily bars from signals: bars from `from`, nothing observed after `to`", async () => {
+		const day = (date: string, close: number) =>
+			Object.entries({
+				open: close,
+				high: close,
+				low: close,
+				close,
+				volume: 1,
+			}).map(([metric, value]) => ({
+				id: `${date}:${metric}`,
+				assetId: "AAPL",
+				dimension: "market",
+				observedAt: `${date}T22:00:00Z`,
+				payload: { metric, value, period: { start: date, end: date } },
+			}));
+		manifestGet.mockReset();
+		manifestGet.mockResolvedValue({
+			signals: [
+				...day("2026-03-10", 1),
+				...day("2026-03-11", 2),
+				...day("2026-03-12", 3),
+				...day("2026-03-13", 4),
+			],
+			truncated: false,
+		});
+		const bars = await new ScraperClient(TLS).candles(
+			"AAPL",
+			Date.parse("2026-03-11T00:00:00Z"),
+			Date.parse("2026-03-13T00:00:00Z"),
+			86_400_000
+		);
+
+		expect(bars.map((bar) => bar.close)).toEqual([2, 3]);
+	});
 });
