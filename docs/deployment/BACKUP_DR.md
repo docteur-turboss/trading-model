@@ -936,7 +936,18 @@ credentials of the cloud account (not the ones stored in the cluster);
    optional second copy at another provider (`BACKUP_S3_SECONDARY_*`, ADR-0033):
    fetch from it by setting `BACKUP_S3_BUCKET` and the `AWS_*` / `RCLONE_S3_*`
    variables of `scripts/fetch-offsite.sh` to its values. The anchor bucket has
-   no replica. If reachable:
+   no replica.
+
+   > **Accepted risk (2026-11-22, issue #1943):** no second provider is
+   > configured. The only off-site copy is the `BACKUP_S3_BUCKET` store
+   > (staging: MinIO on the same host as the kind cluster); there is no
+   > production environment yet. Losing that store together with the cluster
+   > loses every restorable backup. A second MinIO on the same host would not
+   > cover this, so none is run. The second Object Lock bucket at another
+   > provider is postponed to the production launch: reopen #1943 then, and
+   > fill `BACKUP_S3_SECONDARY_*` before the first production deploy.
+
+   If reachable:
    - keep the **same buckets**: Object Lock (compliance mode; 30-31 days
      default for backups, `AUDIT_RETENTION_DAYS` for anchors) and the
      credentials without delete right stay as they are
