@@ -7,6 +7,8 @@ export interface RiskState {
 		symbols: Record<string, string>;
 	};
 	orders: Record<string, Order>;
+	/** clientOrderId -> createdAt of purged final orders, kept SEEN_HORIZON_MS so a late replay stays a duplicate (ADR-0064 §3). */
+	seen?: Record<string, number>;
 	cash: number;
 	positions: Record<string, number>;
 	marks: Record<string, { price: number; at: number }>;
@@ -18,6 +20,8 @@ export interface RiskState {
 		symbols: Record<string, { startValue: number; flow: number }>;
 	};
 }
+
+export const SEEN_HORIZON_MS = 7 * 86_400_000;
 
 export function newState(capital: number, now: number): RiskState {
 	return {
