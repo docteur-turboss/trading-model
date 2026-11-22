@@ -13,7 +13,7 @@ overlay `production`.
 | Local secrets | `~/.trading-staging/env` (MinIO root, S3 users) and `~/.trading-staging/backup-age-identity.txt` (private age key of the staging backups): never committed |
 
 The Ingress answers on `https://localhost:9443` (self-signed certificate).
-The compose stack keeps `http://localhost:8449` (edge-proxy).
+The compose stack keeps `http://localhost:8449` (edge-proxy). It is deployed by the `deploy-compose.yml` workflow from a release tag (ADR-0086), which waits for a running `deploy.yml` of staging.
 
 ## Selection in deploy.yml
 

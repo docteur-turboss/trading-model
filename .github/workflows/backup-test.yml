@@ -20,6 +20,7 @@ on:
       - 'tests/k8s/sealed-secrets-key-drill.sh'
       - 'services/audit-logger/src/adapters/outbound/persistence/**'
       - 'docker-compose.yml'
+      - 'docker-compose.build.yml'
       - 'deploy/compose/spire/**'
       - '.github/workflows/backup-test.yml'
       - '.github/workflows/backup-key-check.yml'

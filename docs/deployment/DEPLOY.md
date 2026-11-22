@@ -8,8 +8,10 @@ Start all services:
 
 ```bash
 cp .env.example .env   # then replace the example values
-docker compose up -d
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build   # builds from the sources
 ```
+
+The base `docker-compose.yml` only references released images (`IMAGE_REGISTRY`, `IMAGE_TAG`). The long-running compose stack is deployed by the `deploy-compose.yml` workflow from a release tag, never by `git checkout` + `docker compose up` on the host (ADR-0086).
 
 Follow logs:
 
@@ -268,7 +270,7 @@ Two cases:
 > **Not production.** Production runs on Kubernetes (see above). This Compose
 > pull is for development hosts only, with no real data.
 
-Instead of building locally, pull published images from GHCR:
+Pull published images from GHCR (what the base file runs):
 
 ```bash
 # Authenticate to GitHub Container Registry

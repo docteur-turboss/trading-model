@@ -160,9 +160,7 @@ services:
   migrate:
     logging: *default-logging
     # Same image as the K8s Jobs (deploy/migrate): mysql2 locked, nothing installed at run time.
-    build:
-      context: .
-      dockerfile: deploy/migrate/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/db-migrate:${IMAGE_TAG:-latest}
     container_name: trading-migrate
     restart: "no"
     command: ["up"]
@@ -183,9 +181,7 @@ services:
   # ---------------------------------------------------------------------------
   discovery-server:
     logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/discovery-server/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/discovery-server:${IMAGE_TAG:-latest}
     container_name: trading-discovery
     restart: unless-stopped
     mem_limit: 256m
@@ -244,9 +240,7 @@ services:
   # ---------------------------------------------------------------------------
   spire-bootstrap:
     logging: *default-logging
-    build:
-      context: deploy/spire
-      target: bootstrap
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/spire-tools:${IMAGE_TAG:-latest}
     container_name: trading-spire-bootstrap
     restart: "no"
     environment:
@@ -264,9 +258,7 @@ services:
   # ---------------------------------------------------------------------------
   spire-agent:
     logging: *default-logging
-    build:
-      context: deploy/spire
-      target: agent
+    image: trading-model/spire-agent:${IMAGE_TAG:-latest}
     container_name: trading-spire-agent
     restart: unless-stopped
     mem_limit: 256m
@@ -301,9 +293,7 @@ services:
   # ---------------------------------------------------------------------------
   message-manager:
     logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/message-manager/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/message-manager:${IMAGE_TAG:-latest}
     container_name: trading-message
     restart: unless-stopped
     mem_limit: 512m
@@ -344,9 +334,7 @@ services:
     # Waits for its publishes in flight on stop (PUBLISH_ACCEPT_TIMEOUT_MS + 5s).
     stop_grace_period: 1m
     logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/financial-scraper/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/financial-scraper:${IMAGE_TAG:-latest}
     container_name: trading-scraper
     restart: unless-stopped
     mem_limit: 512m
@@ -407,9 +395,7 @@ services:
   # ---------------------------------------------------------------------------
   trader-trainer:
     logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/trader-trainer/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/trader-trainer:${IMAGE_TAG:-latest}
     container_name: trading-trainer
     stop_grace_period: 2m
     restart: unless-stopped
@@ -473,9 +459,7 @@ services:
   # ---------------------------------------------------------------------------
   api-gateway:
     logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/api-gateway/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/api-gateway:${IMAGE_TAG:-latest}
     container_name: trading-gateway
     restart: unless-stopped
     stop_grace_period: 30s
@@ -511,9 +495,7 @@ services:
   # ---------------------------------------------------------------------------
   audit-logger:
     logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/audit-logger/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/audit-logger:${IMAGE_TAG:-latest}
     container_name: trading-audit
     restart: unless-stopped
     stop_grace_period: 30s
@@ -553,9 +535,7 @@ services:
   # ---------------------------------------------------------------------------
   model-evaluator:
     logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/model-evaluator/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/model-evaluator:${IMAGE_TAG:-latest}
     container_name: trading-model-evaluator
     restart: unless-stopped
     stop_grace_period: 2m
@@ -591,9 +571,7 @@ services:
   # ---------------------------------------------------------------------------
   risk-execution:
     logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/risk-execution/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/risk-execution:${IMAGE_TAG:-latest}
     container_name: trading-risk-execution
     restart: unless-stopped
     stop_grace_period: 30s
@@ -630,9 +608,7 @@ services:
   # ---------------------------------------------------------------------------
   dlq-service:
     logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/dlq-service/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/dlq-service:${IMAGE_TAG:-latest}
     container_name: trading-dlq
     restart: unless-stopped
     stop_grace_period: 30s
