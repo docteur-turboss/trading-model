@@ -3,7 +3,7 @@ import {
 	CandleInterval,
 	TradeSide,
 } from "@trading-model/contracts/market-data.types";
-import { toSymbol } from "@trading-model/primitives/primitives";
+import { toSymbol, UnixTimestamp } from "@trading-model/primitives/primitives";
 import { normalizeBookTicker } from "../../../../../src/adapters/outbound/binance/normalizers/book-ticker";
 import { normalizeCandles } from "../../../../../src/adapters/outbound/binance/normalizers/candles";
 import { normalizeOrderBook } from "../../../../../src/adapters/outbound/binance/normalizers/order-book";
@@ -82,6 +82,20 @@ describe("Binance normalizers", () => {
 			expect(result[0].closeTimestamp).toBe(1499644799999);
 			expect(result[0].trades).toBe(308);
 			expect(result[0].timestamp).toBe(1499040000000);
+		});
+
+		it("should drop candles with empty or inconsistent prices, keep the others", () => {
+			const good = mockCandlestickResponse[0];
+			const result = normalizeCandles(
+				{ symbol: SYMBOL, interval: CandleInterval.Min1 },
+				[
+					good,
+					{ ...good, high: "0.001" as any },
+					{ ...good, open: "" as any },
+					{ ...good, openTime: UnixTimestamp.of(1) },
+				]
+			);
+			expect(result.map((c) => c.timestamp)).toEqual([good.openTime, 1]);
 		});
 
 		it("should keep a candle nobody traded in, with trades = 0", () => {
