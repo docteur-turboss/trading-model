@@ -330,7 +330,10 @@ export class SignalCollector {
 			throw new Error(`No source adapter named ${source.adapter}`);
 		}
 		const { subject, dimension } = request;
-		const observations = adapter.normalize(payload, { params: request.params });
+		const observations = adapter.normalize(payload, {
+			params: request.params,
+			ingestedAt: requireObservedAt ? undefined : ingestedAt,
+		});
 		const ingestedIso = new Date(ingestedAt).toISOString();
 		// One parse: Signal checks the payload against its dimension, and metric has no transform.
 		return observations.map((observation) => {
