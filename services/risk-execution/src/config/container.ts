@@ -89,10 +89,15 @@ export async function createRiskExecutionApp() {
 	};
 	publish();
 	const timer = setInterval(() => {
-		runJob("risk-execution.tick", () => risk.tick()).then(publish, (error) => {
-			const { message, stack } = normalizeError(error);
-			getLogger().error("risk tick failed", { error: message, stack });
-		});
+		// biome-ignore lint/plugin: logged by onError, inside the job context
+		runJob(
+			"risk-execution.tick",
+			() => risk.tick(),
+			(error) => {
+				const { message, stack } = normalizeError(error);
+				getLogger().error("risk tick failed", { error: message, stack });
+			}
+		).then(publish, () => undefined);
 	}, ENV.RISK_TICK_MS);
 	timer.unref();
 

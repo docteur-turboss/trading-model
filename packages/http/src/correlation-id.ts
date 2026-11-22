@@ -39,12 +39,14 @@ export function runWithCorrelationId<TResult>(
 
 /**
  * Runs a background job as one root span and one fresh correlation id, so its
- * logs and outbound calls share a trace. Rejections are recorded on the span
- * and rethrown: the caller keeps its own error handling.
+ * logs and outbound calls share a trace. A rejection is passed to `onError`
+ * (still inside the span and correlation id, so its log carries both), recorded
+ * on the span, then rethrown: the caller keeps its own error handling.
  */
 export function runJob<TResult>(
 	name: string,
-	fn: () => Promise<TResult>
+	fn: () => Promise<TResult>,
+	onError?: (err: unknown) => void
 ): Promise<TResult> {
 	return trace
 		.getTracer("background-job")
@@ -53,10 +55,12 @@ export function runJob<TResult>(
 				try {
 					return await fn();
 				} catch (err) {
-					span.recordException(normalizeError(err));
+					const error = normalizeError(err);
+					onError?.(err);
+					span.recordException(error);
 					span.setStatus({
 						code: SpanStatusCode.ERROR,
-						message: normalizeError(err).message,
+						message: error.message,
 					});
 					throw err;
 				} finally {

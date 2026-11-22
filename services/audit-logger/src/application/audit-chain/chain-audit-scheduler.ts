@@ -41,12 +41,14 @@ export class ChainAuditScheduler {
 	}
 
 	private async _cycle(): Promise<void> {
-		try {
-			await runJob("audit-logger.chain-cycle", () => this._audit.runCycle());
-		} catch (err) {
-			getLogger().error("Audit chain cycle failed", {
-				error: normalizeError(err).message,
-			});
-		}
+		// biome-ignore lint/plugin: logged by onError, inside the job context
+		await runJob(
+			"audit-logger.chain-cycle",
+			() => this._audit.runCycle(),
+			(err) =>
+				getLogger().error("Audit chain cycle failed", {
+					error: normalizeError(err).message,
+				})
+		).catch(() => undefined);
 	}
 }

@@ -63,13 +63,15 @@ export class TrainingLoop {
 	start(config: TrainingLoopConfig): void {
 		const { symbols, intervalMs, maxDataAgeMs } = config;
 		const runTraining = (): void => {
-			runJob("trader-trainer.training-cycle", () =>
-				this._runTrainingForSymbols(symbols, maxDataAgeMs)
-			).catch((err) => {
-				getLogger().error("Training cycle failed", {
-					error: normalizeError(err).message,
-				});
-			});
+			// biome-ignore lint/plugin: logged by onError, inside the job context
+			runJob(
+				"trader-trainer.training-cycle",
+				() => this._runTrainingForSymbols(symbols, maxDataAgeMs),
+				(err) =>
+					getLogger().error("Training cycle failed", {
+						error: normalizeError(err).message,
+					})
+			).catch(() => undefined);
 		};
 
 		runTraining();
