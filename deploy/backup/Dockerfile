@@ -15,9 +15,12 @@
 # comes from the official MySQL repository, at the version of the server
 # (deploy/k8s/infra/mysql.yaml), checked with the key the mysql image ships.
 # age and rclone come from Oracle's EPEL mirror.
-FROM bitnami/kubectl@sha256:8919c149c2e3d6860e0143c117900e64d71395172aaef0e01e604bb98c8e7ce0 AS kubectl
+# `microdnf upgrade` pulls the OS security fixes published after the base
+# digest: the release Trivy gate refuses fixed HIGH CVEs (v3.1.0-rc.3 failed on
+# curl and util-linux).
+FROM bitnami/kubectl:latest@sha256:8919c149c2e3d6860e0143c117900e64d71395172aaef0e01e604bb98c8e7ce0 AS kubectl
 
-FROM mysql@sha256:3819b2b23835c4a73c8b022fafc33c8095c0f81c929a8b7a84613d2fba6c52f5 AS mysql
+FROM mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902 AS mysql
 
 FROM oraclelinux:10-slim@sha256:5edf16c62270a7fa3012481efbef1921ba7159dc2441b99ed19eb6c0a88171cf
 COPY --from=mysql /etc/pki/rpm-gpg/RPM-GPG-KEY-mysql /etc/pki/rpm-gpg/RPM-GPG-KEY-mysql
@@ -25,9 +28,10 @@ RUN printf '%s\n' '[mysql-8.4-community]' 'name=MySQL 8.4 Community' \
 		'baseurl=https://repo.mysql.com/yum/mysql-8.4-community/el/10/$basearch/' \
 		'enabled=1' 'gpgcheck=1' 'gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-mysql' 'module_hotfixes=true' \
 		>/etc/yum.repos.d/mysql-community.repo \
+	&& microdnf -y upgrade \
 	&& microdnf -y install oracle-epel-release-el10 \
 	&& microdnf --setopt=install_weak_deps=0 -y install \
-		mysql-community-client-8.4.11 age rclone \
+		mysql-community-client-8.4.13 age rclone \
 		bash coreutils-single findutils gawk grep gzip sed tar diffutils \
 	&& microdnf clean all \
 	&& mysqlbinlog --version && age --version && rclone version >/dev/null

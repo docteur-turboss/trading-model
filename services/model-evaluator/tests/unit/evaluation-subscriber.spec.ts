@@ -1,6 +1,9 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { setLogger } from "@trading-model/contracts/logger-registry";
-import { createMessageHandler } from "../../src/adapters/inbound/evaluation-subscriber";
+import {
+	createMessageHandler,
+	createModelPublishedListener,
+} from "../../src/adapters/inbound/evaluation-subscriber";
 
 const SHA = "a".repeat(64);
 const call = (
@@ -29,7 +32,8 @@ describe("training.model.published handler", () => {
 			sha256: SHA,
 		});
 		expect(evaluate).toHaveBeenCalledWith(
-			expect.objectContaining({ symbol: "BTCUSDT", version: "v1" })
+			expect.objectContaining({ symbol: "BTCUSDT", version: "v1" }),
+			undefined
 		);
 		expect(res).toMatchObject({ status: 200, data: { status: "recorded" } });
 	});
@@ -50,5 +54,21 @@ describe("training.model.published handler", () => {
 				messageId: "m-1",
 			})
 		);
+	});
+
+	// The bus consumer (brokerMessage.on): same evaluation, a malformed payload is dead-lettered.
+	it("evaluates through the bus listener and dead-letters a malformed payload", async () => {
+		setLogger({ warn: jest.fn() } as never);
+		const evaluate = jest
+			.fn<(...args: any[]) => any>()
+			.mockResolvedValue("recorded");
+		const listener = createModelPublishedListener(evaluate as never);
+		const metadata = { topic: "training.model.published", messageId: "m-2" };
+
+		await listener({ symbol: "BTCUSDT", version: "v1", sha256: SHA }, metadata);
+		await expect(listener({ symbol: "../x" }, metadata)).rejects.toMatchObject({
+			reason: "REJECTED_BY_SUBSCRIBER",
+		});
+		expect(evaluate).toHaveBeenCalledTimes(1);
 	});
 });

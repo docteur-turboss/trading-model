@@ -1,3 +1,5 @@
+import { runCli } from "./run-cli";
+
 /**
  * Operator command (ADR-0053): prints the stored order book snapshots of a
  * series as JSON lines, oldest first.
@@ -37,11 +39,5 @@ async function _main(): Promise<number> {
 }
 
 if (require.main === module) {
-	_main().then(
-		(code) => process.exit(code),
-		(err: unknown) => {
-			console.error(err);
-			process.exit(1);
-		}
-	);
+	runCli(_main);
 }

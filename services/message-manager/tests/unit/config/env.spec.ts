@@ -31,4 +31,20 @@ describe("env", () => {
 			expect(ENV.OTEL_EXPORTER_OTLP_ENDPOINT).toBe("http://otel:4318");
 		});
 	});
+
+	it("should start in production without DLQ_AUTH_HMAC_SECRET", () => {
+		jest.isolateModules(() => {
+			const { DLQ_AUTH_HMAC_SECRET: _unused, ...rest } = process.env;
+			process.env = {
+				...rest,
+				APP_NAME: "test-app",
+				NODE_ENV: "production",
+				INSTANCE_ID: "test-instance",
+				REDIS_URL: "redis://localhost:6379",
+			};
+			expect(() =>
+				require("../../../src/infrastructure/config/env")
+			).not.toThrow();
+		});
+	});
 });

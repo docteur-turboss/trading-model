@@ -1,7 +1,7 @@
 # Runbook: DLQ Backlog
 
-**Alerts:** `DLQSizeGrowing` (warning), `DLQDrainRateLow` (warning, SLO
-`dlq_drain`, target in [slo.md](../slo.md#5-dlq-drain-rate)).
+**Alert:** `DlqAuditEventLost` (critical), see below. The backlog of historical
+entries has no alert.
 
 ## What the counters mean
 
@@ -12,20 +12,12 @@ dlq-service only keeps its historical MongoDB entries (readable, replayable
 and deletable through the API). There is no auto-retry any more. An entry that
 failed `DLQ_RETRY_MAX_ATTEMPTS` replays is abandoned (kept, no longer retried).
 
-- `dlq_entries_added_total`: entries stored by dlq-service.
 - `dlq_entries_replayed_total`: entries replayed with success (`POST /dlq/replay`).
 - `dlq_entries_replay_failed_total`, `dlq_collection_size`: failed replays,
   entries currently stored.
 
-| Alert | Fires when |
-| --- | --- |
-| `DLQSizeGrowing` | over 15 min, entries are added faster than they are replayed, for 5 min |
-| `DLQDrainRateLow` | over 15 min, less than 80% of the added entries are replayed, for 15 min |
-
-Both read the same two counters: they usually fire together. With nothing
-added the ratio is undefined and `DLQDrainRateLow` stays silent. The
-dead-lettering itself is `MessagesDeadLettered`, and the path from
-message-manager to the dead streams is covered by `BusDeadLetters`
+Dead-lettering itself and the path from message-manager
+to the dead streams are covered by `BusDeadLetters`
 ([runbook-message-bus-outage](runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost)).
 
 ## Symptom
@@ -37,9 +29,7 @@ Dead letters pile up in dlq-service instead of being redelivered: the messages
 
 ```bash
 NS=trading-model
-# 1. Rates behind the alerts, and the failed replays
-kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
-  'http://localhost:9090/api/v1/query?query=sum(rate(dlq_entries_added_total[15m]))'
+# 1. Replays and failed replays
 kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
   'http://localhost:9090/api/v1/query?query=sum(rate(dlq_entries_replayed_total[15m]))'
 kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
@@ -62,7 +52,7 @@ Common causes:
 
 1. **The subscriber is still failing**: a replay goes back through
    message-manager to the same subscriber, fails again and is dead-lettered
-   again (added grows with replayed failing). The replay logs name the topic; fix the
+   again. The replay logs name the topic; fix the
    subscriber first ([runbook-message-bus-outage](runbook-message-bus-outage.md#2-slow-or-failing-subscriber)).
 2. **Historical entries nobody replays**: with auto-retry gone, stored entries
    stay until an operator replays or deletes them.

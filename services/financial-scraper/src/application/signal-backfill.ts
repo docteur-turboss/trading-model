@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fillAssetHoles, type SignalRegistry } from "../config/signal-registry";
 import { dailyRequests } from "../domain/signals";
+import { runCli } from "./run-cli";
 import { SignalCollector } from "./signal-collector";
 
 const USAGE = `Backfill the history of a signal source, run inside the collector pod:
@@ -31,95 +32,157 @@ function _day(ms: number): string {
 	return new Date(ms).toISOString().slice(0, 10);
 }
 
-/** Runs `signal-backfill`; resolves to the process exit code (0 done, 1 failed or quota reached, 2 refused). */
-export async function runBackfill(
-	args: string[],
-	deps: BackfillDeps
-): Promise<number> {
+type Source = SignalRegistry["sources"][number];
+interface Plan {
+	source: Source;
+	from: string;
+	to: string;
+	requests: Source["requests"];
+}
+
+/** Flags of the command, in the order source, asset, from, to; undefined on an unknown flag. */
+function _parseArgs(args: string[]): (string | undefined)[] | undefined {
 	const opts = new Map<string, string>();
 	for (let i = 0; i < args.length; i += 2) {
 		opts.set(args[i] ?? "", args[i + 1] ?? "");
 	}
 	const known = ["--source", "--asset", "--from", "--to"];
 	if ([...opts.keys()].some((flag) => !known.includes(flag))) {
-		deps.err(USAGE);
-		return 2;
+		return undefined;
 	}
-	const [sourceId, assetId, from, to] = known.map((name) => opts.get(name));
-	const source = deps.registry.sources.find(({ id }) => id === sourceId);
-	if (!(source && from && to)) {
-		deps.err(USAGE);
-		return 2;
-	}
-	if (!source.history) {
-		deps.err(`Source ${source.id} declares no history request`);
-		return 2;
-	}
+	return known.map((name) => opts.get(name));
+}
+
+function _validWindow(from: string, to: string, today: string): boolean {
 	const real = (date: string) =>
 		DATE.test(date) && _day(Date.parse(date)) === date;
-	if (!(real(from) && real(to)) || from > to || to > _day(deps.now())) {
-		deps.err("Dates must be YYYY-MM-DD, from <= to, to not in the future");
-		return 2;
+	return real(from) && real(to) && from <= to && to <= today;
+}
+
+/** The work to do, or the message of the refusal (exit code 2). */
+function _plan(args: string[], deps: BackfillDeps): Plan | string {
+	const parsed = _parseArgs(args);
+	if (!parsed) {
+		return USAGE;
+	}
+	const [sourceId, assetId, from, to] = parsed;
+	const source = deps.registry.sources.find(({ id }) => id === sourceId);
+	if (!(source && from && to)) {
+		return USAGE;
+	}
+	if (!source.history) {
+		return `Source ${source.id} declares no history request`;
+	}
+	if (!_validWindow(from, to, _day(deps.now()))) {
+		return "Dates must be YYYY-MM-DD, from <= to, to not in the future";
 	}
 	const requests = source.requests.filter(
 		({ subject }) =>
 			"assetId" in subject && (!assetId || subject.assetId === assetId)
 	);
 	if (requests.length === 0) {
-		deps.err(`Source ${source.id} has no request for asset ${assetId ?? "*"}`);
+		return `Source ${source.id} has no request for asset ${assetId ?? "*"}`;
+	}
+	return { source, from, to, requests };
+}
+
+interface Pacing {
+	limit: number;
+	spacingMs: number;
+	sent: boolean;
+}
+
+/** Stores one page; resolves to an exit code when the run must stop. */
+async function _storePage(
+	deps: BackfillDeps,
+	source: Source,
+	request: Source["requests"][number],
+	pacing: Pacing,
+	page: { assetId: string; url: string; start: number; end: number }
+): Promise<number | undefined> {
+	const quotaKey = `quota:${source.id}:${_day(deps.now())}`;
+	const used = Number(deps.progress.get(quotaKey) ?? 0);
+	if (used >= pacing.limit) {
+		deps.err(`Daily quota reached at ${_day(page.start)}: run again tomorrow`);
+		return 1;
+	}
+	if (pacing.sent) {
+		await deps.sleep(pacing.spacingMs);
+	}
+	pacing.sent = true;
+	deps.progress.set(quotaKey, String(used + 1));
+	try {
+		await deps.collector.backfillPage(source, { ...request, url: page.url });
+	} catch (err) {
+		deps.err(
+			`Backfill of ${page.assetId} failed at ${_day(page.start)}: ${err instanceof Error ? err.message : String(err)}`
+		);
+		return 1;
+	}
+	return undefined;
+}
+
+/** Backfills one request page by page; resolves to an exit code when the run must stop. */
+async function _backfillAsset(
+	deps: BackfillDeps,
+	{ source, from, to }: Plan,
+	request: Source["requests"][number],
+	pacing: Pacing
+): Promise<number | undefined> {
+	const { url, pageDays } = source.history as NonNullable<Source["history"]>;
+	const asset = deps.registry.assets.get(
+		"assetId" in request.subject ? request.subject.assetId : ""
+	);
+	const template = asset && fillAssetHoles(url, asset);
+	if (!(asset && template)) {
+		deps.err(`Asset of ${JSON.stringify(request.subject)} fits no history url`);
 		return 2;
 	}
-	const { url, pageDays } = source.history;
-	const spacingMs = 60_000 / source.accessPolicy.maxRequestsPerMinute;
-	// The normal collection keeps its share of the daily quota; runs of the same UTC day share the rest.
-	const limit =
-		source.accessPolicy.maxRequestsPerDay === undefined
-			? Number.POSITIVE_INFINITY
-			: source.accessPolicy.maxRequestsPerDay - dailyRequests(source);
-	let sent = false;
-	for (const request of requests) {
-		const asset = deps.registry.assets.get(
-			"assetId" in request.subject ? request.subject.assetId : ""
-		);
-		const template = asset && fillAssetHoles(url, asset);
-		if (!(asset && template)) {
-			deps.err(
-				`Asset of ${JSON.stringify(request.subject)} fits no history url`
-			);
-			return 2;
+	const key = `${source.id}:${asset.id}:${from}:${to}`;
+	const done = deps.progress.get(key);
+	let start = Date.parse(done ?? from) + (done ? DAY_MS : 0);
+	while (start <= Date.parse(to)) {
+		const end = Math.min(start + (pageDays - 1) * DAY_MS, Date.parse(to));
+		const stop = await _storePage(deps, source, request, pacing, {
+			assetId: asset.id,
+			url: template.replace("{from}", _day(start)).replace("{to}", _day(end)),
+			start,
+			end,
+		});
+		if (stop !== undefined) {
+			return stop;
 		}
-		const key = `${source.id}:${asset.id}:${from}:${to}`;
-		const done = deps.progress.get(key);
-		let start = Date.parse(done ?? from) + (done ? DAY_MS : 0);
-		while (start <= Date.parse(to)) {
-			const end = Math.min(start + (pageDays - 1) * DAY_MS, Date.parse(to));
-			const quotaKey = `quota:${source.id}:${_day(deps.now())}`;
-			const used = Number(deps.progress.get(quotaKey) ?? 0);
-			if (used >= limit) {
-				deps.err(`Daily quota reached at ${_day(start)}: run again tomorrow`);
-				return 1;
-			}
-			if (sent) {
-				await deps.sleep(spacingMs);
-			}
-			sent = true;
-			deps.progress.set(quotaKey, String(used + 1));
-			try {
-				await deps.collector.backfillPage(source, {
-					...request,
-					url: template
-						.replace("{from}", _day(start))
-						.replace("{to}", _day(end)),
-				});
-			} catch (err) {
-				deps.err(
-					`Backfill of ${asset.id} failed at ${_day(start)}: ${err instanceof Error ? err.message : String(err)}`
-				);
-				return 1;
-			}
-			deps.progress.set(key, _day(end));
-			deps.out(`${asset.id} stored up to ${_day(end)}`);
-			start = end + DAY_MS;
+		deps.progress.set(key, _day(end));
+		deps.out(`${asset.id} stored up to ${_day(end)}`);
+		start = end + DAY_MS;
+	}
+	return undefined;
+}
+
+/** Runs `signal-backfill`; resolves to the process exit code (0 done, 1 failed or quota reached, 2 refused). */
+export async function runBackfill(
+	args: string[],
+	deps: BackfillDeps
+): Promise<number> {
+	const plan = _plan(args, deps);
+	if (typeof plan === "string") {
+		deps.err(plan);
+		return 2;
+	}
+	const { accessPolicy } = plan.source;
+	const pacing: Pacing = {
+		// The normal collection keeps its share of the daily quota; runs of the same UTC day share the rest.
+		limit:
+			accessPolicy.maxRequestsPerDay === undefined
+				? Number.POSITIVE_INFINITY
+				: accessPolicy.maxRequestsPerDay - dailyRequests(plan.source),
+		spacingMs: 60_000 / accessPolicy.maxRequestsPerMinute,
+		sent: false,
+	};
+	for (const request of plan.requests) {
+		const stop = await _backfillAsset(deps, plan, request, pacing);
+		if (stop !== undefined) {
+			return stop;
 		}
 	}
 	return 0;
@@ -173,11 +236,5 @@ async function _main(): Promise<number> {
 }
 
 if (require.main === module) {
-	_main().then(
-		(code) => process.exit(code),
-		(err: unknown) => {
-			console.error(err);
-			process.exit(1);
-		}
-	);
+	runCli(_main);
 }

@@ -1,0 +1,442 @@
+import { describe, expect, it, jest } from "@jest/globals";
+import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
+import { ExperienceKind } from "@trading-model/model-runtime/neural-network/type";
+import { NumericRange } from "@trading-model/primitives/numeric-range";
+import type { Reward } from "@trading-model/primitives/primitives";
+import { Cash, Price } from "@trading-model/primitives/primitives";
+import {
+	evaluateFitness,
+	evaluateGenomeAllWindows,
+	sequentialEval,
+} from "../../../../src/domain/genetic-algorithm/evaluation-pipeline";
+import {
+	ActivationType,
+	FitnessType,
+	NormalisationType,
+	SelectionType,
+} from "../../../../src/domain/genetic-algorithm/genome";
+import type { RLBackend } from "../../../../src/domain/genetic-algorithm/rl-backend";
+import type { Experience } from "../../../../src/domain/genetic-algorithm/shared-types";
+import { GENOME_BASE } from "../../../support/genome-base";
+
+const MINIMAL_GENOME = {
+	network: {
+		inputDim: 3,
+		outputDim: 3,
+		hiddenLayers: [],
+		normalization: NormalisationType.None,
+	},
+	...GENOME_BASE,
+	gaControl: {
+		population: { size: 20, elitismFraction: 0.1, survivorFraction: 0.5 },
+		termination: {
+			rewardThreshold: Number.POSITIVE_INFINITY,
+			stagnationPatience: 10,
+			maxGenerations: 10,
+			timeBudgetMs: 60000,
+		},
+		seeding: { envSeed: 1, mutationSeed: 1, networkSeed: 1 },
+		evaluation: { episodesPerIndividual: 2 },
+		selectionType: SelectionType.Tournament,
+		fitnessType: FitnessType.TotalPnl,
+		mutationRate: 0.1,
+		mutationStd: 0.5,
+	},
+	fitness: 0,
+};
+
+function makeStep(features: number[]) {
+	return {
+		features: FeatureVector.fromFloat32Array(new Float32Array(features)),
+		price: Price.of(100),
+	};
+}
+
+function makeMockBackend(poolSize: number): RLBackend {
+	const pool: Experience[] = [];
+	for (let i = 0; i < poolSize; i++) {
+		pool.push({
+			kind: ExperienceKind.QLearning as const,
+			input: new Float32Array([0.1, 0.2, 0.3]),
+			output: new Float32Array([0.1, 0.2, 0.3]),
+			reward: 1 as Reward,
+			nextState: new Float32Array([0.1, 0.2, 0.3]),
+			done: false,
+			action: 0,
+		});
+	}
+	return {
+		forwardPass: jest.fn(
+			(_f: FeatureVector) => new Float32Array([0.5, 0.5, 0.5])
+		),
+		step: jest.fn((..._args: any[]) => ({
+			reward: 1,
+			action: 0,
+			state: new Float32Array(3),
+		})),
+		remember: jest.fn<(...args: any[]) => any>(),
+		replay: jest.fn<(...args: any[]) => any>(),
+		getWeights: jest.fn((..._args: any[]) => new Float32Array([0.1, 0.2])),
+		setWeights: jest.fn<(...args: any[]) => any>(),
+		getPnL: jest.fn((..._args: any[]) => Cash.of(50)),
+		resetEpisode: jest.fn<(...args: any[]) => any>(),
+	};
+}
+
+describe("evaluateGenomeAllWindows", () => {
+	it("should replay transitions while training", async () => {
+		// nStepReturn is 3: the first transition needs 3 rewards, so 5 bars
+		const windowSets = [
+			{
+				id: "w1",
+				train: Array.from({ length: 5 }, (_u, i) =>
+					makeStep([i * 0.1, 0.2, 0.3])
+				),
+				validation: [makeStep([0.7, 0.8, 0.9])],
+			},
+		];
+		const trainMock = jest.fn<(...args: any[]) => any>();
+		const backendFactory = jest.fn((..._args: any[]) => ({
+			...makeMockBackend(2),
+			replay: trainMock,
+		}));
+		await evaluateGenomeAllWindows(
+			MINIMAL_GENOME as any,
+			windowSets,
+			backendFactory as any
+		);
+		expect(trainMock).toHaveBeenCalled();
+	});
+
+	it("should handle empty window sets gracefully", async () => {
+		const backendFactory = jest.fn((..._args: any[]) => makeMockBackend(2));
+		const result = await evaluateGenomeAllWindows(
+			MINIMAL_GENOME as any,
+			[],
+			backendFactory as any
+		);
+		expect(result.updatedGenome).toEqual(MINIMAL_GENOME);
+		expect(result.meta.episodesRun).toBe(1);
+	});
+
+	it("should handle frameSkip > 1", async () => {
+		const genome = {
+			...MINIMAL_GENOME,
+			rl: {
+				...MINIMAL_GENOME.rl,
+				horizon: {
+					...MINIMAL_GENOME.rl.horizon,
+					frameSkip: 3,
+					maxEpisodeLength: 10,
+				},
+			},
+		};
+		const windowSets = [
+			{
+				id: "w1",
+				train: Array.from({ length: 10 }, (_, i) =>
+					makeStep([i * 0.1, i * 0.1, i * 0.1])
+				),
+				validation: Array.from({ length: 5 }, (_, i) =>
+					makeStep([i * 0.1, i * 0.1, i * 0.1])
+				),
+			},
+		];
+		const backendFactory = jest.fn((..._args: any[]) => makeMockBackend(2));
+		await evaluateGenomeAllWindows(
+			genome as any,
+			windowSets,
+			backendFactory as any
+		);
+		// one decision every 3 bars: train bars 0,3,6,9 (4), then validation
+		// bars 0,3 (2) for each of the 2 evaluation episodes
+		const stepCalls = backendFactory.mock.results.map(
+			(r) => ((r.value as RLBackend).step as jest.Mock).mock.calls.length
+		);
+		expect(stepCalls).toEqual([4, 2, 2]);
+	});
+
+	it("should apply reward shaping with clip and normalize", async () => {
+		const genome = {
+			...MINIMAL_GENOME,
+			rl: {
+				...MINIMAL_GENOME.rl,
+				rewardShaping: {
+					clip: true,
+					clipBounds: new NumericRange(-1, 1),
+					scale: false,
+					scaleFactor: 1,
+					normalize: true,
+					sparse: false,
+				},
+			},
+		};
+		const windowSets = [
+			{
+				id: "w1",
+				train: [makeStep([0.1, 0.2, 0.3]), makeStep([0.4, 0.5, 0.6])],
+				validation: [makeStep([0.7, 0.8, 0.9])],
+			},
+		];
+		const backendFactory = jest.fn((..._args: any[]) => makeMockBackend(2));
+		const result = await evaluateGenomeAllWindows(
+			genome as any,
+			windowSets,
+			backendFactory as any
+		);
+		expect(result.updatedGenome.trainedWeights).toEqual(
+			new Float32Array([0.1, 0.2])
+		);
+	});
+
+	it("should handle genome with hidden layers for complexity estimation", async () => {
+		const genome = {
+			...MINIMAL_GENOME,
+			network: {
+				...MINIMAL_GENOME.network,
+				hiddenLayers: [
+					{ neurons: 10, activation: ActivationType.Relu },
+					{ neurons: 5, activation: ActivationType.Sigmoid },
+				],
+			},
+		};
+		const windowSets = [
+			{
+				id: "w1",
+				train: [makeStep([0.1, 0.2, 0.3])],
+				validation: [makeStep([0.7, 0.8, 0.9])],
+			},
+		];
+		const backendFactory = jest.fn((..._args: any[]) => makeMockBackend(2));
+		const result = await evaluateGenomeAllWindows(
+			genome as any,
+			windowSets,
+			backendFactory as any
+		);
+		expect(result.objectives.negFlops).toBeLessThan(0);
+	});
+
+	it("should store nothing from a single training bar (no price follows it)", async () => {
+		const windowSets = [
+			{
+				id: "w1",
+				train: [makeStep([0.1, 0.2, 0.3])],
+				validation: [makeStep([0.7, 0.8, 0.9])],
+			},
+		];
+		const trainMock = jest.fn<(...args: any[]) => any>();
+		const backendFactory = jest.fn((..._args: any[]) => ({
+			...makeMockBackend(1),
+			replay: trainMock,
+		}));
+		const result = await evaluateGenomeAllWindows(
+			MINIMAL_GENOME as any,
+			windowSets,
+			backendFactory as any
+		);
+		expect(result.updatedGenome.trainedWeights).toEqual(
+			new Float32Array([0.1, 0.2])
+		);
+		expect(trainMock).not.toHaveBeenCalled();
+	});
+
+	it("should throw invariant error when inputDim is invalid", async () => {
+		const badGenome = {
+			...MINIMAL_GENOME,
+			network: { ...MINIMAL_GENOME.network, inputDim: 0 },
+		};
+		const windowSets = [
+			{
+				id: "w1",
+				train: [makeStep([0.1, 0.2, 0.3]), makeStep([0.4, 0.5, 0.6])],
+				validation: [makeStep([0.7, 0.8, 0.9])],
+			},
+		];
+		const backendFactory = jest.fn((..._args: any[]) => makeMockBackend(2));
+		expect(() =>
+			evaluateGenomeAllWindows(
+				badGenome as any,
+				windowSets,
+				backendFactory as any
+			)
+		).toThrow("[Invariant] inputDim must be positive");
+	});
+
+	it("should handle sparse reward mode", async () => {
+		const genome = {
+			...MINIMAL_GENOME,
+			rl: {
+				...MINIMAL_GENOME.rl,
+				rewardShaping: {
+					clip: true,
+					clipBounds: new NumericRange(-1, 1),
+					scale: false,
+					scaleFactor: 1,
+					normalize: false,
+					sparse: true,
+				},
+			},
+		};
+		const windowSets = [
+			{
+				id: "w1",
+				train: [makeStep([0.1, 0.2, 0.3]), makeStep([0.4, 0.5, 0.6])],
+				validation: [makeStep([0.7, 0.8, 0.9])],
+			},
+		];
+		const backendFactory = jest.fn((..._args: any[]) => makeMockBackend(2));
+		const result = await evaluateGenomeAllWindows(
+			genome as any,
+			windowSets,
+			backendFactory as any
+		);
+		expect(result.updatedGenome.trainedWeights).toEqual(
+			new Float32Array([0.1, 0.2])
+		);
+		expect(result.meta.rawScores.length).toBeGreaterThan(0);
+	});
+});
+
+describe("sequentialEval", () => {
+	it("should process all items in order", async () => {
+		const items = [1, 2, 3, 4, 5];
+		const fn = jest.fn(async (x: number) => x * 2);
+		const results = await sequentialEval(items, fn);
+		expect(results).toEqual([2, 4, 6, 8, 10]);
+		expect(fn).toHaveBeenCalledTimes(5);
+	});
+
+	it("should handle empty items array", async () => {
+		const fn = jest.fn(async (x: number) => x);
+		const results = await sequentialEval([], fn);
+		expect(results).toEqual([]);
+		expect(fn).not.toHaveBeenCalled();
+	});
+
+	it("should handle single item", async () => {
+		const fn = jest.fn(async (x: number) => x * 3);
+		const results = await sequentialEval([7], fn);
+		expect(results).toEqual([21]);
+	});
+
+	it("yields to the event loop between items", async () => {
+		let ticked = false;
+		setImmediate(() => {
+			ticked = true;
+		});
+		const seen: boolean[] = [];
+		await sequentialEval([1, 2], async () => {
+			seen.push(ticked);
+		});
+		expect(seen).toEqual([false, true]);
+	});
+
+	it("should keep input order", async () => {
+		const fn = jest.fn(async (x: number) => x);
+		const results = await sequentialEval([1, 2], fn);
+		expect(results).toEqual([1, 2]);
+		expect(fn).toHaveBeenCalledTimes(2);
+	});
+});
+
+describe("evaluateGenomeAllWindows — failure reporting", () => {
+	const windowSets = [
+		{
+			id: "w1",
+			train: [makeStep([0.1, 0.2, 0.3]), makeStep([0.4, 0.5, 0.6])],
+			validation: [makeStep([0.7, 0.8, 0.9])],
+		},
+	];
+
+	it("should report a failed evaluation to the telemetry and penalise the genome", async () => {
+		const telemetry = {
+			generationStarted: jest.fn<(...args: any[]) => any>(),
+			stagnationUpdated: jest.fn<(...args: any[]) => any>(),
+			evaluationFailed: jest.fn<(...args: any[]) => any>(),
+			genomeEvaluated: jest.fn<(...args: any[]) => any>(),
+		};
+		const backendFactory = jest.fn((..._args: any[]) => {
+			throw new Error("backend exploded");
+		});
+
+		const result = await evaluateGenomeAllWindows(
+			MINIMAL_GENOME as any,
+			windowSets,
+			backendFactory as any,
+			telemetry
+		);
+
+		expect(telemetry.evaluationFailed).toHaveBeenCalledWith("backend exploded");
+		expect(result.objectives.avgPnl).toBeLessThan(-1e8);
+	});
+
+	it("reports the duration of each genome evaluation", async () => {
+		const telemetry = {
+			generationStarted: jest.fn<(...args: any[]) => any>(),
+			stagnationUpdated: jest.fn<(...args: any[]) => any>(),
+			evaluationFailed: jest.fn<(...args: any[]) => any>(),
+			genomeEvaluated: jest.fn<(...args: any[]) => any>(),
+		};
+		await evaluateFitness({
+			population: [MINIMAL_GENOME as any, MINIMAL_GENOME as any],
+			windowSets,
+			backendFactory: jest.fn((..._args: any[]) => {
+				throw new Error("backend exploded");
+			}) as any,
+			telemetry,
+		});
+		expect(telemetry.genomeEvaluated).toHaveBeenCalledTimes(2);
+		expect(telemetry.genomeEvaluated.mock.calls[0][0]).toBeGreaterThanOrEqual(
+			0
+		);
+	});
+
+	it("should tolerate a failure without telemetry and a non-Error throw", async () => {
+		const nonError: unknown = "not an error";
+		const backendFactory = jest.fn((..._args: any[]) => {
+			throw nonError;
+		});
+
+		const result = await evaluateGenomeAllWindows(
+			MINIMAL_GENOME as any,
+			windowSets,
+			backendFactory as any
+		);
+
+		expect(result.objectives.avgPnl).toBeLessThan(-1e8);
+	});
+});
+
+describe("test segment isolation (issue #885)", () => {
+	it("never reads a test step while training or scoring a genome", async () => {
+		const reads = jest.fn();
+		const poisoned = [
+			{
+				get features() {
+					reads();
+					return FeatureVector.fromFloat32Array(new Float32Array(3));
+				},
+				get price() {
+					reads();
+					return Price.of(100);
+				},
+			},
+		];
+		const windowSets = [
+			{
+				id: "w1",
+				train: Array.from({ length: 5 }, (_u, i) =>
+					makeStep([i * 0.1, 0.2, 0.3])
+				),
+				validation: [makeStep([0.7, 0.8, 0.9])],
+				test: poisoned,
+			},
+		];
+		await evaluateFitness({
+			population: [MINIMAL_GENOME as any],
+			windowSets,
+			backendFactory: jest.fn((..._args: any[]) => makeMockBackend(2)) as any,
+		});
+		expect(reads).not.toHaveBeenCalled();
+	});
+});

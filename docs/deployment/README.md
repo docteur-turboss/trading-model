@@ -1,7 +1,7 @@
 # Deployment — Complete Guide
 
 > Table of contents for all deployment procedures, standards, and configurations
-> related to the trading-model monorepo (7 microservices + infrastructure).
+> related to the trading-model monorepo (microservices + infrastructure).
 
 ---
 

@@ -85,6 +85,7 @@ paths:
                             - "financial-scraper"
                             - "message-manager"
                             - "model-evaluator"
+                            - "risk-execution"
                             - "trader-trainer"
                         instanceId:
                           type: "string"
@@ -166,6 +167,12 @@ paths:
             "application/json":
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Caller not allowed"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "429":
           description: "Too many requests"
           content:
@@ -228,6 +235,7 @@ paths:
                                 - "financial-scraper"
                                 - "message-manager"
                                 - "model-evaluator"
+                                - "risk-execution"
                                 - "trader-trainer"
                             instanceId:
                               type: "string"
@@ -310,6 +318,12 @@ paths:
             "application/json":
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Caller not allowed"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "429":
           description: "Too many requests"
           content:
@@ -354,6 +368,12 @@ paths:
             "application/json":
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Caller not allowed"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "429":
           description: "Too many requests"
           content:
@@ -392,6 +412,7 @@ paths:
                         - "financial-scraper"
                         - "message-manager"
                         - "model-evaluator"
+                        - "risk-execution"
                         - "trader-trainer"
                     instanceId:
                       type: "string"
@@ -408,6 +429,12 @@ paths:
           description: "No content"
         "400":
           description: "Invalid request"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: "Caller not allowed"
           content:
             "application/json":
               schema:

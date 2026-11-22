@@ -1,10 +1,11 @@
 # ADR-0076: Multi-Asset Trainer: Shared Encoders, a Three-Level Agent Hierarchy and a Migration Path in Flagged Steps
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-11
+**Verified by:** `services/trader-trainer/tests/unit/domain/genetic-algorithm/event-driven-decisions.spec.ts` (section 5), `services/trader-trainer/tests/unit/domain/genetic-algorithm/shared-trunk.spec.ts` (section 9 step 1), manual review 2026-11-20 (sections 1 to 4 and 6 to 9 add no code yet: each step issue adds its spec here)
 **Related:** [ADR-0001](./0001-ga-dqn-training.md) (GA + DQN), [ADR-0022](./0022-versioned-model-artifacts.md) (artifacts), [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) (success criteria), [ADR-0036](./0036-multi-dimension-signals-mvp.md) (signals), [ADR-0039](./0039-configuration-feature-flags.md) (flags), [ADR-0044](./0044-singleton-trainer.md) (singleton trainer), [ADR-0049](./0049-downstream-context-for-models-and-signals.md) (downstream context), [ADR-0061](./0061-n-1-compatibility-of-public-api-and-bus-messages.md) (N-1), [ADR-0064](./0064-risk-and-execution-context-before-order-flow.md) (risk and execution), [ADR-0066](./0066-simulated-fills-at-next-bar-open-with-execution-costs.md) (simulator), [ADR-0068](./0068-test-segment-for-published-model-metrics.md) (test segment), [ADR-0069](./0069-model-admission-verdict-on-the-test-segment.md) (admission)
 
-This ADR is a proposal: the owner decides. It changes no code, no configuration and no manifest. Implementation issues are written from it once Accepted (#1306 waits for it).
+**Decision (owner, issue #1306, 2026-11-20):** accepted with the recommended answers. **Q1**: mean pooling first; attention is written only if the step 4 ablation shows pooling is the limit (step 6 stays conditional). **Q2**: the scraper registry entry (`signal-registry.json`, its `sector` and `assetClass` fields) is the authoritative source of an asset's sector and class; no separate table. **Q3**: the allocator learns the limits as inputs in training, and production clips to them; the risk context of ADR-0064 still enforces them. **Q4**: the first target is 100 assets: hierarchy by sector, attention optional inside groups. Accepting this ADR added no code by itself (ADR-0029); #1306 is split into one issue per step of section 9 once its other resumption conditions (#1298, #1300) are met.
 
 ## Context
 
@@ -28,7 +29,7 @@ Machine: the owner's workstation, Bun, one thread, no other load. Numbers are an
 | One generation, population 20, 10 episodes, 2 000 bars | 4.0 s |
 | One session, 50 generations (`TRAINER_GENERATIONS`) | 100 to 200 s, inside `TRAINER_TIME_BUDGET_MS` (300 s) |
 
-**How to redo it.** From `services/trader-trainer`, a throwaway script (not committed) imports `NeuralNetwork` (`src/domain/neural-network/neural-network.ts`) and times 20 000 calls of `forward(x)` and `train(x, t)` after 2 000 warm-up calls. For the session it builds `WindowSet[]` of random `MarketStep` as in `tests/unit/genetic-algorithm/ga-replay.spec.ts` and times `runInProcess(windowSets, settings)` with population 20, 10 episodes, `generations` 3; the generation time is the total divided by the generation count. Random features measure the compute, not the quality.
+**How to redo it.** From `services/trader-trainer`, a throwaway script (not committed) imports `NeuralNetwork` (`src/domain/neural-network/neural-network.ts`) and times 20 000 calls of `forward(x)` and `train(x, t)` after 2 000 warm-up calls. For the session it builds `WindowSet[]` of random `MarketStep` as in `tests/unit/domain/genetic-algorithm/ga-replay.spec.ts` and times `runInProcess(windowSets, settings)` with population 20, 10 episodes, `generations` 3; the generation time is the total divided by the generation count. Random features measure the compute, not the quality.
 
 **Budget of one session per asset count** (sequential, 100 to 200 s per asset, interval `TRAINER_INTERVAL_MS` = 1 h):
 
@@ -40,7 +41,7 @@ Machine: the owner's workstation, Bun, one thread, no other load. Numbers are an
 
 Past about 20 assets the current design cannot refresh every model hourly, even before any inter-asset view.
 
-## Decision (proposed)
+## Decision
 
 ### 1. Factor the compute by data type (shared encoders)
 
@@ -126,6 +127,8 @@ Each step sits behind a flag (ADR-0039), has its measure on the test segment (AD
 | 6 (conditional) | attention in the manager | `FEATURE_ATTENTION` | none new | only if the step 4 ablation shows pooling is the limit: fitness gain over pooling larger than seed spread |
 
 Step 1 is the first proof because it needs no new network code, answers "does sharing hurt" and attacks the cost table directly.
+
+Step 1 as built (`FEATURE_SHARED_TRUNK`, `scripts/shared-trunk-bench.ts` measures it): the limits below stay until their step. (a) The trunk is not a separate artifact: every asset model carries its full weights and `components` names the trunk by the sha256 of its bytes, which nothing resolves or verifies yet; the trunk becomes a published, immutable component under a group id (section 7) at step 2, when the encoders need it. (b) The DQN trains symbol after symbol on the shared trunk, one replay buffer per window as before, not on one pooled buffer: pooling needs the replay to pick the head of each transition. Owner decision (issue #1897, option 1): kept for step 1; the pooled buffer moves to step 2 (#1898), and the cost of the GA, which the DQN does not change, is cut by #1911: each generation trains and evaluates every genome on a rotating subset of k symbols (`TRAINER_SHARED_TRUNK_SYMBOLS_PER_GENERATION`, default `ceil(N / 3)`, k = N is the first build; slice moved by k per generation from the seed, each symbol seen the same number of times to one), the fitnesses of different generations come from different slices, so at the end of the GA every member of the Pareto archive is scored on all symbols and the best of those is published (`selectOnAllSymbols`), and the test segment of the published models is read on all symbols too. A symbol outside the slice of a genome's lineage gets the current trunk head (that of the last symbol trained) in `withHeadOf`: the limit of k < N. (c) The simulator costs of a group are those of its first symbol, so all symbols must be daily or all intraday (a mixed group is refused; per-asset costs differ inside a class).
 
 ## Questions to the owner
 

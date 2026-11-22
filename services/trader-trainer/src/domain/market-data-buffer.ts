@@ -1,5 +1,5 @@
 import type { CandleData } from "@trading-model/contracts/market-data.types";
-import type { Signal } from "@trading-model/validation/wire/signals";
+import type { Signal } from "@trading-model/contracts/wire/signals";
 import type { DataType } from "./data-handlers/data-types";
 import { EvictionPolicy } from "./eviction-policy";
 import type { WindowSet } from "./genetic-algorithm/generation-types";
@@ -22,6 +22,8 @@ export interface MarketDataBufferConfig {
 	evictionPolicy?: EvictionPolicy;
 	/** Signal metrics fed to the network after the market inputs (ADR-0081); empty: none. */
 	signalKeys?: readonly string[];
+	/** Called for each candle dropped because low/high do not bound open/close. */
+	onInconsistentCandle?: (symbol: TradingSymbol) => void;
 	/** Observability hook, called with the per-symbol candle count and the symbol count. */
 	onDataAdded?: (
 		symbol: TradingSymbol,
@@ -40,10 +42,10 @@ export class MarketDataBuffer {
 			maxSize: config.maxSize ?? 10000,
 			maxMemoryBytes: config.maxMemoryBytes ?? 512 * 1024 * 1024,
 			evictionPolicy: config.evictionPolicy ?? EvictionPolicy.None,
+			onInconsistentCandle: config.onInconsistentCandle,
 		});
 		this._windowSplitter = new WindowSplitter(
 			this._stateManager.states,
-			undefined,
 			config.signalKeys
 		);
 		this._onDataAdded = config.onDataAdded;
@@ -95,7 +97,7 @@ export class MarketDataBuffer {
 	}
 
 	restoreSymbolState(symbol: TradingSymbol, state: SymbolState): void {
-		this._stateManager.restoreSymbolState(symbol, state);
+		this._stateManager.states.set(symbol, state);
 	}
 
 	getCandleCount(symbol: TradingSymbol): number {
@@ -118,7 +120,7 @@ export class MarketDataBuffer {
 		validationSplit: number = DEFAULT_VALIDATION_SPLIT,
 		walkForwardFolds = 1,
 		testSplit: number = DEFAULT_TEST_SPLIT
-	): WindowSet | WindowSet[] | null {
+	): WindowSet[] | null {
 		const ctx: MarketDataContext = { symbol };
 		return this._windowSplitter.getAllWindows(
 			ctx,

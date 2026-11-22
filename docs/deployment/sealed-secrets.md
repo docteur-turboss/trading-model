@@ -60,6 +60,9 @@ kubectl create secret generic trading-model-secrets \
   --from-literal=REDIS_DISCOVERY_PASSWORD='your-discovery-redis-password' \
   --from-literal=REDIS_MESSAGE_MANAGER_PASSWORD='your-message-manager-redis-password' \
   --from-literal=REDIS_DLQ_PASSWORD='your-dlq-redis-password' \
+  --from-literal=REDIS_AUDIT_LOGGER_PASSWORD='your-audit-logger-redis-password' \
+  --from-literal=REDIS_TRADER_TRAINER_PASSWORD='your-trader-trainer-redis-password' \
+  --from-literal=REDIS_MODEL_EVALUATOR_PASSWORD='your-model-evaluator-redis-password' \
   --from-literal=REDIS_EXPORTER_PASSWORD='your-exporter-redis-password' \
   --from-literal=MONGO_ROOT_PASSWORD='your-mongo-root-password' \
   --from-literal=MONGO_EXPORTER_PASSWORD='your-mongo-exporter-password' \
@@ -98,8 +101,10 @@ The final file must list ALL keys. `run-migrations.sh` refuses to apply a file t
 
 ### Rotating secrets
 
+A quarterly reminder issue (workflow `Secret Rotation Reminder`) points here.
+
 ```bash
-bash scripts/rotate-secrets.sh --component signing|tokens|dlq|all
+bash scripts/rotate-secrets.sh --component signing|tokens|dlq|mysql|all
 DRY_RUN=true bash scripts/rotate-secrets.sh --component dlq   # no merge, apply or restart
 ```
 Before `kubectl apply` the script compares the live Secret keys with the file: a live key missing from `SEALED_SECRETS_FILE` stops it (the controller would erase that key). The merged file stays on disk; add the key with `kubeseal --merge-into`, then rerun.
@@ -108,7 +113,7 @@ Before `kubectl apply` the script compares the live Secret keys with the file: a
 |-----------|-----|-----------|
 | `signing` | `SIGNING_SECRET` | discovery-server (services re-register) |
 | `tokens` | `AUTH_TOKENS` (`name:scopes:secret`, ADR-0059): only the entry named `API_KEY_NAME` (default `ops`, scopes `API_KEY_SCOPES`) is replaced, the other keys are kept | api-gateway |
-| `dlq` | `DLQ_AUTH_HMAC_SECRET` | message-manager + dlq-service |
+| `dlq` | `DLQ_AUTH_HMAC_SECRET` | dlq-service |
 
 The script merges the new key into `SEALED_SECRETS_FILE` (default `deploy/k8s/secrets/trading-model-sealed-secrets.yaml`, commit the result), applies it, waits until the live Secret holds the value, then restarts the consumers. It never prints a value and never puts one on a command line. `SEALED_SECRETS_FILE` must be the real sealed file of the overlay: a file with `CHANGE_ME` placeholders is refused before any `kubeseal` or `apply`.
 
@@ -118,11 +123,15 @@ For `tokens`, the new key is written to a `0600` temporary file whose path is lo
 
 ### Rotate a database password
 
-`rotate-secrets.sh` refuses `MYSQL_*`, `MONGO_ROOT_PASSWORD` and `REDIS_*_PASSWORD`: the password must change in the database first, then in the Secret, then in the pods.
+No downtime: the old password stays valid until every consumer restarted on the new one.
 
-1. Change it in the database (`ALTER USER ... IDENTIFIED BY` for MySQL; `ACL SETUSER <user> >new <-old` on every Redis node, or edit `redis-ha.sh` and rerun it; for Mongo `root`, `db.getSiblingDB("admin").changeUserPassword("root", <new>)` after `auth` with the old one; the other Mongo users are applied by the `mongo-*-users` Jobs on release).
-2. Merge the new value (`kubeseal --merge-into`, see above) and apply the file.
-3. Restart every consumer of the key (`kubectl rollout restart`), then the database pods for the exporter keys.
+```bash
+bash scripts/rotate-secrets.sh --component mysql   # MYSQL_PASSWORD (user scraper)
+```
+
+`ALTER USER ... RETAIN CURRENT PASSWORD` on `mysql-primary`, Secret, restart, `DISCARD OLD PASSWORD`. The password travels on stdin, never argv. The script refuses to start if `scraper` already has a secondary password (an earlier run stopped midway): check which value the live Secret holds, run `ALTER USER 'scraper'@'%' DISCARD OLD PASSWORD`, rerun.
+
+Still manual (the script refuses them): `MYSQL_ROOT_PASSWORD`; `MYSQL_MIGRATE_PASSWORD` and `MYSQL_RETENTION_PASSWORD` (merge, apply, rerun Job `db-migrate-user`); the exporter keys (merge, apply, restart the database pods, rerun `db-migrate-user`); every `REDIS_*_PASSWORD`: `ACL SETUSER <user> >new` on every data node as an administrator, merge and apply the Secret, restart the consumer, then `ACL SETUSER <user> <old` (no service identity may hold `+acl|setuser`: every pod receives `REDIS_INTERNAL_PASSWORD`, ADR-0047); `REDIS_INTERNAL_PASSWORD` (`ha`: ordered restart of the StatefulSets); Mongo `root` (`db.getSiblingDB("admin").changeUserPassword("root", <new>)`; the other Mongo users come from the `mongo-*-users` Jobs on release).
 
 ### 3. Apply
 

@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { withTimeout } from "@trading-model/common/utils/retry";
+import { sleep } from "@trading-model/common/utils/sleep";
+import { isExpectedPublisher } from "@trading-model/contracts/event-routes";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { Message } from "@trading-model/contracts/message-types";
 import type {
@@ -7,7 +10,12 @@ import type {
 	Topic,
 } from "@trading-model/primitives/primitives";
 import { runInMessageTraceContext } from "../shared/trace-context";
-import { DELIVERY_ATTEMPT_TIMEOUT_MS, retryDueMs } from "./backoff";
+import {
+	ABORT_GRACE_MS,
+	DELIVERY_ATTEMPT_TIMEOUT_MS,
+	HANDLER_TIMEOUT_MS,
+	retryDueMs,
+} from "./backoff";
 import type { DeadStreams } from "./dead-streams";
 import {
 	classifyDeliveryError,
@@ -21,6 +29,7 @@ import {
 	JOURNAL_PENDING_ENTRIES,
 	MESSAGES_DELIVERED_TOTAL,
 	MESSAGES_DLQ_TOTAL,
+	PUBLISHER_REJECTED_TOTAL,
 } from "./metrics";
 import type { RedisMessageJournal } from "./redis-journal";
 
@@ -38,8 +47,8 @@ export interface BusConsumerOptions {
 	service: string;
 	/** Name of this replica in the group. */
 	consumer?: string;
-	/** Throws to retry; a `DeadLetterError` dead-letters at once. */
-	handle: (message: Message) => Promise<void>;
+	/** Throws to retry; `signal` aborts at the handler deadline (stop the work, it is redelivered); a `DeadLetterError` dead-letters at once. */
+	handle: (message: Message, signal: AbortSignal) => Promise<void>;
 	/** Called once an entry is in the dead stream. */
 	onDeadLetter?: (
 		group: JournalGroup,
@@ -99,15 +108,13 @@ export class BusConsumer {
 		JOURNAL_PENDING_ENTRIES.reset();
 		JOURNAL_OLDEST_PENDING_AGE_SECONDS.reset();
 		try {
-			for (const lag of await journal.lag()) {
-				if (lag.service === service) {
-					const labels = { topic: lag.topic, service };
-					JOURNAL_PENDING_ENTRIES.set(labels, lag.pending);
-					JOURNAL_OLDEST_PENDING_AGE_SECONDS.set(
-						labels,
-						lag.oldestPendingAgeMs / 1000
-					);
-				}
+			for (const lag of await journal.lag(service)) {
+				const labels = { topic: lag.topic, service };
+				JOURNAL_PENDING_ENTRIES.set(labels, lag.pending);
+				JOURNAL_OLDEST_PENDING_AGE_SECONDS.set(
+					labels,
+					lag.oldestPendingAgeMs / 1000
+				);
 			}
 			for (const topic of topics) {
 				BUS_DEAD_LETTERS.set({ topic }, await deadStreams.length(topic));
@@ -192,10 +199,53 @@ export class BusConsumer {
 			entryId: entry.id,
 		};
 		try {
-			try {
-				await runInMessageTraceContext(entry.message.metadata, () =>
-					handle(entry.message)
+			const publisher = entry.message?.metadata?.publisher?.serviceName;
+			if (typeof publisher !== "string") {
+				const reason =
+					"invalid envelope: metadata.publisher.serviceName missing";
+				const id = await deadStreams.deadLetter(
+					group,
+					entry.id,
+					entry.message,
+					reason,
+					entry.deliveries
 				);
+				MESSAGES_DLQ_TOTAL.inc({ topic: group.topic, reason });
+				onDeadLetter?.(group, entry.message, reason, id);
+				return;
+			}
+			if (!isExpectedPublisher(group.topic, publisher)) {
+				PUBLISHER_REJECTED_TOTAL.inc({ topic: group.topic, publisher });
+				getLogger().error(
+					"Bus entry rejected: publisher not allowed on topic",
+					{
+						context: { ...context, publisher },
+					}
+				);
+				await journal.ack(group, entry.id);
+				return;
+			}
+			try {
+				const abort = new AbortController();
+				const running = runInMessageTraceContext(entry.message.metadata, () =>
+					handle(entry.message, abort.signal)
+				);
+				try {
+					await withTimeout(
+						running,
+						HANDLER_TIMEOUT_MS,
+						"Bus handler timed out"
+					);
+				} catch (err) {
+					abort.abort(err);
+					// The slot stays taken until the handler returns (or the grace ends): concurrency stays bounded by BATCH.
+					await Promise.race([
+						// biome-ignore lint/plugin: the late error of the abandoned handler is not the failure reported (the timeout is); the grace only waits for its return
+						running.catch(() => undefined),
+						sleep(ABORT_GRACE_MS),
+					]);
+					throw err;
+				}
 				MESSAGES_DELIVERED_TOTAL.inc({ topic: group.topic, status: "success" });
 			} catch (err) {
 				MESSAGES_DELIVERED_TOTAL.inc({ topic: group.topic, status: "failed" });

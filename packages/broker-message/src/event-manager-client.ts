@@ -4,8 +4,20 @@ import type {
 	EventMessagesArgs,
 } from "@trading-model/contracts/event-map";
 
-/** Callback signature for event listeners. */
-export type Listener<TData> = (data: TData) => void;
+/** Metadata of a delivered message: only the topic is guaranteed, other fields are passed as sent. */
+export interface DeliveredMetadata {
+	topic: string;
+	messageId?: string;
+	correlationId?: string;
+}
+
+/** Callback signature for event listeners: a rejection leaves the message to redelivery. */
+export type Listener<TData> = (
+	data: TData,
+	metadata: DeliveredMetadata,
+	/** Aborts at the delivery deadline: stop the work, the message is redelivered. */
+	signal?: AbortSignal
+) => void | Promise<void>;
 
 /**
  * Typed event bus for broker message events.
@@ -28,13 +40,20 @@ class EventEmitter<TEvents extends keyof EventMap> {
 		return this._emitter.listenerCount(eventName);
 	}
 
-	emit<TEvent extends TEvents>(
+	/** Runs the listeners one after the other; rejects with the first failure. */
+	async emit<TEvent extends TEvents>(
 		eventName: TEvent,
-		...args: [EventMessagesArgs<TEvent>] extends [undefined]
-			? []
-			: [EventMessagesArgs<TEvent>]
-	): boolean {
-		return this._emitter.emit(eventName, args[0]);
+		data: EventMessagesArgs<TEvent>,
+		metadata: DeliveredMetadata,
+		signal?: AbortSignal
+	): Promise<void> {
+		for (const listener of this._emitter.listeners(eventName)) {
+			await (listener as Listener<EventMessagesArgs<TEvent>>)(
+				data,
+				metadata,
+				signal
+			);
+		}
 	}
 }
 

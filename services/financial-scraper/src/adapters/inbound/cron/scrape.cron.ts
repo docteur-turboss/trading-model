@@ -17,9 +17,7 @@ import { type NoOverlapTask, scheduleNoOverlap } from "./no-overlap";
 export interface CronConfig {
 	schedule: string;
 	symbols: TradingSymbol[];
-	maxConcurrency?: PositiveInt;
-	candleInterval?: CandleInterval;
-	/** Source, publisher and persistence of each symbol scrape. */
+	/** Source and persistence of each symbol scrape. */
 	deps: WorkerOrchestratorDeps;
 }
 
@@ -27,17 +25,11 @@ export interface CronConfig {
 const DEFAULT_MAX_CONCURRENCY = 8;
 
 export class ScrapeCronOrchestrator {
-	private readonly _maxConcurrency: PositiveInt;
 	private _workerOrchestrator: WorkerOrchestrator;
-	/** Its run is a cycle: fetch and persist of every symbol (not the publishes). */
+	/** Its run is a cycle: fetch and persist of every symbol. */
 	private _task?: NoOverlapTask;
 
 	constructor(private readonly _config: CronConfig) {
-		const maxConcurrency =
-			_config.maxConcurrency ??
-			PositiveInt.of(Math.min(DEFAULT_MAX_CONCURRENCY, _config.symbols.length));
-
-		this._maxConcurrency = maxConcurrency;
 		this._workerOrchestrator = this._createWorker();
 	}
 
@@ -45,31 +37,33 @@ export class ScrapeCronOrchestrator {
 		// Fresh cursors: after a lost lease, another collector moved them (ADR-0057).
 		this._workerOrchestrator = this._createWorker();
 		this._task = scheduleNoOverlap(
+			"financial-scraper.scrape",
 			this._config.schedule,
-			() => this._runCycle(),
+			(signal) => this._runCycle(signal),
 			() => logger.warn("Previous execution still running")
 		);
 	}
 
-	/** Stops scheduling, then waits for the running cycle and its publishes. */
+	/** Stops scheduling, then waits for the running cycle. */
 	public async stop(): Promise<void> {
 		await this._task?.stop();
-		await this._workerOrchestrator.drain();
 	}
 
 	private _createWorker(): WorkerOrchestrator {
 		return new WorkerOrchestrator(
-			this._maxConcurrency,
+			PositiveInt.of(
+				Math.min(DEFAULT_MAX_CONCURRENCY, this._config.symbols.length)
+			),
 			this._config.symbols,
-			this._config.candleInterval ?? CandleInterval.Min1,
+			CandleInterval.Min1,
 			this._config.deps
 		);
 	}
 
-	private async _runCycle(): Promise<void> {
+	private async _runCycle(signal: AbortSignal): Promise<void> {
 		const start = performance.now();
 		try {
-			await this._workerOrchestrator.executeAll();
+			await this._workerOrchestrator.executeAll(signal);
 			SCRAPE_CYCLES_TOTAL.inc({ result: "success" });
 		} catch (err) {
 			logger.error("Batch execution failed", { error: err });

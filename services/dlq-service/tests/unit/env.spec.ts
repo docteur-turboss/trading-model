@@ -21,8 +21,6 @@ function setBaseEnv(): void {
 	process.env.SERVICE_PING_TIMEOUT_MS = "84000000";
 	process.env.TOKEN_REFRESH_INTERVAL_MS = "84000000";
 	process.env.TTL_REFRESH_INTERVAL_MS = "84000000";
-	process.env.MESSAGE_BUS_INIT_TIMEOUT_MS = "5000";
-	process.env.MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS = "5000";
 	process.env.MESSAGE_CALLBACK_PATH = "message";
 	process.env.MONGO_URI = "mongodb://localhost:27017/test";
 	process.env.MONGO_DB = "test";
@@ -75,5 +73,20 @@ describe("env", () => {
 			const second = resolveAuthHmacSecret();
 			expect(first).toBe(second);
 		});
+	});
+
+	it("should refuse a weak DLQ_AUTH_HMAC_SECRET in production", () => {
+		jest.resetModules();
+		setBaseEnv();
+		process.env.NODE_ENV = "production";
+		const logged = jest.spyOn(console, "error").mockImplementation(() => {});
+		expect(() => require("../../src/infrastructure/config/env")).toThrow(
+			"Environment validation failed"
+		);
+		expect(JSON.stringify(logged.mock.calls)).toContain(
+			"DLQ_AUTH_HMAC_SECRET must be at least 32 characters"
+		);
+		logged.mockRestore();
+		process.env.NODE_ENV = "test";
 	});
 });

@@ -1,24 +1,29 @@
 import { describe, expect, it } from "@jest/globals";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import {
-	buildSpiffeId,
-	extractCanonicalServiceName,
-	registryNamesFor,
-} from "../../../src/utils/spiffe";
+	DEFAULT_NAMESPACE,
+	TRUST_DOMAIN,
+} from "../../../src/config/workload-identity";
+import { extractCanonicalServiceName } from "../../../src/utils/spiffe";
+
+const buildSpiffeId = (name: string): string =>
+	`spiffe://${TRUST_DOMAIN}/ns/${DEFAULT_NAMESPACE}/sa/${name}`;
 
 describe("extractCanonicalServiceName", () => {
-	it("should extract service name from a foreign-trust-domain SPIFFE ID", () => {
+	it("should refuse another trust domain, path shape, namespace, CN or client: name", () => {
+		for (const id of [
+			"spiffe://other.domain/ns/autre/sa/api-gateway",
+			"spiffe://trading-model.local/api-gateway",
+			"spiffe://trading-model.local/ns/trading-model/sa/x/api-gateway",
+			"direct-name",
+			"discovery-service",
+			"client:admin",
+		]) {
+			expect(extractCanonicalServiceName(id)).toBeNull();
+		}
 		expect(
-			extractCanonicalServiceName(
-				"spiffe://cluster.local/ns/default/sa/my-service"
-			)
-		).toBe(ServiceId.of("my-service"));
-	});
-
-	it("should pass unknown plain identities through", () => {
-		expect(extractCanonicalServiceName("direct-name")).toBe(
-			ServiceId.of("direct-name")
-		);
+			extractCanonicalServiceName(buildSpiffeId("api-gateway"), "autre")
+		).toBeNull();
 	});
 
 	it("should find the SPIFFE ID in a peer certificate SAN list", () => {
@@ -39,35 +44,7 @@ describe("extractCanonicalServiceName", () => {
 		);
 	});
 
-	it("should normalize legacy names onto canonical names", () => {
-		expect(extractCanonicalServiceName("discovery-service")).toBe(
-			ServiceId.of("discovery-server")
-		);
-	});
-
-	it("should map client: prefix to api-gateway", () => {
-		expect(extractCanonicalServiceName("client:admin")).toBe(
-			ServiceId.of("api-gateway")
-		);
-	});
-
 	it("should return null for empty string", () => {
 		expect(extractCanonicalServiceName("")).toBeNull();
-	});
-});
-
-describe("registryNamesFor", () => {
-	it("lists the canonical name and its legacy registration aliases", () => {
-		expect(registryNamesFor("financial-scraper")).toEqual([
-			"financial-scraper",
-			"financial-scraper-service",
-		]);
-	});
-
-	it("maps a legacy name back to the same set", () => {
-		expect(registryNamesFor("message-delivery-service")).toEqual([
-			"message-delivery-service",
-			"message-manager",
-		]);
 	});
 });

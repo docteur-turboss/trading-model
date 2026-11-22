@@ -206,12 +206,11 @@ image. Set up the GitHub environment `backup-key-check` once
 (Settings → Environments):
 
 - **Protect the environment before storing the escrow key** (issue #847):
-  deployment branches limited to `main` (selected branches, no other rule) and
-  at least one required reviewer. Without it, anyone with write access can
-  push a branch whose workflow prints the key. The job `check-environment` of
-  the workflow checks both with `ENVIRONMENT_READ_TOKEN` and refuses to run
-  `verify-escrow-key` otherwise. The weekly run waits for the reviewer's
-  approval (GitHub keeps it waiting up to 30 days).
+  deployment branches limited to `main` (selected branches, no other rule).
+  Without it, anyone with write access can push a branch whose workflow prints
+  the key. The job `check-environment` of the workflow checks it with
+  `ENVIRONMENT_READ_TOKEN` and refuses to run `verify-escrow-key` otherwise.
+  No required reviewer: it would hold the weekly scheduled run (ADR-0034).
 - Secret `BACKUP_ESCROW_AGE_IDENTITY`: the whole content of
   `escrow-key.txt` (the `AGE-SECRET-KEY-1…` line, comments allowed).
 - Secrets `BACKUP_S3_READ_ACCESS_KEY_ID` / `BACKUP_S3_READ_SECRET_ACCESS_KEY`:
@@ -237,7 +236,7 @@ the default branch, or a compromise of GitHub can read this secret and
 decrypt the backups: keep branch protection and review on
 `.github/workflows/`, and treat a suspected exposure as an exposed key
 (rotation below). The weekly and monthly tiers are checked on demand with
-`tier` = `monthly` and `components` = `mongodb-audit,mysql`.
+`tier` = `monthly` and `components` = `mongodb-audit,mysql-core`.
 
 **Manual check of the operator key (quarterly, and after every key change).**
 The operator runs, on a trusted workstation, with the key copied to a tmpfs
@@ -246,13 +245,13 @@ or an encrypted volume (mode 600) and deleted afterwards:
 ```bash
 BACKUP_S3_BUCKET=s3://... AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...   bash scripts/verify-backup-key.sh --identity /dev/shm/operator-key.txt --offsite
 # a run already fetched with fetch-offsite.sh: --dir ./restore [--timestamp TS]
-# long tiers (ADR-0032): --tier monthly --components mongodb-audit,mysql
+# long tiers (ADR-0032): --tier monthly --components mongodb-audit,mysql-core
 ```
 
 It fetches the newest complete run from the off-site bucket
 (`scripts/fetch-offsite.sh`, read-only use of the credentials) into a
 temporary directory removed on exit, decrypts the run manifest, then every
-component (`mongodb`, `mongodb-audit`, `mysql`, `checkpoints`, `spire`)
+component (`mongodb`, `mongodb-audit`, `mysql`, `mysql-core`, `checkpoints`, `spire`)
 whole into `sha256sum`, with no plaintext on disk, and compares each with the
 manifest. It exits 1 when a single component is missing or does not decrypt,
 and prints the key's public key, the run checked (timestamp and UTC date) and
@@ -326,19 +325,9 @@ kubectl -n trading-model create secret generic trading-model-backup-s3 \
   --from-literal=S3_ENDPOINT=https://minio.example.net --from-literal=S3_PROVIDER=Minio
 ```
 
-### Docker Compose
-
-```bash
-BACKUP_AGE_RECIPIENTS=age1... BACKUP_REQUIRE_ENCRYPTION=true bash scripts/backup.sh
-```
-
-Without `BACKUP_AGE_RECIPIENTS` the compose script still writes plaintext
-backups (local development) and warns.
-
 ### Restore
 
 ```bash
-BACKUP_AGE_IDENTITY=~/backup-key.txt bash scripts/restore.sh --timestamp 2026-10-27_020000
 BACKUP_AGE_IDENTITY=~/backup-key.txt BACKUP_DIR=./backups bash scripts/restore-k8s.sh
 ```
 
@@ -378,8 +367,7 @@ the staleness and coverage alerts listed in [BACKUP_DR.md](BACKUP_DR.md#monitori
 - `tests/backup/backup-partial.test.sh` (`backup-test.yml`): a failed dump
   leaves no file, the encrypted run manifest, restore selection and checksum
   refusals ([Run manifest](BACKUP_DR.md#run-manifest)).
-- Restore drills, with a key generated for the run: `backup-test.yml`
-  (`tests/backup/compose-restore-drill.sh`) and the CI `k8s` job
+- Restore drill, with a key generated for the run: the CI `k8s` job
   (`tests/k8s/run-kind.sh verify_backup`): no backup file in clear, encrypted
   copies off-site, and the decrypted backups restored for real.
 

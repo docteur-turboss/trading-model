@@ -27,14 +27,6 @@ jest.mock("@trading-model/http/http-client", () => ({
 	),
 }));
 
-const MOCK_CREATE_CALLBACK_ROUTE = jest.fn<(...args: any[]) => any>();
-
-jest.mock("../../src/messages.routes", () => ({
-	CREATE_CALLBACK_ROUTE: jest.fn(
-		(..._args: any[]) => MOCK_CREATE_CALLBACK_ROUTE
-	),
-}));
-
 import { SUBSCRIPTION_REFRESH_MS } from "../../src/broker-message";
 import BrokerMessage from "../../src/index";
 
@@ -95,7 +87,7 @@ describe("BrokerMessage", () => {
 		});
 
 		it("should call subscribe with topics", async () => {
-			const topics = ["market.candlestick.series.fetch"];
+			const topics = ["training.model.published"];
 			await broker.intents(topics);
 			expect(
 				MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.subscribe
@@ -107,13 +99,13 @@ describe("BrokerMessage", () => {
 				new Error("message-manager unreachable") as never
 			);
 			await expect(
-				broker.intents(["market.candlestick.series.fetch"])
+				broker.intents(["training.model.published"])
 			).resolves.toBeUndefined();
 		});
 
 		it("should renew the subscriptions periodically (message-manager keeps them in memory)", async () => {
 			jest.useFakeTimers();
-			await broker.intents(["market.candlestick.series.fetch"]);
+			await broker.intents(["training.model.published"]);
 			MOCK_MESSAGE_MANAGER_CLIENT_INSTANCE.subscribe.mockClear();
 
 			await jest.advanceTimersByTimeAsync(SUBSCRIPTION_REFRESH_MS * 2);
@@ -126,7 +118,7 @@ describe("BrokerMessage", () => {
 
 	describe("stopMessageManager", () => {
 		it("should call unsubscribe with topics", async () => {
-			const topics = ["market.candlestick.series.fetch"];
+			const topics = ["training.model.published"];
 			await broker.intents(topics);
 			await broker.stopMessageManager();
 			expect(
@@ -135,7 +127,7 @@ describe("BrokerMessage", () => {
 		});
 
 		it("should reset topics after stop", async () => {
-			const topics = ["market.candlestick.series.fetch"];
+			const topics = ["training.model.published"];
 			await broker.intents(topics);
 			await broker.stopMessageManager();
 			expect(
@@ -145,30 +137,20 @@ describe("BrokerMessage", () => {
 	});
 
 	describe("on", () => {
-		it("should register an event listener and trigger on emit", () => {
+		it("should register an event listener that receives the payload and the metadata", async () => {
 			const listener = jest.fn<(...args: any[]) => any>();
-			broker.on("market.candlestick.series.fetch" as never, listener);
-			(EVENT_MANAGER as any).emit("market.candlestick.series.fetch", {
-				candle: [],
-			});
-			expect(listener).toHaveBeenCalledWith({ candle: [] });
-		});
-
-		it("should trigger listener when event is emitted", () => {
-			const listener = jest.fn<(...args: any[]) => any>();
-			broker.on("market.candlestick.series.fetch" as never, listener);
-			(EVENT_MANAGER as any).emit("market.candlestick.series.fetch", {
-				candle: [],
-			});
-			expect(listener).toHaveBeenCalledWith({ candle: [] });
-		});
-	});
-
-	describe("listenExpress", () => {
-		it("should call app.use with CreateCallbackRoute result", () => {
-			const app = { use: jest.fn<(...args: any[]) => any>() };
-			broker.listenExpress(app as any);
-			expect(app.use).toHaveBeenCalledWith(MOCK_CREATE_CALLBACK_ROUTE);
+			const metadata = { topic: "training.model.published" };
+			broker.on("training.model.published" as never, listener);
+			await (EVENT_MANAGER as any).emit(
+				"training.model.published",
+				{ candle: [] },
+				metadata
+			);
+			expect(listener).toHaveBeenCalledWith(
+				{ candle: [] },
+				metadata,
+				undefined
+			);
 		});
 	});
 

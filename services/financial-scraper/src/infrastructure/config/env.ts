@@ -1,7 +1,8 @@
-import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
-import { BaseEnvSchema } from "@trading-model/validation/config/env";
-import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
-import { validateEnv } from "@trading-model/validation/config/validate-env";
+import { AddressManagerEnvSchema } from "@trading-model/address-manager/config/address-manager-env";
+import { BaseEnvSchema } from "@trading-model/http/config/env";
+import { validateEnv } from "@trading-model/http/config/validate-env";
+import { RedisEnvSchema } from "@trading-model/persistence/redis-env";
+import cron from "node-cron";
 import { z } from "zod";
 
 const SYMBOL_PATTERN = /^[A-Z0-9]+$/;
@@ -55,7 +56,13 @@ const FINANCIAL_SCRAPER_ENV_SCHEMA = BaseEnvSchema.extend(
 				}
 				return result;
 			}),
-		SCRAPE_INTERVAL: z.string().default("*/1 * * * *"),
+		SCRAPE_INTERVAL: z
+			.string()
+			.default("*/1 * * * *")
+			.refine(
+				(value) => cron.validate(value),
+				"SCRAPE_INTERVAL is not a valid cron expression"
+			),
 		/** Runs the scrape cron in this instance; false on HTTP-only replicas. */
 		SCRAPE_SCHEDULER_ENABLED: z
 			.string()
@@ -78,11 +85,30 @@ const FINANCIAL_SCRAPER_ENV_SCHEMA = BaseEnvSchema.extend(
 		 */
 		SIGNAL_CONTACT_EMAIL: z.string().trim().default(""),
 		/**
+		 * Comma-separated ids of `non-commercial` signal sources (ADR-0075) the
+		 * operator accepts to collect. In production, an active such source
+		 * missing here stops the start.
+		 */
+		SIGNAL_NON_COMMERCIAL_ACCEPTED: z.string().trim().default(""),
+		/**
 		 * Kubernetes Lease the collector pods compete for (ADR-0057): only its
 		 * holder runs the crons. Empty: no election, this instance collects
 		 * (compose, dev: a single collector).
 		 */
 		COLLECTOR_LEASE_NAME: z.string().trim().default(""),
+	})
+	.superRefine((env, ctx) => {
+		if (
+			env.NODE_ENV === "production" &&
+			new URL(env.BINANCE_BASE_URL).hostname.endsWith("binance.vision")
+		) {
+			ctx.addIssue({
+				code: "custom",
+				path: ["BINANCE_BASE_URL"],
+				message:
+					"binance.vision is refused in production: its Dataset Terms (CC BY-NC-SA 4.0, §4.2) forbid live trading (ADR-0077)",
+			});
+		}
 	});
 
 export const ENV = validateEnv(FINANCIAL_SCRAPER_ENV_SCHEMA);

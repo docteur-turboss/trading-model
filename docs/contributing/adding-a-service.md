@@ -43,7 +43,6 @@ services/my-service/
   "name": "my-service",
   "dependencies": {
     "@trading-model/common": "*",
-    "@trading-model/validation": "*",
     "@trading-model/http": "*",
     "@trading-model/address-manager": "*",
     "@trading-model/broker-message": "*",

@@ -1,8 +1,7 @@
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { RequestHandler, Router } from "express";
 import { catchSync } from "../catch-error";
-import type { ResponseObject } from "../response-exception/http-codes";
-import { sendResponse } from "../response-exception/send-response";
+import { type ResponseObject, sendResponse } from "../response-exception";
 import { type ApiRoute, type ApiRouteInput, parseRequest } from "./api-route";
 
 /** Handler of an API route: receives the validated input and the Express request. */
@@ -17,14 +16,6 @@ export interface MountRouteOptions {
 	middlewares?: RequestHandler[];
 }
 
-const METHODS = {
-	GET: "get",
-	POST: "post",
-	PUT: "put",
-	PATCH: "patch",
-	DELETE: "delete",
-} as const;
-
 /**
  * Mounts a registry entry on the router (ADR-0021): the method and path come
  * from the entry, params, query and body are parsed with its schemas (400
@@ -38,7 +29,7 @@ export function mountRoute<Route extends ApiRoute>(
 	options: MountRouteOptions = {}
 ): void {
 	const unversioned = route.path.replace(/^\/v\d+(?=\/)/, "");
-	router[METHODS[route.method]](
+	router[route.method.toLowerCase() as Lowercase<typeof route.method>](
 		// shortcut: release N also mounts a public route without /v<major> for N-1 gateways; removed in N+1 (ADR-0072).
 		unversioned === route.path ? route.path : [route.path, unversioned],
 		...(options.middlewares ?? []),

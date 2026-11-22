@@ -44,9 +44,10 @@ export class OutputDeltaComputer {
 		const { outputZ, output, target, activation } = ctx;
 		const lossGrad = mseGradient(output, target);
 		const delta = new Float32Array(output.length);
+		const { fn, derivative } = ACTIVATIONS[activation];
 		for (let j = 0; j < output.length; j++) {
-			delta[j] =
-				lossGrad[j] * ACTIVATIONS[activation].derivative(output[j], outputZ[j]);
+			// `output` may include the DenseSkip residual: derive from the pre-skip value.
+			delta[j] = lossGrad[j] * derivative(fn(outputZ[j]), outputZ[j]);
 		}
 		return clipGradients(delta, this._config.gradientClipNorm);
 	}

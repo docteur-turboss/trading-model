@@ -3,7 +3,11 @@ const DAY_MS = 86_400_000;
 const WINDOW_DAYS = 400;
 const PART = /^(\*|\d+(-\d+)?)(\/[1-9]\d*)?$/;
 
-function _field(text: string, min: number, max: number): Set<number> | null {
+export function _field(
+	text: string,
+	min: number,
+	max: number
+): Set<number> | null {
 	const values = new Set<number>();
 	for (const part of text.split(",")) {
 		if (!PART.test(part)) {

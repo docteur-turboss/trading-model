@@ -29,6 +29,9 @@ const PASSWORDS = {
 	discovery: "discovery-pw",
 	"message-manager": "message-manager-pw",
 	"dlq-service": "dlq-pw",
+	"audit-logger": "audit-pw",
+	"trader-trainer": "trainer-pw",
+	"model-evaluator": "evaluator-pw",
 	exporter: "exporter-pw",
 };
 const DISCOVERY_KEY = "trading-model:discovery:spec";
@@ -37,6 +40,9 @@ const HA_ENV = {
 	REDIS_DISCOVERY_PASSWORD: PASSWORDS.discovery,
 	REDIS_MESSAGE_MANAGER_PASSWORD: PASSWORDS["message-manager"],
 	REDIS_DLQ_PASSWORD: PASSWORDS["dlq-service"],
+	REDIS_AUDIT_LOGGER_PASSWORD: PASSWORDS["audit-logger"],
+	REDIS_TRADER_TRAINER_PASSWORD: PASSWORDS["trader-trainer"],
+	REDIS_MODEL_EVALUATOR_PASSWORD: PASSWORDS["model-evaluator"],
 	REDIS_EXPORTER_PASSWORD: PASSWORDS.exporter,
 	REDIS_HOSTS: ORDINALS.map((n) => `redis-${n}`).join(" "),
 	SENTINEL_HOSTS: ORDINALS.map((n) => `redis-sentinel-${n}`).join(" "),
@@ -108,7 +114,7 @@ const cli = (node: StartedTestContainer, ...args: string[]) =>
 
 const asService = (
 	node: StartedTestContainer,
-	service: "discovery" | "message-manager" | "dlq-service",
+	service: keyof typeof PASSWORDS,
 	...args: string[]
 ) => cliAs(node, service, PASSWORDS[service], ...args);
 
@@ -140,6 +146,20 @@ async function eventually(
 		}
 		await new Promise((resolve) => setTimeout(resolve, 250));
 	}
+}
+
+/** Commands fail fast while Redis is unreachable (issue #1740): a write during a failover is retried. */
+async function setDuringFailover(client: Redis, key: string): Promise<string> {
+	let result = "";
+	await eventually(async () => {
+		try {
+			result = (await client.set(key, "1")) as string;
+			return true;
+		} catch {
+			return false;
+		}
+	}, FAILOVER_DEADLINE_MS);
+	return result;
 }
 
 // The scenario runs in order: each step starts from the previous one's topology.
@@ -309,6 +329,61 @@ describe("K8s Redis HA start script — real failovers", () => {
 				foreign
 			)
 		).resolves.toMatch(/^NOPERM/);
+		// Bus users (#1620): the trainer writes its own topics only and acknowledges no other group.
+		const bus = "trading-model:message-manager:journal:";
+		const trainer = async (...args: string[]) =>
+			(await asService(master, "trader-trainer", ...args))[0];
+		await expect(
+			trainer("XADD", `${bus}training.model.published`, "*", "m", "1")
+		).resolves.toMatch(/^\d+-\d+$/);
+		await expect(
+			trainer("XADD", `${bus}market.trade.recent.fetch`, "*", "m", "1")
+		).resolves.toMatch(/^NOPERM/);
+		await expect(
+			trainer(
+				"XACK",
+				`${bus}training.model.published`,
+				"model-evaluator",
+				"0-1"
+			)
+		).resolves.toMatch(/^NOPERM/);
+		// The evaluator acknowledges the topic it subscribes to.
+		await expect(
+			asService(
+				master,
+				"model-evaluator",
+				"XACK",
+				`${bus}training.model.published`,
+				"model-evaluator",
+				"0-1"
+			)
+		).resolves.toEqual(["0"]);
+		await expect(
+			(
+				await asService(
+					master,
+					"audit-logger",
+					"XGROUP",
+					"DESTROY",
+					`${bus}training.model.published`,
+					"model-evaluator"
+				)
+			)[0]
+		).toMatch(/^NOPERM/);
+		await expect(
+			(
+				await asService(
+					master,
+					"audit-logger",
+					"XGROUP",
+					"CREATE",
+					`${bus}training.model.published`,
+					"audit-logger",
+					"0",
+					"MKSTREAM"
+				)
+			)[0]
+		).toBe("OK");
 		// The default user is off; the internal user reaches no key.
 		expect((await cliAs(master, undefined, "", "PING"))[0]).toMatch(
 			/NOAUTH|WRONGPASS/
@@ -380,7 +455,7 @@ describe("K8s Redis HA start script — real failovers", () => {
 
 		const started = Date.now();
 		await expect(
-			client.set(`${DISCOVERY_KEY}:after-failover`, "1")
+			setDuringFailover(client, `${DISCOVERY_KEY}:after-failover`)
 		).resolves.toBe("OK");
 		expect(Date.now() - started).toBeLessThan(FAILOVER_DEADLINE_MS);
 		await expect(client.get(`${DISCOVERY_KEY}:before-failover`)).resolves.toBe(
@@ -439,9 +514,97 @@ describe("K8s Redis HA start script — real failovers", () => {
 		// No deadline here: under load a first attempt can still abort for
 		// lack of fresh replica INFO, and Sentinel retries after 2x the timeout.
 		await expect(
-			client.set(`${DISCOVERY_KEY}:second-failover`, "1")
+			setDuringFailover(client, `${DISCOVERY_KEY}:second-failover`)
 		).resolves.toBe("OK");
 		// The other sentinels learn of the switch from the one that failed over.
 		await eventually(async () => (await masterIp()) !== ipOf(master));
 	}, 120_000);
+});
+
+describe("K8s Redis HA start script — cold start", () => {
+	let network: StartedNetwork;
+	let pods: StartedTestContainer[] = [];
+
+	afterAll(async () => {
+		await Promise.all(pods.map((pod) => pod.stop().catch(() => {})));
+		await network?.stop();
+	}, 120_000);
+
+	it("should promote the node that was master, not redis-0, after every pod restarts together", async () => {
+		network = await new Network().start();
+		// No sentinel: nodes find each other through ROLE; AOF on, so the volume holds data.
+		pods = await Promise.all(
+			ORDINALS.map((n) =>
+				new GenericContainer(composeImage("redis"))
+					.withNetwork(network)
+					.withHostname(`redis-${n}`)
+					.withNetworkAliases(`redis-${n}`)
+					.withEnvironment({ ...HA_ENV, COLD_START_GRACE_SECONDS: "10" })
+					.withCopyFilesToContainer([
+						{ source: HA_SCRIPT, target: "/scripts/redis-ha.sh" },
+					])
+					.withCommand([
+						"sh",
+						"/scripts/redis-ha.sh",
+						"server",
+						"--appendonly",
+						"yes",
+					])
+					.withWaitStrategy(Wait.forLogMessage("Ready to accept connections"))
+					.withStartupTimeout(120_000)
+					.start()
+			)
+		);
+		await eventually(async () => (await role(pods[1])) === "slave");
+		// Failover by hand: redis-1 takes over, redis-0 follows it, then redis-1 takes a write.
+		await cli(pods[1], "REPLICAOF", "NO", "ONE");
+		await cli(pods[0], "REPLICAOF", "redis-1", String(REDIS_PORT));
+		await eventually(async () => (await role(pods[0])) === "slave");
+		await asService(pods[1], "discovery", "SET", `${DISCOVERY_KEY}:cold`, "1");
+		const marked = async (pod: StartedTestContainer) =>
+			(await pod.exec(["test", "-e", "/data/was-master"])).exitCode === 0;
+		await eventually(
+			async () => (await marked(pods[1])) && !(await marked(pods[0]))
+		);
+
+		await Promise.all(pods.map((pod) => pod.restart()));
+
+		await eventually(async () => (await role(pods[1])) === "master", 90_000);
+		await eventually(async () => (await role(pods[0])) === "slave", 90_000);
+		// A replica is empty while its full resync from the new master loads.
+		await eventually(
+			async () =>
+				(
+					await asService(pods[0], "discovery", "GET", `${DISCOVERY_KEY}:cold`)
+				)[0] === "1",
+			60_000
+		);
+	}, 240_000);
+
+	it("should fall back to redis-0 after the grace when no node carries the marker", async () => {
+		const pod = await new GenericContainer(composeImage("redis"))
+			.withHostname("redis-0")
+			.withEnvironment({ ...HA_ENV, COLD_START_GRACE_SECONDS: "3" })
+			.withCopyFilesToContainer([
+				{ source: HA_SCRIPT, target: "/scripts/redis-ha.sh" },
+			])
+			.withCommand([
+				"sh",
+				"/scripts/redis-ha.sh",
+				"server",
+				"--appendonly",
+				"yes",
+			])
+			.withWaitStrategy(Wait.forLogMessage("Ready to accept connections"))
+			.withStartupTimeout(120_000)
+			.start();
+		pods.push(pod);
+		await asService(pod, "discovery", "SET", `${DISCOVERY_KEY}:nomarker`, "1");
+		await pod.exec(["rm", "-f", "/data/was-master"]);
+		await pod.restart();
+		await eventually(async () => (await role(pod)) === "master", 60_000);
+		expect(
+			(await asService(pod, "discovery", "GET", `${DISCOVERY_KEY}:nomarker`))[0]
+		).toBe("1");
+	}, 180_000);
 });

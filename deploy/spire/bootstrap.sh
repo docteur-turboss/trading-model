@@ -11,7 +11,7 @@ SERVER=/opt/spire/bin/spire-server
 TD=${SPIFFE_TD:-trading-model.local}
 NS=${SPIFFE_NS:-trading-model}
 AGENT_ID="spiffe://${TD}/ns/${NS}/sa/spire-agent"
-# ADR-0065: 4 h, as default_x509_svid_ttl of server.conf (CertificateExpiry fires below 1 h left).
+# ADR-0065: 4 h, as default_x509_svid_ttl of server.conf (CertificateExpiry fires below 90 min left).
 SVID_TTL=14400
 
 # upsert_entry "<entry show output>" <entry flags...>: creates the entry, or moves an existing
@@ -37,7 +37,7 @@ done
 # <compose helper service suffix>:<service name in the SPIFFE ID and ACL>
 for pair in \
   discovery:discovery-server message:message-manager scraper:financial-scraper \
-  trainer:trader-trainer gateway:api-gateway audit:audit-logger dlq:dlq-service evaluator:model-evaluator \
+  trainer:trader-trainer gateway:api-gateway audit:audit-logger dlq:dlq-service evaluator:model-evaluator risk:risk-execution \
   edge:edge-proxy prometheus:prometheus blackbox:blackbox-exporter; do
   helper=${pair%%:*}
   service=${pair#*:}

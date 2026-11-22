@@ -1,7 +1,8 @@
-import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
-import { BaseEnvSchema } from "@trading-model/validation/config/env";
-import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
-import { validateEnv } from "@trading-model/validation/config/validate-env";
+import { AddressManagerEnvSchema } from "@trading-model/address-manager/config/address-manager-env";
+import { BaseEnvSchema } from "@trading-model/http/config/env";
+import { weakSecretReason } from "@trading-model/http/config/secret-strength";
+import { validateEnv } from "@trading-model/http/config/validate-env";
+import { RedisEnvSchema } from "@trading-model/persistence/redis-env";
 import { z } from "zod";
 
 const DlqEnvSchema = BaseEnvSchema.extend(AddressManagerEnvSchema.shape)
@@ -37,6 +38,19 @@ const DlqEnvSchema = BaseEnvSchema.extend(AddressManagerEnvSchema.shape)
 			.positive()
 			.max(100)
 			.default(50),
+	})
+	.superRefine((data, ctx) => {
+		const weak =
+			data.NODE_ENV === "production" && data.DLQ_AUTH_HMAC_SECRET
+				? weakSecretReason(data.DLQ_AUTH_HMAC_SECRET)
+				: undefined;
+		if (weak) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: `DLQ_AUTH_HMAC_SECRET ${weak}`,
+				path: ["DLQ_AUTH_HMAC_SECRET"],
+			});
+		}
 	});
 
 export const ENV = validateEnv(DlqEnvSchema);

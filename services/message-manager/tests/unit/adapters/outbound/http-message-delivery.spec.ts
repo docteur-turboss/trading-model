@@ -10,6 +10,7 @@ import type {
 	SequenceNumber,
 	URLString,
 } from "@trading-model/primitives/primitives";
+import { ServiceId } from "@trading-model/primitives/primitives";
 import { HttpMessageDelivery } from "../../../../src/adapters/outbound/http-message-delivery";
 import { createMockMessage } from "../../../fixtures/broker.fixture";
 import { createMockHttpClient } from "../../../helpers/broker.helper";
@@ -32,6 +33,7 @@ describe("HttpMessageDelivery", () => {
 
 			await delivery.send({
 				url: "http://example.com/callback" as URLString,
+				service: ServiceId.of("audit-logger"),
 				message,
 				context,
 			});
@@ -44,7 +46,11 @@ describe("HttpMessageDelivery", () => {
 					context,
 				},
 				// One attempt: the dispatcher owns the retries.
-				{ timeoutMs: DELIVERY_ATTEMPT_TIMEOUT_MS, retryCount: 0 }
+				{
+					timeoutMs: DELIVERY_ATTEMPT_TIMEOUT_MS,
+					retryCount: 0,
+					serviceName: ServiceId.of("audit-logger"),
+				}
 			);
 		});
 
@@ -53,6 +59,7 @@ describe("HttpMessageDelivery", () => {
 			return delivery
 				.send({
 					url: "http://example.com/callback" as URLString,
+					service: ServiceId.of("audit-logger"),
 					message: createMockMessage({ key: "value" }),
 					context: { deliveryAttempt: 1 as SequenceNumber },
 				})

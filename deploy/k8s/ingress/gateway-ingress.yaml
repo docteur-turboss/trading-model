@@ -1,5 +1,5 @@
 # Public API entry point (ADR-0018). TLS ends at the ingress controller, which
-# forwards plain HTTP to the edge-proxy; the edge-proxy sends /v1 to the
+# forwards plain HTTP to the edge-proxy; the edge-proxy sends /v1 and /v2 to the
 # api-gateway over mTLS with its own SVID. Every request therefore goes through
 # the gateway (auth, rate limit, cache), and the controller needs no client
 # certificate of its own.
@@ -27,6 +27,13 @@ spec:
       http:
         paths:
           - path: /v1
+            pathType: Prefix
+            backend:
+              service:
+                name: edge-proxy
+                port:
+                  number: 8080
+          - path: /v2
             pathType: Prefix
             backend:
               service:

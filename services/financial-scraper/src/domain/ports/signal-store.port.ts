@@ -1,4 +1,4 @@
-import type { Dimension, Signal } from "@trading-model/validation/wire/signals";
+import type { Dimension, Signal } from "@trading-model/contracts/wire/signals";
 
 interface AssetSignalsQuery {
 	assetId: string;
@@ -23,9 +23,9 @@ interface AssetSignalsQuery {
 export interface SignalStorePort {
 	/** Stores the signals; one already stored (same id) is left as it was. */
 	save(signals: readonly Signal[]): Promise<void>;
-	/** Per source: epoch ms of its newest `ingested_at` and `observed_at`. */
+	/** Per source: epoch ms of its newest `ingested_at` and of its newest source-dated `observed_at` (null: none). */
 	newestBySource(): Promise<
-		Map<string, { ingestedAt: number; observedAt: number }>
+		Map<string, { ingestedAt: number; observedAt: number | null }>
 	>;
 	/** Signals of the asset and of its sector and areas observed in [from, to), oldest first, at most `limit`. */
 	findForAsset(query: AssetSignalsQuery): Promise<Signal[]>;

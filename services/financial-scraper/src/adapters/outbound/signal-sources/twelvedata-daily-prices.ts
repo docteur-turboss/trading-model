@@ -1,5 +1,8 @@
 import { z } from "zod";
-import type { SourceAdapter } from "../../../domain/ports/signal-source.port";
+import {
+	HttpStatusError,
+	type SourceAdapter,
+} from "../../../domain/ports/signal-source.port";
 
 const NumericString = z
 	.string()
@@ -20,6 +23,12 @@ const TimeSeries = z.object({
 	),
 });
 
+/** Twelve Data reports a quota overrun as HTTP 200 with `code: 429` in the body. */
+const ErrorBody = z.object({
+	code: z.number(),
+	message: z.string().optional(),
+});
+
 /**
  * Daily prices of one equity or ETF from Twelve Data (free key, internal use,
  * ADR-0078): the last session as `market` signals, `period` = the session day.
@@ -31,6 +40,10 @@ const TimeSeries = z.object({
 export const TWELVEDATA_DAILY_PRICES: SourceAdapter = {
 	dimensions: ["market"],
 	normalize(payload) {
+		const error = ErrorBody.safeParse(payload);
+		if (error.success && error.data.code === 429) {
+			throw new HttpStatusError(error.data.message ?? "rate limited", 429);
+		}
 		return TimeSeries.parse(payload).values.flatMap((row) => {
 			const day = row.datetime.slice(0, 10);
 			const measures = {

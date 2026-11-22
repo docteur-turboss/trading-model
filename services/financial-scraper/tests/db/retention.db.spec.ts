@@ -92,9 +92,8 @@ beforeAll(async () => {
 	await db.query("SET FOREIGN_KEY_CHECKS = 0");
 	for (const [table, column] of TABLES) {
 		await db.query(`DROP TABLE IF EXISTS \`${table}\``);
-		// Keep the index INVISIBLE (as before migration 007, or after a rollback): the job must cope.
 		await db.query(
-			`CREATE TABLE \`${table}\` (id INT AUTO_INCREMENT PRIMARY KEY, \`${column}\` DATETIME(3) NOT NULL, INDEX idx_t (\`${column}\`) INVISIBLE)`
+			`CREATE TABLE \`${table}\` (id INT AUTO_INCREMENT PRIMARY KEY, \`${column}\` DATETIME(3) NOT NULL, INDEX idx_t (\`${column}\`))`
 		);
 	}
 });
@@ -145,16 +144,19 @@ describe("scripts/retention-mysql.sh — real MySQL", () => {
 		await insertAged("market_candles", "timestamp", 60);
 		await insertAged("signals", "observed_at", 60);
 		await insertAged("market_order_books", "timestamp", 60);
+		await insertAged("market_trades", "timestamp", 60);
 
 		retention({
 			RETENTION_DAYS: "100",
 			RETENTION_SIGNALS_DAYS: "30",
 			RETENTION_ORDER_BOOKS_DAYS: "30",
+			RETENTION_TRADES_DAYS: "30",
 		});
 
 		expect(await count("market_candles")).toBe(1);
 		expect(await count("signals")).toBe(0);
 		expect(await count("market_order_books")).toBe(0);
+		expect(await count("market_trades")).toBe(0);
 	});
 
 	it("should publish metrics and keep the last success time when a table fails", async () => {

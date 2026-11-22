@@ -2,11 +2,12 @@ import type { IncomingMessage } from "node:http";
 import type { TLSSocket } from "node:tls";
 import {
 	extractCanonicalServiceName,
-	isSpiffeId,
-	serviceNameFromSpiffeId,
+	parseSpiffeId,
 } from "@trading-model/common/utils/spiffe";
 import type { ServiceId } from "@trading-model/primitives/primitives";
 import type { ClientIdentity } from "@trading-model/primitives/primitives/auth-ids";
+
+const SPIFFE_URI = /spiffe:\/\/[^\s,]+/;
 
 /** Caller identity read from the verified client certificate of a request. */
 export interface MtlsIdentityResult {
@@ -40,28 +41,19 @@ export function resolveMtlsIdentity(
 		return null;
 	}
 
-	const raw = cert.subjectaltname ?? cert.subject?.CN;
-	if (!raw) {
+	// Only a SPIFFE URI SAN in the namespace of this service's own SVID counts.
+	const spiffeId = String(cert.subjectaltname ?? "").match(SPIFFE_URI)?.[0];
+	const own = socket.getCertificate?.() as { subjectaltname?: string } | null;
+	const ownId = own?.subjectaltname?.match(SPIFFE_URI)?.[0];
+	const namespace = ownId ? parseSpiffeId(ownId)?.namespace : undefined;
+	if (!(spiffeId && namespace)) {
 		return null;
 	}
 
-	const value = Array.isArray(raw) ? raw.join(", ") : raw;
-	const identity = value as ClientIdentity;
-
-	const spiffeStr = _extractSpiffeUri(value);
-	const serviceName = spiffeStr
-		? serviceNameFromSpiffeId(spiffeStr)
-		: extractCanonicalServiceName(value);
-
+	const serviceName = extractCanonicalServiceName(spiffeId, namespace);
 	if (!serviceName) {
 		return null;
 	}
 
-	return { identity, serviceName };
-}
-
-function _extractSpiffeUri(value: string): string | null {
-	const match = value.match(/spiffe:\/\/[^\s,]+/);
-	const candidate = match?.[0] ?? value;
-	return candidate && isSpiffeId(candidate) ? candidate : null;
+	return { identity: spiffeId as ClientIdentity, serviceName };
 }

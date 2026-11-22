@@ -67,7 +67,6 @@ jest.mock("../../src/config/redis-queue", () => ({
 jest.mock("../../src/config/metrics", () => ({
 	metricsHandler: jest.fn<(...args: any[]) => any>(),
 	metrics: {
-		entriesAdded: { inc: jest.fn<(...args: any[]) => any>() },
 		entriesDeleted: { inc: jest.fn<(...args: any[]) => any>() },
 		entriesReplayed: { inc: jest.fn<(...args: any[]) => any>() },
 		entriesReplayFailed: { inc: jest.fn<(...args: any[]) => any>() },
@@ -130,8 +129,6 @@ const auditPort = {
 };
 const handlers = createDlqHandlers({
 	entries: dlqRepository,
-	db: { isConnected: () => true, getMissingCriticalIndexes: () => [] },
-	queue: { isAvailable: () => true },
 	useCases: {
 		deleteEntries: createDeleteEntries({
 			entries: dlqRepository,
@@ -197,6 +194,16 @@ interface RequestOptions {
 function createApp(): express.Application {
 	const app = express();
 	app.use(express.json());
+	// Stands in for the mTLS middleware: the peer SVID matches the claimed caller.
+	app.use((req, _res, next) => {
+		const name =
+			req.headers["x-service-name"] === "admin"
+				? "api-gateway"
+				: req.headers["x-service-name"];
+		(req as never as { clientIdentity: string }).clientIdentity =
+			`spiffe://trading-model.local/ns/trading-model/sa/${name}`;
+		next();
+	});
 	app.use("/", DlqRoutes(handlers));
 	return app;
 }
@@ -289,16 +296,6 @@ describe("DLQ Service — Routes Integration", () => {
 		const result = await request(server, "/health");
 		expect(result.status).toBe(200);
 		expect(result.body).toEqual({ status: "ok", entries: 5 });
-	});
-
-	it("GET /health/ready should report readiness", async () => {
-		await start();
-		const result = await request(server, "/health/ready");
-		expect(result.status).toBe(200);
-		expect(result.body).toMatchObject({
-			status: "ready",
-			redis: "connected",
-		});
 	});
 
 	it("POST /dlq is gone: dead letters live in the dead streams (ADR-0073)", async () => {

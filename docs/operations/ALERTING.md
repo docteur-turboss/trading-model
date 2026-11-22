@@ -50,7 +50,7 @@ Dead man's switch margin: `Watchdog` is re-sent every minute (`repeat_interval: 
 
 ## High availability (production)
 
-ADR-0062: production runs Prometheus ×2 and Alertmanager ×2 (cluster on port 9094), so a drain or a release does not stop evaluation or notifications. Check: `kubectl exec alertmanager-0 -- wget -qO- localhost:9093/api/v2/status` shows `cluster.status: ready` and 2 peers. Grafana, Loki, Jaeger, blackbox-exporter and kube-state-metrics stay at one replica (consultation or a missed scrape, not detection). Deduplication relies on `alert_relabel_configs` dropping the `replica` label (expanded by `--enable-feature=expand-external-labels`): both Prometheus send identical alerts to every ready pod (Service `alertmanager-ready`). Staging runs 1 of each.
+ADR-0062: production runs Prometheus ×2 and Alertmanager ×2 (cluster on port 9094), so a drain or a release does not stop evaluation or notifications. Check: `kubectl exec alertmanager-0 -- wget -qO- localhost:9093/api/v2/status` shows `cluster.status: ready` and 2 peers. Grafana, Loki, Jaeger, blackbox-exporter and kube-state-metrics stay at one replica (consultation or a missed scrape, not detection). Deduplication relies on `alert_relabel_configs` dropping the `replica` label (expanded by default since Prometheus 3): both Prometheus send identical alerts to every ready pod (Service `alertmanager-ready`). Staging runs 1 of each.
 
 ## Loki and the trace pipeline
 
@@ -92,19 +92,22 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `MarketDataStale` | no candle persisted for 15 min, all scraper replicas together | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `TrainerNoLeader` | no trainer pod reports `tt_training_leader` = 1 for 5 min: no trainer holds the Lease, nothing is trained (ADR-0058); the read routes still answer | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `TrainerNoLeaderProlonged` | `critical` (page): same condition as `TrainerNoLeader` for 30 min, far beyond a rollout handover (end of a generation plus a few seconds) | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
-| `TrainerNoModelStored` | a trainer holds the Lease but no model was stored (`tt_model_artifacts_total{result="stored"}`) for 5 h (2 h after a start), whatever the cause: sessions failing, nothing trained, writes failing | [runbook-trainer#trainernomodelstored](runbooks/runbook-trainer.md#trainernomodelstored) |
+| `TrainerNoModelStored` | a trainer holds the Lease but no model was stored (`tt_model_artifacts_total{result="stored"}`) for 13 h (4 h after a start), whatever the cause: sessions failing, nothing trained, writes failing | [runbook-trainer#trainernomodelstored](runbooks/runbook-trainer.md#trainernomodelstored) |
 | `TrainerMarketDataStale` | newest stored candle read by the trainer older than 15 min for every symbol (`tt_last_candle_age_seconds`) | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `ModelBelowBuyAndHold` | the last 3 stored models of a symbol have an out-of-sample Sharpe below buy and hold on the same bars (`tt_model_below_buy_and_hold_streak`, Lease holder only; `segment="test"`, ADR-0068) | [runbook-trainer#modelbelowbuyandhold](runbooks/runbook-trainer.md#modelbelowbuyandhold) |
 | `TrainerFeatureDrift` | for 1 h, a normalized field of a symbol received since its newest stored model has a mean more than 3 standard deviations from the statistics stored with that model (`tt_feature_drift_score`) | [runbook-trainer#trainerfeaturedrift](runbooks/runbook-trainer.md#trainerfeaturedrift) |
-| `MarketDataUnpublished` | persisted candles of a symbol have waited 15 min for the bus (`fs_unpublished_candles`): sent from MySQL once message-manager answers, the trainer lags meanwhile | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `ScrapeCyclesFailing` | more than half of the scrape cycles fail | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `SymbolMarketDataStale` | no candle of one symbol persisted for 15 min while the others may still flow (`fs_candles_persisted_total{symbol}`): symbol rejected, klines failing or candles refused by the normalizer, by symbol | [runbook-market-data-stale#symbolmarketdatastale](runbooks/runbook-market-data-stale.md#symbolmarketdatastale) |
 | `SignalCollectionFailing` | a signal source (ADR-0036) failed a collection in the last 24 h, by source: fetch error (403 from SEC EDGAR without contact e-mail), changed format or MySQL | [runbook-market-data-stale#signalcollectionfailing](runbooks/runbook-market-data-stale.md#signalcollectionfailing) |
 | `SignalSourceStale` | a signal source (ADR-0036) had no successful collection for longer than its threshold (`maxAgeSeconds`, else three cron periods), by source, with no failure counted | [runbook-market-data-stale#signalsourcestale](runbooks/runbook-market-data-stale.md#signalsourcestale) |
 | `MessageDeliveryLowSuccessRate` | less than 99.5% of the messages delivered (the rest dead-lettered) | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
-| `MessagesDeadLettered` | message-manager gave up on messages: they are in dlq-service (`GET /dlq`) to inspect and replay | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `BusDeadLetters` | A dead stream holds entries (`bus_dead_letters`): a subscriber group gave up on them, an operator replays or deletes them with `audit-dlq` | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `DlqAuditEventLost` | a DLQ delete or replay was done but message-manager refused its audit event (`dlq_audit_publish_failures_total`): not in the audit chain, the API answered 502 (ADR-0059) | [runbook-dlq-backlog#dlqauditeventlost](runbooks/runbook-dlq-backlog.md#dlqauditeventlost) |
+| `KillSwitchEngaged` | the Risk/Execution kill switch is engaged (global or per symbol): no new order, open orders cancelled, manual re-arming only | [runbook-risk-execution#killswitchengaged](runbooks/runbook-risk-execution.md#killswitchengaged) |
+| `RiskTickFailing` | the risk-execution tick failed repeatedly for 5 min (`risk_tick_failures_total`): state write or reconciliation error | [runbook-risk-execution#risktickfailing](runbooks/runbook-risk-execution.md#risktickfailing) |
+| `ReconciliationMismatch` | risk-execution found a position, open order or balance difference with the broker (ADR-0064 §4) | [runbook-risk-execution#reconciliationmismatch](runbooks/runbook-risk-execution.md#reconciliationmismatch) |
+| `RiskRejectRatioHigh` | risk-execution rejected over 50% of the order intents for 15 min (`risk_orders_total`) | [runbook-risk-execution#riskrejectratiohigh](runbooks/runbook-risk-execution.md#riskrejectratiohigh) |
+| `RiskMarketDataStale` | the newest reference price of an allowed instrument is older than 15 min (ADR-0064 §7) | [runbook-risk-execution#riskmarketdatastale](runbooks/runbook-risk-execution.md#riskmarketdatastale) |
 | `RetentionFailed` | warning | [BACKUP_DR#retention-job](../deployment/BACKUP_DR.md#retention-job) |
 | `RetentionStale` | warning | [BACKUP_DR#retention-job](../deployment/BACKUP_DR.md#retention-job) |
 | `ApiAuthFailuresHigh` | the gateway rejected API keys at more than 0.1/s (6/min) for 5 min | [runbook-auth-failures](runbooks/runbook-auth-failures.md) |
@@ -138,21 +141,20 @@ file absent from the repository, or on an anchor that matches no heading.
 | `SLOErrorBudgetLow` | warning | [runbook-latency-and-errors#slo-error-budget-low](runbooks/runbook-latency-and-errors.md#slo-error-budget-low) |
 | `ServiceDown` | critical | [runbook-service-down](runbooks/runbook-service-down.md) |
 | `ServiceTargetsMissing` | critical | [runbook-service-down#no-scrape-target](runbooks/runbook-service-down.md#no-scrape-target) |
-| `CertificateExpiry` | warning | [runbook-certificate-expiry](runbooks/runbook-certificate-expiry.md) |
+| `CertificateExpiry` | critical | [runbook-certificate-expiry](runbooks/runbook-certificate-expiry.md) |
 | `HttpCircuitBreakerRejecting` | warning | [runbook-circuit-breaker-open#symptom](runbooks/runbook-circuit-breaker-open.md#symptom) |
-| `DLQSizeGrowing` | warning | [runbook-dlq-backlog](runbooks/runbook-dlq-backlog.md) |
 | `InstanceCountLow` | critical | [runbook-discovery#instancecountlow](runbooks/runbook-discovery.md#instancecountlow) |
 | `HighMemoryUsage` | warning | [runbook-service-down#1-oomkilled-out-of-memory](runbooks/runbook-service-down.md#1-oomkilled-out-of-memory) |
 | `HeartbeatStopped` | critical | [runbook-discovery#heartbeatstopped](runbooks/runbook-discovery.md#heartbeatstopped) |
 | `BackupFailed` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
-| `BackupNotRunning` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
+| `SealedSecretsKeyBackupStale` | warning | [BACKUP_DR#sealedsecretskeybackupstale](../deployment/BACKUP_DR.md#sealedsecretskeybackupstale) |
 | `BackupJobStale` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupIncrementalStale` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
-| `BackupIncrementalMissing` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
+| `BackupIncrementalMissing` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupIncrementalFailed` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupPitrGap` | critical | [BACKUP_DR#point-in-time-chain-broken](../deployment/BACKUP_DR.md#point-in-time-chain-broken) |
-| `BackupMetricsAbsent` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
-| `BackupComponentMissing` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
+| `BackupMetricsAbsent` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
+| `BackupComponentMissing` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupUnencrypted` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupOffsiteCopyFailed` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupVolumeFilling` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
@@ -164,12 +166,10 @@ file absent from the repository, or on an anchor that matches no heading.
 | `AuditChainNotAnchored` | warning | [runbook-audit-chain-broken#auditchainnotanchored](runbooks/runbook-audit-chain-broken.md#auditchainnotanchored) |
 | `MessageDeliveryLowSuccessRate` | critical | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `DlqAuditEventLost` | critical | [runbook-dlq-backlog#dlqauditeventlost](runbooks/runbook-dlq-backlog.md#dlqauditeventlost) |
-| `MessagesDeadLettered` | warning | [runbook-message-bus-outage#4-dead-letters-stuck-refused-or-lost](runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost) |
 | `BusDeadLetters` | warning | [runbook-message-bus-outage#4-dead-letters-stuck-refused-or-lost](runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost) |
 | `MessagesUnrouted` | warning | [runbook-message-bus-outage#3-no-subscriber-on-a-topic](runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic) |
-| `JournalEntriesTrimmed` | critical | [runbook-message-bus-outage#6-journal-entries-trimmed-before-delivery](runbooks/runbook-message-bus-outage.md#6-journal-entries-trimmed-before-delivery) |
-| `JournalBacklogOld` | warning | [runbook-message-bus-outage#7-journal-backlog-of-a-subscriber](runbooks/runbook-message-bus-outage.md#7-journal-backlog-of-a-subscriber) |
-| `DLQDrainRateLow` | warning | [runbook-dlq-backlog](runbooks/runbook-dlq-backlog.md) |
+| `JournalEntriesTrimmed` | critical | [runbook-message-bus-outage#5-journal-entries-trimmed-before-delivery](runbooks/runbook-message-bus-outage.md#5-journal-entries-trimmed-before-delivery) |
+| `JournalBacklogOld` | warning | [runbook-message-bus-outage#6-journal-backlog-of-a-subscriber](runbooks/runbook-message-bus-outage.md#6-journal-backlog-of-a-subscriber) |
 | `TrainingCompletionRateLow` | warning | [runbook-trainer#trainingcompletionratelow](runbooks/runbook-trainer.md#trainingcompletionratelow) |
 | `TrainingCompletionRateCritical` | critical | [runbook-trainer#trainingcompletionratelow](runbooks/runbook-trainer.md#trainingcompletionratelow) |
 | `TrainerEventLoopBlocked` | warning | [runbook-trainer#trainereventloopblocked](runbooks/runbook-trainer.md#trainereventloopblocked) |
@@ -178,11 +178,11 @@ file absent from the repository, or on an anchor that matches no heading.
 | `TrainerNoLeaderProlonged` | critical | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `MarketDataStale` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `ScrapeCyclesFailing` | warning | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
-| `SymbolMarketDataStale` | critical | [runbook-market-data-stale#symbolmarketdatastale](runbooks/runbook-market-data-stale.md#symbolmarketdatastale) |
+| `SymbolMarketDataStale` | warning | [runbook-market-data-stale#symbolmarketdatastale](runbooks/runbook-market-data-stale.md#symbolmarketdatastale) |
 | `BinanceRestrictedLocation` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
+| `BinanceQuarantined` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `SignalCollectionFailing` | warning | [runbook-market-data-stale#signalcollectionfailing](runbooks/runbook-market-data-stale.md#signalcollectionfailing) |
 | `SignalSourceStale` | warning | [runbook-market-data-stale#signalsourcestale](runbooks/runbook-market-data-stale.md#signalsourcestale) |
-| `MarketDataUnpublished` | warning | [runbook-message-bus-outage#5-scraper-publish-backlog](runbooks/runbook-message-bus-outage.md#5-scraper-publish-backlog) |
 | `TrainerMarketDataStale` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `TrainerNoModelStored` | critical | [runbook-trainer#trainernomodelstored](runbooks/runbook-trainer.md#trainernomodelstored) |
 | `ModelArtifactWriteFailing` | warning | [runbook-trainer#modelartifactwritefailing](runbooks/runbook-trainer.md#modelartifactwritefailing) |
@@ -190,10 +190,14 @@ file absent from the repository, or on an anchor that matches no heading.
 | `TrainerFeatureDrift` | warning | [runbook-trainer#trainerfeaturedrift](runbooks/runbook-trainer.md#trainerfeaturedrift) |
 | `KubePodCrashLooping` | warning | [runbook-infrastructure#kubepodcrashlooping](runbooks/runbook-infrastructure.md#kubepodcrashlooping) |
 | `KubeContainerOOMKilled` | warning | [runbook-infrastructure#kubecontaineroomkilled](runbooks/runbook-infrastructure.md#kubecontaineroomkilled) |
+| `KubeWorkloadUnavailable` | critical | [runbook-infrastructure#kubeworkloadunavailable](runbooks/runbook-infrastructure.md#kubeworkloadunavailable) |
+| `KubePodPending` | warning | [runbook-infrastructure#kubepodpending](runbooks/runbook-infrastructure.md#kubepodpending) |
 | `KubePersistentVolumeFillingUp` | warning | [runbook-infrastructure#kubepersistentvolumefillingup](runbooks/runbook-infrastructure.md#kubepersistentvolumefillingup) |
 | `NodeFilesystemAlmostFull` | warning | [runbook-infrastructure#nodefilesystemalmostfull](runbooks/runbook-infrastructure.md#nodefilesystemalmostfull) |
 | `MySQLDown` | critical | [runbook-infrastructure#mysqldown](runbooks/runbook-infrastructure.md#mysqldown) |
+| `MySQLSecureTransportOff` | warning | [runbook-infrastructure#mysqlsecuretransportoff](runbooks/runbook-infrastructure.md#mysqlsecuretransportoff) |
 | `RedisDown` | critical | [runbook-infrastructure#redisdown](runbooks/runbook-infrastructure.md#redisdown) |
+| `RedisMemoryHigh` | warning | [runbook-infrastructure#redismemoryhigh](runbooks/runbook-infrastructure.md#redismemoryhigh) |
 | `RedisReplicasMissing` | warning | [runbook-infrastructure#redisreplicasmissing](runbooks/runbook-infrastructure.md#redisreplicasmissing) |
 | `StatefulSetStuckOnOldRevision` | warning | [runbook-infrastructure#statefulsetstuckonoldrevision](runbooks/runbook-infrastructure.md#statefulsetstuckonoldrevision) |
 | `RedisSentinelQuorumLost` | critical | [runbook-infrastructure#redissentinelquorumlost](runbooks/runbook-infrastructure.md#redissentinelquorumlost) |
@@ -233,7 +237,7 @@ file absent from the repository, or on an anchor that matches no heading.
 
 Compose runs the same datasources as K8s, each one fed:
 
-- **Logs**: `promtail` reads the compose containers through the Docker API of `docker-socket-proxy` (the only holder of `/var/run/docker.sock`, read-only mount; the proxy refuses every `POST`, ADR-0011 amendment) and pushes to Loki with the K8s `json` pipeline (labels `component`, `job`, `container`, `level`). Check: Grafana → Explore → Loki → `{component="api-gateway"}`.
+- **Logs**: `promtail` reads the compose containers through the Docker API of `docker-socket-proxy` (the only holder of `/var/run/docker.sock`, read-only mount; the proxy only allows GET `/containers/json`, `/networks`, `/containers/{id}/json` and `/containers/{id}/logs`, ADR-0011 amendment) and pushes to Loki with the K8s `json` pipeline (labels `component`, `job`, `container`, `level`). Check: Grafana → Explore → Loki → `{component="api-gateway"}`.
 - **Traces**: services export OTLP/HTTP straight to `jaeger:4318` (`OTEL_EXPORTER_OTLP_ENDPOINT`); there is no OTel collector in compose. UI on `JAEGER_PORT` (default 16686).
 - **SVID expiry**: `blackbox-exporter` probes `/ping` of every service with its own SVID (`spiffe-helper-blackbox`, SPIRE entry `blackbox-exporter` made by `spire-bootstrap`). `/ping` answers before the ACL, so any valid SVID passes. `CertificateExpiry` carries the `service` label in both environments (one target per service in `observability/prometheus.yml` and `deploy/k8s/infra/prometheus.yaml`).
 

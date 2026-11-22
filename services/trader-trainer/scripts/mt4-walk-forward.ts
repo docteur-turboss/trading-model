@@ -39,6 +39,7 @@ import { evalPhase } from "../src/domain/genetic-algorithm/evaluation-phase";
 import type { MarketStep } from "../src/domain/genetic-algorithm/genome";
 import { FitnessType } from "../src/domain/genetic-algorithm/genome-control";
 import { makeSeededBackendFactory } from "../src/domain/genetic-algorithm/rl-backend";
+import { EMBARGO_STEPS } from "../src/domain/market-data/window-splitter";
 import { MarketDataBuffer } from "../src/domain/market-data-buffer";
 import { ADMISSION_THRESHOLDS } from "../src/domain/model-admission";
 
@@ -58,7 +59,7 @@ const CRITERIA = {
 
 /** openTime, open, high, low, close, volume, closeTime, then optionally
  * quoteVolume, trade count, taker buy base volume (Binance order). */
-type Kline = number[];
+export type Kline = number[];
 
 interface Options {
 	data: string[];
@@ -139,7 +140,10 @@ function toCandle(symbol: TradingSymbol, kline: Kline): CandleData {
 }
 
 /** Market steps of `klines` as the trainer builds them from its buffer. */
-function marketSteps(symbol: TradingSymbol, klines: Kline[]): MarketStep[] {
+export function marketSteps(
+	symbol: TradingSymbol,
+	klines: Kline[]
+): MarketStep[] {
 	const buffer = new MarketDataBuffer({ maxSize: 2 * klines.length + 10 });
 	for (const kline of klines) {
 		buffer.addData(DataType.Candle, symbol, toCandle(symbol, kline));
@@ -174,7 +178,10 @@ async function runSegment(
 	// Features are point in time (ADR-0030): later candles never change an earlier step.
 	const steps = marketSteps(symbol, klines.slice(start, end));
 	const trainSteps = steps.slice(0, -opts.test);
-	const test = steps.slice(-opts.test);
+	if (opts.test <= EMBARGO_STEPS) {
+		throw new Error(`test must exceed the ${EMBARGO_STEPS}-step embargo`);
+	}
+	const test = steps.slice(-opts.test + EMBARGO_STEPS);
 	const split = Math.floor(trainSteps.length * 0.8);
 
 	const t0 = Date.now();
@@ -183,7 +190,7 @@ async function runSegment(
 			{
 				id: `${symbol}-${run.segment}`,
 				train: trainSteps.slice(0, split),
-				validation: trainSteps.slice(split),
+				validation: trainSteps.slice(split + EMBARGO_STEPS),
 			},
 		],
 		{
@@ -442,7 +449,9 @@ async function main(): Promise<void> {
 	summarise(results);
 }
 
-main().catch((err: unknown) => {
-	console.error(err);
-	process.exit(1);
-});
+if (require.main === module) {
+	main().catch((err: unknown) => {
+		console.error(err);
+		process.exit(1);
+	});
+}

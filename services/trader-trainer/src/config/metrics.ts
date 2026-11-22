@@ -13,6 +13,13 @@ for (const result of ["stored", "skipped", "error"] as const) {
 	MODEL_ARTIFACTS_TOTAL.inc({ result }, 0);
 }
 
+/** Stored models whose publication failed (issue #1739): the leader retries every cycle. */
+export const MODEL_PUBLISH_FAILURES_TOTAL = new promClient.Counter({
+	name: "tt_model_publish_failures_total",
+	help: "Failed publications of a stored model on the bus",
+	labelNames: ["symbol"] as const,
+});
+
 /** ADR-0030 verdict of each stored model on its test segment (ADR-0069). */
 export const MODEL_ADMISSION_TOTAL = new promClient.Counter({
 	name: "tt_model_admission_total",
@@ -144,7 +151,7 @@ export const SIGNAL_READ_ERRORS_TOTAL = new promClient.Counter({
 
 export const DAILY_BAR_ISSUES_TOTAL = new promClient.Counter({
 	name: "tt_daily_bar_issues_total",
-	help: "Daily bars rebuilt from signals: dropped (incomplete_day) or a jump that looks like a split (split_suspect)",
+	help: "Candles dropped or suspect: daily bar incomplete_day, split_suspect, or a candle whose low/high do not bound open/close (ohlc_inconsistent)",
 	labelNames: ["symbol", "issue"] as const,
 });
 

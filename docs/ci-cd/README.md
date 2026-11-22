@@ -44,7 +44,7 @@ jobs:
           bun run --filter message-manager build
           bun run --filter discovery-server build
           bun run --filter financial-scraper build
-          bun run --filter trader-service build
+          bun run --filter trader-trainer build
           bun run --filter api-gateway build
           bun run --filter audit-logger build
           bun run --filter dlq-service build
@@ -131,6 +131,8 @@ nodes pull credentials for the registry.
 | **Backup Key Check** | `backup-key-check.yml` | weekly cron (Mon), manual | Prove the escrow age key decrypts the newest off-site backup ([ADR-0034](../adr/0034-backup-key-custody-and-weekly-escrow-check.md)) |
 | **Mutation Testing** | `mutation-testing.yml` | weekly cron (Sun), manual | Stryker on trader-trainer `src/domain` and dlq-service `src/application`; not a PR gate |
 | **Sealed Secrets Key Backup** | `sealed-secrets-key-backup.yml` | daily cron (03:30 UTC), manual | Seal and copy the controller keys off-site ([ADR-0035](../adr/0035-sealed-secrets-key-daily-backup-by-github-actions.md)) |
+| **Secret Rotation Reminder** | `secret-rotation-reminder.yml` | quarterly cron (1 Jan/Apr/Jul/Oct), manual | Open a "Quarterly secret rotation" issue unless one is open |
+| **Picomatch Fix Check** | `picomatch-fix-check.yml` | weekly cron (Mon), manual | Temporary (#1596): fails once picomatch > 4.0.7 is published, then drop the audit ignore and delete the workflow |
 
 All workflows run on `ubuntu-latest` with Bun. Failure in any workflow blocks merging.
 

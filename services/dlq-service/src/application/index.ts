@@ -12,24 +12,25 @@ const app = createDlqApp(ENV);
 
 createBootstrap({
 	name: "DLQ Service",
-	createServer: () => createServer(app.handlers),
+	createServer: () => createServer(app.handlers, app.mongoReadiness),
 	onBeforeServer: () => _onBeforeServer(),
 	onStart: () => _onStart(),
 	onStop: () => _onStop(),
 });
 
-async function _onBeforeServer(): Promise<void> {
-	try {
-		await app.connectDb();
-		logger.info("DLQ Service database connected", { mongoDb: ENV.MONGO_DB });
-		await app.releaseStaleClaims();
-	} catch (err) {
-		logger.error(
-			"MongoDB unavailable — service cannot persist messages. Rejecting incoming entries.",
-			{ error: normalizeError(err) }
-		);
-		await app.resetDb();
-	}
+/** Listens first: MongoDB connects in the background, requests get 503 until it is up. */
+function _onBeforeServer(): void {
+	app
+		.connectDb()
+		.then(() => {
+			logger.info("DLQ Service database connected", { mongoDb: ENV.MONGO_DB });
+			return app.releaseStaleClaims();
+		})
+		.catch((err: unknown) => {
+			logger.error("DLQ Service database start-up failed", {
+				error: normalizeError(err),
+			});
+		});
 }
 
 let _discovery: ReturnType<
@@ -45,8 +46,7 @@ function _onStart(): void {
 async function _onStop(): Promise<void> {
 	await shutdownTelemetry();
 	try {
-		// LifecycleHandle.stop is typed void but returns the fullStop promise
-		await (_discovery?.stop() as unknown as Promise<void> | undefined);
+		await _discovery?.stop();
 	} catch (err) {
 		logger.warn("Error stopping address manager", {
 			error: normalizeError(err),

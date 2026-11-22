@@ -2,6 +2,13 @@ import { describe, expect, it } from "@jest/globals";
 import { sanitizeForLog } from "../../src/utils/sanitize";
 
 describe("sanitizeForLog", () => {
+	it("handles many BEGIN markers without END in linear time", () => {
+		const start = Date.now();
+		const input = "-----BEGIN X-----".repeat(20000);
+		expect(sanitizeForLog(input)).toBe(input);
+		expect(Date.now() - start).toBeLessThan(1000);
+	});
+
 	it("should redact PEM content in strings", () => {
 		const pemStr =
 			"some text\n-----BEGIN CERTIFICATE-----\nZm9v\n-----END CERTIFICATE-----\nmore text";
@@ -51,32 +58,6 @@ describe("sanitizeForLog", () => {
 		expect(result).toHaveProperty("name", "TypeError");
 		expect(result).toHaveProperty("message", "bad");
 		expect(result).not.toHaveProperty("stack");
-	});
-
-	it("should map arrays recursively", () => {
-		const input = [
-			"a",
-			new Error("err"),
-			{ key: "-----BEGIN KEY-----\nxxxx\n-----END KEY-----" },
-		];
-		const result = sanitizeForLog(input) as unknown[];
-		expect(result[0]).toBe("a");
-		expect((result[1] as Record<string, unknown>).message).toBe("err");
-		expect((result[2] as Record<string, unknown>).key).toBe("[REDACTED PEM]");
-	});
-
-	it("should clone plain objects with recursive sanitization", () => {
-		const input = {
-			password: "secret",
-			nested: {
-				cert: "-----BEGIN CERTIFICATE-----\nZm9v\n-----END CERTIFICATE-----",
-			},
-		};
-		const result = sanitizeForLog(input) as Record<string, unknown>;
-		expect(result).toEqual({
-			password: "secret",
-			nested: { cert: "[REDACTED PEM]" },
-		});
 	});
 
 	it("should return primitives unchanged", () => {

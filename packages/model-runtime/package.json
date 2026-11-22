@@ -1,27 +1,39 @@
 {
   "name": "@trading-model/model-runtime",
   "version": "1.0.0",
-  "description": "Runtime of a published model used by trader-trainer: network forward pass, feature codec, portfolio simulator (ADR-0066)",
+  "description": "Runtime of a published model, shared by trader-trainer and model-evaluator: features, agent, network forward pass, portfolio simulator (ADR-0066), replay (ADR-0079)",
   "license": "ISC",
   "type": "commonjs",
   "exports": {
+    "./agent/action-mapper": "./dist/agent/action-mapper.js",
+    "./agent/action-types": "./dist/agent/action-types.js",
+    "./agent/agent-state": "./dist/agent/agent-state.js",
+    "./agent/decision-events": "./dist/agent/decision-events.js",
+    "./agent/input-mask": "./dist/agent/input-mask.js",
+    "./agent/state-manager": "./dist/agent/state-manager.js",
+    "./agent/trading-agent": "./dist/agent/trading-agent.js",
     "./env/wallet-config": "./dist/env/wallet-config.js",
     "./env/wallet-manager": "./dist/env/wallet-manager.js",
     "./episode-scores": "./dist/episode-scores.js",
     "./errors": "./dist/errors.js",
     "./feature-vector": "./dist/feature-vector.js",
     "./feature-vector-codec": "./dist/feature-vector-codec.js",
+    "./features/feature-builder": "./dist/features/feature-builder.js",
+    "./features/normalization-stats": "./dist/features/normalization-stats.js",
     "./neural-network/activation": "./dist/neural-network/activation.js",
     "./neural-network/feed-forward-engine": "./dist/neural-network/feed-forward-engine.js",
     "./neural-network/network-serialization": "./dist/neural-network/network-serialization.js",
     "./neural-network/type": "./dist/neural-network/type.js",
+    "./model-manifest": "./dist/model-manifest.js",
     "./noise": "./dist/noise.js",
+    "./replay": "./dist/replay.js",
     "./replay-metrics": "./dist/replay-metrics.js"
   },
   "dependencies": {
     "@trading-model/primitives": "*",
     "@trading-model/contracts": "*",
-    "@trading-model/common": "*"
+    "@trading-model/common": "*",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@jest/globals": "^30.5.2",

@@ -1,5 +1,6 @@
+import { actionLabels } from "@trading-model/model-runtime/agent/action-mapper";
 import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
-import { actionLabels } from "./agent/action-mapper";
+import type { ManifestGenome } from "@trading-model/model-runtime/model-manifest";
 import { EVAL_EPSILON } from "./genetic-algorithm/evaluation-phase";
 import type { LamarckGenome } from "./genetic-algorithm/genome-fitness";
 import { SIMULATOR_PARAMS } from "./genetic-algorithm/rl-backend";
@@ -12,7 +13,7 @@ import type { BestAgentSummary } from "./training-state";
  * manifest holds everything needed to rebuild and run the agent, the weights
  * file holds its trained weights.
  */
-export const MODEL_FORMAT_VERSION = 1;
+const MODEL_FORMAT_VERSION = 1;
 /** The trainer reads one-minute candles from the scraper. */
 const CANDLE_INTERVAL_MS = 60_000;
 export const WEIGHTS_FILE = "weights.f32";
@@ -74,6 +75,14 @@ type SimulatorParams = {
 	[Key in keyof typeof SIMULATOR_PARAMS]: number | boolean;
 };
 
+/** A shared part of a model (ADR-0076 §7), immutable once published: content-addressed, `version` is the prefix of `sha256`. */
+export interface ModelComponent {
+	role: "trunk";
+	id: string;
+	version: string;
+	sha256: string;
+}
+
 export interface ModelManifest {
 	formatVersion: typeof MODEL_FORMAT_VERSION;
 	symbol: string;
@@ -88,7 +97,7 @@ export interface ModelManifest {
 		sha256: string;
 	};
 	/** The best genome without its weights: topology, RL and GA genes. */
-	genome: Record<string, unknown>;
+	genome: ManifestGenome;
 	/** Layout of the input vector: `fields[i]` is the meaning of input `i`. */
 	features: { dim: number; fields: string[] };
 	/** Normalization statistics of the symbol at the end of training. */
@@ -102,6 +111,8 @@ export interface ModelManifest {
 	admission?: ModelAdmission;
 	/** Window and simulator to replay the model (ADR-0079); absent on older manifests. */
 	replay?: ModelReplay;
+	/** Shared parts the weights contain (FEATURE_SHARED_TRUNK); absent: self-contained. */
+	components?: ModelComponent[];
 }
 
 /** What lists and API responses tell about a version, without the manifest body. */
@@ -124,6 +135,7 @@ export interface NewModelArtifact {
 	summary: BestAgentSummary;
 	admission?: ModelAdmission;
 	window?: ModelReplayWindow;
+	components?: ModelComponent[];
 }
 
 export function modelVersion(createdAt: Date, sha256: string): string {
@@ -138,7 +150,11 @@ export function buildModelManifest(
 	artifact: NewModelArtifact,
 	stored: { version: string; createdAt: Date; sha256: string }
 ): ModelManifest {
-	const { trainedWeights: _weights, ...genome } = artifact.bestGenome;
+	const {
+		trainedWeights: _weights,
+		heads: _heads,
+		...genome
+	} = artifact.bestGenome;
 	const { summary } = artifact;
 	return {
 		formatVersion: MODEL_FORMAT_VERSION,
@@ -169,6 +185,7 @@ export function buildModelManifest(
 			actions: actionLabels(artifact.bestGenome.network.actionSet),
 		}),
 		...(artifact.admission && { admission: artifact.admission }),
+		...(artifact.components && { components: artifact.components }),
 		...(artifact.window && {
 			replay: {
 				intervalMs: CANDLE_INTERVAL_MS,

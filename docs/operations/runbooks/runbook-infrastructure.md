@@ -1,8 +1,8 @@
 # Runbook: Infrastructure (pods, nodes, volumes, databases)
 
 **Alerts:** `KubePodCrashLooping`, `KubeContainerOOMKilled`,
-`KubePersistentVolumeFillingUp`, `NodeFilesystemAlmostFull` (warning);
-`MySQLDown`, `RedisDown`, `RedisSentinelQuorumLost`, `MongoDBDown`,
+`KubePodPending`, `KubePersistentVolumeFillingUp`, `NodeFilesystemAlmostFull`
+(warning); `RedisMemoryHigh` (warning); `KubeWorkloadUnavailable`, `MySQLDown`, `RedisDown`, `RedisSentinelQuorumLost`, `MongoDBDown`,
 `MongoDBReplicaSetNoPrimary` (critical); `RedisReplicasMissing`,
 `MongoDBReplicaSetMemberUnhealthy` (warning).
 
@@ -69,6 +69,39 @@ kubectl -n $NS logs <pod> -c <container> --previous --tail=100
   ([runbook-deployment-failure](runbook-deployment-failure.md)).
 - Service pods: also [runbook-service-down](runbook-service-down.md).
 
+## KubeWorkloadUnavailable
+
+A Deployment or StatefulSet that wants at least one replica has had none
+available or ready for 5 minutes. For `spire-server`, every SVID expires about
+2 hours after it stopped
+([runbook-database-failover, SPIRE server](runbook-database-failover.md#spire-server)).
+kube-state-metrics does not read the nodes (ADR-0056): a lost node shows up
+here and as `KubePodPending`.
+
+```bash
+kubectl -n $NS get deploy,sts
+kubectl -n $NS get pods -o wide | grep -v Running   # NODE column: pods of a lost node
+kubectl get nodes                                   # needs a cluster-scope kubeconfig
+```
+
+Pods `Pending`: see `KubePodPending`. Pods crash looping: see
+`KubePodCrashLooping`. Pods running but not ready: `kubectl -n $NS describe
+pod <pod>` (readiness probe events).
+
+## KubePodPending
+
+A pod has been `Pending` for 15 minutes.
+
+```bash
+kubectl -n $NS describe pod <pod> | sed -n '/Events/,$p'
+```
+
+- `didn't match Pod's node affinity` / `volume node affinity conflict`: its
+  RWO volume is bound to a lost node. Bring the node back, or restore the data
+  on a new volume ([runbook-database-failover](runbook-database-failover.md)).
+- `Insufficient cpu` / `Insufficient memory`: add a node or lower requests.
+- `ImagePullBackOff` (phase stays `Pending`): wrong tag or registry access.
+
 ## KubeContainerOOMKilled
 
 A container was killed for exceeding its memory limit and restarted in the
@@ -101,7 +134,7 @@ kubectl -n $NS exec <pod> -- df -h <mount path>
   ([BACKUP_DR](../../deployment/BACKUP_DR.md#retention-job)), then grow the
   volume.
 - `mongo-*-data-*`, `redis-data-*`: grow the volume; for Redis also check the
-  journal backlog ([runbook-message-bus-outage](runbook-message-bus-outage.md#7-journal-backlog-of-a-subscriber)).
+  journal backlog ([runbook-message-bus-outage](runbook-message-bus-outage.md#6-journal-backlog-of-a-subscriber)).
 - `prometheus-data-*`, `loki-*`: retention (Prometheus 30 days) or volume size.
 - `backup-data`: `BackupVolumeFilling` covers it ([BACKUP_DR](../../deployment/BACKUP_DR.md#monitoring)).
 
@@ -137,6 +170,12 @@ old logs. Then grow the disk if the usage is real.
 2. Otherwise MySQL itself:
    [runbook-database-failover#mysql](runbook-database-failover.md#mysql).
 
+## MySQLSecureTransportOff
+
+`mysql_global_variables_require_secure_transport == 0` for 15 minutes: a deploy rollback
+(`deploy-release.sh rollback`) relaxed TLS so release N-1 can connect. Redeploy release N
+with `deploy.yml`: `db-migrate-user` binds the users to their certificate again and sets `ON`.
+
 ## RedisDown
 
 `redis_up == 0` for 5 minutes on a data node (`job="redis"`) or a sentinel
@@ -146,6 +185,20 @@ old logs. Then grow the disk if the usage is real.
    ACL user (`redis-ha.sh`), not Redis.
 2. Otherwise:
    [runbook-database-failover#redis-failover](runbook-database-failover.md#redis-failover).
+
+## RedisMemoryHigh
+
+A Redis container uses over 80 % of its memory limit for 10 minutes. Redis runs
+with `noeviction` and the journal streams are trimmed by age only (`MINID` 24 h,
+ADR-0048): nothing unread is dropped, so a burst grows memory until the
+container is OOMKilled.
+
+```bash
+kubectl -n $NS top pod -l app.kubernetes.io/component=redis
+```
+
+A subscriber group stopped during a burst: restart it so it reads and acks.
+Otherwise raise the `redis` container memory limit in `redis.yaml`.
 
 ## RedisReplicasMissing
 

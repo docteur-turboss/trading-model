@@ -66,6 +66,8 @@ interface CandleData extends BaseMarketData {
 
 ### `market_trades` — Individual trade data
 
+Sample of the last 100 trades per symbol per minute. Purged by `db-retention` on `timestamp` after `RETENTION_TRADES_DAYS` (180 in K8s).
+
 | Column | Type | Constraints | Description |
 | ------ | ---- | ----------- | ----------- |
 | `id` | `INT` | `AUTO_INCREMENT` | Surrogate key |
@@ -158,9 +160,9 @@ interface TickerData extends BaseMarketData {
 }
 ```
 
-### `market_publish_cursors` — how far each candle series is published
+### `market_publish_cursors` — removed in N+1
 
-Migration 005. The scraper persists candles before publishing them; the candles of a series opened at or after `published_until` are persisted but not yet on the bus. Each cycle publishes the next 100 of them from `market_candles` and moves the cursor once message-manager took them, so a bus outage or a scraper restart loses none.
+Migration 005. Neither read nor written since release N (the scraper no longer publishes candles); dropped by a migration of the next release (ADR-0040).
 
 | Column | Type | Constraints | Description |
 | ------ | ---- | ----------- | ----------- |
@@ -171,7 +173,7 @@ Migration 005. The scraper persists candles before publishing them; the candles 
 | `published_until` | `DATETIME(3)` | `NOT NULL` | Open time of the next candle to publish |
 | `updated_at` | `DATETIME(3)` | `NOT NULL`, auto | Last move |
 
-**Primary key:** `(source, symbol, interval_value)`. A series without a row starts at the first candle the scraper persists, not at the history. Skipping a backlog on purpose: see `runbook-message-bus-outage`.
+**Primary key:** `(source, symbol, interval_value)`.
 
 ### `market_order_books` — order book depth snapshots
 
@@ -206,7 +208,7 @@ Migration 006, ADR-0036. One observation about an asset, a whole sector or an ec
 | `confidence_score` | `DOUBLE` | `NOT NULL` | Source reliability at collection time, 0–1 |
 | `payload` | `JSON` | `NOT NULL` | Canonical payload of the dimension (`PAYLOADS`): `metric` (e.g. `spot_rate_10y`, `us-gaap:EarningsPerShareDiluted`), `value`, `unit`, optional `details`, plus `period`, `filing`, `platform`/`topic`, `location`, `jurisdiction` or `area` depending on the dimension |
 
-**Constraint:** `chk_signals_one_subject`, exactly one of `asset_id`, `sector` and `area`. **Indexes:** `(asset_id, observed_at)`, `(sector, observed_at)` and `(area, observed_at)`, the three parts of `GET /signals/assets/:assetId`. `009` down deletes the area rows.
+**Constraint:** `chk_signals_one_subject`, exactly one of `asset_id`, `sector` and `area`. **Indexes:** `(asset_id, observed_at)`, `(sector, observed_at)` and `(area, observed_at)`, the three parts of `GET /signals/assets/:assetId`, and `(observed_at)` (migration 010) for the retention purge. `009` down deletes the area rows.
 
 ### Shared base interface
 

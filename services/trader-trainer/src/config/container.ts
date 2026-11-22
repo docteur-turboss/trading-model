@@ -1,5 +1,8 @@
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import { AssetId, type AssetType } from "@trading-model/contracts/wire/signals";
+import { SignalBarHistory } from "@trading-model/http/signals/signal-bar-history";
+import { inputGroupNames } from "@trading-model/model-runtime/agent/input-mask";
 import { toSymbol } from "@trading-model/primitives/primitives";
 import {
 	KubernetesLease,
@@ -10,21 +13,15 @@ import {
 	Leadership,
 	SOLE_INSTANCE_LEASE,
 } from "@trading-model/reliability/leadership";
-import {
-	AssetId,
-	type AssetType,
-} from "@trading-model/validation/wire/signals";
 import { TrainingLoop } from "../adapters/inbound/scheduler/training-loop";
 import { FileModelArtifactStore } from "../adapters/outbound/file-model-artifact-store";
 import { ModelPublisher } from "../adapters/outbound/model-publisher";
-import { SignalBarHistory } from "../adapters/outbound/signal-bar-history";
 import { runInWorker } from "../adapters/outbound/training-worker/worker-training-runner";
 import { Trainer } from "../application/trainer";
 import { DEFAULT_ASSET_COSTS, parseAssets } from "../domain/asset-costs";
 import { EvictionPolicy } from "../domain/eviction-policy";
 import type { GaTelemetry } from "../domain/genetic-algorithm/ga-telemetry";
 import type { FitnessType } from "../domain/genetic-algorithm/genome-control";
-import { inputGroupNames } from "../domain/genetic-algorithm/genome-network/input-mask";
 import type { SimulatorCosts } from "../domain/genetic-algorithm/rl-backend";
 import {
 	MarketDataBuffer,
@@ -34,11 +31,15 @@ import type { TradingSymbol } from "../domain/market-data-types";
 import type { CandleHistoryPort } from "../domain/ports/candle-history.port";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
 import type { SignalHistoryPort } from "../domain/ports/signal-history.port";
-import { parseSignalKeys } from "../domain/signal-features";
-import { effectiveFitnessType } from "../domain/training-settings";
+import {
+	effectiveFitnessType,
+	symbolsPerGeneration,
+	type TrainingSettings,
+} from "../domain/training-settings";
 import { MessageManager } from "./message-manager";
 import {
 	CURRENT_GENERATION,
+	DAILY_BAR_ISSUES_TOTAL,
 	GENOME_EVALUATION_SECONDS,
 	MARKET_DATA_BUFFER_SIZE,
 	MARKET_DATA_SYMBOLS,
@@ -69,26 +70,15 @@ const SIGNAL_WINDOW_MS = 30 * 24 * 3_600_000;
 interface AppContainerConfig {
 	bufferSize: number;
 	symbols: TradingSymbol[];
-	validationSplit: number;
-	testSplit: number;
-	walkForwardFolds: number;
-	generations: number;
-	populationSize: number;
-	timeBudgetMs: number;
-	episodesPerIndividual: number;
-	fitnessType: FitnessType;
-	observePosition: boolean;
-	actionSpaceGene: boolean;
+	settings: TrainingSettings;
 	signalKeys: string[];
-	eventDriven: boolean;
-	inputGroups?: string[];
-	protectCandleGroup?: boolean;
-	bufferMemoryLimitMb?: number;
 	modelDir: string;
 	modelRetention: number;
 	instanceId: string;
 	history: CandleHistoryPort;
 	signals: ConstructorParameters<typeof TrainingLoop>[4];
+	/** FEATURE_SHARED_TRUNK (ADR-0076): all the symbols train as one group. */
+	sharedTrunk?: boolean;
 	/** Costs of each daily asset (ADR-0083); empty: crypto symbols only. */
 	dailyCosts: ReadonlyMap<TradingSymbol, SimulatorCosts>;
 }
@@ -104,9 +94,11 @@ class ApplicationContainer {
 		this.symbols = config.symbols;
 		const bufferConfig: MarketDataBufferConfig = {
 			maxSize: config.bufferSize,
-			maxMemoryBytes: (config.bufferMemoryLimitMb ?? 512) * 1024 * 1024,
+			maxMemoryBytes: 512 * 1024 * 1024,
 			evictionPolicy: EvictionPolicy.Lru,
 			signalKeys: config.signalKeys,
+			onInconsistentCandle: (symbol) =>
+				DAILY_BAR_ISSUES_TOTAL.inc({ symbol, issue: "ohlc_inconsistent" }),
 			onDataAdded: (symbol, candleCount, symbolCount) => {
 				MARKET_DATA_BUFFER_SIZE.set({ symbol: String(symbol) }, candleCount);
 				MARKET_DATA_SYMBOLS.set(symbolCount);
@@ -124,21 +116,7 @@ class ApplicationContainer {
 			retention: config.modelRetention,
 		});
 		this.trainer = new Trainer(this.dataBuffer, {
-			settings: {
-				validationSplit: config.validationSplit,
-				testSplit: config.testSplit,
-				walkForwardFolds: config.walkForwardFolds,
-				generations: config.generations,
-				populationSize: config.populationSize,
-				timeBudgetMs: config.timeBudgetMs,
-				episodesPerIndividual: config.episodesPerIndividual,
-				fitnessType: config.fitnessType,
-				observePosition: config.observePosition,
-				actionSpaceGene: config.actionSpaceGene,
-				eventDriven: config.eventDriven,
-				inputGroups: config.inputGroups,
-				protectCandleGroup: config.protectCandleGroup,
-			},
+			settings: config.settings,
 			publisher,
 			telemetry: PROMETHEUS_GA_TELEMETRY,
 			dailyCosts: (symbol) => config.dailyCosts.get(symbol),
@@ -151,13 +129,10 @@ class ApplicationContainer {
 			this.trainer,
 			this.dataBuffer,
 			config.history,
-			{
-				validationSplit: config.validationSplit,
-				testSplit: config.testSplit,
-				walkForwardFolds: config.walkForwardFolds,
-			},
+			config.settings,
 			config.signals,
-			new Set(config.dailyCosts.keys())
+			new Set(config.dailyCosts.keys()),
+			config.sharedTrunk ? config.symbols : undefined
 		);
 	}
 }
@@ -183,8 +158,11 @@ interface TraderTrainerSettings {
 	FEATURE_RISK_ADJUSTED_FITNESS?: boolean;
 	FEATURE_EVENT_DRIVEN_DECISIONS?: boolean;
 	FEATURE_INPUT_MASK_GENE?: boolean;
+	FEATURE_SHARED_TRUNK?: boolean;
+	TRAINER_SHARED_TRUNK_SYMBOLS_PER_GENERATION?: number;
 	TRAINER_INPUT_MASK_PROTECT_CANDLE?: boolean;
 	TRAINER_OBSERVE_POSITION?: boolean;
+	TRAINER_SEED_OFFSET?: number;
 	FEATURE_ACTION_SPACE_GENE?: boolean;
 	/** Signal metrics fed to the network; read only when FEATURE_SIGNAL_INPUTS is true. */
 	TRAINER_SIGNAL_FEATURES?: string;
@@ -212,37 +190,49 @@ export function createTraderTrainerContainer(
 			},
 		])
 	);
-	const bars = new SignalBarHistory(signalHistory, assets);
+	const bars = new SignalBarHistory(signalHistory, assets, (symbol, issue) =>
+		DAILY_BAR_ISSUES_TOTAL.inc({ symbol, issue })
+	);
 	const signalKeys = settings.FEATURE_SIGNAL_INPUTS
-		? parseSignalKeys(settings.TRAINER_SIGNAL_FEATURES ?? "")
+		? parseCommaSeparated(settings.TRAINER_SIGNAL_FEATURES ?? "")
 		: [];
+	const symbols = [
+		...new Set([
+			...parseCommaSeparated(settings.TRAINER_SYMBOLS).map((symbol) =>
+				toSymbol(symbol)
+			),
+			...dailyCosts.keys(),
+		]),
+	];
 	return new ApplicationContainer({
 		bufferSize: settings.TRAINER_DATA_WINDOW,
-		symbols: [
-			...new Set([
-				...parseCommaSeparated(settings.TRAINER_SYMBOLS).map((symbol) =>
-					toSymbol(symbol)
-				),
-				...dailyCosts.keys(),
-			]),
-		],
+		symbols,
 		dailyCosts,
-		validationSplit: settings.TRAINER_VALIDATION_SPLIT,
-		testSplit: settings.TRAINER_TEST_SPLIT,
-		walkForwardFolds: settings.TRAINER_WALK_FORWARD_FOLDS,
-		generations: settings.TRAINER_GENERATIONS,
-		populationSize: settings.TRAINER_POPULATION_SIZE,
-		timeBudgetMs: settings.TRAINER_TIME_BUDGET_MS,
-		episodesPerIndividual: settings.TRAINER_EPISODES_PER_INDIVIDUAL,
-		fitnessType: effectiveFitnessType(settings),
-		observePosition: settings.TRAINER_OBSERVE_POSITION ?? true,
-		actionSpaceGene: settings.FEATURE_ACTION_SPACE_GENE ?? false,
+		settings: {
+			validationSplit: settings.TRAINER_VALIDATION_SPLIT,
+			testSplit: settings.TRAINER_TEST_SPLIT,
+			walkForwardFolds: settings.TRAINER_WALK_FORWARD_FOLDS,
+			generations: settings.TRAINER_GENERATIONS,
+			populationSize: settings.TRAINER_POPULATION_SIZE,
+			timeBudgetMs: settings.TRAINER_TIME_BUDGET_MS,
+			episodesPerIndividual: settings.TRAINER_EPISODES_PER_INDIVIDUAL,
+			fitnessType: effectiveFitnessType(settings),
+			observePosition: settings.TRAINER_OBSERVE_POSITION ?? true,
+			actionSpaceGene: settings.FEATURE_ACTION_SPACE_GENE ?? false,
+			eventDriven: settings.FEATURE_EVENT_DRIVEN_DECISIONS ?? false,
+			seedOffset: settings.TRAINER_SEED_OFFSET ?? 0,
+			inputGroups: settings.FEATURE_INPUT_MASK_GENE
+				? inputGroupNames(signalKeys)
+				: undefined,
+			protectCandleGroup: settings.TRAINER_INPUT_MASK_PROTECT_CANDLE,
+			symbolsPerGeneration: settings.FEATURE_SHARED_TRUNK
+				? symbolsPerGeneration(
+						settings.TRAINER_SHARED_TRUNK_SYMBOLS_PER_GENERATION,
+						symbols.length
+					)
+				: undefined,
+		},
 		signalKeys,
-		eventDriven: settings.FEATURE_EVENT_DRIVEN_DECISIONS ?? false,
-		inputGroups: settings.FEATURE_INPUT_MASK_GENE
-			? inputGroupNames(signalKeys)
-			: undefined,
-		protectCandleGroup: settings.TRAINER_INPUT_MASK_PROTECT_CANDLE,
 		modelDir: settings.TRAINER_MODEL_DIR,
 		modelRetention: settings.TRAINER_MODEL_RETENTION,
 		instanceId: settings.INSTANCE_ID,
@@ -279,25 +269,21 @@ export function createTrainingLeadership(
 	settings: TrainingLeadershipSettings,
 	training: LeaderJob
 ): Leadership {
-	if (!settings.TRAINER_LEASE_NAME) {
-		return new Leadership(
-			SOLE_INSTANCE_LEASE,
-			training,
-			(leader) => TRAINING_LEADER.set(leader),
-			"Trainer"
-		);
-	}
-	getLogger().info("Trainer leader election enabled", {
-		context: {
-			lease: settings.TRAINER_LEASE_NAME,
-			identity: settings.INSTANCE_ID,
-		},
-	});
-	return new Leadership(
-		new KubernetesLease(
+	let lease: ConstructorParameters<typeof Leadership>[0] = SOLE_INSTANCE_LEASE;
+	if (settings.TRAINER_LEASE_NAME) {
+		getLogger().info("Trainer leader election enabled", {
+			context: {
+				lease: settings.TRAINER_LEASE_NAME,
+				identity: settings.INSTANCE_ID,
+			},
+		});
+		lease = new KubernetesLease(
 			settings.INSTANCE_ID,
 			kubernetesLeaseApi(settings.TRAINER_LEASE_NAME)
-		),
+		);
+	}
+	return new Leadership(
+		lease,
 		training,
 		(leader) => TRAINING_LEADER.set(leader),
 		"Trainer"

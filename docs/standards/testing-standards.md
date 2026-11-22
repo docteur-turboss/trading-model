@@ -89,7 +89,6 @@ All workspaces enforce an **80%** global threshold (statements, branches, functi
 | Package / Service              | Branches | Functions | Lines | Statements | Framework |
 | ------------------------------ | -------- | --------- | ----- | ---------- | --------- |
 | @trading-model/common          | 80%      | 80%       | 80%   | 80%        | Jest      |
-| @trading-model/validation      | 80%      | 80%       | 80%   | 80%        | Jest      |
 | @trading-model/http    | 80%      | 80%       | 80%   | 80%        | Jest      |
 | @trading-model/crypto          | 80%      | 80%       | 80%   | 80%        | Jest      |
 | @trading-model/address-manager | 80%      | 80%       | 80%   | 80%        | Jest      |
@@ -192,7 +191,7 @@ export const logger = {
   warn: jest.fn(),
 };
 
-export const createSecureServer = jest.fn();
+export const createServiceServer = jest.fn();
 ```
 
 ### Unit Tests
@@ -496,7 +495,7 @@ it('should emit event', done => {
 
 ## Mutation testing
 
-Stryker runs weekly (`.github/workflows/mutation-testing.yml`, plus `workflow_dispatch`), never in PR gates or pre-push. Scope: `services/trader-trainer` `src/domain/**` (whole domain, sharded into 5 jobs: rest of the domain, `neural-network/` in two halves (one job took 347 of its 350 min), `genetic-algorithm/*.ts`, `genetic-algorithm/*/`: one run over everything stalled at 38 % after 1 h; each job has its own 350 min budget); `break: 50`. Locally: `bun run build`, then `bun run --filter trader-service stryker --mutate "<glob>"` (comma-separated patterns; Stryker splits on every comma, so no `{a,b}` braces; the default config mutates all of `src/domain`: hours) (the TypeScript checker needs the built packages). The report lands in `reports/mutation/` (HTML + JSON). The sandbox sits in the root `.stryker-tmp/` so the `../../scripts/*.cjs` required by `jest.config.js` still resolve.
+Stryker runs weekly (`.github/workflows/mutation-testing.yml`, plus `workflow_dispatch`), never in PR gates or pre-push. Scope: `services/trader-trainer` `src/domain/**` (whole domain, sharded into 5 jobs: rest of the domain, `neural-network/` in two halves (one job took 347 of its 350 min), `genetic-algorithm/*.ts`, `genetic-algorithm/*/`: one run over everything stalled at 38 % after 1 h; each job has its own 350 min budget); `break: 50`. Locally: `bun run build`, then `bun run --filter trader-trainer stryker --mutate "<glob>"` (comma-separated patterns; Stryker splits on every comma, so no `{a,b}` braces; the default config mutates all of `src/domain`: hours) (the TypeScript checker needs the built packages). The report lands in `reports/mutation/` (HTML + JSON). The sandbox sits in the root `.stryker-tmp/` so the `../../scripts/*.cjs` required by `jest.config.js` still resolve.
 
 ## References
 

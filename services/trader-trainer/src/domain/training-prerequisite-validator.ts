@@ -1,6 +1,9 @@
 import type { CandleData } from "@trading-model/contracts/market-data.types";
 import type { WindowSet } from "./genetic-algorithm/ga-runner";
-import { hasEnoughTrainingData } from "./market-data/window-splitter";
+import {
+	contiguousCandles,
+	hasEnoughTrainingData,
+} from "./market-data/window-splitter";
 import {
 	type MarketDataBuffer,
 	MIN_TRAINING_STEPS,
@@ -38,7 +41,7 @@ export function validateTrainingPrerequisites(
 		);
 	}
 	const result = hasEnoughTrainingData(
-		candles.length,
+		contiguousCandles(candles).length,
 		windowing.validationSplit,
 		windowing.walkForwardFolds,
 		windowing.testSplit
@@ -55,7 +58,7 @@ export function validateTrainingPrerequisites(
 			`Not enough data for ${symbol}, need at least ${MIN_TRAINING_STEPS} steps`
 		);
 	}
-	const windowSets: WindowSet[] = Array.isArray(result) ? result : [result];
+	const windowSets = result;
 	const hasInsufficientTrain = windowSets.some(
 		(ws) => ws.train.length < MIN_TRAINING_STEPS
 	);

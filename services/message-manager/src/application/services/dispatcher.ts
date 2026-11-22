@@ -1,6 +1,6 @@
 /**
- * Message acceptance (ADR-0048): delivers nothing. Once a subscriber exists
- * for the topic, it writes the message to the durable journal; the delivery
+ * Message acceptance (ADR-0048): delivers nothing. Once a subscriber or a
+ * journal group exists for the topic, it writes the message to the durable journal; the delivery
  * workers deliver it afterwards, outside the publisher's request.
  */
 
@@ -34,7 +34,7 @@ export class Dispatcher {
 	 * Accepts a message: it is durable when this resolves.
 	 *
 	 * @returns the `messageId` stamped on the message.
-	 * @throws when the topic has no subscriber and the message sets
+	 * @throws when the topic has no subscriber nor group and the message sets
 	 *   `delivery.requireSubscriber` (the publisher sends it again).
 	 */
 	async publish(
@@ -44,10 +44,20 @@ export class Dispatcher {
 		const message = createMessage(payload, metadata);
 		const { topic, messageId } = message.metadata;
 		MESSAGES_PUBLISHED_TOTAL.inc({ topic });
-		const subscriptions = await this._deps.registry.getSubscriptions(topic);
-		if (subscriptions.length === 0) {
-			// Nobody to deliver to: the message is dropped. Counted so that a
-			// subscriber that stopped subscribing does not go unnoticed.
+		const [subscriptions, groups] = await Promise.all([
+			this._deps.registry.getSubscriptions(topic),
+			this._deps.journal.groups(),
+		]);
+		// A service with a group waits for the message even when its subscription expired (ADR-0073 §2).
+		const services = new Set<string>([
+			...subscriptions.map((binding) => binding.serviceIdentity.serviceName),
+			...groups
+				.filter((group) => group.topic === topic)
+				.map((group) => group.service),
+		]);
+		if (services.size === 0) {
+			// No subscriber and no group: the message is dropped. Counted so that a
+			// topic nobody subscribes to does not go unnoticed.
 			MESSAGES_UNROUTED_TOTAL.inc({ topic });
 			if (message.metadata.delivery?.requireSubscriber) {
 				// The publisher sends it again: after an outage of ours, its
@@ -64,9 +74,6 @@ export class Dispatcher {
 			});
 			return messageId as string;
 		}
-		const services = new Set<string>(
-			subscriptions.map((binding) => binding.serviceIdentity.serviceName)
-		);
 		await this._deps.journal.append(message, [...services]);
 		return messageId as string;
 	}
@@ -83,7 +90,7 @@ export class Dispatcher {
 		return this._deps.registry.subscribe(params);
 	}
 
-	unsubscribe(params: TopicSubscription): Promise<void> {
-		return this._deps.registry.unsubscribe(params);
+	unsubscribe(params: TopicSubscription, caller: string): Promise<boolean> {
+		return this._deps.registry.unsubscribe(params, caller);
 	}
 }

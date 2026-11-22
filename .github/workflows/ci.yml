@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   # Decides once which jobs run (a skipped gate skips every job that needs it) and whether the
-  # k8s job is worth running: always, except on a pull request touching nothing it deploys or tests.
+  # k8s jobs are worth running: always, except on a pull request touching nothing they deploy or test.
   gate:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
@@ -37,8 +37,15 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           k8s=true
+          # A PR only runs kind when it changes what kind deploys or runs; the merge push to development
+          # (k8s-images/k8s below) proves the rest, a red commit status there means revert.
+          # deploy/: manifests, tool images, migrate; tests/k8s/: the kind runner; scripts/: the deploy, migration,
+          # backup/restore (incl. verify-restore-k8s.sh) and sealed-secrets scripts the jobs call; tests/backup/: audit-chain.js and
+          # drill-timings.sh of the restore drill (same filter as the drill step); tests/e2e/binance-stub/: the stub run-kind.sh
+          # loads in the cluster; services/*/Dockerfile: the images kind builds;
+          # ci.yml: this job definition. services/*/src and packages/*/src alone: unit/e2e jobs cover them.
           if [ "$EVENT" = pull_request ] && ! git diff --name-only "$BASE...$GITHUB_SHA" |
-            grep -qE '^(deploy/|services/|packages/|tests/k8s/|scripts/|docker-compose[^/]*.yml$|.github/workflows/|bun.lock$|package.json$)'; then
+            grep -qE '^(deploy/|tests/k8s/|scripts/[^/]*(deploy-|backup|restore|migrat|fetch-offsite|retention|sealed-secrets|split-cluster)|tests/(backup|e2e/binance-stub)/|services/[^/]+/Dockerfile$|.github/workflows/ci.yml$)'; then
             k8s=false
           fi
           echo "k8s=$k8s" >> "$GITHUB_OUTPUT"
@@ -70,8 +77,13 @@ jobs:
       - run: bun run compose-ports:check
       - run: bun run env-protection:test
       - run: bun run preflight:test
-      - name: Workflows parse as YAML
-        run: python3 scripts/check-workflows.py
+      - name: Workflows valid (actionlint; shellcheck off, run blocks not yet clean)
+        run: |
+          v=1.7.12
+          curl -fsSL -o "$RUNNER_TEMP/actionlint.tgz" "https://github.com/rhysd/actionlint/releases/download/v${v}/actionlint_${v}_linux_amd64.tar.gz"
+          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $RUNNER_TEMP/actionlint.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/actionlint.tgz" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -shellcheck= .github/workflows/*.yml
 
   security:
     # Not in pre-push: bun audit needs the network, gitleaks the full history.
@@ -85,7 +97,8 @@ jobs:
         with:
           bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
-      - run: bun audit --audit-level=high
+      # GHSA-fc5q-39xc-vjpf (picomatch ReDoS): no patched version exists (4.0.7 is the latest); dev tooling only (jest, knip), absent from --prod. Remove --ignore once picomatch-fix-check.yml fails (fix published).
+      - run: bun audit --audit-level=high --ignore=GHSA-fc5q-39xc-vjpf
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -111,16 +124,19 @@ jobs:
           bun run --filter message-manager build
           bun run --filter discovery-server build
           bun run --filter financial-scraper build
-          bun run --filter trader-service build
+          bun run --filter trader-trainer build
           bun run --filter api-gateway build
           bun run --filter audit-logger build
           bun run --filter dlq-service build
           bun run --filter model-evaluator build
+          bun run --filter risk-execution build
       - name: Type-check the test files of every workspace
         run: bun run typecheck:tests
 
   test:
     needs: gate
+    # Also on the merge push to development (gate skipped, see its if): two green PRs can still break the unit tests together.
+    if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -265,7 +281,7 @@ jobs:
       MONGO_BACKUP_PASSWORD: ci-mongo-backup
       MONGO_AUDIT_PASSWORD: ci-mongo-audit
       MONGO_DLQ_PASSWORD: ci-mongo-dlq
-      DLQ_AUTH_HMAC_SECRET: test-hmac-secret
+      DLQ_AUTH_HMAC_SECRET: test-hmac-secret-for-e2e-0123456789
       DLQ_ALLOWED_SERVICES: message-manager,admin,e2e-test-runner
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -284,7 +300,8 @@ jobs:
       # The overlay points the scraper at a Binance stub. The observability
       # stack is not needed here.
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      # buildx reads the gha cache only with these variables, which a run: step does not get.
+      # buildx reads the gha cache only with these variables, which a run: step does not get:
+      # exported for the build step alone, cleared right after (tests and dependencies never see them).
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -295,18 +312,23 @@ jobs:
       # One gha cache scope per image: a shared scope would keep only the last image's layers.
       - name: Build the images (layer cache)
         run: |
-          f="-f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml"
+          f="-f docker-compose.yml -f docker-compose.build.yml -f tests/e2e/docker-compose.e2e.yml"
           args=()
           for t in $(docker buildx bake $f --print | jq -r '.group.default.targets[]'); do
-            args+=(--set "$t.tags=$COMPOSE_PROJECT_NAME-$t" --set "$t.cache-from=type=gha,scope=e2e-$t" --set "$t.cache-to=type=gha,mode=max,ignore-error=true,scope=e2e-$t")
+            args+=(--set "$t.cache-from=type=gha,scope=e2e-$t" --set "$t.cache-to=type=gha,mode=max,ignore-error=true,scope=e2e-$t")
           done
           docker buildx bake $f --load "${args[@]}"
+      - if: ${{ always() }}
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            for (const k of ['ACTIONS_RUNTIME_TOKEN', 'ACTIONS_RESULTS_URL', 'ACTIONS_CACHE_URL']) core.exportVariable(k, '');
       - name: Boot the application stack
         run: >-
-          docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml
+          docker compose -f docker-compose.yml -f docker-compose.build.yml -f tests/e2e/docker-compose.e2e.yml
           up -d --wait --wait-timeout 600
           discovery-server message-manager financial-scraper trader-trainer
-          api-gateway audit-logger dlq-service model-evaluator edge-proxy
+          api-gateway audit-logger dlq-service model-evaluator risk-execution edge-proxy
       # Issue #844: no container of the started stack may publish on every interface.
       - name: "No port published on 0.0.0.0 or ::"
         run: |
@@ -355,10 +377,10 @@ jobs:
         run: bun run test:e2e -- resilience
       - name: Dump service logs
         if: failure()
-        run: docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml logs --no-color --tail 200
+        run: docker compose -f docker-compose.yml -f docker-compose.build.yml -f tests/e2e/docker-compose.e2e.yml logs --no-color --tail 200
       - name: Tear down the Docker stack
         if: always()
-        run: docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml down -v
+        run: docker compose -f docker-compose.yml -f docker-compose.build.yml -f tests/e2e/docker-compose.e2e.yml down -v
 
   # The Kubernetes manifests had never run before 2026-10: deploy the staging
   # overlay on kind (node agents, overlay, migrations, as deploy.yml does), run
@@ -367,7 +389,8 @@ jobs:
   # Images of release N-1 and N, built once for the three k8s groups (run-kind.sh images).
   k8s-images:
     needs: gate
-    if: ${{ needs.gate.outputs.k8s == 'true' }}
+    # The merge push to development skips gate (see its if): kind still runs there, the other jobs stay skipped.
+    if: ${{ !cancelled() && (needs.gate.outputs.k8s == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -393,7 +416,7 @@ jobs:
           retention-days: 1
   k8s:
     needs: [gate, k8s-images]
-    if: ${{ needs.gate.outputs.k8s == 'true' }}
+    if: ${{ !cancelled() && needs.k8s-images.result == 'success' }}
     name: k8s (${{ matrix.group }})
     runs-on: ubuntu-latest
     # One job per group of checks (run-kind.sh verify_group): each deploys N-1, upgrades to N,
@@ -443,10 +466,20 @@ jobs:
       - name: Create the cluster
         run: bash tests/k8s/run-kind.sh cluster
       - name: Download the images (release N-1 and N)
+        id: download-images
+        continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: kind-images
           path: ${{ runner.temp }}
+      # A re-run of this job alone after the 1-day retention finds no artifact (issue #1675): build the images here.
+      - name: Build the images (artifact expired)
+        if: ${{ steps.download-images.outcome == 'failure' }}
+        env:
+          KIND_IMAGE_ARCHIVE: ${{ runner.temp }}/kind-images.tar
+        run: |
+          echo "::warning::kind-images artifact not found (expired after a re-run?): building the images in this job"
+          bash tests/k8s/run-kind.sh images
       - name: Load the images into kind
         env:
           KIND_IMAGE_ARCHIVE: ${{ runner.temp }}/kind-images.tar
@@ -485,3 +518,18 @@ jobs:
       - name: Dump cluster state
         if: failure()
         run: bash tests/k8s/run-kind.sh dump
+
+  # The one check the development and main rulesets require, so it aggregates every job of this
+  # workflow: a red or cancelled job fails it, a skipped one (gate, k8s=false) does not. Keep the
+  # name: renaming it breaks the rulesets. A skipped k8s matrix reports "k8s (${{ matrix.group }})",
+  # never "k8s (network)", so a required matrix name would wait forever on a PR the gate spares from kind.
+  k8s-result:
+    needs: [gate, lint, security, typecheck, test, db-integration, observability, k8s-overlays, contract, e2e, k8s-images, k8s]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "gate, lint, security, typecheck, test, db-integration, observability, k8s-overlays, contract, e2e, k8s-images, k8s: $RESULTS"
+          case " $RESULTS " in *" failure "* | *" cancelled "*) exit 1 ;; esac

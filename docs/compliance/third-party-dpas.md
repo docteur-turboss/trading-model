@@ -75,17 +75,27 @@ never a person's e-mail), so no personal data is sent. It reaches every source
 [register](data-processing-register.md), activity 1); it is kept out of the public
 repository (`.env`, GitHub environment secret).
 
-Every source must be free for any use, trading included: the registry only
-accepts `public-domain` or `attribution` terms (`accessPolicy`). Terms checked
-on 2026-11-04:
+Sources are ranked by their terms (ADR-0075, `accessPolicy`): rank 1 is free for
+any use, trading included (`public-domain` or `attribution`); rank 2 is
+`non-commercial`, marked with its `restrictions`, and accepted only when no
+rank 1 source gives the same data. Terms as declared in the registry (first
+checked 2026-11-04); one row per provider, every source id listed:
 
 | Source | Data received | PII received? | Terms |
 | ------ | ------------- | ------------- | ----- |
-| ECB Data Portal (`data-api.ecb.europa.eu`) | Euro area AAA government bond yield, 10-year | No | [Free reuse](https://www.ecb.europa.eu/stats/ecb_statistics/governance_and_quality_framework/html/usage_policy.en.html), commercial included, "Source: ECB statistics", data not modified |
-| SEC EDGAR (`data.sec.gov`, United States) | XBRL facts of company filings (Apple EPS) | No | [May be copied or redistributed without permission](https://www.sec.gov/privacy), cite the SEC; fair access: User-Agent with a contact e-mail, at most 10 requests/s |
-| US National Weather Service (`api.weather.gov`) | Latest observation of a weather station (Hutchinson, Kansas) | No | [Public domain](https://www.weather.gov/disclaimer), no endorsement implied; User-Agent required |
-| Twelve Data (`api.twelvedata.com`) | Daily prices of equities and ETFs | No | Free tier, internal use: §2.3(l) no "Use Free Tier data for commercial purposes"; §16.2(a) data deleted within 30 days of termination ([terms](https://twelvedata.com/terms)); API key and User-Agent sent |
-| Wikimedia Analytics API (`wikimedia.org`) | Daily views of Wikipedia articles | No: counts only | [CC0 1.0](https://doc.wikimedia.org/generated-data-platform/aqs/analytics-api/documentation/access-policy.html); User-Agent with a contact required |
+| ECB Data Portal (`data-api.ecb.europa.eu`): `ecb-aaa-yield-10y`, `ecb-hicp-annual-rate`, `ecb-deposit-facility-rate`, `ecb-euro-reference-rates` | Euro area yields, HICP, deposit rate, reference rates | No | [Free reuse](https://www.ecb.europa.eu/stats/ecb_statistics/governance_and_quality_framework/html/usage_policy.en.html), commercial included, "Source: ECB statistics", data not modified |
+| SEC EDGAR (`data.sec.gov`, United States): `sec-edgar-eps-diluted`, `sec-edgar-revenue`, `sec-edgar-core-facts` | XBRL facts of company filings | No | [SEC data access terms](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data), cite the SEC; fair access: User-Agent with a contact e-mail, at most 10 requests/s |
+| US National Weather Service (`api.weather.gov`): `nws-kansas-wheat-belt` | Latest observation of a weather station (Hutchinson, Kansas) | No | [Public domain](https://www.weather.gov/disclaimer), no endorsement implied; User-Agent required |
+| Twelve Data (`api.twelvedata.com`): `twelvedata-daily-prices` (rank 2, `non-commercial`) | Daily prices of equities and ETFs | No | Free tier, internal use: §2.3(l) no "Use Free Tier data for commercial purposes"; §16.2(a) data deleted within 30 days of termination ([terms](https://twelvedata.com/terms)); API key and User-Agent sent |
+| Wikimedia Analytics API (`wikimedia.org`): `wikipedia-pageviews` | Daily views of Wikipedia articles | No: counts only | [CC0 1.0](https://doc.wikimedia.org/generated-data-platform/aqs/analytics-api/documentation/access-policy.html); User-Agent with a contact required |
+| US Treasury (United States): `treasury-par-yield-curve` | Par yield curve | No | [Public domain](https://www.law.cornell.edu/uscode/text/17/105) (17 U.S.C. §105), cite the Treasury; no key |
+| CFTC (United States): `cftc-cot-legacy` | Commitments of Traders, legacy report | No | [Public domain](https://www.cftc.gov/webpolicy/index.htm), cite the CFTC; no key |
+| NASA POWER (United States): `nasa-power-crop-regions` | Weather series of crop regions | No | [Attribution](https://power.larc.nasa.gov/docs/referencing/), "NASA Langley Research Center POWER Project"; no key |
+| FRED (United States): `fred-us-macro` | US macro series | No | [Attribution](https://fred.stlouisfed.org/docs/api/terms_of_use.html), "not endorsed or certified by the Federal Reserve Bank of St. Louis"; API key (`SIGNAL_KEY_FRED`, project account) sent |
+| Federal Register (United States): `federal-register-documents` | Published federal documents | No | [Public domain](https://www.govinfo.gov/about/policies); no key |
+| Eurostat: `eurostat-house-price-index`, `eurostat-hicp-inflation`, `eurostat-unemployment` | Price, inflation and unemployment indices | No | [Attribution](https://ec.europa.eu/eurostat/help/copyright-notice), "Source: Eurostat"; no key |
+| DGFiP / Etalab (France): `dvf-commune-sales` | Real-estate sales by commune | No | [Licence Ouverte 2.0](https://www.etalab.gouv.fr/licence-ouverte-open-licence/), cite DGFiP; no key |
+| EIA (United States): `eia-weekly-energy` | Weekly energy statistics | No | [Public domain](https://www.eia.gov/about/copyrights_reuse.php), cite the EIA; API key (`SIGNAL_KEY_EIA`, project account) sent |
 
 Rejected for their terms: Open-Meteo's free API (non-commercial only) and
 Binance's `data-api.binance.vision` (CC BY-NC-SA 4.0, no live trading); no
@@ -99,7 +109,7 @@ sources, not processors, and no personal data received.
 | Third Party        | Role                | PII? | DPA Required?                      |
 | ------------------ | ------------------- | ---- | ---------------------------------- |
 | Binance API        | Market data source  | No   | No — documented above              |
-| ECB, SEC EDGAR, NWS, Wikimedia, Twelve Data | Signal sources (ADR-0036) | No | No — documented above |
+| Every signal source of the registry (table above) | Signal sources (ADR-0036) | No | No — documented above |
 | GitHub Actions     | CI/CD pipeline      | No   | No — no data processed             |
 | Docker Hub / GHCR  | Container registry  | No   | No — infrastructure only           |
 | Slack or Discord   | Alert notifications | No (alert text) | to be confirmed by the operator — sheet below |
@@ -152,10 +162,10 @@ The repository neither signs a DPA nor picks a provider. The operating entity si
 
 | Field | Value |
 | ----- | ----- |
-| Role | Off-site copy of every backup (ADR-0032, ADR-0033): `BACKUP_S3_BUCKET`, Object Lock compliance mode |
-| Data sent | `.age` files only, encrypted before upload; the provider holds no key. Contents: dumps of activities 1–4 (no personal data, see the register) and the audit trail |
+| Role | Off-site copy of every backup (ADR-0032, ADR-0033): `BACKUP_S3_BUCKET`, Object Lock compliance mode; optional second copy at another provider, `BACKUP_S3_SECONDARY_BUCKET`, same rules and same DPA requirement |
+| Data sent | `.age` files only, encrypted before upload; the provider holds no key. Contents: dumps of activities 1–4 (no personal data, see the register) and the audit trail (only the pseudonymous API key name `actor`, register activity 8) |
 | Region | Operator-set (`BACKUP_S3_REGION`), must be an EU region: `scripts/backup-bucket-check.sh` refuses any region outside `BACKUP_S3_ALLOWED_REGIONS` in production (warning elsewhere). Provider and region: to be confirmed by the operator |
-| Processor? | Storage only; the data is ciphertext to the provider. The register's position is that the dumps hold no personal data |
+| Processor? | Storage only; the data is ciphertext to the provider. The register's position is that the dumps hold no personal data beyond the pseudonymous key name in the audit trail (activity 8) |
 | Mechanism | Provider DPA (to be confirmed by the operator); no transfer mechanism with an EU region and an EU-established provider |
 | Signed by | Operating entity |
 

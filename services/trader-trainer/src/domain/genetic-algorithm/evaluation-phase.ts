@@ -1,8 +1,4 @@
-import {
-	barsSinceDecision,
-	decisionBars,
-	isEventDriven,
-} from "./decision-events";
+import { playEpisode } from "@trading-model/model-runtime/agent/decision-events";
 import type { LamarckGenome, MarketStep } from "./genome";
 import type { BackendFactory } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
@@ -11,6 +7,8 @@ export interface GenomeEvaluationContext {
 	genome: DeepReadonly<LamarckGenome>;
 	validationData: MarketStep[];
 	backendFactory: BackendFactory;
+	/** One greedy pass (epsilon 0), as the replay and the deployed model play. */
+	greedy?: boolean;
 }
 
 /**
@@ -43,7 +41,8 @@ export const EVAL_EPSILON = 0.05;
 
 /** The genome as evaluated: same weights and policy, evaluation exploration. */
 function evaluationGenome(
-	genome: DeepReadonly<LamarckGenome>
+	genome: DeepReadonly<LamarckGenome>,
+	epsilon: number
 ): DeepReadonly<LamarckGenome> {
 	return {
 		...genome,
@@ -51,8 +50,8 @@ function evaluationGenome(
 			...genome.rl,
 			discretePolicy: {
 				...genome.rl.discretePolicy,
-				epsilonStart: EVAL_EPSILON,
-				epsilonMin: EVAL_EPSILON,
+				epsilonStart: epsilon,
+				epsilonMin: epsilon,
 			},
 		},
 	} as DeepReadonly<LamarckGenome>;
@@ -68,35 +67,26 @@ function _runEvalEpisode(
 	pnlCurve: number[]
 ): { pnl: number; decisions: number } {
 	const { genome, validationData, backendFactory } = ctx;
-	const backend = backendFactory(evaluationGenome(genome));
-	const horizon = genome.rl.horizon;
-	const eventDriven = isEventDriven(horizon);
-	const bars = decisionBars(validationData, horizon);
-	let rank = 0;
-	const startPnl = Number(backend.getPnL());
-	let lastPnl = startPnl;
-
-	for (let index = 0; index < validationData.length; index++) {
-		if (bars[rank] !== index) {
-			pnlCurve.push(0);
-			continue;
-		}
-		backend.step(
-			validationData[index],
-			eventDriven ? barsSinceDecision(bars, rank) : undefined
-		);
-		rank++;
-		const pnl = Number(backend.getPnL());
-		pnlCurve.push(pnl - lastPnl);
-		lastPnl = pnl;
-	}
-
+	const backend = backendFactory(
+		evaluationGenome(genome, ctx.greedy ? 0 : EVAL_EPSILON)
+	);
+	const episode = playEpisode(
+		validationData,
+		genome.rl.horizon,
+		{
+			step: (step, barsSince) => backend.step(step, barsSince),
+			pnl: () => Number(backend.getPnL()),
+		},
+		pnlCurve
+	);
 	backend.resetEpisode();
-	return { pnl: lastPnl - startPnl, decisions: bars.length };
+	return episode;
 }
 
 export function evalPhase(ctx: GenomeEvaluationContext): EvaluationPnl {
-	const numEpisodes = ctx.genome.gaControl.evaluation.episodesPerIndividual;
+	const numEpisodes = ctx.greedy
+		? 1
+		: ctx.genome.gaControl.evaluation.episodesPerIndividual;
 	const episodePnl: number[] = [];
 	const pnlCurve: number[] = [];
 

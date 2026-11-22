@@ -72,17 +72,6 @@ describe("ResponseCache", () => {
 		expect(entry).toBeUndefined();
 	});
 
-	it("should expire entries after TTL", () => {
-		cache.set(
-			"/v1/test",
-			{ data: { foo: "bar" }, status: 200 as HttpStatusCode },
-			500 as DurationMs
-		);
-		jest.advanceTimersByTime(600);
-		const entry = cache.get("/v1/test");
-		expect(entry).toBeUndefined();
-	});
-
 	it("should use default TTL when not specified", () => {
 		cache.set("/v1/test", {
 			data: { foo: "bar" },

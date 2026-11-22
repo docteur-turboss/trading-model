@@ -1,222 +1,60 @@
-import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
 import {
-	createWallet,
-	type WalletAPI,
-	type WalletConfig,
-} from "@trading-model/model-runtime/env/wallet-manager";
+	TradingAgent as PolicyAgent,
+	type TradingAgentConfig as PolicyAgentConfig,
+} from "@trading-model/model-runtime/agent/trading-agent";
+import { agentError } from "@trading-model/model-runtime/errors";
 import type {
 	NeuralNetworkConfig,
 	QLearningExperience,
 } from "@trading-model/model-runtime/neural-network/type";
-import { type Price, Volume } from "@trading-model/primitives/primitives";
-import { applyInputMask } from "../genetic-algorithm/genome-network/input-mask";
-import { Agent } from "../neural-network/agent";
-import { ActionMapper, type ActionSetId } from "./action-mapper";
-import { TradeAction } from "./action-types";
-import { observe } from "./agent-state";
-import StateManager, { type StateManagerConfig } from "./state-manager";
+import { AgentExperienceHandler } from "../neural-network/agent-experience-handler";
+import { NeuralNetwork } from "../neural-network/neural-network";
 
-export interface TradingAgentConfig {
+export interface TradingAgentConfig extends Omit<PolicyAgentConfig, "rng"> {
 	nnConfig: NeuralNetworkConfig;
-	wallet: WalletConfig;
-	tradeAmount?: Volume;
-	actionSet?: ActionSetId;
-	stateManagerCfg?: StateManagerConfig;
-	/** Show the position to the network (default); false feeds a constant. */
-	observePosition?: boolean;
-	/** Input groups of the genome (ADR-0082): a false group is zeroed before the network. */
-	inputMask?: readonly boolean[];
-	/**
-	 * Size every trade as this share of the initial cash at the current price,
-	 * instead of `tradeAmount` units: a fixed unit count cannot be bought once
-	 * one unit costs more than the cash (BTC). A sale never exceeds the position.
-	 */
-	tradeFraction?: number;
 }
 
-const VolumeDecimals = 1e8;
-
-type ActionExecutor = (
-	wallet: WalletAPI,
-	amount: Volume,
-	fillPrice?: Price
-) => boolean;
-
-const ACTION_EXECUTORS: Record<TradeAction, ActionExecutor> = {
-	[TradeAction.Buy]: (wallet, amount, fillPrice) =>
-		wallet.buy(Volume.of(amount), fillPrice),
-	[TradeAction.Sell]: (wallet, amount, fillPrice) =>
-		wallet.sell(Volume.of(amount), fillPrice),
-	[TradeAction.Hold]: () => false,
-	[TradeAction.None]: () => false,
-};
-
-interface StepResult {
-	/** What the network saw: market features followed by the agent state. */
-	state: Float32Array;
-	action: TradeAction;
-	/** Output unit the policy acted on (exploration included). */
-	actionIndex: number;
-	/**
-	 * Reward of the decision taken at the previous step, realised now: the PnL
-	 * change from just before its trade (its cost) to this step's price (the
-	 * move on the position it left). 0 at the first step of an episode.
-	 */
-	reward: number;
-}
-
-export class TradingAgent {
-	private readonly _agent: Agent;
-	private readonly _observePosition: boolean;
-	private readonly _inputMask: readonly boolean[] | undefined;
-	private readonly _exposureCash: number;
-	private readonly _tradeCash: number | undefined;
-	/** PnL just before the previous decision's trade; null before the first. */
-	private _pnlBeforeLastTrade: number | null = null;
-	private readonly _actionMapper: ActionMapper;
-	public readonly wallet: WalletAPI;
-	public readonly state: StateManager;
+/** The model-runtime agent plus what training needs: experience replay and weights. */
+export class TradingAgent extends PolicyAgent {
+	private readonly _nn: NeuralNetwork;
+	private readonly _experience: AgentExperienceHandler;
 
 	constructor(cfg: TradingAgentConfig) {
-		this._observePosition = cfg.observePosition ?? true;
-		this._inputMask = cfg.inputMask;
-		this._tradeCash =
-			cfg.tradeFraction === undefined
-				? undefined
-				: Number(cfg.wallet.initialCash) * cfg.tradeFraction;
-		this._exposureCash =
-			Number(cfg.wallet.initialCash) *
-			(cfg.wallet.maxExposureFraction ?? DEFAULT_MAX_EXPOSURE_FRACTION);
-		this._agent = new Agent(cfg.nnConfig);
-		this.wallet = createWallet(cfg.wallet);
-		this.state = new StateManager(cfg.stateManagerCfg ?? {});
-		this._actionMapper = new ActionMapper({ ...cfg, rng: cfg.nnConfig.rng });
-	}
-
-	/**
-	 * Marks the wallet to `price`, settles the previous decision's reward,
-	 * then decides and trades at `fillPrice` (the next bar's open, ADR-0066;
-	 * the marked price when omitted). The trade is sized on the marked price,
-	 * the only one known at decision time. A decision's reward is only known
-	 * one step later: the price move it is exposed to comes with the next price.
-	 */
-	public step(
-		input: Float32Array,
-		price?: Price,
-		fillPrice?: Price,
-		barsSince?: number
-	): StepResult {
-		if (price !== undefined) {
-			this.wallet.setPrice(price);
+		if (cfg.nnConfig.neuronsByLayer.length < 2) {
+			throw agentError(
+				"neuronsByLayer must contain at least 2 entries (input + output)."
+			);
 		}
-		const markedPnl = Number(this.wallet.getPnL());
-		const reward =
-			this._pnlBeforeLastTrade === null
-				? 0
-				: markedPnl - this._pnlBeforeLastTrade;
-
-		const state = observe(
-			applyInputMask(input, this._inputMask),
-			this.wallet,
-			this._observePosition,
-			barsSince
-		);
-		const { output } = this._agent.nn.forward(state);
-		const { action, amount, share, outputIndex } = this._actionMapper.map(
-			output,
-			this.state.getEpsilon()
-		);
-		const executed = ACTION_EXECUTORS[action](
-			this.wallet,
-			this._tradeSize(action, amount, share, fillPrice),
-			fillPrice
-		);
-		this._pnlBeforeLastTrade = markedPnl;
-		this.state.decayEpsilon();
-
-		return {
-			state,
-			action: executed ? action : TradeAction.None,
-			actionIndex: outputIndex,
-			reward,
-		};
-	}
-
-	private _tradeSize(
-		action: TradeAction,
-		mapped: Volume,
-		share?: number,
-		fillPrice?: Price
-	): Volume {
-		if (share !== undefined) {
-			return this._partialSize(action, share, fillPrice);
-		}
-		if (this._tradeCash === undefined || action === TradeAction.Hold) {
-			return mapped;
-		}
-		let units = this._tradeCash / Number(this.wallet.getPrice());
-		if (action === TradeAction.Sell) {
-			units = Math.min(units, Number(this.wallet.getPosition()));
-		}
-		return Volume.of(Math.floor(units * VolumeDecimals) / VolumeDecimals);
-	}
-
-	private _partialSize(
-		action: TradeAction,
-		share: number,
-		fillPrice?: Price
-	): Volume {
-		const position = Number(this.wallet.getPosition());
-		const base =
-			action === TradeAction.Sell
-				? position
-				: Math.max(
-						0,
-						this._exposureCash / Number(fillPrice ?? this.wallet.getPrice()) -
-							position
-					);
-		return Volume.of(
-			Math.floor(base * share * VolumeDecimals) / VolumeDecimals
-		);
+		const nn = new NeuralNetwork(cfg.nnConfig);
+		super({ ...cfg, rng: cfg.nnConfig.rng }, nn);
+		this._nn = nn;
+		this._experience = new AgentExperienceHandler(cfg.nnConfig);
 	}
 
 	/** Stores a transition in the replay buffer. */
 	public remember(exp: QLearningExperience): void {
-		this._agent.experience.remember(exp);
+		this._experience.remember(exp);
 	}
 
 	/** One experience-replay update; returns the transitions trained on. */
 	public replay(batchSize: number, discount: number): number {
-		return this._agent.experience.replay(this._agent.nn, batchSize, discount);
-	}
-
-	/** Q-values for these market features and the agent's current holding. */
-	public forwardPass(input: Float32Array): { output: Float32Array } {
-		return this._agent.nn.forward(
-			observe(
-				applyInputMask(input, this._inputMask),
-				this.wallet,
-				this._observePosition
-			)
-		);
+		return this._experience.replay(this._nn, batchSize, discount);
 	}
 
 	public getWeights(): Float32Array {
-		return this._agent.nn.getWeights();
+		return this._nn.getWeights();
 	}
 
 	public setWeights(weights: Float32Array): void {
-		this._agent.nn.setWeights(weights);
+		this._nn.setWeights(weights);
 	}
 
 	public parameterCount(): number {
-		return this._agent.nn.parameterCount();
+		return this._nn.parameterCount();
 	}
 
-	public resetEpisode(): void {
-		this._pnlBeforeLastTrade = null;
-		this.wallet.reset();
-		this._agent.experience.clearPool();
-		this.state.resetEpsilon();
+	public override resetEpisode(): void {
+		super.resetEpisode();
+		this._experience.clearPool();
 	}
 }

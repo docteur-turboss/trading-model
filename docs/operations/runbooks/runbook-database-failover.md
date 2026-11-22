@@ -65,7 +65,8 @@ each component (checksum verified), or the run given by `--timestamp`.
 errors, `MarketDataStale`  
 **Severity:** L1
 
-There is **no MySQL failover** (ADR-0020). Every client (financial-scraper,
+There is **no MySQL failover** (ADR-0020): one pod is accepted by ADR-0085,
+with the RTO 4 h of `BACKUP_DR.md`. Every client (financial-scraper,
 financial-scraper-collector, migration and retention Jobs) writes through
 `mysql-primary`, whose selector is the pod `mysql-0`. The StatefulSet runs
 one replica. A cluster created before issue #814 may still have the empty
@@ -142,7 +143,7 @@ release; it goes away with the contract step of ADR-0065.
 
 ## SPIRE server
 
-**Alerts:** `CertificateExpiry` (an SVID with less than 1 hour left),
+**Alerts:** `CertificateExpiry` (an SVID with less than 90 minutes left), `KubeWorkloadUnavailable`,
 workloads failing mTLS, pods stuck without SVID  
 **Severity:** L1
 
@@ -206,9 +207,9 @@ kubectl exec -n trading-model deployment/audit-logger -c audit-logger -- \
 # Ask the current primary to step down
 kubectl exec -n trading-model mongo-dlq-0 -c mongodb -- mongosh --quiet --eval "rs.stepDown()"
 
-# A member that will not come back: remove it, add it again once it is rebuilt
+# A member that will not come back: remove it; once rebuilt, its pod adds
+# itself back at start (mongodb-bootstrap sidecar, issue #2197)
 kubectl exec -n trading-model mongo-dlq-0 -c mongodb -- mongosh --quiet --eval "rs.remove('mongo-dlq-2.mongo-dlq-headless:27017')"
-kubectl exec -n trading-model mongo-dlq-0 -c mongodb -- mongosh --quiet --eval "rs.add('mongo-dlq-2.mongo-dlq-headless:27017')"
 ```
 
 Run these against the primary (or, with no primary, a member that sees the

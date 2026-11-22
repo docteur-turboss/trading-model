@@ -66,67 +66,44 @@ describe("MTLSAuthMiddleware", () => {
 		expect(() => MTLSAuthMiddleware(req, res, next)).toThrow();
 	});
 
-	it("should extract identity from subjectaltname", () => {
-		const cert = {
-			subjectaltname: "DNS:my-service",
-			subject: { CN: "fallback-cn" },
-		};
+	const svid = (ns: string, sa: string, td = "trading-model.local") =>
+		`URI:spiffe://${td}/ns/${ns}/sa/${sa}`;
+	const withCert = (
+		peer: unknown,
+		own: unknown = { subjectaltname: svid("prod", "me") }
+	) => {
 		req.socket = {
 			authorized: true,
 			authorizationError: undefined,
-			getPeerCertificate: jest.fn((..._args: any[]) => cert),
+			getPeerCertificate: jest.fn((..._args: any[]) => peer),
+			getCertificate: jest.fn((..._args: any[]) => own),
 		};
+	};
+
+	it("should extract the SPIFFE ID of a peer in our namespace", () => {
+		withCert({ subjectaltname: `DNS:x, ${svid("prod", "risk-execution")}` });
 
 		void MTLSAuthMiddleware(req, res, next);
 
-		expect(req.clientIdentity).toBe("DNS:my-service");
+		expect(req.clientIdentity).toBe(
+			"spiffe://trading-model.local/ns/prod/sa/risk-execution"
+		);
 		expect(next).toHaveBeenCalled();
 	});
 
-	it("should handle multiple subjectAltNames by joining with comma", () => {
-		const cert = {
-			subjectaltname: ["DNS:service-a", "DNS:service-b"],
-			subject: { CN: "fallback-cn" },
-		};
-		req.socket = {
-			authorized: true,
-			authorizationError: undefined,
-			getPeerCertificate: jest.fn((..._args: any[]) => cert),
-		};
-
-		void MTLSAuthMiddleware(req, res, next);
-
-		expect(req.clientIdentity).toBe("DNS:service-a, DNS:service-b");
-		expect(next).toHaveBeenCalled();
-	});
-
-	it("should fallback to CN when subjectaltname is not available", () => {
-		const cert = {
-			subjectaltname: undefined,
-			subject: { CN: "my-service-cn" },
-		};
-		req.socket = {
-			authorized: true,
-			authorizationError: undefined,
-			getPeerCertificate: jest.fn((..._args: any[]) => cert),
-		};
-
-		void MTLSAuthMiddleware(req, res, next);
-
-		expect(req.clientIdentity).toBe("my-service-cn");
-		expect(next).toHaveBeenCalled();
-	});
-
-	it("should throw Unauthorized when neither SAN nor CN is available", () => {
-		const cert = {
-			subjectaltname: undefined,
-			subject: { CN: undefined },
-		};
-		req.socket = {
-			authorized: true,
-			authorizationError: undefined,
-			getPeerCertificate: jest.fn((..._args: any[]) => cert),
-		};
+	it.each([
+		[
+			"a CN only",
+			{ subjectaltname: undefined, subject: { CN: "risk-execution" } },
+		],
+		["a non-SPIFFE SAN", { subjectaltname: "DNS:risk-execution" }],
+		[
+			"another trust domain",
+			{ subjectaltname: svid("prod", "api-gateway", "other.domain") },
+		],
+		["another namespace", { subjectaltname: svid("autre", "api-gateway") }],
+	])("should reject a peer with %s", (_name, peer) => {
+		withCert(peer);
 
 		expect(() => MTLSAuthMiddleware(req, res, next)).toThrow();
 		expect(next).not.toHaveBeenCalled();

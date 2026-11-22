@@ -8,10 +8,6 @@ export function toAuthToken(value: string): AuthToken {
 }
 export type ClientIdentity = BrandedString<"ClientIdentity">;
 export const ClientIdentity = createStringBrand("ClientIdentity");
-export type UserId = BrandedString<"UserId">;
-export const UserId = createStringBrand("UserId");
-export type ProcessId = BrandedString<"ProcessId">;
-export const ProcessId = createStringBrand("ProcessId");
 export type Subject = BrandedString<"Subject">;
 export const Subject = createStringBrand("Subject");
 export function toSubject(value: string): Subject {

@@ -2,10 +2,8 @@ import { describe, expect, it, jest } from "@jest/globals";
 import {
 	computeRetryDelay,
 	DEFAULT_RETRY_COUNT,
-	isNonRetryableClientError,
 	isRetryableStatus,
 	isRetryableStatusPermissive,
-	RETRY_JITTER_MS,
 } from "@trading-model/http/http-retry";
 import { DurationMs } from "@trading-model/primitives/primitives";
 
@@ -59,27 +57,6 @@ describe("isRetryableStatusPermissive", () => {
 	});
 });
 
-describe("isNonRetryableClientError", () => {
-	it("should return true for 4xx except 429", () => {
-		expect(isNonRetryableClientError(400)).toBe(true);
-		expect(isNonRetryableClientError(404)).toBe(true);
-		expect(isNonRetryableClientError(403)).toBe(true);
-	});
-
-	it("should return false for 429", () => {
-		expect(isNonRetryableClientError(429)).toBe(false);
-	});
-
-	it("should return false for 5xx", () => {
-		expect(isNonRetryableClientError(500)).toBe(false);
-		expect(isNonRetryableClientError(503)).toBe(false);
-	});
-
-	it("should return false for 2xx", () => {
-		expect(isNonRetryableClientError(200)).toBe(false);
-	});
-});
-
 describe("computeRetryDelay", () => {
 	it("should return a delay value", () => {
 		const delay = computeRetryDelay(1);
@@ -88,7 +65,7 @@ describe("computeRetryDelay", () => {
 
 	it("should add jitter by default", () => {
 		const random = jest.spyOn(Math, "random").mockReturnValue(0.5);
-		expect(computeRetryDelay(1)).toBe(400 + RETRY_JITTER_MS / 2);
+		expect(computeRetryDelay(1)).toBe(400);
 		random.mockRestore();
 	});
 

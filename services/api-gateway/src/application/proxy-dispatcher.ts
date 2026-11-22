@@ -4,20 +4,20 @@ import {
 	type HttpStatusCode,
 } from "@trading-model/contracts/http-status";
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import type { ResolvedEndpoint } from "@trading-model/contracts/wire/service-resolver.types";
 import {
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/http/response-exception";
 import type { ServiceId } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
-import type { ResolvedEndpoint } from "@trading-model/validation/wire/service-resolver.types";
 import type { Request } from "express";
 import {
 	type ProxyDeps,
 	type ResponseCachePort,
 	UpstreamResponseTooLargeError,
+	UpstreamTimeoutError,
 } from "../domain/ports/gateway.port";
-import { PROXY_REQUEST_DURATION_SECONDS } from "../infrastructure/config/metrics";
 
 interface ProxyContext {
 	serviceName: ServiceId;
@@ -30,12 +30,17 @@ export async function proxyAndCache(
 	req: Request,
 	target: ResolvedEndpoint,
 	ctx: ProxyContext,
-	{ forward, cache }: ProxyDeps
+	{ forward, cache, observeDuration }: ProxyDeps
 ): Promise<ResponseObject> {
 	const start = performance.now();
 	let status: number = HTTP_STATUS.SERVICE_UNAVAILABLE;
 	try {
-		const result = await forward({ req, target, path: ctx.path });
+		const result = await forward({
+			req,
+			target,
+			path: ctx.path,
+			serviceName: ctx.serviceName,
+		});
 		const contentType = result.headers?.["content-type"];
 		const type = typeof contentType === "string" ? contentType : undefined;
 		tryCacheResponse(req, ctx, result, /json/i.test(type ?? ""), cache);
@@ -60,7 +65,7 @@ export async function proxyAndCache(
 		}
 		return buildProxyErrorResponse(err, ctx, target);
 	} finally {
-		PROXY_REQUEST_DURATION_SECONDS.observe(
+		observeDuration(
 			{ service: ctx.serviceName, status: String(status) },
 			(performance.now() - start) / 1000
 		);
@@ -107,6 +112,12 @@ function buildProxyErrorResponse(
 	});
 	// The cause stays in the log: returned to the client, connection errors
 	// would map the internal network.
+	if (err instanceof UpstreamTimeoutError) {
+		return sendResponse(
+			{ error: "Upstream timeout" },
+			HTTP_STATUS.GATEWAY_TIMEOUT
+		);
+	}
 	return sendResponse(
 		{ error: "Service unavailable" },
 		HTTP_STATUS.SERVICE_UNAVAILABLE

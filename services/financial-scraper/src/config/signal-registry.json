@@ -548,7 +548,7 @@
 			],
 			"accessPolicy": {
 				"terms": "attribution",
-				"termsUrl": "https://www.sec.gov/privacy",
+				"termsUrl": "https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data",
 				"attribution": "Source: U.S. Securities and Exchange Commission (EDGAR)",
 				"auth": "none",
 				"maxRequestsPerMinute": 60,
@@ -573,7 +573,7 @@
 			"covers": [{ "assetType": "equity", "dimension": "fundamental" }],
 			"accessPolicy": {
 				"terms": "attribution",
-				"termsUrl": "https://www.sec.gov/privacy",
+				"termsUrl": "https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data",
 				"attribution": "Source: U.S. Securities and Exchange Commission (EDGAR)",
 				"auth": "none",
 				"maxRequestsPerMinute": 60,
@@ -609,7 +609,7 @@
 			"covers": [{ "assetType": "equity", "dimension": "fundamental" }],
 			"accessPolicy": {
 				"terms": "attribution",
-				"termsUrl": "https://www.sec.gov/privacy",
+				"termsUrl": "https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data",
 				"attribution": "Source: U.S. Securities and Exchange Commission (EDGAR)",
 				"auth": "none",
 				"maxRequestsPerMinute": 60,
@@ -981,7 +981,7 @@
 						"area": "EA"
 					},
 					"dimension": "macro",
-					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hpi_q?freq=Q&purchase=TOTAL&unit=I15_Q&geo=EA&sinceTimePeriod=2025-Q1&format=JSON",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hpi_q?freq=Q&purchase=TOTAL&unit=I15_Q&geo=EA&lastTimePeriod=8&format=JSON",
 					"params": {
 						"metric": "house_price_index",
 						"area": "EA"
@@ -992,7 +992,7 @@
 						"area": "FR"
 					},
 					"dimension": "macro",
-					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hpi_q?freq=Q&purchase=TOTAL&unit=I15_Q&geo=FR&sinceTimePeriod=2025-Q1&format=JSON",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hpi_q?freq=Q&purchase=TOTAL&unit=I15_Q&geo=FR&lastTimePeriod=8&format=JSON",
 					"params": {
 						"metric": "house_price_index",
 						"area": "FR"
@@ -1003,7 +1003,7 @@
 						"area": "DE"
 					},
 					"dimension": "macro",
-					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hpi_q?freq=Q&purchase=TOTAL&unit=I15_Q&geo=DE&sinceTimePeriod=2025-Q1&format=JSON",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hpi_q?freq=Q&purchase=TOTAL&unit=I15_Q&geo=DE&lastTimePeriod=8&format=JSON",
 					"params": {
 						"metric": "house_price_index",
 						"area": "DE"
@@ -1036,7 +1036,7 @@
 						"area": "EA"
 					},
 					"dimension": "macro",
-					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_minr?freq=M&unit=RCH_A&coicop18=TOTAL&geo=EA&sinceTimePeriod=2026-01&format=JSON",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_minr?freq=M&unit=RCH_A&coicop18=TOTAL&geo=EA&lastTimePeriod=12&format=JSON",
 					"params": {
 						"metric": "hicp_annual_rate",
 						"area": "EA"
@@ -1047,7 +1047,7 @@
 						"area": "FR"
 					},
 					"dimension": "macro",
-					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_minr?freq=M&unit=RCH_A&coicop18=TOTAL&geo=FR&sinceTimePeriod=2026-01&format=JSON",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_minr?freq=M&unit=RCH_A&coicop18=TOTAL&geo=FR&lastTimePeriod=12&format=JSON",
 					"params": {
 						"metric": "hicp_annual_rate",
 						"area": "FR"
@@ -1058,7 +1058,7 @@
 						"area": "DE"
 					},
 					"dimension": "macro",
-					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_minr?freq=M&unit=RCH_A&coicop18=TOTAL&geo=DE&sinceTimePeriod=2026-01&format=JSON",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_minr?freq=M&unit=RCH_A&coicop18=TOTAL&geo=DE&lastTimePeriod=12&format=JSON",
 					"params": {
 						"metric": "hicp_annual_rate",
 						"area": "DE"
@@ -1091,7 +1091,7 @@
 						"area": "EA"
 					},
 					"dimension": "macro",
-					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/une_rt_m?freq=M&s_adj=SA&age=TOTAL&unit=PC_ACT&sex=T&geo=EA&sinceTimePeriod=2026-01&format=JSON",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/une_rt_m?freq=M&s_adj=SA&age=TOTAL&unit=PC_ACT&sex=T&geo=EA&lastTimePeriod=12&format=JSON",
 					"params": {
 						"metric": "unemployment_rate",
 						"area": "EA"
@@ -1102,7 +1102,7 @@
 						"area": "FR"
 					},
 					"dimension": "macro",
-					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/une_rt_m?freq=M&s_adj=SA&age=TOTAL&unit=PC_ACT&sex=T&geo=FR&sinceTimePeriod=2026-01&format=JSON",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/une_rt_m?freq=M&s_adj=SA&age=TOTAL&unit=PC_ACT&sex=T&geo=FR&lastTimePeriod=12&format=JSON",
 					"params": {
 						"metric": "unemployment_rate",
 						"area": "FR"
@@ -1113,7 +1113,7 @@
 						"area": "DE"
 					},
 					"dimension": "macro",
-					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/une_rt_m?freq=M&s_adj=SA&age=TOTAL&unit=PC_ACT&sex=T&geo=DE&sinceTimePeriod=2026-01&format=JSON",
+					"url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/une_rt_m?freq=M&s_adj=SA&age=TOTAL&unit=PC_ACT&sex=T&geo=DE&lastTimePeriod=12&format=JSON",
 					"params": {
 						"metric": "unemployment_rate",
 						"area": "DE"
@@ -1134,28 +1134,29 @@
 				"termsUrl": "https://www.etalab.gouv.fr/licence-ouverte-open-licence/",
 				"attribution": "Source: DGFiP, Demandes de valeurs foncieres (DVF geolocalisees, Etalab), Licence Ouverte 2.0",
 				"auth": "none",
-				"maxRequestsPerMinute": 60
+				"maxRequestsPerMinute": 60,
+				"notFoundIsEmpty": true
 			},
 			"requests": [
 				{
 					"subject": { "assetId": "BORDEAUX_RE" },
 					"dimension": "market",
-					"url": "https://files.data.gouv.fr/geo-dvf/latest/csv/2025/communes/33/33063.csv"
+					"url": "https://files.data.gouv.fr/geo-dvf/latest/csv/{year}/communes/33/33063.csv"
 				},
 				{
 					"subject": { "assetId": "NANTES_RE" },
 					"dimension": "market",
-					"url": "https://files.data.gouv.fr/geo-dvf/latest/csv/2025/communes/44/44109.csv"
+					"url": "https://files.data.gouv.fr/geo-dvf/latest/csv/{year}/communes/44/44109.csv"
 				},
 				{
 					"subject": { "assetId": "LILLE_RE" },
 					"dimension": "market",
-					"url": "https://files.data.gouv.fr/geo-dvf/latest/csv/2025/communes/59/59350.csv"
+					"url": "https://files.data.gouv.fr/geo-dvf/latest/csv/{year}/communes/59/59350.csv"
 				},
 				{
 					"subject": { "assetId": "MONTPELLIER_RE" },
 					"dimension": "market",
-					"url": "https://files.data.gouv.fr/geo-dvf/latest/csv/2025/communes/34/34172.csv"
+					"url": "https://files.data.gouv.fr/geo-dvf/latest/csv/{year}/communes/34/34172.csv"
 				}
 			]
 		},

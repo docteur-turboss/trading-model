@@ -1,13 +1,12 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, jest } from "@jest/globals";
-import { MarketEvent } from "@trading-model/contracts/market-events";
+import { TrainingEvent } from "@trading-model/contracts/training-events";
 import {
 	type ApiRoute,
 	parseRequest,
 } from "@trading-model/http/api-route/api-route";
 import { DEFAULT_CALLBACK_PATH } from "../../packages/broker-message/src/broker-message";
-import { CREATE_CALLBACK_ROUTE } from "../../packages/broker-message/src/messages.routes";
 import { AUDIT_API } from "../../services/audit-logger/src/adapters/inbound/http/api-routes";
 import { BROKER_API } from "../../services/message-manager/src/adapters/inbound/api-routes";
 import { SUBSCRIBE_SCHEMA } from "../../services/message-manager/src/adapters/inbound/validation/broker.schema";
@@ -31,8 +30,7 @@ jest.mock("../../services/message-manager/src/config/address-manager", () => ({
 
 const TRAINER = "trader-trainer";
 const ROOT = join(__dirname, "../..");
-const TOPIC =
-	MarketEvent[Object.keys(MarketEvent)[0] as keyof typeof MarketEvent];
+const TOPIC = TrainingEvent.ModelPublished;
 
 /** The message-manager route serving this request, if any. */
 function brokerRouteFor(request: PublishedRequest): ApiRoute | undefined {
@@ -78,11 +76,6 @@ async function deliveryPath(callbackPath: string): Promise<string> {
 	return new URL(url).pathname;
 }
 
-interface RouterLayer {
-	route?: { methods: Record<string, boolean> };
-	match: (path: string) => boolean;
-}
-
 describe("broker routes", () => {
 	describe("message-manager serves every request of the broker client", () => {
 		it("publish", async () => {
@@ -119,29 +112,9 @@ describe("broker routes", () => {
 	});
 
 	describe("subscribers mount the path message-manager delivers to", () => {
-		const callbackPaths = [
-			...new Set([DEFAULT_CALLBACK_PATH, ...deployedCallbackPaths()]),
-		];
-
 		it("deployments set a callback path", () => {
 			expect(deployedCallbackPaths().length).toBeGreaterThan(0);
 		});
-
-		it.each(callbackPaths)(
-			"broker-message callback route, MESSAGE_CALLBACK_PATH=%s",
-			async (callbackPath) => {
-				const path = await deliveryPath(callbackPath);
-				const router = CREATE_CALLBACK_ROUTE(callbackPath) as unknown as {
-					stack: RouterLayer[];
-				};
-
-				expect(
-					router.stack.some(
-						(layer) => layer.route?.methods.post && layer.match(path)
-					)
-				).toBe(true);
-			}
-		);
 
 		it("audit-logger, which keeps the default callback path", async () => {
 			expect(await deliveryPath(DEFAULT_CALLBACK_PATH)).toBe(

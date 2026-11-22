@@ -1,10 +1,19 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	jest,
+} from "@jest/globals";
 
 const MOCK_CRON_CONSTRUCTOR = jest.fn((config: unknown) => ({
 	config,
 	start: jest.fn<(...args: any[]) => any>(),
 	stop: jest.fn(async () => undefined),
 }));
+
+const MOCK_RESTORE = jest.fn<() => Promise<void>>();
 
 const MOCK_LOGGER = {
 	info: jest.fn<(...args: any[]) => any>(),
@@ -20,18 +29,13 @@ jest.mock("../../../src/adapters/inbound/cron/scrape.cron", () => ({
 	ScrapeCronOrchestrator: MOCK_CRON_CONSTRUCTOR,
 }));
 
-// The real adapters would load the HTTP client and the broker client.
+// The real adapter would load the HTTP client.
 jest.mock(
 	"../../../src/adapters/outbound/binance/binance-market-data-source",
 	() => ({
-		BinanceMarketDataSource: jest.fn((..._args: any[]) => ({ id: "binance" })),
-	})
-);
-jest.mock(
-	"../../../src/adapters/outbound/broker/broker-market-data.publisher",
-	() => ({
-		BrokerMarketDataPublisher: jest.fn((..._args: any[]) => ({
-			publish: jest.fn<(...args: any[]) => any>(),
+		BinanceMarketDataSource: jest.fn((..._args: any[]) => ({
+			id: "binance",
+			restore: MOCK_RESTORE,
 		})),
 	})
 );
@@ -40,6 +44,7 @@ jest.mock(
 	"../../../src/adapters/outbound/persistence/schema/candles.schema",
 	() => ({
 		insertCandles: jest.fn<(...args: any[]) => any>(),
+		lastCandleOpenTime: jest.fn<(...args: any[]) => any>(),
 	})
 );
 jest.mock(
@@ -61,13 +66,6 @@ jest.mock(
 	})
 );
 
-jest.mock(
-	"../../../src/adapters/outbound/persistence/candle-publish-backlog",
-	() => ({
-		MySqlCandlePublishBacklog: { kind: "mysql-backlog" },
-	})
-);
-
 jest.mock("../../../src/adapters/outbound/persistence/signal-store", () => ({
 	MySqlSignalStore: { kind: "mysql-signals" },
 }));
@@ -79,6 +77,7 @@ jest.mock("@trading-model/reliability/kubernetes-lease", () => ({
 		api,
 	})),
 	kubernetesLeaseApi: MOCK_LEASE_API,
+	leaseAnnotation: jest.fn(() => ({ get: jest.fn(), set: jest.fn() })),
 }));
 
 import { Leadership } from "@trading-model/reliability/leadership";
@@ -127,30 +126,57 @@ describe("config/container — createScrapeScheduler", () => {
 			expect.stringContaining("market data collection is disabled")
 		);
 	});
+});
 
-	it("should build the cron with the schedule, the tracked symbols and the Binance source", async () => {
-		const scheduler = await createScrapeScheduler({
-			SCRAPE_INTERVAL: "*/5 * * * *",
-			SYMBOLS_TO_TRACK: ["BTCUSDT", "ETHUSDT"],
-			SCRAPE_SCHEDULER_ENABLED: true,
-		});
+describe("config/container — quarantine restore before the first cycle", () => {
+	const SETTINGS = {
+		SCRAPE_INTERVAL: "*/1 * * * *",
+		SYMBOLS_TO_TRACK: ["BTCUSDT"],
+		SCRAPE_SCHEDULER_ENABLED: true,
+	};
+	const STORE = {
+		load: jest.fn(async () => ({})),
+		save: jest.fn(async () => undefined),
+	};
 
-		expect(scheduler).not.toBeNull();
-		expect(MOCK_CRON_CONSTRUCTOR).toHaveBeenCalledWith({
-			schedule: "*/5 * * * *",
-			symbols: ["BTCUSDT", "ETHUSDT"],
-			deps: {
-				source: { id: "binance" },
-				publisher: { publish: expect.any(Function) },
-				persist: expect.any(Function),
-				backlog: { kind: "mysql-backlog" },
-			},
-		});
-		expect(MOCK_LOGGER.info).toHaveBeenCalledWith(
-			"Market data collection enabled",
-			{ symbols: ["BTCUSDT", "ETHUSDT"], schedule: "*/5 * * * *" }
-		);
-		expect(MOCK_LOGGER.warn).not.toHaveBeenCalled();
+	beforeEach(() => {
+		jest.clearAllMocks();
+		jest.useFakeTimers();
+	});
+	afterEach(() => {
+		jest.useRealTimers();
+	});
+
+	it("starts the cron only after restore resolves, retrying a failed read", async () => {
+		MOCK_RESTORE.mockRejectedValueOnce(new Error("lease get failed"));
+		const scheduler = await createScrapeScheduler(SETTINGS, STORE);
+		const cron = MOCK_CRON_CONSTRUCTOR.mock.results[0].value as {
+			start: jest.Mock;
+		};
+
+		scheduler?.start();
+		await jest.advanceTimersByTimeAsync(0);
+		expect(MOCK_RESTORE).toHaveBeenCalledTimes(1);
+		expect(cron.start).not.toHaveBeenCalled();
+
+		await jest.advanceTimersByTimeAsync(2000);
+		expect(MOCK_RESTORE).toHaveBeenCalledTimes(2);
+		expect(cron.start).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not start the cron when stopped before restore ends", async () => {
+		MOCK_RESTORE.mockRejectedValueOnce(new Error("lease get failed"));
+		const scheduler = await createScrapeScheduler(SETTINGS, STORE);
+		const cron = MOCK_CRON_CONSTRUCTOR.mock.results[0].value as {
+			start: jest.Mock;
+		};
+
+		scheduler?.start();
+		await jest.advanceTimersByTimeAsync(0);
+		await scheduler?.stop();
+		await jest.advanceTimersByTimeAsync(5000);
+
+		expect(cron.start).not.toHaveBeenCalled();
 	});
 });
 
@@ -159,6 +185,8 @@ describe("config/container — createSignalScheduler", () => {
 		SCRAPE_SCHEDULER_ENABLED: true,
 		SIGNAL_COLLECTION_ENABLED: true,
 		SIGNAL_CONTACT_EMAIL: "ops@example.org",
+		SIGNAL_NON_COMMERCIAL_ACCEPTED: "",
+		NODE_ENV: "test",
 	};
 
 	beforeEach(() => {
@@ -273,6 +301,8 @@ describe("config/container — createCollector", () => {
 		SCRAPE_SCHEDULER_ENABLED: true,
 		SIGNAL_COLLECTION_ENABLED: false,
 		SIGNAL_CONTACT_EMAIL: "",
+		SIGNAL_NON_COMMERCIAL_ACCEPTED: "",
+		NODE_ENV: "test",
 		COLLECTOR_LEASE_NAME: "",
 		INSTANCE_ID: "pod-a",
 	};
@@ -312,18 +342,5 @@ describe("config/container — createCollector", () => {
 				identity: "pod-a",
 			}
 		);
-	});
-
-	it("starts and stops every scheduler with the leadership", async () => {
-		const collector = await createCollector(COLLECTING);
-		const cron = MOCK_CRON_CONSTRUCTOR.mock.results[0].value as {
-			start: jest.Mock;
-			stop: jest.Mock;
-		};
-		collector?.start();
-		await new Promise((resolve) => setTimeout(resolve, 10));
-		expect(cron.start).toHaveBeenCalledTimes(1);
-		await collector?.stop();
-		expect(cron.stop).toHaveBeenCalledTimes(1);
 	});
 });

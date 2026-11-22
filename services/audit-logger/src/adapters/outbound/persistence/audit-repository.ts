@@ -13,7 +13,11 @@ import {
 	CHAIN_COLLISIONS_TOTAL,
 	EVENTS_STORED_TOTAL,
 } from "../../../config/metrics";
-import { computeAuditHash, hashedContentOf } from "../../../domain/audit-chain";
+import {
+	type ChainPoint,
+	computeAuditHash,
+	hashedContentOf,
+} from "../../../domain/audit-chain";
 import type { DateRange } from "../../../domain/date-range";
 import { EVENTS_COLLECTION, MongoAuditChainReader } from "./audit-chain-reader";
 import { type AuditPage, AuditQuerier } from "./audit-querier";
@@ -72,11 +76,6 @@ interface PendingWrite {
 	enqueuedAt: number;
 }
 
-interface ChainTail {
-	dataHash: string;
-	chainSequence: number;
-}
-
 /**
  * Stores the event exactly as computeAuditHash saw it: JSON.stringify skips
  * undefined fields, the driver would store them as null and the dataHash of
@@ -122,7 +121,7 @@ export class AuditRepository {
 	private _pending: PendingWrite[] = [];
 	private _draining = false;
 	/** Chain tail, trusted only while this instance holds the lease. */
-	private _tail: ChainTail | null = null;
+	private _tail: ChainPoint | null = null;
 
 	constructor(db: Db) {
 		this._collection = db.collection<AuditEventDocument>(EVENTS_COLLECTION);
@@ -142,7 +141,10 @@ export class AuditRepository {
 			{ key: { ttl: 1 }, expireAfterSeconds: 0 },
 			{ key: { chainSequence: 1 }, unique: true },
 		]);
-		// Off the request path: the first getStats finds the breakdown ready.
+	}
+
+	/** Off the request path: the first getStats finds the breakdown ready. */
+	warmStats(): void {
 		this._stats.warm();
 	}
 
@@ -289,10 +291,11 @@ export class AuditRepository {
 	}
 
 	/** Chains `writes` after the tail and stores them with ordered insertMany calls. */
+	// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: real concurrency on the write chain (28), split would hide the ordering
 	private async _writeBatch(writes: PendingWrite[]): Promise<void> {
 		let remaining = writes;
 		while (remaining.length > 0) {
-			let tail: ChainTail;
+			let tail: ChainPoint;
 			try {
 				tail = this._tail ??
 					(await this._chain.head()) ?? { dataHash: "", chainSequence: 0 };

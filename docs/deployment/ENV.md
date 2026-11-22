@@ -13,13 +13,14 @@ Service abbreviation legend:
 | AL    | audit-logger                                                                                        |
 | DLQ   | dlq-service                                                                                         |
 | ME    | model-evaluator                                                                                     |
+| RX    | risk-execution                                                                                      |
 | DC    | docker-compose.yml (host-side `.env` file)                                                          |
 
 ---
 
 ## Common — all services
 
-Defined in `@trading-model/validation` (`config/env` — `BaseEnvSchema`), validated at startup via `application/services/validate-env`.
+Defined in `@trading-model/http` (`config/env` — `BaseEnvSchema`), validated at startup via `application/services/validate-env`.
 
 | Variable        | Type                                           | Default                 | Required | Description                   | Services |
 | --------------- | ---------------------------------------------- | ----------------------- | -------- | ----------------------------- | -------- |
@@ -31,7 +32,6 @@ Defined in `@trading-model/validation` (`config/env` — `BaseEnvSchema`), valid
 | `LOG_LEVEL`     | `error \| warn \| info \| debug` (case-insensitive) | unset: from `NODE_ENV` (`development` → `debug`, `staging` → `info`, otherwise `warn`) | no       | Level of the global logger (`@trading-model/http`), takes priority over `NODE_ENV`. Compose and every K8s ConfigMap set `info`. Invalid value: the `NODE_ENV` default plus one WARN line at startup | All*     |
 | `BUILD_VERSION` | string | `dev` | no | Release version, set at image build; label of `build_info` (its `service` label is `SERVICE_NAME`, equal to the `job` label since #495; old pods still report `audit-logger-service`, `financial-scraper-service`, `message-delivery-service` until they roll) | All |
 | `GIT_SHA` | string | `unknown` | no | Commit of the image, set at image build; label of `build_info` | All |
-| `ENFORCE_MTLS_STRICT` | boolean (`true`/`1`)                     | `false`                 | no (set `true` in production) | Enforces the per-service caller ACL on every inbound request (ADR-0011): a caller with a valid SVID but not allowed for the target gets 403. Off: any caller with a valid SVID passes. No startup check refuses `false` in production: compose (`${ENFORCE_MTLS_STRICT:-true}`) and every K8s ConfigMap set `true` | All*     |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | URL                              | —                       | no       | OTLP/HTTP collector base URL; traces go to `<url>/v1/traces`. Unset: tracing off | All      |
 
 ---
@@ -40,7 +40,7 @@ Defined in `@trading-model/validation` (`config/env` — `BaseEnvSchema`), valid
 
 Used by services that register with the discovery-server.
 
-Defined in `@trading-model/validation` (`config/address-manager-env` — `AddressManagerEnvSchema`), validated at startup via `application/services/validate-env`.
+Defined in `@trading-model/address-manager` (`config/address-manager-env` — `AddressManagerEnvSchema`), validated at startup via `application/services/validate-env`.
 
 | Variable                          | Type   | Default                         | Required | Description                                      | Services       |
 | --------------------------------- | ------ | ------------------------------- | -------- | ------------------------------------------------ | -------------- |
@@ -55,26 +55,25 @@ Defined in `@trading-model/validation` (`config/address-manager-env` — `Addres
 | `ADDRESS_MANAGER_URL`             | URL    | `https://discovery-server:3000` | **yes**  | Discovery server base URL                        | MM, FS, TT, AL, DLQ |
 | `DISCOVERY_TIMEOUT_MS`            | number | `5000`                          | no       | Timeout of the calls to the discovery server     | MM, FS, TT, AL, DLQ |
 | `DNS_NAME_MAP`                    | string | `'{}'`                          | no       | Custom DNS name to address mapping (JSON object); not read by the gateway | MM, FS, TT, AL, DLQ |
-| `MESSAGE_BUS_INIT_TIMEOUT_MS`     | number | `5000`                          | no       | Message bus client init timeout                  | MM, FS, TT, AL, DLQ |
-| `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | number | `5000`                          | no       | Message bus client shutdown timeout              | MM, FS, TT, AL, DLQ |
 | `MESSAGE_CALLBACK_PATH`           | string | `message`                       | no       | Callback path for incoming messages              | MM, FS, TT, AL, DLQ |
 
 ---
 
 ## Redis — shared connection
 
-Defined in `@trading-model/validation` (`config/redis-env` — `RedisEnvSchema`), turned into a connection by `redisConnectionFromEnv` (`@trading-model/persistence/redis-env`). With `REDIS_SENTINELS` set the service goes through the sentinels (K8s HA); otherwise it falls back to `REDIS_URL` (compose, dev).
+Defined in `@trading-model/persistence/redis-env` (`RedisEnvSchema`) and turned into a connection by `redisConnectionFromEnv`. With `REDIS_SENTINELS` set the service goes through the sentinels (K8s HA); otherwise it falls back to `REDIS_URL` (compose, dev).
 
 | Variable                     | Type   | Default    | Required | Description                                                               | Services                |
 | ---------------------------- | ------ | ---------- | -------- | ------------------------------------------------------------------------- | ----------------------- |
-| `REDIS_SENTINELS`            | string | —          | no       | Sentinels as `host:port,host:port` (IP or DNS name); takes precedence over `REDIS_URL` | DS, MM, DLQ |
-| `REDIS_SENTINEL_MASTER_NAME` | string | `mymaster` | no       | Master group name the sentinels monitor (only with `REDIS_SENTINELS`)     | DS, MM, DLQ |
-| `REDIS_USERNAME`             | string | —          | no       | ACL user of the service (K8s: `discovery`, `message-manager`, `dlq-service`, ADR-0047; only with `REDIS_SENTINELS`) | DS, MM, DLQ |
-| `REDIS_PASSWORD`             | string | —          | no       | Password of that user (only with `REDIS_SENTINELS`; with `REDIS_URL` put it in the URL). K8s: key `REDIS_<SERVICE>_PASSWORD` of `trading-model-secrets` | DS, MM, DLQ |
-| `REDIS_SENTINEL_PASSWORD`    | string | —          | no       | Password the sentinels require (K8s: key `REDIS_INTERNAL_PASSWORD` of `trading-model-secrets`) | DS, MM, DLQ |
-| `REDIS_TLS_MODE` | `optional` | `required` | `optional` | no | `required`: TLS to Redis and the sentinels, needs `REDIS_TLS_CA` (release N+1, ADR-0047, `docs/deployment/REDIS_TLS.md`) | DS, MM, DLQ |
-| `REDIS_TLS_CA` | path | — | with `required` | PEM CA of the Redis server certificates (K8s: `ca.crt` of Secret `redis-tls`) | DS, MM, DLQ |
-| `REDIS_TLS_SERVERNAME` | string | `redis` | no | Name the Redis certificate must carry (nodes are reached by IP) | DS, MM, DLQ |
+| `REDIS_SENTINELS`            | string | —          | no       | Sentinels as `host:port,host:port` (IP or DNS name); takes precedence over `REDIS_URL` | DS, MM, DLQ, AL, TT, ME |
+| `REDIS_SENTINEL_MASTER_NAME` | string | `mymaster` | no       | Master group name the sentinels monitor (only with `REDIS_SENTINELS`)     | DS, MM, DLQ, AL, TT, ME |
+| `REDIS_USERNAME`             | string | —          | no       | ACL user of the service (K8s: `discovery`, `message-manager`, `dlq-service`, ADR-0047; bus users `audit-logger`, `trader-trainer`, `model-evaluator`, ADR-0073; only with `REDIS_SENTINELS`) | DS, MM, DLQ, AL, TT, ME |
+| `REDIS_PASSWORD`             | string | —          | no       | Password of that user (only with `REDIS_SENTINELS`; with `REDIS_URL` put it in the URL). K8s: key `REDIS_<SERVICE>_PASSWORD` of `trading-model-secrets` | DS, MM, DLQ, AL, TT, ME |
+| `REDIS_SENTINEL_PASSWORD`    | string | —          | no       | Password the sentinels require (K8s: key `REDIS_INTERNAL_PASSWORD` of `trading-model-secrets`) | DS, MM, DLQ, AL, TT, ME |
+| `REDIS_TLS_MODE` | `optional` | `required` | `optional` | no | `required`: TLS to Redis and the sentinels, needs `REDIS_TLS_CA` (release N+1, ADR-0047, `docs/deployment/REDIS_TLS.md`) | DS, MM, DLQ, AL, TT, ME |
+| `REDIS_TLS_CA` | path | — | with `required` | PEM CA of the Redis server certificates (K8s: `ca.crt` of Secret `redis-tls`) | DS, MM, DLQ, AL, TT, ME |
+| `REDIS_TLS_SERVERNAME` | string | `redis` | no | Name the Redis certificate must carry (nodes are reached by IP) | DS, MM, DLQ, AL, TT, ME |
+| `BUS_TRANSPORT` | `library` \| `http` | — | no | Bus transport (ADR-0073, `BusEnvSchema`): `library` = Redis Streams in process, refuses to start without `REDIS_URL` / `REDIS_SENTINELS`; `http` = message-manager, Redis settings ignored; unset = `library` when Redis is set (N-1 rule). Set by every deployment | AL, TT, ME |
 
 ---
 
@@ -110,9 +109,8 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `CACHE_TTL_MS`        | number | `30000`                          | no       | Cache TTL for proxied responses | GW       |
 | `AUTH_TOKEN_HEADER`   | string | `x-api-key`                      | no       | Header name for auth token      | GW       |
 | `AUTH_TOKENS`         | string | —                                | **yes**  | Comma-separated API keys `name:scope1+scope2:secret` (in production each secret: at least 32 characters, no `change-me`; start refused otherwise) (scopes `read`, `dlq:write`; secret without `:`). A bare secret (old format) is refused at startup (ADR-0059) | GW |
-| `PROXY_TIMEOUT_MS`    | number | `10000`                          | no       | Proxy request timeout           | GW       |
+| `PROXY_TIMEOUT_MS`    | number | `10000`                          | no       | Proxy total deadline (ms)       | GW       |
 | `PROXY_MAX_RESPONSE_BYTES` | number | `8388608` (8 MiB)    | no       | Largest upstream answer the gateway buffers; past it the upstream request is cut and the client gets 502 `Upstream response too large` (ADR-0054) | GW |
-| `AUTH_STRICT`         | boolean (only `false` turns it off) | `true`              | no (`false` refused in production) | Strict API key check. `false` with no `AUTH_TOKENS` accepts any API key: in production the gateway refuses to start with `false` | GW |
 | `ALLOWED_PROXY_CIDRS` | string | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8` | no (must not be empty in production) | Comma-separated CIDRs the resolved proxy target IP must be in. Empty: target IP check off; in production the gateway refuses to start | GW |
 
 ---
@@ -128,6 +126,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `TRAINER_SIGNAL_FEATURES`         | string       | empty             | no       | `SUBJECT:dimension:metric` list (`BTC:social:pageviews`, subject = asset, sector or area): signals fed to the network as value, age and confidence inputs, 3 per metric (ADR-0081); read only with `FEATURE_SIGNAL_INPUTS`; each key must match the format or the service refuses to start; a key that finds no signal in the window logs a warning and trains on zeros | TT       |
 | `FEATURE_SIGNAL_INPUTS`           | boolean      | `false`           | no       | Feature flag (ADR-0039): `true` appends the `TRAINER_SIGNAL_FEATURES` inputs to the 18 market inputs; `false`: input and published genome as before | TT       |
 | `FEATURE_INPUT_MASK_GENE`         | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0082): `true` lets the GA evolve a mask over the input groups (candle, window, one per signal metric); `false`: no mask, genome and manifest as before | TT       |
+| `FEATURE_SHARED_TRUNK`            | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076 step 1): `true` trains all the symbols in one session, hidden layers shared, one output head per symbol, each symbol published as its own model with `components` naming the trunk; `false`: one session per symbol, genome and manifest as before | TT       |
 | `TRAINER_INPUT_MASK_PROTECT_CANDLE` | boolean    | `false`           | no       | `true` keeps the candle group active in every mask the GA evolves (ADR-0082); read only with `FEATURE_INPUT_MASK_GENE` | TT       |
 | `TRAINER_DATA_WINDOW`             | number       | `500`             | no       | Data window size (inputs per step)   | TT       |
 | `TRAINER_VALIDATION_SPLIT`        | number (]0, 1[) | `0.15`            | no       | Fraction of the steps left after the test cut, used for validation (selection) | TT       |
@@ -135,13 +134,15 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `TRAINER_GENERATIONS`             | number       | `50`              | no       | Number of GA generations             | TT       |
 | `TRAINER_POPULATION_SIZE`         | number       | `20`              | no       | GA population size                   | TT       |
 | `TRAINER_TIME_BUDGET_MS`          | number       | `300000` (5min)   | no       | Max training time per run            | TT       |
-| `TRAINER_INTERVAL_MS`             | number       | `3600000` (1h)    | no       | Time between two training sessions   | TT       |
+| `TRAINER_INTERVAL_MS`             | number       | `14400000` (4h)   | no       | Time between two training sessions   | TT       |
 | `TRAINER_MAX_DATA_AGE_MS`         | number       | `900000` (15min)  | no       | Newest candle older than this: symbol not trained | TT       |
 | `TRAINER_EPISODES_PER_INDIVIDUAL` | number       | `10`              | no       | DRL episodes per genome evaluation (adaptive control keeps 10–30) | TT       |
 | `TRAINER_FITNESS_TYPE`            | enum         | `total_pnl`       | no       | GA scalar fitness: `total_pnl`, `sharpe`, `sortino`, `calmar`, `composite` (ADR-0025) | TT       |
 | `FEATURE_RISK_ADJUSTED_FITNESS`   | boolean      | `true`            | no       | Feature flag (ADR-0039): `false` forces fitness `total_pnl` whatever `TRAINER_FITNESS_TYPE` says. Invalid value: refused at startup | TT       |
 | `FEATURE_ACTION_SPACE_GENE`        | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076): `true` lets the GA mutate the action set (partial order sizes, recorded as `actions` in the manifest); `false`: `sell_hold_buy`, never mutated | TT       |
 | `FEATURE_EVENT_DRIVEN_DECISIONS`   | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076 §5): `true` makes the agent decide on market events (price move, volume) instead of every bar; network gets a 33rd input `BarsSinceDecision`. `false`: genome and manifest unchanged. Invalid value: refused at startup | TT       |
+| `TRAINER_SHARED_TRUNK_SYMBOLS_PER_GENERATION` | int | `0` | no | ADR-0076 step 1, read only with `FEATURE_SHARED_TRUNK`: symbols each generation trains and evaluates on, a rotating subset of the group (k in [1, number of symbols], refused above; `0`: `ceil(N / 3)`; k = N: every symbol every generation) | TT       |
+| `TRAINER_SEED_OFFSET`             | int          | `0`               | no       | Added to the default PRNG seeds: same value and same data give the same run (A/B measures, ADR-0030) | TT       |
 | `TRAINER_OBSERVE_POSITION`        | boolean      | `true`            | no       | Show the agent its position (`false`: a constant input, to measure what it is worth, ADR-0025) | TT       |
 | `TRAINER_WALK_FORWARD_FOLDS`      | number (1-20)| `1`               | no       | Walk-forward folds per training run (ADR-0030); `1`: a single train/validation split | TT       |
 | `TRAINER_MODEL_DIR`               | string       | `/data/checkpoints/models` | no | Model artifact directory (ADR-0022), on the checkpoint volume shared by the replicas | TT       |
@@ -157,6 +158,25 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | --- | --- | --- | --- | --- | --- |
 | `EVALUATIONS_DIR` | string | `/data/evaluations` | no | Directory of the evaluation records, one file per `(symbol, version)` created exclusively; a ReadWriteOnce PVC in K8s, a volume in compose (ADR-0049) | ME |
 
+---
+
+## Risk/Execution
+
+ADR-0064. Limits are validated at startup and refuse to start above their hard ceiling in code (`services/risk-execution/src/domain/limits.ts`); percentages are shares of `RISK_ALLOCATED_CAPITAL`.
+
+| Variable | Type | Default | Required | Description | Services |
+| --- | --- | --- | --- | --- | --- |
+| `EXECUTION_MODE` | `paper | live` | `paper` | no | Only the production overlay may say `live` (`tests/k8s/check-overlays.mjs`); the service refuses `live` outside production, without live keys, and `paper` with live keys. No live adapter exists yet: `live` stops the start | RX |
+| `DEPLOYMENT_ENV` | `development | ci | staging | production` | `development` | no | The deployment (NODE_ENV is `production` everywhere in K8s); `production` only in the production overlay | RX |
+| `BROKER_API_KEY` | string | _(unset)_ | no | Live broker key, in the production Secret only; its presence in paper mode refuses the start | RX |
+| `BROKER_API_SECRET` | string | _(unset)_ | no | Live broker secret, same rule as `BROKER_API_KEY` | RX |
+| `RISK_STATE_DIR` | string | `/data/risk-execution` | no | Durable state (kill switch, orders, paper ledger); a ReadWriteOnce PVC in K8s. An unreadable state engages the global kill switch | RX |
+| `RISK_ALLOCATED_CAPITAL` | number | `10000` | no | Allocated capital of the mode (policy §2) | RX |
+| `RISK_INSTRUMENTS` | JSON | `{"BTCUSDT":{"maxQuantity":0.01}}` | no | Allow-list of spot instruments with their quantity cap per order | RX |
+| `RISK_LIMITS_JSON` | JSON | `{}` | no | Overrides of the other caps of ADR-0064 §2 (at or below their ceiling) | RX |
+| `RISK_OWNER_ACTOR` | string | `owner` | no | Only this actor re-arms after the drawdown stop (policy §4.4) | RX |
+| `RISK_TICK_MS` | number | `10000` | no | Period of expiry, stale-data, limit and reconciliation checks | RX |
+
 ## Financial Scraper — Market data
 
 | Variable                   | Type    | Default                   | Required | Description                                                                 | Services |
@@ -167,7 +187,9 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `SCRAPE_SCHEDULER_ENABLED` | boolean (`true`/`1`) | `true`       | no       | Runs the scrape cron in this instance; `false` on HTTP-only replicas (K8s runs a single cron instance) | FS       |
 | `COLLECTOR_LEASE_NAME` | string | (empty) | no | Kubernetes Lease the collector pods compete for; only its holder runs the crons (ADR-0057). Set on `financial-scraper-collector` in K8s; empty (compose, dev): this instance collects | FS |
 | `SIGNAL_COLLECTION_ENABLED` | boolean (`true`/`1`) | `true` | no | Collects the signal registry sources (ADR-0036) where the scrape cron runs; `false` in CI, which must not call the real sources | FS |
+| `SIGNAL_REGISTRY_FILE` | string (path) | unset | no | Signal registry read at startup instead of the copy bundled in the image (issue #1308), checked by the same `parseSignalRegistry`: a broken file stops the pod. K8s: ConfigMap `financial-scraper-signal-registry` generated from `services/financial-scraper/src/config/signal-registry.json`, mounted at `/etc/signal-registry` by both Deployments; compose: bind mount of the same file. Read once: a change rolls the pods (ConfigMap hash), never a hot reload | FS |
 | `SIGNAL_CONTACT_EMAIL` | string (e-mail) | empty | no | Contact e-mail in the User-Agent of the signal sources (SEC EDGAR answers 403 without one); must be a functional, non-nominative address (project alias, no personal data sent to the US sources, see data-processing-register.md); never committed: `.env` for compose, GitHub environment secret for K8s. A value that is no e-mail disables the signal collection only | FS |
+| `SIGNAL_NON_COMMERCIAL_ACCEPTED` | string (comma-separated ids) | empty | no | Ids of `non-commercial` signal sources (ADR-0075) the operator accepts to collect. In production, financial-scraper refuses to start while such a source is active (its `SIGNAL_KEY_*` set) and not listed; elsewhere only a `warn` | FS |
 | `SIGNAL_KEY_<SOURCE>` | string (API key) | unset | no | Free API key of one signal source (`accessPolicy.auth.env` of its registry entry, prefix `SIGNAL_KEY_` required, one variable per source), sent in the header or query parameter the entry declares; never in the registry, a log or an error. Unset: the source alone is not scheduled, a warning is logged and `fs_signal_source_disabled{source,reason="missing_key"}` is 1. Add it as an optional `secretKeyRef` of the collector (K8s) and in `.env.example` / `docker-compose.yml` with the source that needs it; used by `fred-us-macro` (`SIGNAL_KEY_FRED`) `eia-weekly-energy` (`SIGNAL_KEY_EIA`, free registration at eia.gov/opendata/register.php) and `twelvedata-daily-prices` (`SIGNAL_KEY_TWELVEDATA`, ADR-0080) | FS |
 
 ---
@@ -193,8 +215,7 @@ No database: subscriptions in Redis (`REDIS_SENTINELS` / `REDIS_URL`), accepted 
 
 | Variable                  | Type   | Default                     | Required             | Description                                                                 | Services |
 | ------------------------- | ------ | --------------------------- | -------------------- | --------------------------------------------------------------------------- | -------- |
-| `DLQ_AUTH_HMAC_SECRET`    | string | —                           | **yes** (production) | Signs the dead letters sent to dlq-service: same value as dlq-service (min 16 chars). Unset (outside production): dead-lettering fails and the entries stay pending in the journal | MM       |
-| `JOURNAL_MIN_REPLICAS`    | number | `0`                         | no                   | Redis replicas that must hold an accepted message before the publisher gets its 202 (`WAIT`); 0 on a single node (compose, K8s staging), 1 in K8s production (Sentinel) | MM       |
+| `JOURNAL_MIN_REPLICAS`    | number | `0`                         | no                   | Redis replicas that must hold an accepted message before the publisher gets its 202 (`WAIT`); 0 on a single node (compose, K8s staging), 1 in K8s production (Sentinel) | MM, AL, TT, ME |
 
 ---
 
@@ -215,6 +236,7 @@ Read by `scripts/retention-mysql.sh` (K8s CronJob `db-retention`, compose: host 
 | `RETENTION_DAYS`          | number (≥1) | `1827` (5 years)  | no       | Age after which `market_candles`, `market_trades`, `market_tickers` and `market_order_books` rows (column `timestamp`) are deleted | retention job |
 | `RETENTION_SIGNALS_DAYS`  | number (≥1) | `RETENTION_DAYS`  | no       | Same for `signals` (column `observed_at`) | retention job |
 | `RETENTION_ORDER_BOOKS_DAYS` | number (≥1) | `RETENTION_DAYS` | no       | Same for `market_order_books` (column `timestamp`); the K8s CronJob sets 180 (ADR-0053) | retention job |
+| `RETENTION_TRADES_DAYS` | number (≥1) | `RETENTION_DAYS` | no       | Same for `market_trades` (column `timestamp`; a 100-trade sample per minute); the K8s CronJob sets 180 | retention job |
 | `RETENTION_BATCH_SIZE`    | number (≥1) | `10000`           | no       | Rows per `DELETE ... LIMIT` | retention job |
 | `RETENTION_PAUSE_SECONDS` | number (≥0) | `1`               | no       | Pause between two batches | retention job |
 | `MYSQL_RETENTION_PASSWORD` | string | —                      | **yes** in K8s | Password of MySQL user `retention` (SELECT, DELETE on the five tables). Key of Secret `trading-model-secrets`, read by `db-migrate-user` and `db-retention` | retention job |
@@ -282,7 +304,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `MAX_ENTRIES`                | number  | `100000`                             | no       | Maximum stored DLQ entries           | DLQ      |
 | `DLQ_RETRY_MAX_ATTEMPTS`     | number  | `5`                                  | no       | Max retry attempts for replay        | DLQ      |
 | `MESSAGE_MANAGER_URL`        | URL     | —                                    | no       | Message manager URL for replay       | DLQ      |
-| `DLQ_AUTH_HMAC_SECRET`       | string  | —                                    | no       | HMAC secret for auth (min 16 chars), shared with message-manager | DLQ      |
+| `DLQ_AUTH_HMAC_SECRET`       | string  | —                                    | no       | HMAC secret for auth (min 32 chars in production) | DLQ      |
 | `DLQ_ALLOWED_SERVICES`       | string  | `message-manager,admin`              | no       | Callers allowed to sign requests (`admin`: operator scripts such as `examples/manage-dlq.sh`) | DLQ      |
 | `DLQ_PRUNE_INTERVAL_MS`      | number  | `60000`                              | no       | Interval for pruning expired entries | DLQ      |
 | `DLQ_AUTO_RETRY_ENABLED`     | boolean | `false` (no profile enables it, ADR-0073)| no       | Replay eligible entries automatically| DLQ      |
@@ -308,6 +330,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `MYSQL_ROOT_PASSWORD` | string | `changeme`              | MySQL root password                | DC       |
 | `GRAFANA_PASSWORD`    | string | (required)              | Grafana admin password             | DC       |
 | `GRAFANA_OIDC_ENABLED` | string | `false` (compose), unset (K8s) | `true` turns on Grafana OIDC login and hides the local login form (`GF_AUTH_DISABLE_LOGIN_FORM`, K8s); off otherwise (ADR-0063) | DC, K8s |
+| `GRAFANA_ALLOWED_CIDRS` | string | unset | GitHub environment variable (K8s): comma-separated CIDRs, set by `deploy-release.sh render` as `whitelist-source-range` of `grafana-ingress`; `deploy.yml` refuses production without it (issue #1630) | K8s |
 | `GRAFANA_BASIC_AUTH_ENABLED` | string | unset (K8s) | Set `false` together with `GRAFANA_OIDC_ENABLED=true`: refuses `Authorization: Basic` on the public Ingress (`GF_AUTH_BASIC_ENABLED`); unset keeps Grafana's default (on). Break-glass: `runbook-grafana-break-glass.md` | K8s |
 | `GRAFANA_OIDC_CLIENT_ID` | string | (unset) | OIDC client id (ADR-0063) | DC, K8s |
 | `GRAFANA_OIDC_CLIENT_SECRET` | string | (unset) | OIDC client secret (K8s: key of `trading-model-secrets`) (ADR-0063) | DC, K8s |
@@ -330,6 +353,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 
 | Variable | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
+| `BACKUP_S3_SECONDARY_BUCKET` (+ `_REGION`, `_ENDPOINT`, `_PROVIDER`, `_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY`) | `s3://bucket/prefix` + store settings | unset | Optional second off-site backup bucket at another provider: when set, `upload_offsite` sends it every file sent to `BACKUP_S3_BUCKET` (same tiers, metric `component="offsite-secondary"`), and `deploy.yml` checks it like the first (`scripts/backup-bucket-check.sh`). GitHub environment variables / secrets of the same names; `deploy.yml` writes them to the Secret `trading-model-backup-s3`. Unset: nothing changes |
 | `BACKUP_S3_ALLOWED_REGIONS` | space-separated list | EU regions of AWS (`eu-*`), Scaleway (`fr-par nl-ams pl-waw`), OVH (`gra sbg rbx par`) | Regions the off-site backup bucket may be in. `deploy.yml` runs `scripts/backup-bucket-check.sh`: a bucket elsewhere, or whose region cannot be read, is an error in production and a warning elsewhere (`BACKUP_S3_IMMUTABILITY_CHECK=warn` downgrades both). GDPR art. 44, `docs/compliance/third-party-dpas.md` |
 
 ---
@@ -388,6 +412,7 @@ TRAINER_ASSET_COSTS={}
 TRAINER_SIGNAL_FEATURES=
 FEATURE_SIGNAL_INPUTS=false
 FEATURE_INPUT_MASK_GENE=false
+FEATURE_SHARED_TRUNK=false
 TRAINER_INPUT_MASK_PROTECT_CANDLE=false
 TRAINER_DATA_WINDOW=500
 TRAINER_VALIDATION_SPLIT=0.15
@@ -395,7 +420,7 @@ TRAINER_TEST_SPLIT=0.15
 TRAINER_GENERATIONS=50
 TRAINER_POPULATION_SIZE=20
 TRAINER_TIME_BUDGET_MS=300000
-TRAINER_INTERVAL_MS=3600000
+TRAINER_INTERVAL_MS=14400000
 TRAINER_MAX_DATA_AGE_MS=900000
 TRAINER_EPISODES_PER_INDIVIDUAL=10
 TRAINER_FITNESS_TYPE=total_pnl

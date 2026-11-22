@@ -19,6 +19,12 @@ export const JOURNAL_TRIMMED_PENDING_TOTAL = new promClient.Counter({
 	labelNames: ["topic", "service"] as const,
 });
 
+export const JOURNAL_UNREADABLE_TOTAL = new promClient.Counter({
+	name: "mm_journal_unreadable_total",
+	help: "Journal entries whose message field is not JSON, acknowledged and dropped",
+	labelNames: ["topic", "service"] as const,
+});
+
 export const JOURNAL_PENDING_ENTRIES = new promClient.Gauge({
 	name: "mm_journal_pending_entries",
 	help: "Journal entries of a topic not yet acknowledged by a subscriber service (delivered or not)",
@@ -35,4 +41,11 @@ export const BUS_DEAD_LETTERS = new promClient.Gauge({
 	name: "bus_dead_letters",
 	help: "Entries in the dead stream of a topic: dead letters an operator has not replayed or deleted yet (ADR-0073)",
 	labelNames: ["topic"] as const,
+});
+
+/** Entries dropped because their `publisher` is not allowed on the topic (EVENT_PUBLISHERS, issue #1620). */
+export const PUBLISHER_REJECTED_TOTAL = new promClient.Counter({
+	name: "bus_publisher_rejected_total",
+	help: "Bus entries rejected: publisher not allowed on the topic",
+	labelNames: ["topic", "publisher"] as const,
 });

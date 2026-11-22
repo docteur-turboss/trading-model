@@ -12,6 +12,7 @@
 #    MYSQL_HOST (mysql-primary)  MYSQL_PORT (3306)  MYSQL_USER (retention)
 #    MYSQL_PWD (password)        MYSQL_DATABASE (financial_scraper)
 #    RETENTION_DAYS (1827)       RETENTION_SIGNALS_DAYS (= RETENTION_DAYS)  RETENTION_ORDER_BOOKS_DAYS (= RETENTION_DAYS)
+#    RETENTION_TRADES_DAYS (= RETENTION_DAYS)
 #    RETENTION_BATCH_SIZE (10000)  RETENTION_PAUSE_SECONDS (1)
 #    METRICS_FILE (unset = no metrics)
 #  Exits 1 when any table fails; the other tables are still purged.
@@ -25,6 +26,7 @@ MYSQL_DATABASE="${MYSQL_DATABASE:-financial_scraper}"
 RETENTION_DAYS="${RETENTION_DAYS:-1827}"
 RETENTION_SIGNALS_DAYS="${RETENTION_SIGNALS_DAYS:-$RETENTION_DAYS}"
 RETENTION_ORDER_BOOKS_DAYS="${RETENTION_ORDER_BOOKS_DAYS:-$RETENTION_DAYS}"
+RETENTION_TRADES_DAYS="${RETENTION_TRADES_DAYS:-$RETENTION_DAYS}"
 RETENTION_BATCH_SIZE="${RETENTION_BATCH_SIZE:-10000}"
 RETENTION_PAUSE_SECONDS="${RETENTION_PAUSE_SECONDS:-1}"
 METRICS_FILE="${METRICS_FILE:-}"
@@ -39,25 +41,23 @@ require_int() { # <name> <value> <min>
 require_int RETENTION_DAYS "$RETENTION_DAYS" 1
 require_int RETENTION_SIGNALS_DAYS "$RETENTION_SIGNALS_DAYS" 1
 require_int RETENTION_ORDER_BOOKS_DAYS "$RETENTION_ORDER_BOOKS_DAYS" 1
+require_int RETENTION_TRADES_DAYS "$RETENTION_TRADES_DAYS" 1
 require_int RETENTION_BATCH_SIZE "$RETENTION_BATCH_SIZE" 1
 require_int RETENTION_PAUSE_SECONDS "$RETENTION_PAUSE_SECONDS" 0
 
 # Table, date column and retention days: explicit, never derived.
 TARGETS=(
   "market_candles timestamp ${RETENTION_DAYS}"
-  "market_trades timestamp ${RETENTION_DAYS}"
+  "market_trades timestamp ${RETENTION_TRADES_DAYS}"
   "market_tickers timestamp ${RETENTION_DAYS}"
   "market_order_books timestamp ${RETENTION_ORDER_BOOKS_DAYS}"
   "signals observed_at ${RETENTION_SIGNALS_DAYS}"
 )
 
-# Prints the rows deleted by one batch. The session turns invisible indexes on:
-# the `timestamp` indexes were INVISIBLE until migration 007; kept so a database
-# not yet migrated (or rolled back) still purges by index, not by full scan.
+# Prints the rows deleted by one batch.
 purge_batch() { # <table> <column> <days>
   mysql -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" -N -B "$MYSQL_DATABASE" -e \
-    "SET SESSION optimizer_switch='use_invisible_indexes=on';
-     DELETE FROM \`$1\` WHERE \`$2\` < UTC_TIMESTAMP(3) - INTERVAL $3 DAY LIMIT ${RETENTION_BATCH_SIZE};
+    "DELETE FROM \`$1\` WHERE \`$2\` < UTC_TIMESTAMP(3) - INTERVAL $3 DAY LIMIT ${RETENTION_BATCH_SIZE};
      SELECT ROW_COUNT();"
 }
 

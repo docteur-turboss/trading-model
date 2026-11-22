@@ -42,20 +42,14 @@ services:
   api-gateway:
     environment:
       AUTH_TOKENS: e2e:read+dlq:write:e2e-api-key-0123456789abcdef0123456789abcdef
-      AUTH_STRICT: 'true'
       # The k6 smoke sends ~240 req/min from one IP; the default 100/min would answer 429.
       # Scenarios and stress need more: tests/load/README.md, "Rate limit".
       RATE_LIMIT_MAX: '2000'
 
-  # Same key on both sides of the dead-letter path (dead-letter-flow suite).
-  message-manager:
-    environment:
-      DLQ_AUTH_HMAC_SECRET: test-hmac-secret
-
   # The DLQ suites sign their requests as e2e-test-runner.
   dlq-service:
     environment:
-      DLQ_AUTH_HMAC_SECRET: test-hmac-secret
+      DLQ_AUTH_HMAC_SECRET: test-hmac-secret-for-e2e-0123456789
       DLQ_ALLOWED_SERVICES: message-manager,admin,e2e-test-runner
       # The suites replay dead letters by hand (dead-letter-flow, dlq): an
       # automatic replay could claim the entry first and race their assertions.
@@ -79,6 +73,6 @@ services:
       TRAINER_INTERVAL_MS: '60000'
       # The stub serves 1-min candles for the current minute: allow a few of them.
       TRAINER_MAX_DATA_AGE_MS: '300000'
-      # Only the scraper may download weights; message-manager (also in the
+      # Only the gateway may download weights; risk-execution (also in the
       # trainer ACL) is deliberately not listed, to prove the 403.
-      MODEL_DOWNLOAD_CALLERS: financial-scraper,model-evaluator
+      MODEL_DOWNLOAD_CALLERS: api-gateway,model-evaluator

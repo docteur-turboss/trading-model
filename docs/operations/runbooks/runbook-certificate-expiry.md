@@ -1,7 +1,7 @@
 # Runbook: SVID / TLS Certificate Expiry
 
 **Alert:** `CertificateExpiry`  
-**Severity:** L2 (warning), L1 (if expired)
+**Severity:** L1 (critical)
 
 ## Detection
 
@@ -16,8 +16,8 @@ SPIRE manages SVID lifecycle automatically (ADR-0011):
 
 - `spire-server` issues short-lived X.509-SVIDs (`default_x509_svid_ttl = "4h"`,
   ADR-0065); the SPIRE agent rotates them at half-life (2 h left).
-  `CertificateExpiry` fires below 1 h left: rotation has been stalled for over
-  an hour. A stopped SPIRE server leaves about 2 h before the first SVID
+  `CertificateExpiry` fires below 90 min left: rotation has been stalled for
+  over 30 minutes. A stopped SPIRE server leaves about 2 h before the first SVID
   expires ([runbook-database-failover, SPIRE server](runbook-database-failover.md#spire-server)).
 - `spiffe-helper` sidecars re-fetch SVIDs and rewrite `svid.pem`,
   `svid_key.pem`, `bundle.pem` in the shared volume.

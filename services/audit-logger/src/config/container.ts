@@ -1,10 +1,20 @@
 import { S3Client } from "@aws-sdk/client-s3";
+import {
+	ErrorCode,
+	makeErrorCode,
+	normalizeError,
+} from "@trading-model/common/utils/errors";
+import { retryWithBackoff } from "@trading-model/common/utils/retry";
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { MongoConnectionManager } from "@trading-model/persistence/mongo-connection-manager";
 import { mongoAuthFromEnv } from "@trading-model/persistence/mongo-utils";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import type { Db } from "mongodb";
-import { createMessageHandler } from "../adapters/inbound/subscription/audit-subscriber";
+import {
+	createAuditRecorder,
+	createMessageHandler,
+} from "../adapters/inbound/subscription/audit-subscriber";
 import { S3AnchorStore } from "../adapters/outbound/anchor/s3-anchor-store";
 import {
 	MongoAuditChainReader,
@@ -15,6 +25,7 @@ import { dropRetiredCollections } from "../adapters/outbound/persistence/retired
 import { ChainAudit } from "../application/audit-chain/chain-audit";
 import { ChainAuditScheduler } from "../application/audit-chain/chain-audit-scheduler";
 import { createServer } from "../application/server";
+import { MS_PER_DAY } from "../domain/audit-chain";
 import type { ChainAuditMetricsPort } from "../domain/ports/audit-chain.port";
 import { ENV } from "../infrastructure/config/env";
 import { createBrokerMessage } from "./broker-setup";
@@ -26,8 +37,6 @@ import {
 	CHAIN_LAST_VERIFICATION_TIMESTAMP,
 	CHAIN_VERIFIED_SEQUENCE,
 } from "./metrics";
-
-const MS_PER_DAY = 86_400_000;
 
 const CHAIN_METRICS: ChainAuditMetricsPort = {
 	verified(upTo, broken) {
@@ -52,6 +61,10 @@ export interface ChainAuditSettings {
 	anchorRequired: boolean;
 }
 
+/** Deadlines of the S3 anchor client: a hung call must not freeze the chain verification. */
+const S3_CONNECTION_TIMEOUT_MS = 3000;
+const S3_REQUEST_TIMEOUT_MS = 10_000;
+
 /** Verification and anchoring of the audit chain (ADR-0027). */
 export function createChainAudit(
 	db: Db,
@@ -69,6 +82,10 @@ export function createChainAudit(
 					region: settings.anchorRegion,
 					endpoint: anchorEndpoint,
 					forcePathStyle: anchorEndpoint !== undefined,
+					requestHandler: {
+						connectionTimeout: S3_CONNECTION_TIMEOUT_MS,
+						requestTimeout: S3_REQUEST_TIMEOUT_MS,
+					},
 				}),
 				bucket: anchorBucket,
 				prefix: settings.anchorPrefix,
@@ -101,17 +118,6 @@ export function chainAuditSettingsFromEnv(): ChainAuditSettings {
 	};
 }
 
-export function createAuditServer(
-	auditRepo: AuditRepository,
-	mongoManager: MongoConnectionManager
-): ReturnType<typeof createServer> {
-	const messageHandler = createMessageHandler(
-		auditRepo,
-		ENV.AUDIT_RETENTION_DAYS
-	);
-	return createServer(auditRepo, mongoManager, messageHandler);
-}
-
 export async function createRepositories(
 	mongoUri: string,
 	auth?: { username: string; password: string }
@@ -134,18 +140,72 @@ export async function createRepositories(
 
 export type AuditLoggerApp = Awaited<ReturnType<typeof createAuditLoggerApp>>;
 
-/** Wires the whole service: MongoDB repositories, HTTP server, bus subscriptions, audit chain checks. */
+const unavailable = makeErrorCode(
+	ErrorCode.Agent,
+	HTTP_STATUS.SERVICE_UNAVAILABLE
+);
+
+/** Wires the whole service. MongoDB connects in the background: the server listens at once, its routes answer 503 and `/health/ready` fails until it is up. */
 export async function createAuditLoggerApp() {
-	const { mongoManager, db, auditRepo } = await createRepositories(
-		ENV.MONGODB_URI,
-		mongoAuthFromEnv(ENV)
+	const mongoManager = new MongoConnectionManager({
+		uri: ENV.MONGODB_URI,
+		auth: mongoAuthFromEnv(ENV),
+		dbName: "audit-logger",
+		maxRetries: Number.POSITIVE_INFINITY,
+	});
+	let repo: AuditRepository | null = null;
+	const ready = retryWithBackoff(
+		async () => {
+			try {
+				const db = (await mongoManager.getConnection()).db();
+				const auditRepo = new AuditRepository(db);
+				await Promise.all([
+					auditRepo.ensureIndexes(),
+					dropRetiredCollections(db),
+				]);
+				auditRepo.warmStats();
+				repo = auditRepo;
+				return createChainAudit(db, chainAuditSettingsFromEnv());
+			} catch (err) {
+				getLogger().error("Audit logger database start-up failed, retrying", {
+					error: normalizeError(err).message,
+				});
+				throw err;
+			}
+		},
+		{
+			maxRetries: Number.POSITIVE_INFINITY,
+			baseDelayMs: DurationMs.of(1000),
+			maxDelayMs: DurationMs.of(30_000),
+		}
 	);
+	const notReady = (): never => {
+		throw unavailable("Audit database is not ready");
+	};
+	// A stand-in for the repository: every call is the real one once the database is up.
+	const lazyRepo = new Proxy({} as AuditRepository, {
+		// `then` stays undefined so the proxy is never mistaken for a thenable.
+		get: (_, method: keyof AuditRepository | "then") =>
+			method === "then"
+				? undefined
+				: (...args: unknown[]) =>
+						(repo ?? notReady())[method](...(args as [never])),
+	});
 	const chainAuditScheduler = new ChainAuditScheduler(
-		createChainAudit(db, chainAuditSettingsFromEnv()),
+		{
+			runCycle: async () => (await ready).result?.runCycle(),
+		},
 		DurationMs.of(ENV.AUDIT_CHAIN_INTERVAL_MS)
 	);
-	const server = await createAuditServer(auditRepo, mongoManager);
-	const { brokerMessage } = await createBrokerMessage();
+	const server = await createServer(
+		lazyRepo,
+		mongoManager,
+		createMessageHandler(lazyRepo, ENV.AUDIT_RETENTION_DAYS),
+		() => repo !== null
+	);
+	const { brokerMessage } = await createBrokerMessage(
+		createAuditRecorder(lazyRepo, ENV.AUDIT_RETENTION_DAYS)
+	);
 	return {
 		server,
 		mongoManager,

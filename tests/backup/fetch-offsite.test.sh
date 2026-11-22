@@ -77,10 +77,16 @@ backup_run() {
 		mysql)
 			mkdir -p "$BACKUP_DIR/mysql"
 			write_dump mysql "$BACKUP_DIR/mysql/financial_scraper_$ts.sql.gz.age" plain "mysql $ts"
+			mkdir -p "$BACKUP_DIR/mysql-core"
+			write_dump mysql-core "$BACKUP_DIR/mysql-core/financial_scraper_$ts.sql.gz.age" plain "mysql-core $ts"
 			;;
 		checkpoints)
 			mkdir -p "$BACKUP_DIR/checkpoints"
 			write_dump checkpoints "$BACKUP_DIR/checkpoints/checkpoints_$ts.tar.gz.age" plain "checkpoints $ts"
+			;;
+		risk)
+			mkdir -p "$BACKUP_DIR/risk"
+			write_dump risk "$BACKUP_DIR/risk/risk_$ts.tar.gz.age" plain "risk $ts"
 			;;
 		pitr)
 			# PITR starting points (backup-k8s.sh, ADR-0031).
@@ -119,10 +125,10 @@ GOOD=2026-10-31_020000
 BROKEN=2026-11-01_020000
 # Every dump, but no run manifest: restore-k8s.sh could not check it.
 NOMANIFEST=2026-11-02_020000
-backup_run "$OLD" mongodb,mysql,checkpoints,spire nomanifest
-backup_run "$GOOD" mongodb,mysql,checkpoints,spire,pitr
+backup_run "$OLD" mongodb,mysql,checkpoints,spire,risk nomanifest
+backup_run "$GOOD" mongodb,mysql,checkpoints,spire,risk,pitr
 backup_run "$BROKEN" mongodb-only,mysql,checkpoints,spire-tar
-backup_run "$NOMANIFEST" mongodb,mysql,checkpoints,spire nomanifest
+backup_run "$NOMANIFEST" mongodb,mysql,checkpoints,spire,risk nomanifest
 # Binlog and oplog archives (backup-incremental-k8s.sh): one before GOOD
 # (never needed by it), two after.
 GOOD_EPOCH="$(stamp_epoch "$GOOD")"
@@ -162,6 +168,7 @@ manifests/manifest_${GOOD}.json.age
 mongodb/${GOOD}/mongodb-audit.archive.gz.age
 mongodb/${GOOD}/mongodb.archive.gz.age
 mysql/financial_scraper_${GOOD}.sql.gz.age
+risk/risk_${GOOD}.tar.gz.age
 spire/keys_${GOOD}.json.age"
 actual="$(cd "$DEST" 2>/dev/null && find . -type f | sed 's|^\./||' | sort)"
 if [ "$actual" = "$expected" ]; then
@@ -188,7 +195,7 @@ restore_lookup() {
 	)
 }
 layout=true
-for key in mongodb mongodb-audit mysql checkpoints spire; do
+for key in mongodb mongodb-audit mysql checkpoints spire risk; do
 	for ts in latest "$GOOD"; do
 		resolved="$(restore_lookup "$DEST" "$ts" "$key")" || resolved=""
 		case "$resolved" in
@@ -257,7 +264,7 @@ expected="$(printf '%s\n' "checkpoints/checkpoints_${GOOD}.tar.gz.age" \
 	"mongodb/${GOOD}/mongodb.archive.gz.age" "mongodb/${GOOD}/mongodb.pitr.age" \
 	"manifests/manifest_${GOOD}.json.age" \
 	"mysql/financial_scraper_${GOOD}.pitr.age" "mysql/financial_scraper_${GOOD}.sql.gz.age" \
-	"spire/keys_${GOOD}.json.age"; echo "$ARCHIVES_AFTER")"
+	"risk/risk_${GOOD}.tar.gz.age" "spire/keys_${GOOD}.json.age"; echo "$ARCHIVES_AFTER")"
 expected="$(sort <<<"$expected" | grep .)"
 if fetch --dest "$WORK/fetched-pitr" --pitr &&
 	[ "$(cd "$WORK/fetched-pitr" && find . -type f | sed 's|^\./||' | sort)" = "$expected" ] &&
@@ -278,8 +285,8 @@ fi
 
 echo "--dry-run"
 if fetch --dest "$WORK/fetched-dry" --dry-run && [ ! -e "$WORK/fetched-dry" ] &&
-	[ "$(grep -c "Would fetch" "$WORK/out")" = 6 ] && grep -q "$GOOD" "$WORK/out"; then
-	pass "lists the 6 files of ${GOOD} (manifest included) and copies nothing"
+	[ "$(grep -c "Would fetch" "$WORK/out")" = 7 ] && grep -q "$GOOD" "$WORK/out"; then
+	pass "lists the 7 files of ${GOOD} (manifest included) and copies nothing"
 else
 	failed "--dry-run: $(cat "$WORK/out")"
 fi
@@ -287,7 +294,7 @@ fi
 echo "--tier (BACKUP_OFFSITE_LAYOUT=tiered)"
 TIERED=2026-11-02_030000
 TIERED_EPOCH="$(stamp_epoch "$TIERED")"
-BACKUP_S3_BUCKET=s3://backups/tiered BACKUP_OFFSITE_LAYOUT=tiered backup_run "$TIERED" mongodb,mysql,checkpoints,spire,pitr
+BACKUP_S3_BUCKET=s3://backups/tiered BACKUP_OFFSITE_LAYOUT=tiered backup_run "$TIERED" mongodb,mysql,checkpoints,spire,risk,pitr
 # The incremental job (backup-incremental-cronjob.yaml) uploads tiered too:
 # its archives go under daily/ only, next to the dumps and .pitr files.
 BACKUP_DIR="$WORK/local/tiered-archives"
@@ -303,14 +310,14 @@ done <<<"$TIERED_ARCHIVES"
 BACKUP_FAILURES=0
 BACKUP_S3_BUCKET=s3://backups/tiered BACKUP_OFFSITE_LAYOUT=tiered upload_offsite 2>/dev/null
 long_tiers="$(cd "$WORK/s3/backups/tiered" && find weekly monthly -type f | sort)"
-if [ "$BACKUP_FAILURES" -eq 0 ] && ! grep -qE '\.pitr\.age$|/binlog/|/oplog/' <<<"$long_tiers" &&
+if [ "$BACKUP_FAILURES" -eq 0 ] && ! grep -qE '\.pitr\.age$|/binlog/|/oplog/|/mysql/' <<<"$long_tiers" &&
 	[ "$(grep -c . <<<"$long_tiers")" = 6 ]; then
-	pass "weekly/ and monthly/ hold the audit dump, the MySQL dump and the manifest only: no .pitr, no binlog / oplog archive"
+	pass "weekly/ and monthly/ hold the audit dump, the mysql-core dump and the manifest only: no full mysql, no .pitr, no binlog / oplog archive"
 else
 	failed "long tiers hold: $long_tiers"
 fi
 if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-tiered" &&
-	[ "$(find "$WORK/fetched-tiered" -type f | grep -c "$TIERED")" = 6 ] &&
+	[ "$(find "$WORK/fetched-tiered" -type f | grep -c "$TIERED")" = 7 ] &&
 	[ -f "$WORK/fetched-tiered/mysql/financial_scraper_${TIERED}.sql.gz.age" ]; then
 	pass "a tiered bucket is read from daily/ by default, in the layout restore-k8s.sh reads"
 else
@@ -323,10 +330,10 @@ if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-tiered-pitr"
 else
 	failed "--pitr on a tiered bucket: $(cd "$WORK/fetched-tiered-pitr" 2>/dev/null && find . -type f | sort) $(cat "$WORK/out")"
 fi
-if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-monthly" --tier monthly --components mysql &&
+if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-monthly" --tier monthly --components mysql-core &&
 	[ "$(cd "$WORK/fetched-monthly" && find . -type f | sed 's|^\./||' | sort)" = "manifests/manifest_${TIERED}.json.age
-mysql/financial_scraper_${TIERED}.sql.gz.age" ]; then
-	pass "--tier monthly --components mysql fetches the monthly MySQL dump and its manifest"
+mysql-core/financial_scraper_${TIERED}.sql.gz.age" ]; then
+	pass "--tier monthly --components mysql-core fetches the monthly MySQL dump and its manifest"
 else
 	failed "--tier monthly: $(cat "$WORK/out")"
 fi
@@ -339,11 +346,11 @@ mongodb/${TIERED}/mongodb-audit.archive.gz.age" ] &&
 else
 	failed "--tier monthly --components mongodb-audit: $(cat "$WORK/out")"
 fi
-if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-weekly-long" --tier weekly --components mongodb-audit,mysql &&
+if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-weekly-long" --tier weekly --components mongodb-audit,mysql-core &&
 	[ "$(find "$WORK/fetched-weekly-long" -type f | wc -l | tr -d ' ')" = 3 ]; then
-	pass "--tier weekly --components mongodb-audit,mysql fetches both long-term dumps"
+	pass "--tier weekly --components mongodb-audit,mysql-core fetches both long-term dumps"
 else
-	failed "--tier weekly --components mongodb-audit,mysql: $(cat "$WORK/out")"
+	failed "--tier weekly --components mongodb-audit,mysql-core: $(cat "$WORK/out")"
 fi
 if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-monthly-mongodb" --tier monthly --components mongodb; then
 	failed "the monthly tier gave the operational MongoDB, which is never promoted"
@@ -354,7 +361,7 @@ fi
 if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-monthly-all" --tier monthly; then
 	failed "the monthly tier gave a complete run for every component"
 else
-	grep -q "try --components mongodb-audit,mysql" "$WORK/out" && pass "exit 1 on the monthly tier for every component, suggesting --components mongodb-audit,mysql" || failed "monthly tier refusal: $(cat "$WORK/out")"
+	grep -q "try --components mongodb-audit,mysql-core" "$WORK/out" && pass "exit 1 on the monthly tier for every component, suggesting --components mongodb-audit,mysql-core" || failed "monthly tier refusal: $(cat "$WORK/out")"
 fi
 if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-monthly-pitr" --tier monthly --components mysql --pitr; then
 	failed "--pitr was accepted on the monthly tier, which holds no starting point"
@@ -445,6 +452,21 @@ if binlog_chain "$WORK/catchup-fetched/mysql/binlog/uuid-9" binlog.000001 2026-1
 else
 	failed "the chains fetched back from off-site have a gap"
 fi
+# Second bucket (BACKUP_S3_SECONDARY_*): same files, same layout, own metric;
+# an unreachable one fails the run without touching the primary copy.
+SECOND=s3://backups/second
+BACKUP_DIR="$WORK/local/catchup"
+BACKUP_FAILURES=0
+BACKUP_S3_BUCKET="$CATCHUP" BACKUP_S3_SECONDARY_BUCKET="$SECOND" BACKUP_S3_SECONDARY_ENDPOINT="$RCLONE_S3_ENDPOINT" 	BACKUP_S3_SECONDARY_ACCESS_KEY_ID=test BACKUP_S3_SECONDARY_SECRET_ACCESS_KEY=test-secret-key BACKUP_S3_SECONDARY_REGION=us-east-1 	upload_offsite >/dev/null 2>&1
+if [ "$BACKUP_FAILURES" -eq 0 ] &&
+	[ "$(cd "$WORK/s3/backups/second" && find . -type f | sort)" = "$(cd "$WORK/s3/backups/catchup" && find . -type f | sort)" ]; then
+	pass "second bucket receives the same files as the primary"
+else
+	failed "second bucket holds $(cd "$WORK/s3/backups/second" 2>/dev/null && find . -type f | sort)"
+fi
+BACKUP_FAILURES=0
+BACKUP_S3_BUCKET="$CATCHUP" BACKUP_S3_SECONDARY_BUCKET="$SECOND" BACKUP_S3_SECONDARY_ENDPOINT="http://127.0.0.1:1" 	RCLONE_LOW_LEVEL_RETRIES=1 RCLONE_RETRIES=1 RCLONE_CONTIMEOUT=2s upload_offsite >/dev/null 2>&1
+[ "$BACKUP_FAILURES" -gt 0 ] && pass "an unreachable second bucket counts as a failure" || failed "unreachable second bucket not reported"
 BACKUP_DIR="$WORK/local/archives"
 
 echo "refusals"

@@ -10,7 +10,7 @@ is described in [incident-response.md](incident-response.md#escalation-matrix).
 
 ## Responsibilities
 
-1. Respond to alerts as fast as possible (target 15 min L1, 1 hour L2, no guarantee outside working hours)
+1. Respond to alerts as fast as possible (target 15 min L1, 1 hour L2, no guarantee outside working hours: see [slo.md](slo.md#outside-working-hours))
 2. Acknowledge `critical` alerts in Pushover
 3. Triage following the matching runbook in `docs/operations/runbooks/`
 4. Keep the incident timeline updated
@@ -39,6 +39,8 @@ from inside its own container, with its SVID.
 | dlq-service       | `/health`       | `trading-dlq`       |
 | financial-scraper | `/health`       | `trading-scraper`   |
 | trader-trainer    | `/ping`         | `trading-trainer`   |
+| model-evaluator   | `/ping`         | `trading-model-evaluator` |
+| risk-execution    | `/ping`         | `trading-risk-execution` |
 
 ```bash
 # Kubernetes (<service> and <route> from the table)

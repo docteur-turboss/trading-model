@@ -26,9 +26,9 @@ export class MongoConnectionManager extends CommonMongoConnectionManager {
 			uri: env.MONGO_URI,
 			auth: mongoAuthFromEnv(env),
 			dbName: env.MONGO_DB,
-			collectionName: env.MONGO_COLLECTION,
 			minPoolSize: 2,
 			poolSize: 10,
+			maxRetries: Number.POSITIVE_INFINITY,
 		});
 		this._dlqCollectionName = env.MONGO_COLLECTION;
 	}

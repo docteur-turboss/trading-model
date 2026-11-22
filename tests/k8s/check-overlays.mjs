@@ -35,6 +35,10 @@
 //     kind of the application overlay is in deploy-identity/app-role.yaml (or,
 //     for the cluster-scope ones, cluster-role.yaml), every kind of the
 //     node-agents overlay in node-role.yaml or cluster-role.yaml
+//   - no bus user (BUS_USERS) of staging-local reaches the partitioned redis-0 (its ConfigMap
+//     sets BUS_TRANSPORT=http), unless in BUS_ON_PARTITIONED_REDIS (issue #1931)
+//   - mongo-dlq and mongo-audit run the same bootstrap script, which adds every
+//     pod to the replica set (issue #2197)
 // Usage: node tests/k8s/check-overlays.mjs   (needs kubectl)
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -51,6 +55,11 @@ const SINGLETONS = {
 // Data and observability StatefulSets of staging-local held by a partition (issue #700).
 const DATABASES = ["mysql", "redis", "redis-sentinel", "mongo-dlq", "mongo-audit"];
 const DATA_STATEFULSETS = [...DATABASES, "alertmanager", "grafana", "loki", "prometheus"];
+// Bus ACL users (redis-ha.sh) a partitioned redis-0 learns only when restarted (issue #1931).
+const BUS_USERS = ["audit-logger", "trader-trainer", "model-evaluator", "risk-execution"];
+// Bus users allowed on the sentinels in staging-local: those redis-0 knows after the
+// planned switch of docs/deployment/STAGING_LOCAL.md, "Bus switch".
+const BUS_ON_PARTITIONED_REDIS = new Set([]);
 // Bare names a database may mount: also applied by name outside kustomize (run-migrations.sh), read by the exporter sidecar only.
 const BARE_CONFIGMAPS = new Set(["mysql-client-tls"]);
 const IMAGE = /image: ghcr\.io\/trading-model\/([a-z0-9-]+)/g;
@@ -131,6 +140,7 @@ const CLUSTER_KINDS = new Set(["Namespace", "ClusterRole", "ClusterRoleBinding",
 const RESOURCES = {
 	ConfigMap: ["", "configmaps"], Secret: ["", "secrets"], Service: ["", "services"],
 	PersistentVolumeClaim: ["", "persistentvolumeclaims"], ServiceAccount: ["", "serviceaccounts"],
+	ResourceQuota: ["", "resourcequotas"], LimitRange: ["", "limitranges"],
 	Deployment: ["apps", "deployments"], StatefulSet: ["apps", "statefulsets"], DaemonSet: ["apps", "daemonsets"],
 	CronJob: ["batch", "cronjobs"], Job: ["batch", "jobs"],
 	Ingress: ["networking.k8s.io", "ingresses"], NetworkPolicy: ["networking.k8s.io", "networkpolicies"],
@@ -314,6 +324,13 @@ for (const env of OVERLAYS) {
 		if (!image.includes("@sha256:")) errors.push(`${env}: image ${image} is not pinned by digest`);
 	}
 
+	// SPIRE agents must not be newer than the server they talk to (upgrade guide): the node agents are applied before the server.
+	const spireMinor = (name) => rendered.match(new RegExp(`image: \\S*${name}:(\\d+)\\.(\\d+)`))?.slice(1).map(Number);
+	const [server, agent] = [spireMinor("spire-server"), spireMinor("spire-agent")];
+	if (server && agent && (agent[0] > server[0] || (agent[0] === server[0] && agent[1] > server[1]))) {
+		errors.push(`${env}: spire-agent ${agent.join(".")} is newer than spire-server ${server.join(".")} (agents move one release after the server)`);
+	}
+
 	for (const [dir, file, text] of [[`deploy/k8s/overlays/${env}`, "app-role.yaml", app], [`deploy/k8s/overlays/${env}/node-agents`, "node-role.yaml", nodeAgents]]) {
 		for (const kind of uncoveredKinds(documents(text), file)) {
 			errors.push(env + ": " + kind + " of " + dir + " is not covered by deploy/k8s/deploy-identity/" + file + " (or cluster-role.yaml): the deploy identity could not apply it");
@@ -334,6 +351,13 @@ for (const env of OVERLAYS) {
 
 	for (const error of singletonViolations(documents(rendered))) errors.push(`${env}: ${error}`);
 
+	// ADR-0064 §6: only the production overlay is the "production" deployment and may set live.
+	const risk = docs.find((d) => d.kind === "ConfigMap" && d.name?.startsWith("risk-execution-config"))?.text ?? "";
+	const riskValue = (key) => risk.match(new RegExp(`^ +${key}: "?([^"\n]+)"?$`, "m"))?.[1];
+	if (riskValue("EXECUTION_MODE") === "live" && env !== "production") errors.push(`${env}: risk-execution-config sets EXECUTION_MODE=live outside production (ADR-0064 §6)`);
+	if ((riskValue("DEPLOYMENT_ENV") === "production") !== (env === "production")) errors.push(`${env}: risk-execution-config DEPLOYMENT_ENV=${riskValue("DEPLOYMENT_ENV")}, only the production overlay may be production`);
+	if (env !== "production" && /BROKER_API_(KEY|SECRET)/.test(rendered)) errors.push(`${env}: live broker keys outside the production overlay (ADR-0064 §6)`);
+
 	// Issue #809 (ADR-0062): production runs the alerting path twice, Alertmanager as one cluster.
 	for (const name of ["alertmanager", "prometheus"]) {
 		const sts = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === name);
@@ -352,7 +376,9 @@ for (const env of OVERLAYS) {
 		}
 		if (name === "prometheus" && sts && env === "production") {
 			const config = docs.find((doc) => doc.kind === "ConfigMap" && doc.name?.startsWith("prometheus-config-"))?.text ?? "";
-			if (!sts.text.includes("--enable-feature=expand-external-labels")) errors.push("production: prometheus lacks --enable-feature=expand-external-labels, so the replica label stays a literal ${HOSTNAME} (ADR-0062)");
+			const promImage = (text) => text.match(/image: (prom\/prometheus:\S+)/)?.[1];
+			const composeImage = promImage(readFileSync("docker-compose.yml", "utf8"));
+			if (promImage(sts.text) !== composeImage) errors.push(`production: prometheus image differs from docker-compose.yml (${composeImage}): the alert rules would be tested on another version (#1892)`);
 			if (/\\n\s+--/.test(sts.text)) errors.push("prometheus: literal backslash-n inside the launch command (merges two flags on one line)");
 			if (!/external_labels:\s+replica: '\$\{HOSTNAME\}'/.test(config)) errors.push("production: prometheus external label replica: '${HOSTNAME}' missing (ADR-0062)");
 			if (!/alert_relabel_configs:\s+- action: labeldrop\s+regex: replica/.test(config)) errors.push("production: prometheus does not drop the replica label before sending alerts: both replicas' alerts would differ (ADR-0062)");
@@ -381,6 +407,25 @@ for (const env of OVERLAYS) {
 		}
 	}
 
+	// Issue #2197: every Mongo pod adds itself to the replica set, with one script for both sets.
+	const [dlqBoot, auditBoot] = ["mongo-dlq", "mongo-audit"].map(
+		(name) => docs.find((doc) => doc.kind === "StatefulSet" && doc.name === name)?.text.match(/^ +M="mongosh [\s\S]*?exec sleep infinity$/m)?.[0],
+	);
+	if (!dlqBoot?.includes("rs.add(process.env.SELF)") || dlqBoot !== auditBoot) {
+		errors.push(`${env}: the mongodb-bootstrap scripts of mongo-dlq and mongo-audit must be identical and rs.add each member (issue #2197)`);
+	}
+
+	const redisSts = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === "redis")?.text ?? "";
+	if (/^ {6}partition: [1-9]/m.test(redisSts)) {
+		for (const cm of docs.filter((doc) => doc.kind === "ConfigMap")) {
+			const user = cm.text.match(/^ +REDIS_USERNAME: "?([^"\n]+)"?$/m)?.[1];
+			const transport = cm.text.match(/^ +BUS_TRANSPORT: "?([^"\n]*)"?$/m)?.[1]?.trim();
+			if (BUS_USERS.includes(user) && transport !== "http" && !BUS_ON_PARTITIONED_REDIS.has(user)) {
+				errors.push(`${env}: ${cm.name} sends bus user ${user} to the partitioned redis, which lacks it until restarted: set BUS_TRANSPORT=http (issue #1931)`);
+			}
+		}
+	}
+
 	// Issue #917: a PDB demanding every pod of a fixed-replica workload blocks node drains.
 	if (env === "production") {
 		for (const pdb of docs.filter((doc) => doc.kind === "PodDisruptionBudget")) {
@@ -390,6 +435,12 @@ for (const env of OVERLAYS) {
 			const replicas = Number(workload?.text.match(/^ {2}replicas: (\d+)$/m)?.[1]);
 			if (min >= replicas) errors.push(`production: PodDisruptionBudget ${pdb.name} requires ${min} of ${replicas} pod(s) of ${workload.name}: node drains would block`);
 		}
+	}
+
+	// Issue #1634: every major of PUBLIC_ROUTES needs an Ingress path to the edge-proxy.
+	const majors = new Set(readFileSync("services/api-gateway/src/shared/public-routes.ts", "utf8").match(/"[A-Z]+ \/v\d+(?=\/)/g)?.map((route) => route.split("/")[1]));
+	for (const major of majors) {
+		if (!new RegExp(`^ +(?:- )?path: /${major}$`, "m").test(rendered)) errors.push(`${env}: PUBLIC_ROUTES serves /${major} but the api-gateway Ingress has no /${major} path`);
 	}
 
 	if (env.startsWith("staging")) {

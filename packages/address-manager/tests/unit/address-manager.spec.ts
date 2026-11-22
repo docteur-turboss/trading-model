@@ -75,7 +75,6 @@ const MOCK_TOKEN_MANAGER = (() => {
 			.fn<(...args: any[]) => any>()
 			.mockResolvedValue(undefined),
 		setToken: jest.fn<(...args: any[]) => any>(),
-		clearToken: jest.fn<(...args: any[]) => any>(),
 	};
 	return impl;
 })();
@@ -165,13 +164,6 @@ describe("AddressManager (main)", () => {
 		).resolves.toEqual({ host: "127.0.0.1", port: 3000 });
 	});
 
-	it("should get metrics", () => {
-		const am = new AddressManager(makeConfig());
-		const metrics = am.metricsCollector.getMetrics();
-		expect(metrics).toHaveProperty("memory");
-		expect(metrics).toHaveProperty("cpu");
-	});
-
 	it("should listen on express app", () => {
 		const am = new AddressManager(makeConfig());
 		const app = {
@@ -192,7 +184,28 @@ describe("AddressManager (main)", () => {
 		expect(MOCK_ADDRESS_MANAGER_CLIENT.unregisterService).toHaveBeenCalledTimes(
 			1
 		);
-		handle.stop();
+		await handle.stop();
+	});
+
+	it("should resolve stop only after the unregistration completes", async () => {
+		let release!: () => void;
+		MOCK_ADDRESS_MANAGER_CLIENT.unregisterService.mockReturnValueOnce(
+			new Promise<void>((resolve) => {
+				release = resolve;
+			})
+		);
+		const am = new AddressManager(makeConfig());
+		const handle = am.lifecycleManager.start();
+		await handle.ready;
+		let stopped = false;
+		const stopping = handle.stop().then(() => {
+			stopped = true;
+		});
+		await Promise.resolve();
+		expect(stopped).toBe(false);
+		release();
+		await stopping;
+		expect(stopped).toBe(true);
 	});
 
 	it("should return token from getToken", () => {

@@ -38,7 +38,6 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 		TLS_CERT_PATH: "/some/cert.pem",
 		TLS_CA_PATH: "/some/ca.pem",
 		INSTANCE_ID: "instance-1",
-		ENFORCE_MTLS_STRICT: true,
 		AUDIT_RETENTION_DAYS: 1827,
 		AUDIT_CHAIN_INTERVAL_MS: 900000,
 		AUDIT_ANCHOR_PREFIX: "audit-chain/",
@@ -68,6 +67,7 @@ const MOCK_AUDIT_REPOSITORY_INSTANCE = {
 	query: jest.fn<(...args: any[]) => any>(),
 	getStats: jest.fn<(...args: any[]) => any>(),
 	ensureIndexes: jest.fn<(...args: any[]) => any>(),
+	warmStats: jest.fn<(...args: any[]) => any>(),
 };
 
 jest.mock(
@@ -102,6 +102,7 @@ jest.mock("mongodb", () => ({
 }));
 
 const MOCK_BROKER_MESSAGE_INSTANCE = {
+	on: jest.fn<(...args: any[]) => any>(),
 	intents: jest.fn<(...args: any[]) => any>(),
 	stopMessageManager: jest.fn<(...args: any[]) => any>(),
 };
@@ -115,18 +116,11 @@ jest.mock("@trading-model/broker-message", () => {
 	};
 });
 
-jest.mock("@trading-model/contracts/market-events", () => ({
-	MarketEvent: {},
-}));
 jest.mock("@trading-model/contracts/audit-events", () => ({
 	AuditEvent: {},
 }));
 
 import { createBootstrap } from "@trading-model/http/bootstrap";
-import { AuditRepository } from "../../../src/adapters/outbound/persistence/audit-repository";
-import { dropRetiredCollections } from "../../../src/adapters/outbound/persistence/retired-collections";
-import { createServer } from "../../../src/application/server";
-import { BOOTSTRAP_ADDRESS_MANAGER } from "../../../src/config/address-manager";
 
 const MOCK_CREATE_BOOTSTRAP = createBootstrap as jest.Mock<
 	(...args: any[]) => any
@@ -146,73 +140,61 @@ describe("Audit Logger entry point (index.ts)", () => {
 		expect(capturedOptions.name).toBe("Audit Logger");
 	});
 
-	it("should handle onStop when all resources are null", async () => {
+	it("starts, then stops and releases every resource once", async () => {
+		expect(await capturedOptions.createServer()).toBe(MOCK_HTTP_SERVER);
+		capturedOptions.onStart();
+		await capturedOptions.onStop();
 		await capturedOptions.onStop();
 
-		expect(MOCK_ADDRESS_MANAGER.stop).not.toHaveBeenCalled();
-		expect(MOCK_MONGO_CLIENT.close).not.toHaveBeenCalled();
+		expect(
+			MOCK_BROKER_MESSAGE_INSTANCE.stopMessageManager
+		).toHaveBeenCalledTimes(1);
+		expect(MOCK_ADDRESS_MANAGER.stop).toHaveBeenCalledTimes(1);
+		expect(MOCK_MONGO_CLIENT.close).toHaveBeenCalledTimes(1);
 	});
 
-	describe("createServer callback", () => {
-		it("should create all resources and return server", async () => {
-			const server = await capturedOptions.createServer();
+	// The bus consumer (ADR-0073) records like POST /message: listeners registered before intents.
+	it("registers a recording listener per audited topic before subscribing", async () => {
+		const { on, intents } = MOCK_BROKER_MESSAGE_INSTANCE;
+		const [topic, listener] = on.mock.calls.find(
+			([name]) => name === "training.model.published"
+		) as [string, (payload: unknown, metadata: unknown) => Promise<void>];
+		expect(on.mock.invocationCallOrder[0]).toBeLessThan(
+			intents.mock.invocationCallOrder[0]
+		);
 
-			expect(MOCK_MONGO_CLIENT.connect).toHaveBeenCalledTimes(1);
-			expect(MOCK_MONGO_CLIENT.db).toHaveBeenCalledTimes(1);
-			expect(AuditRepository).toHaveBeenCalledWith(MOCK_DB);
-			expect(
-				MOCK_AUDIT_REPOSITORY_INSTANCE.ensureIndexes
-			).toHaveBeenCalledTimes(1);
-			expect(dropRetiredCollections).toHaveBeenCalledWith(MOCK_DB as never);
-			expect(createServer).toHaveBeenCalledWith(
-				MOCK_AUDIT_REPOSITORY_INSTANCE,
-				expect.anything(),
-				expect.any(Function)
-			);
-			expect(server).toBe(MOCK_HTTP_SERVER);
-		});
+		await listener({ id: 1 }, { topic, messageId: "m-bus" });
+
+		expect(MOCK_AUDIT_REPOSITORY_INSTANCE.insert).toHaveBeenCalledWith(
+			expect.objectContaining({
+				metadata: expect.objectContaining({ topic, messageId: "m-bus" }),
+				payload: { id: 1 },
+			})
+		);
 	});
 
-	describe("onStart callback", () => {
-		it("should bootstrap address manager and log service info", () => {
-			capturedOptions.onStart();
+	it("listens while MongoDB is down, answers 503, then serves once it is up", async () => {
+		const { createServer } = jest.requireMock(
+			"../../../src/application/server"
+		) as { createServer: jest.Mock<(...args: any[]) => any> };
+		MOCK_MONGO_CLIENT.connect.mockRejectedValueOnce(new Error("ECONNREFUSED"));
+		createServer.mockClear();
+		jest.useFakeTimers();
 
-			expect(BOOTSTRAP_ADDRESS_MANAGER).toHaveBeenCalledTimes(1);
-			expect(MOCK_CHAIN_AUDIT_SCHEDULER.start).toHaveBeenCalledTimes(1);
-			expect(MOCK_LOGGER.info).toHaveBeenNthCalledWith(
-				3,
-				"Audit Logger fully operational",
-				expect.objectContaining({
-					context: expect.objectContaining({
-						port: 3001,
-						mongoUri: "mongodb://localhost:27017/audit-logger",
-					}),
-				})
-			);
-		});
-	});
+		await capturedOptions.createServer();
+		const [repo, mongoManager, , isReady] = createServer.mock.calls[0];
+		expect(mongoManager.isConnected()).toBe(false);
+		expect(isReady()).toBe(false);
+		expect(() => repo.findById("m1")).toThrow(/not ready/);
 
-	describe("onStop callback", () => {
-		it("should stop the chain audit, broker, address manager and mongo client", async () => {
-			await capturedOptions.onStop();
-
-			expect(
-				MOCK_BROKER_MESSAGE_INSTANCE.stopMessageManager
-			).toHaveBeenCalledTimes(1);
-			expect(MOCK_CHAIN_AUDIT_SCHEDULER.stop).toHaveBeenCalledTimes(1);
-			expect(MOCK_ADDRESS_MANAGER.stop).toHaveBeenCalledTimes(1);
-			expect(MOCK_MONGO_CLIENT.close).toHaveBeenCalledTimes(1);
-		});
-
-		it("should handle onStop being idempotent", async () => {
-			const prevCallCount =
-				MOCK_BROKER_MESSAGE_INSTANCE.stopMessageManager.mock.calls.length;
-
-			await capturedOptions.onStop();
-
-			expect(
-				MOCK_BROKER_MESSAGE_INSTANCE.stopMessageManager
-			).toHaveBeenCalledTimes(prevCallCount);
-		});
+		await jest.advanceTimersByTimeAsync(3000);
+		jest.useRealTimers();
+		expect(mongoManager.isConnected()).toBe(true);
+		expect(isReady()).toBe(true);
+		expect(MOCK_AUDIT_REPOSITORY_INSTANCE.warmStats).toHaveBeenCalled();
+		repo.findById("m1");
+		expect(MOCK_AUDIT_REPOSITORY_INSTANCE.findById).toHaveBeenCalledWith("m1");
+		capturedOptions.onStart();
+		await capturedOptions.onStop();
 	});
 });

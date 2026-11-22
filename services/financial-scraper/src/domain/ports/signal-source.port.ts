@@ -1,4 +1,4 @@
-import type { Dimension } from "@trading-model/validation/wire/signals";
+import type { Dimension } from "@trading-model/contracts/wire/signals";
 import type { z } from "zod";
 import type { Source, SourceRequest } from "../signals";
 
@@ -19,6 +19,8 @@ export interface Observation {
 interface AdapterContext {
 	/** The request `params`, already checked against the adapter's `params` schema. */
 	params: Readonly<Record<string, string>>;
+	/** Collection time; absent in a backfill, which keeps the theoretical date (no better one exists). */
+	ingestedAt?: number;
 }
 
 /**

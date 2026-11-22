@@ -1,8 +1,7 @@
 export {
-	buildSpiffeId,
 	extractCanonicalServiceName,
 	isSpiffeId,
 	normalizeServiceName,
-	registryNamesFor,
+	parseSpiffeId,
 	serviceNameFromSpiffeId,
 } from "../config/workload-identity";

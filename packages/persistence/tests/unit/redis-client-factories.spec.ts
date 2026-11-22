@@ -18,8 +18,12 @@ jest.mock("ioredis", () => {
 
 		readonly listeners: Record<string, () => void> = {};
 
-		constructor(options?: Record<string, unknown>) {
-			MockRedis.lastOptions = options;
+		constructor(
+			options?: Record<string, unknown> | string,
+			urlOptions?: Record<string, unknown>
+		) {
+			MockRedis.lastOptions =
+				urlOptions ?? (options as Record<string, unknown>);
 		}
 
 		on(event: string, listener: () => void): this {
@@ -42,9 +46,9 @@ describe("BASE_RETRY_STRATEGY", () => {
 		expect(BASE_RETRY_STRATEGY(20)).toBe(4000);
 	});
 
-	it("should return null after 20 attempts", () => {
-		expect(BASE_RETRY_STRATEGY(21)).toBeNull();
-		expect(BASE_RETRY_STRATEGY(25)).toBeNull();
+	it("should never give up and cap the delay at 5 s", () => {
+		expect(BASE_RETRY_STRATEGY(21)).toBe(4200);
+		expect(BASE_RETRY_STRATEGY(1000)).toBe(5000);
 	});
 });
 
@@ -69,23 +73,37 @@ describe("createFromUrl", () => {
 	});
 
 	it("should merge extra options", () => {
-		const client = createFromUrl("redis://localhost:6379" as never, {
+		createFromUrl("redis://localhost:6379" as never, {
 			maxRetriesPerRequest: 3,
 		});
-		expect(client).toBeInstanceOf(Redis);
+		const options = (Redis as unknown as { lastOptions: Record<string, any> })
+			.lastOptions;
+		expect(options.maxRetriesPerRequest).toBe(3);
+	});
+});
+
+describe("command deadline", () => {
+	it.each([
+		["url", () => createFromUrl("redis://localhost:6379" as never)],
+		[
+			"sentinel",
+			() =>
+				createSentinel({
+					sentinels: [{ host: "127.0.0.1" as never, port: 26379 as never }],
+					name: "mymaster",
+				}),
+		],
+	])("should bound commands and retries in %s mode", (_mode, build) => {
+		build();
+		const options = (Redis as unknown as { lastOptions: Record<string, any> })
+			.lastOptions;
+		expect(options.connectTimeout).toBe(2000);
+		expect(options.commandTimeout).toBe(2000);
+		expect(options.maxRetriesPerRequest).toBe(5);
 	});
 });
 
 describe("createSentinel", () => {
-	it("should create a Redis client from sentinel config", () => {
-		const client = createSentinel({
-			sentinels: [{ host: "127.0.0.1" as never, port: 26379 as never }],
-			name: "mymaster",
-			password: "secret",
-		});
-		expect(client).toBeInstanceOf(Redis);
-	});
-
 	it("should retire the failover detector when the connection closes", () => {
 		const client = createSentinel({
 			sentinels: [{ host: "127.0.0.1" as never, port: 26379 as never }],

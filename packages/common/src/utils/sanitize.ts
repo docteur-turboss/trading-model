@@ -1,7 +1,24 @@
 import type { JsonObject } from "@trading-model/primitives/primitives";
 import { errorProp } from "./errors/base";
 
-const PEM_LINE_PATTERN = /-----BEGIN[^-]+-----[\s\S]*?-----END[^-]+-----/g;
+/** Linear scan: a lazy regex is O(n²) on many BEGIN markers without END. */
+function redactPem(text: string): string {
+	let out = "";
+	let pos = 0;
+	let begin = text.indexOf("-----BEGIN");
+	while (begin >= 0) {
+		const end = text.indexOf("-----END", begin);
+		const close = end < 0 ? -1 : text.indexOf("-----", end + 8);
+		if (close < 0) {
+			break;
+		}
+		out += `${text.slice(pos, begin)}[REDACTED PEM]`;
+		pos = close + 5;
+		begin = text.indexOf("-----BEGIN", pos);
+	}
+	return out + text.slice(pos);
+}
+
 const Visited = new WeakSet<object>();
 
 function _sanitizeError(err: Error): JsonObject {
@@ -19,14 +36,7 @@ function _sanitizeError(err: Error): JsonObject {
 	};
 }
 
-function _sanitizeObject(value: JsonObject): JsonObject {
-	const obj: JsonObject = {};
-	for (const [key, val] of Object.entries(value)) {
-		obj[key] = sanitizeForLog(val);
-	}
-	return obj;
-}
-
+/** Masks PEM in strings and flattens Errors; other values are returned as is (JSON.stringify recurses into them). */
 export function sanitizeForLog(value: unknown): unknown {
 	if (typeof value === "object" && value !== null) {
 		if (Visited.has(value)) {
@@ -34,19 +44,13 @@ export function sanitizeForLog(value: unknown): unknown {
 		}
 		Visited.add(value);
 		try {
-			if (value instanceof Error) {
-				return _sanitizeError(value);
-			}
-			if (Array.isArray(value)) {
-				return value.map((item) => sanitizeForLog(item));
-			}
-			return _sanitizeObject(value as JsonObject);
+			return value instanceof Error ? _sanitizeError(value) : value;
 		} finally {
 			Visited.delete(value);
 		}
 	}
 	if (typeof value === "string") {
-		return value.replace(PEM_LINE_PATTERN, "[REDACTED PEM]");
+		return redactPem(value);
 	}
 	return value;
 }

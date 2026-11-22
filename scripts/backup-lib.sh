@@ -20,6 +20,10 @@
 #    BACKUP_S3_BUCKET           s3://bucket/prefix; rclone reads the AWS_*
 #                               credentials, RCLONE_S3_ENDPOINT/PROVIDER for a
 #                               non-AWS store (MinIO, B2, Scaleway, OVH...)
+#    BACKUP_S3_SECONDARY_BUCKET optional second bucket at another provider: the
+#                               same files, metric component="offsite-secondary";
+#                               its own _ACCESS_KEY_ID, _SECRET_ACCESS_KEY,
+#                               _REGION, _ENDPOINT, _PROVIDER (ADR-0033)
 #    BACKUP_REQUIRE_OFFSITE     true: a run without off-site copy fails
 #                               (backup_last_status{component="offsite"} 0)
 #  Metrics: METRICS_FILE, rewritten atomically at the end of each run.
@@ -203,8 +207,10 @@ write_dump() {
 	fi
 	size="$(file_size "$file")"
 	record_output "$file"
-	MANIFEST_ENTRIES+=("$(printf '{"component":"%s","path":"%s","size":%s,"sha256":"%s"}' \
-		"$key" "${file#"${BACKUP_DIR}"/}" "$size" "$sum")")
+	# DUMP_ROWS (optional, set by the caller): JSON object of row counts at dump time.
+	MANIFEST_ENTRIES+=("$(printf '{"component":"%s","path":"%s","size":%s,"sha256":"%s"%s}' \
+		"$key" "${file#"${BACKUP_DIR}"/}" "$size" "$sum" "${DUMP_ROWS:+,\"rows\":$DUMP_ROWS}")")
+	DUMP_ROWS=""
 }
 
 # Writes this run's manifest (`manifests/manifest_<TIMESTAMP>.json`, sealed
@@ -260,7 +266,7 @@ manifests_newest_first() {
 }
 
 # One manifest entry line, as written by write_dump (trailing comma optional).
-MANIFEST_ENTRY_RE='^\{"component":"[^"]+","path":"[^"]+","size":[0-9]+,"sha256":"[0-9a-f]{64}"\},?$'
+MANIFEST_ENTRY_RE='^\{"component":"[^"]+","path":"[^"]+","size":[0-9]+,"sha256":"[0-9a-f]{64}"(,"rows":\{[^{}]*\})?\},?$'
 
 # Prints `<path> <size> <sha256>` of entry `$2` in manifest file `$1`
 # (nothing when the run has no such entry). Returns 1 when the manifest
@@ -287,7 +293,7 @@ manifest_entry() {
 		esac
 	done <<<"$body"
 	printf '%s\n' "$body" | sed -n \
-		's/^{"component":"'"$key"'","path":"\([^"]*\)","size":\([0-9]*\),"sha256":"\([0-9a-f]*\)"}.*$/\1 \2 \3/p' | head -1
+		's/^{"component":"'"$key"'","path":"\([^"]*\)","size":\([0-9]*\),"sha256":"\([0-9a-f]*\)"[,}].*$/\1 \2 \3/p' | head -1
 }
 
 # read_manifest_entry <key> <manifest>
@@ -544,6 +550,25 @@ write_pitr_gap() {
 	echo "backup_pitr_gap{component=\"$1\"${BACKUP_RUN:+,run=\"${BACKUP_RUN}\"}} $2" >>"$_METRICS_TMP"
 }
 
+# write_sealed_key_timestamp: epoch of the newest off-site
+# `sealed-secrets-key/sealed-secrets-key_<TS>.yaml.age` (0 when none, or when
+# the listing fails: rclone exits 3 on an absent prefix, other errors are an
+# unreadable bucket; both must alert, so a failure publishes 0). Dated by the name, never the mtime. Alert
+# SealedSecretsKeyBackupStale. Opt-in: BACKUP_SEALED_KEY_CHECK=true (the key
+# backup runs from GitHub Actions, outside this job).
+write_sealed_key_timestamp() {
+	[ "${BACKUP_SEALED_KEY_CHECK:-false}" = true ] || return 0
+	[ -n "${METRICS_FILE:-}" ] && [ -n "${BACKUP_S3_BUCKET:-}" ] && [ -n "$_METRICS_TMP" ] || return 0
+	local names="" stamp ts=0
+	if ! names="$(RCLONE_S3_ENV_AUTH=true rclone lsf --files-only "$(offsite_remote "${BACKUP_S3_BUCKET%/}/sealed-secrets-key")")"; then
+		warn "Cannot list sealed-secrets-key/ (absent prefix or no access): publishing 0"
+		names=""
+	fi
+	stamp="$(grep -E '^sealed-secrets-key_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}\.yaml\.age$' <<<"$names" | sort | tail -1 | sed -E 's/^sealed-secrets-key_([0-9-]+)_([0-9]{2})([0-9]{2})([0-9]{2})\..*/\1 \2:\3:\4/' || true)"
+	[ -z "$stamp" ] || ts="$(date -u -d "$stamp" +%s)"
+	echo "backup_sealed_secrets_key_timestamp ${ts}" >>"$_METRICS_TMP"
+}
+
 # write_volume_usage: used / capacity of the filesystem holding BACKUP_DIR as
 # backup_volume_used_ratio (alert BackupVolumeFilling). Measured by the job
 # itself: no dependency on kubelet_volume_stats_* being scraped. A failing df
@@ -602,18 +627,12 @@ offsite_remote() {
 	echo ":s3:${1#s3://}"
 }
 
-upload_offsite() {
-	local bucket="${BACKUP_S3_BUCKET:-}"
-	if [ -z "$bucket" ]; then
-		if [ "${BACKUP_REQUIRE_OFFSITE:-false}" = true ]; then
-			fail "BACKUP_REQUIRE_OFFSITE=true but BACKUP_S3_BUCKET is empty: the backups stay on a single volume"
-			write_metric "offsite" 0
-		fi
-		return 0
-	fi
+# Copies this run's files to bucket `$1`; its metric is component `$2`.
+_upload_offsite_to() {
+	local bucket="$1" component="$2"
 	if [ -z "$AGE_SUFFIX" ]; then
 		fail "Refusing to copy unencrypted backups off-site: set BACKUP_AGE_RECIPIENTS"
-		write_metric "offsite" 0
+		write_metric "$component" 0
 		return 0
 	fi
 	if [ "${#OUTPUTS[@]}" -eq 0 ]; then
@@ -622,7 +641,7 @@ upload_offsite() {
 	fi
 	if ! command -v rclone >/dev/null && ! command -v aws >/dev/null; then
 		fail "Neither rclone nor aws is installed: off-site copy skipped"
-		write_metric "offsite" 0
+		write_metric "$component" 0
 		return 0
 	fi
 	local layout="${BACKUP_OFFSITE_LAYOUT:-flat}" work file tier copied=true
@@ -649,7 +668,7 @@ upload_offsite() {
 		;;
 	*)
 		fail "BACKUP_OFFSITE_LAYOUT must be flat or tiered, not '${layout}': off-site copy skipped"
-		write_metric "offsite" 0
+		write_metric "$component" 0
 		rm -rf "$work"
 		return 0
 		;;
@@ -677,11 +696,38 @@ upload_offsite() {
 	rm -rf "$work"
 	if $copied; then
 		ok "Off-site copy complete"
-		write_metric "offsite" 1
+		write_metric "$component" 1
 	else
 		fail "Off-site copy failed"
-		write_metric "offsite" 0
+		write_metric "$component" 0
 	fi
+}
+
+upload_offsite() {
+	if [ -z "${BACKUP_S3_BUCKET:-}" ]; then
+		if [ "${BACKUP_REQUIRE_OFFSITE:-false}" = true ]; then
+			fail "BACKUP_REQUIRE_OFFSITE=true but BACKUP_S3_BUCKET is empty: the backups stay on a single volume"
+			write_metric "offsite" 0
+		fi
+		return 0
+	fi
+	_upload_offsite_to "$BACKUP_S3_BUCKET" offsite
+	[ -n "${BACKUP_S3_SECONDARY_BUCKET:-}" ] || return 0
+	# Optional second bucket at another provider (ADR-0033): its own credentials
+	# and endpoint, swapped in a subshell; a failure there is counted here.
+	(
+		export AWS_ACCESS_KEY_ID="${BACKUP_S3_SECONDARY_ACCESS_KEY_ID:-}" AWS_SECRET_ACCESS_KEY="${BACKUP_S3_SECONDARY_SECRET_ACCESS_KEY:-}"
+		export AWS_REGION="${BACKUP_S3_SECONDARY_REGION:-}" AWS_DEFAULT_REGION="${BACKUP_S3_SECONDARY_REGION:-}"
+		export RCLONE_S3_PROVIDER="${BACKUP_S3_SECONDARY_PROVIDER:-Other}"
+		if [ -n "${BACKUP_S3_SECONDARY_ENDPOINT:-}" ]; then
+			export RCLONE_S3_ENDPOINT="$BACKUP_S3_SECONDARY_ENDPOINT"
+		else
+			unset RCLONE_S3_ENDPOINT
+		fi
+		BACKUP_FAILURES=0
+		_upload_offsite_to "$BACKUP_S3_SECONDARY_BUCKET" offsite-secondary
+		exit "$BACKUP_FAILURES"
+	) || BACKUP_FAILURES=$((BACKUP_FAILURES + 1))
 }
 
 # Registers for the off-site copy every binlog and oplog archive still on the
@@ -715,7 +761,8 @@ record_incremental_archives() {
 #                             many months (default 0: none)
 #  RETENTION_LONG_COMPONENTS  components promoted to the weekly and monthly
 #                             tiers, locally and off-site (manifest keys,
-#                             default "mongodb-audit mysql")
+#                             default "mongodb-audit mysql-core": the full
+#                             `mysql` dump stays daily, ADR-0032)
 #  BACKUP_OFFSITE_LAYOUT      flat (default): `<bucket>/<path>`; tiered:
 #                             `<bucket>/daily/<path>` for every file, plus
 #                             `weekly/` and `monthly/` copies of the promoted
@@ -729,7 +776,7 @@ record_incremental_archives() {
 #  whatever its age. Ages come from the timestamp in the file name, never
 #  from the mtime (a copy or a fetch from the bucket changes the mtime).
 
-RETENTION_LONG_COMPONENTS="${RETENTION_LONG_COMPONENTS:-mongodb-audit mysql}"
+RETENTION_LONG_COMPONENTS="${RETENTION_LONG_COMPONENTS:-mongodb-audit mysql-core}"
 
 # awk program shared by gfs_plan and offsite_tiers. Input: paths relative to
 # BACKUP_DIR, one per line. Fills files[path] = TS, comp[path] = manifest key
@@ -979,6 +1026,15 @@ mongo_primary() {
 	return 1
 }
 
+# Shell snippet for `sh -c` in the DB container: writes the password of env var
+# $PWD_VAR to a mode-700 temp dir as `$d/c.yml` for `--config` (never argv),
+# removed on exit.
+MONGO_PWD_CFG=$(cat <<'EOF'
+d=$(mktemp -d); trap 'rm -rf "$d"' EXIT
+printf "password: '%s'\n" "$(printenv "$PWD_VAR" | sed "s/'/''/g")" > "$d/c.yml"
+EOF
+)
+
 # Runs MongoDB tool `$3...` (mongodump, mongorestore, mongosh) in pod `$2` as
 # MongoDB user `$1` (ADR-0067): `backup` (dumps, oplog reads) or `root`
 # (restores need every action). The password comes from the pod's own env
@@ -990,8 +1046,20 @@ mongo_tool() {
 	if [ "$user" = root ]; then var=MONGO_ROOT_PASSWORD; else var=MONGO_BACKUP_PASSWORD; fi
 	local flags=()
 	[ "${MONGO_TOOL_STDIN:-false}" = true ] && flags+=(-i)
+	# mongosh: the password is read from the pod env inside --eval ($4), never in argv
+	if [ "$1" = mongosh ]; then
+		kubectl_exec ${flags[@]+"${flags[@]}"} "${pod}" -c mongodb -- mongosh --quiet \
+			--eval "db.getSiblingDB('admin').auth('$user', process.env.$var); $4"
+		return
+	fi
 	kubectl_exec ${flags[@]+"${flags[@]}"} "${pod}" -c mongodb -- sh -c \
+<<<<<<< HEAD
 		'u=$1; v=$2; shift 2; exec "$@" --tls --tlsCAFile /keyfile/ca.crt --username "$u" --password "$(printenv "$v")" --authenticationDatabase admin' sh "$user" "$var" "$@"
+=======
+		"PWD_VAR=\$2; $MONGO_PWD_CFG"'
+u=$1; shift 2
+"$@" --config "$d/c.yml" --username "$u" --authenticationDatabase admin' sh "$user" "$var" "$@"
+>>>>>>> origin/development
 }
 
 # Oplog point (`seconds.increment`) of the newest (`-1`) or oldest (`1`)
@@ -1029,6 +1097,38 @@ mysql_root_sh() {
 # `mysql` schema is left out: it cannot be restored over a running server.
 # No GTID statement: the restore must go through the binlog to the replicas.
 MYSQL_DUMP_SH="dbs=\$(mysql --user=root -N -e \"SELECT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ('mysql', 'sys', 'information_schema', 'performance_schema')\") && exec mysqldump --user=root --databases \$dbs --single-transaction --quick --routines --events --set-gtid-purged=OFF"
+
+# Tables left out of the `mysql-core` dump, the only MySQL dump promoted to
+# the weekly and monthly tiers (ADR-0032): re-downloadable from Binance
+# (trades, candles) or kept 180 days in the database anyway (order books,
+# ADR-0053). Only the full daily `mysql` dump holds their rows; the core dump
+# ends with their structure (no rows, no DROP), so that a restore into an
+# empty instance matches `_migrations` and never touches live rows.
+MYSQL_CORE_EXCLUDED_TABLES="financial_scraper.market_trades financial_scraper.market_candles financial_scraper.market_order_books"
+# shellcheck disable=SC2086 # one --ignore-table per table
+MYSQL_CORE_DUMP_SH="${MYSQL_DUMP_SH/exec /}$(printf ' --ignore-table=%s' $MYSQL_CORE_EXCLUDED_TABLES) && echo 'USE \`financial_scraper\`;' && exec mysqldump --user=root --no-data --skip-add-drop-table --set-gtid-purged=OFF financial_scraper ${MYSQL_CORE_EXCLUDED_TABLES//financial_scraper./}"
+
+# Filter of the core dump: CREATE TABLE IF NOT EXISTS, so the structure of an
+# excluded table never fails on a live one (kept tables are dropped first).
+mysql_core_if_not_exists() {
+	sed 's/^CREATE TABLE `/CREATE TABLE IF NOT EXISTS `/'
+}
+
+# backup_mysql_core <command...>
+# Writes `mysql-core/financial_scraper_<TS>.sql.gz` from the gzipped dump
+# <command> prints (MYSQL_CORE_DUMP_SH through mysql_core_if_not_exists) and
+# records its metric.
+backup_mysql_core() {
+	local file="${BACKUP_DIR}/mysql-core/financial_scraper_${TIMESTAMP}.sql.gz${AGE_SUFFIX}"
+	mkdir -p "${BACKUP_DIR}/mysql-core"
+	if write_dump mysql-core "$file" "$@"; then
+		ok "MySQL core backup complete (without ${MYSQL_CORE_EXCLUDED_TABLES}): ${file}"
+		write_metric "mysql-core" 1
+	else
+		fail "MySQL core backup failed"
+		write_metric "mysql-core" 0
+	fi
+}
 
 # --- Point-in-time recovery (ADR-0031) --------------------------------------
 #

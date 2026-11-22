@@ -7,11 +7,14 @@ import {
 	trace,
 } from "@opentelemetry/api";
 import type { Message } from "@trading-model/contracts/message-types";
+import { DurationMs } from "@trading-model/primitives/primitives";
+import * as backoff from "../../../src/bus/backoff";
 import { BusConsumer } from "../../../src/bus/consumer";
 import { DeadStreams } from "../../../src/bus/dead-streams";
 import {
 	MESSAGES_DELIVERED_TOTAL,
 	MESSAGES_DLQ_TOTAL,
+	PUBLISHER_REJECTED_TOTAL,
 } from "../../../src/bus/metrics";
 import { publishToBus } from "../../../src/bus/publisher";
 import { RedisMessageJournal } from "../../../src/bus/redis-journal";
@@ -77,7 +80,7 @@ describe("publishToBus", () => {
 
 describe("BusConsumer", () => {
 	function consumer(
-		handle: (message: Message) => Promise<void>,
+		handle: (message: Message, signal: AbortSignal) => Promise<void>,
 		parts = bus(),
 		onDeadLetter = jest.fn()
 	) {
@@ -113,6 +116,58 @@ describe("BusConsumer", () => {
 
 		expect(handled).toEqual(["a"]);
 		expect(pendingOf(redis)).toBe(0);
+	});
+
+	it("should reject and count a message published under a name the topic does not allow", async () => {
+		const handled: unknown[] = [];
+		const rejected = jest.spyOn(PUBLISHER_REJECTED_TOTAL, "inc");
+		const topic = "training.model.published";
+		const parts = bus();
+		const {
+			consumer: c,
+			journal,
+			redis,
+		} = consumer(async (m) => {
+			handled.push(m.payload);
+		}, parts);
+		await c.start([topic]);
+		await publishToBus(journal, "forged", {
+			...METADATA,
+			topic,
+			publisher: { ...METADATA.publisher, serviceName: "financial-scraper" },
+		} as never);
+		await until(() => rejected.mock.calls.length === 1);
+		await c.stop();
+
+		expect(handled).toEqual([]);
+		expect(rejected.mock.calls[0]?.[0]).toEqual({
+			topic,
+			publisher: "financial-scraper",
+		});
+		expect(
+			redis.streams.get(`p:journal:${topic}`)?.groups.get(GROUP.service)
+				?.pending.size
+		).toBe(0);
+		rejected.mockRestore();
+	});
+
+	it("should deliver a dlq.entry.added entry published by message-manager", async () => {
+		const handled: unknown[] = [];
+		const topic = "dlq.entry.added";
+		const parts = bus();
+		const { consumer: c, journal } = consumer(async (m) => {
+			handled.push(m.payload);
+		}, parts);
+		await c.start([topic]);
+		await publishToBus(journal, "dead", {
+			...METADATA,
+			topic,
+			publisher: { ...METADATA.publisher, serviceName: "message-manager" },
+		} as never);
+		await until(() => handled.length === 1);
+		await c.stop();
+
+		expect(handled).toEqual(["dead"]);
 	});
 
 	it("should run the handler in the publisher trace and count the delivery", async () => {
@@ -240,6 +295,66 @@ describe("BusConsumer", () => {
 		expect(await streams.length(TOPIC)).toBe(0);
 	});
 
+	it("should abandon a handler that never ends and leave its entry pending", async () => {
+		jest.replaceProperty(backoff, "HANDLER_TIMEOUT_MS", DurationMs.of(50));
+		jest.replaceProperty(backoff, "ABORT_GRACE_MS", DurationMs.of(50));
+		let signal: AbortSignal | undefined;
+		const {
+			consumer: c,
+			journal,
+			redis,
+		} = consumer((_message, s) => {
+			signal = s;
+			return new Promise(() => {});
+		});
+		await c.start([TOPIC]);
+		await publishToBus(journal, "a", METADATA);
+		await new Promise((resolve) => setTimeout(resolve, 300));
+		await c.stop();
+
+		expect(signal?.aborted).toBe(true);
+		expect(pendingOf(redis)).toBe(1);
+		expect(
+			(await MESSAGES_DELIVERED_TOTAL.get()).values.some(
+				(v) => v.labels.status === "failed" && v.value >= 1
+			)
+		).toBe(true);
+	});
+
+	it.each([
+		[
+			"holds the slot for the whole grace while the handler runs on",
+			false,
+			450,
+		],
+		["frees the slot as soon as the aborted handler returns", true, 0],
+	])("should %s", async (_name, returnsOnAbort, minStopMs) => {
+		jest.replaceProperty(backoff, "HANDLER_TIMEOUT_MS", DurationMs.of(50));
+		jest.replaceProperty(backoff, "ABORT_GRACE_MS", DurationMs.of(500));
+		let signal: AbortSignal | undefined;
+		const { consumer: c, journal } = consumer((_message, s) => {
+			signal = s;
+			return new Promise<void>((resolve) => {
+				if (returnsOnAbort) {
+					s?.addEventListener("abort", () => resolve());
+				}
+			});
+		});
+		await c.start([TOPIC]);
+		await publishToBus(journal, "a", METADATA);
+		await until(() => signal?.aborted === true);
+		const startedAt = Date.now();
+		await c.stop();
+		const waited = Date.now() - startedAt;
+
+		// stop() waits for the in-flight slots: still taken during the grace, free once the handler returned.
+		if (returnsOnAbort) {
+			expect(waited).toBeLessThan(300);
+		} else {
+			expect(waited).toBeGreaterThanOrEqual(minStopMs - 50);
+		}
+	});
+
 	it("should dead-letter a rejected message and report it", async () => {
 		MESSAGES_DLQ_TOTAL.reset();
 		const {
@@ -274,6 +389,32 @@ describe("BusConsumer", () => {
 			dead?.id
 		);
 		expect(pendingOf(redis)).toBe(0);
+	});
+
+	it("should drop a non-JSON entry, dead-letter one without publisher and still handle the valid one", async () => {
+		const handled: unknown[] = [];
+		const parts = bus();
+		const {
+			consumer: c,
+			journal,
+			redis,
+			streams,
+		} = consumer(async (m) => {
+			handled.push(m.payload);
+		}, parts);
+		await c.start([TOPIC]);
+		await redis.call("XADD", journal.stream(TOPIC), "*", "message", "not-json");
+		await redis.call("XADD", journal.stream(TOPIC), "*", "message", "{}");
+		await publishToBus(journal, "ok", METADATA);
+		await until(() => handled.length === 1 && pendingOf(redis) === 0);
+		await c.stop();
+
+		expect(handled).toEqual(["ok"]);
+		expect(await streams.list(TOPIC)).toEqual([
+			expect.objectContaining({
+				reason: expect.stringContaining("publisher.serviceName"),
+			}),
+		]);
 	});
 
 	it("should dead-letter on the last allowed attempt, counting deliveries of the pending list", async () => {

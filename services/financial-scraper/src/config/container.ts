@@ -1,6 +1,7 @@
 import { sleep } from "@trading-model/common/utils/sleep";
 import { logger } from "@trading-model/http/logger";
 import { TradingSymbol } from "@trading-model/primitives/primitives";
+import type { LeaseApi } from "@trading-model/reliability/kubernetes-lease";
 import {
 	type LeaderJob,
 	Leadership,
@@ -8,7 +9,10 @@ import {
 } from "@trading-model/reliability/leadership";
 import { z } from "zod";
 import { SignalCronScheduler } from "../adapters/inbound/cron/signal.cron";
-import { insertCandles } from "../adapters/outbound/persistence/schema/candles.schema";
+import {
+	insertCandles,
+	lastCandleOpenTime,
+} from "../adapters/outbound/persistence/schema/candles.schema";
 import { insertOrderBook } from "../adapters/outbound/persistence/schema/order-book.schema";
 import { insertTicker } from "../adapters/outbound/persistence/schema/ticker24h.schema";
 import { insertTrades } from "../adapters/outbound/persistence/schema/trades.schema";
@@ -22,10 +26,16 @@ import {
 	SignalCollector,
 	zeroCollectionFailures,
 } from "../application/signal-collector";
+import type { QuarantineStore } from "../application/source-quarantine";
 import type { WorkerOrchestratorDeps } from "../application/worker-orchestrator";
 import type { Source } from "../domain/signals";
 import { COLLECTOR_LEADER, SIGNAL_SOURCE_DISABLED } from "./metrics";
 import { SIGNAL_REGISTRY } from "./signal-registry";
+
+/** Annotation of the collector Lease holding the Binance ban deadline. */
+const QUARANTINE_ANNOTATION = "trading-model/source-quarantine";
+
+const QUARANTINE_RESTORE_RETRY_MS = 2000;
 
 /** Market data persistence use case backed by the MySQL repository. */
 export const MarketDataController = createMarketDataController({
@@ -36,25 +46,19 @@ export const MarketDataController = createMarketDataController({
 });
 
 /**
- * Wires the scrape cycle: market data source, broker publisher, persistence
- * and the publish backlog (both MySQL).
- * Lazy: the source and the broker client are only needed on the collector.
+ * Wires the scrape cycle: market data source and MySQL persistence.
+ * Lazy: the source is only needed on the collector.
  */
-async function createWorkerOrchestratorDeps(): Promise<WorkerOrchestratorDeps> {
-	const [
-		{ BinanceMarketDataSource },
-		{ BrokerMarketDataPublisher },
-		{ MySqlCandlePublishBacklog },
-	] = await Promise.all([
-		import("../adapters/outbound/binance/binance-market-data-source.js"),
-		import("../adapters/outbound/broker/broker-market-data.publisher.js"),
-		import("../adapters/outbound/persistence/candle-publish-backlog.js"),
-	]);
+async function createWorkerOrchestratorDeps(
+	store?: QuarantineStore
+): Promise<WorkerOrchestratorDeps & { source: { restore(): Promise<void> } }> {
+	const { BinanceMarketDataSource } = await import(
+		"../adapters/outbound/binance/binance-market-data-source.js"
+	);
 	return {
-		source: new BinanceMarketDataSource(),
-		publisher: new BrokerMarketDataPublisher(),
+		source: new BinanceMarketDataSource(store),
 		persist: (snapshot) => MarketDataController.persist(snapshot),
-		backlog: MySqlCandlePublishBacklog,
+		lastCandleOpenTime,
 	};
 }
 
@@ -72,7 +76,8 @@ export interface ScrapeSchedulerSettings {
  * Lazy: the cron pulls in node-cron and the worker pipeline only when needed.
  */
 export async function createScrapeScheduler(
-	settings: ScrapeSchedulerSettings
+	settings: ScrapeSchedulerSettings,
+	store?: QuarantineStore
 ): Promise<LeaderJob | null> {
 	if (!settings.SCRAPE_SCHEDULER_ENABLED) {
 		logger.info(
@@ -93,13 +98,44 @@ export async function createScrapeScheduler(
 	});
 	const [{ ScrapeCronOrchestrator }, deps] = await Promise.all([
 		import("../adapters/inbound/cron/scrape.cron.js"),
-		createWorkerOrchestratorDeps(),
+		createWorkerOrchestratorDeps(store),
 	]);
-	return new ScrapeCronOrchestrator({
+	const cron = new ScrapeCronOrchestrator({
 		schedule: settings.SCRAPE_INTERVAL,
 		symbols,
 		deps,
 	});
+	if (!store) {
+		return cron;
+	}
+	// The cron starts only once the ban deadline is read back: a cycle before
+	// that would call Binance during a ban. A failed read is retried, never skipped.
+	let stopped = false;
+	return {
+		start: () => {
+			stopped = false;
+			void (async () => {
+				while (!stopped) {
+					try {
+						await deps.source.restore();
+						break;
+					} catch (error) {
+						logger.error("Binance quarantine not restored, retrying", {
+							error,
+						});
+						await sleep(QUARANTINE_RESTORE_RETRY_MS);
+					}
+				}
+				if (!stopped) {
+					cron.start();
+				}
+			})();
+		},
+		stop: () => {
+			stopped = true;
+			return cron.stop();
+		},
+	};
 }
 
 export interface SignalSchedulerSettings {
@@ -108,6 +144,9 @@ export interface SignalSchedulerSettings {
 	SIGNAL_COLLECTION_ENABLED: boolean;
 	/** Empty: no contact in the User-Agent (SEC EDGAR then answers 403). */
 	SIGNAL_CONTACT_EMAIL: string;
+	/** Comma-separated ids of non-commercial sources the operator accepted (ADR-0075). */
+	SIGNAL_NON_COMMERCIAL_ACCEPTED: string;
+	NODE_ENV: string;
 }
 
 /** How the signal sources see the platform. */
@@ -181,7 +220,11 @@ export function createSignalScheduler(
 		now: Date.now,
 		sleep,
 	});
-	recordSourceTerms(SIGNAL_REGISTRY.sources);
+	recordSourceTerms(SIGNAL_REGISTRY.sources, {
+		active: sources,
+		accepted: settings.SIGNAL_NON_COMMERCIAL_ACCEPTED,
+		production: settings.NODE_ENV === "production",
+	});
 	zeroCollectionFailures(sources);
 	restoreFreshness(sources, MySqlSignalStore, Date.now()).catch((err) =>
 		logger.error("Signal freshness gauges not restored from MySQL", {
@@ -208,8 +251,24 @@ export interface CollectorSettings
 export async function createCollector(
 	settings: CollectorSettings
 ): Promise<Leadership | null> {
+	if (!settings.SCRAPE_SCHEDULER_ENABLED) {
+		return null; // no lease is read on an HTTP-only replica
+	}
+	let leaseApi: LeaseApi | undefined;
+	let store: QuarantineStore | undefined;
+	if (settings.COLLECTOR_LEASE_NAME) {
+		const { kubernetesLeaseApi, leaseAnnotation } = await import(
+			"@trading-model/reliability/kubernetes-lease"
+		);
+		leaseApi = kubernetesLeaseApi(settings.COLLECTOR_LEASE_NAME);
+		const annotation = leaseAnnotation(leaseApi, QUARANTINE_ANNOTATION);
+		store = {
+			load: async () => JSON.parse((await annotation.get()) ?? "{}"),
+			save: (until) => annotation.set(JSON.stringify(until)),
+		};
+	}
 	const schedulers = [
-		await createScrapeScheduler(settings),
+		await createScrapeScheduler(settings, store),
 		createSignalScheduler(settings),
 	].filter((scheduler) => scheduler !== null);
 	if (schedulers.length === 0) {
@@ -225,26 +284,19 @@ export async function createCollector(
 			await Promise.all(schedulers.map((scheduler) => scheduler.stop()));
 		},
 	};
-	if (!settings.COLLECTOR_LEASE_NAME) {
-		return new Leadership(
-			SOLE_INSTANCE_LEASE,
-			collection,
-			(leader) => COLLECTOR_LEADER.set(leader),
-			"Collector"
+	let lease: ConstructorParameters<typeof Leadership>[0] = SOLE_INSTANCE_LEASE;
+	if (settings.COLLECTOR_LEASE_NAME) {
+		logger.info("Collector leader election enabled", {
+			lease: settings.COLLECTOR_LEASE_NAME,
+			identity: settings.INSTANCE_ID,
+		});
+		const { KubernetesLease } = await import(
+			"@trading-model/reliability/kubernetes-lease"
 		);
+		lease = new KubernetesLease(settings.INSTANCE_ID, leaseApi as LeaseApi);
 	}
-	logger.info("Collector leader election enabled", {
-		lease: settings.COLLECTOR_LEASE_NAME,
-		identity: settings.INSTANCE_ID,
-	});
-	const { KubernetesLease, kubernetesLeaseApi } = await import(
-		"@trading-model/reliability/kubernetes-lease"
-	);
 	return new Leadership(
-		new KubernetesLease(
-			settings.INSTANCE_ID,
-			kubernetesLeaseApi(settings.COLLECTOR_LEASE_NAME)
-		),
+		lease,
 		collection,
 		(leader) => COLLECTOR_LEADER.set(leader),
 		"Collector"

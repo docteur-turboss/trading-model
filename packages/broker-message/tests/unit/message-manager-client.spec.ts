@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { PUBLISH_ACCEPT_TIMEOUT_MS } from "@trading-model/contracts/publish-timeout";
 import { logger } from "@trading-model/http/logger";
+import { ServiceId } from "@trading-model/primitives/primitives";
 import { MessageManagerClient } from "../../src/message-manager-client";
 
 describe("MessageManagerClient", () => {
@@ -40,16 +41,16 @@ describe("MessageManagerClient", () => {
 			addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
 			httpClient.post.mockResolvedValue(undefined);
 
-			await client.subscribe(["market.candlestick.series.fetch"]);
+			await client.subscribe(["training.model.published"]);
 
 			expect(addressManagerClient.findService).toHaveBeenCalled();
 			expect(httpClient.post).toHaveBeenCalledWith(
 				"https://192.168.1.100:3001/subscribe",
 				expect.objectContaining({
-					topic: "market.candlestick.series.fetch",
+					topic: "training.model.published",
 					callbackPath: mockConfig.callbackPath,
 				}),
-				{ idempotent: true }
+				{ idempotent: true, serviceName: ServiceId.of("message-manager") }
 			);
 		});
 
@@ -58,8 +59,8 @@ describe("MessageManagerClient", () => {
 			httpClient.post.mockResolvedValue(undefined);
 
 			await client.subscribe([
-				"market.candlestick.series.fetch",
-				"market.trade.recent.fetch",
+				"training.model.published",
+				"training.model.published",
 			]);
 
 			expect(httpClient.post).toHaveBeenCalledTimes(2);
@@ -70,7 +71,7 @@ describe("MessageManagerClient", () => {
 			httpClient.post.mockRejectedValue(new Error("Network error"));
 
 			await expect(
-				client.subscribe(["market.candlestick.series.fetch"])
+				client.subscribe(["training.model.published"])
 			).rejects.toThrow("Failed to subscribe topic to Message Manager");
 		});
 
@@ -80,7 +81,7 @@ describe("MessageManagerClient", () => {
 			);
 
 			await expect(
-				client.subscribe(["market.candlestick.series.fetch"])
+				client.subscribe(["training.model.published"])
 			).rejects.toThrow(Error);
 		});
 	});
@@ -90,7 +91,7 @@ describe("MessageManagerClient", () => {
 			addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
 			httpClient.delete.mockResolvedValue(undefined);
 
-			await client.unsubscribe(["market.candlestick.series.fetch"]);
+			await client.unsubscribe(["training.model.published"]);
 
 			expect(httpClient.delete).toHaveBeenCalled();
 		});
@@ -121,7 +122,7 @@ describe("MessageManagerClient", () => {
 					.mockImplementation(() => undefined);
 
 				await expect(
-					client.unsubscribe(["market.candlestick.series.fetch"])
+					client.unsubscribe(["training.model.published"])
 				).resolves.toBeUndefined();
 				expect(warn).toHaveBeenCalledWith(
 					"Failed to unsubscribe topics from Message Manager",
@@ -152,7 +153,10 @@ describe("MessageManagerClient", () => {
 					metadata,
 				},
 				// Never re-sent once it left.
-				{ timeoutMs: PUBLISH_ACCEPT_TIMEOUT_MS + 5_000 }
+				{
+					timeoutMs: PUBLISH_ACCEPT_TIMEOUT_MS + 5_000,
+					serviceName: ServiceId.of("message-manager"),
+				}
 			);
 		});
 

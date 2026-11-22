@@ -12,7 +12,7 @@ Used by `financial-scraper` to persist market data. All tables live in the `fina
 | `market_trades` | Individual trade data | symbol, trade_id, price, quantity, side, timestamp |
 | `market_tickers` | 24-hour ticker statistics | symbol, open/high/low/last, volume, timestamp |
 | `market_order_books` | Order book depth snapshots, kept for historical replay, never served by the API (ADR-0053) | symbol, market, source, timestamp, bids / asks (JSON `[price, quantity]` pairs, best first) |
-| `market_publish_cursors` | Per candle series, open time of the next candle to publish to the bus (the persisted candles from it wait for message-manager) | source, symbol, interval, market, published_until |
+| `market_publish_cursors` | Unused since release N (the scraper no longer publishes candles); dropped in N+1 (ADR-0040) | source, symbol, interval, market, published_until |
 | `signals` | Signals of every dimension from the source registry (ADR-0036): one observation about an asset or a sector | id, source_id, dimension, asset_id / sector, observed_at, ingested_at, confidence_score, payload (JSON, canonical per dimension) |
 
 Full DDL, column specs, and TypeScript interfaces: [Table Schemas Reference](../reference/table-schemas.md).
@@ -44,7 +44,7 @@ Redis and Sentinel TLS (K8s, issue #930): listeners on 6380 / 26380 from release
 
 > SPIRE Server (ADR-0011) keeps its datastore in SQLite on its own volume (`spire-server-data`, ADR-0065), not in MySQL: losing `mysql-0` stops market data ingestion only, SVIDs keep being issued. The `spire` database of the releases before ADR-0065 stays in MySQL, read by nothing but a rollback of the SPIRE server; it goes with the contract step.
 
-Network access (K8s, issue #747): ports 3306 / 33061 of MySQL accept only `financial-scraper`, `financial-scraper-collector`, `spire-server` (only for a rollback to a release before ADR-0065), the Jobs `db-migrate`, `db-migrate-down`, `db-migrate-user`, the `retention` CronJob and the `mysql` members; Redis ports 6379 / 26379 accept only `discovery-server`, `message-manager`, `dlq-service`, `audit-logger`, `financial-scraper`, `trader-trainer` (the last three only read Redis while a rollback to N-1 is possible) and the Redis pods. Backups go through `kubectl exec`. A new client is a label in `mysql-network-policy` / `redis-network-policy`, checked on kind by `verify_db_ingress`.
+Network access (K8s, issue #747): ports 3306 / 33061 of MySQL accept only `financial-scraper`, `financial-scraper-collector`, `spire-server` (only for a rollback to a release before ADR-0065), the Jobs `db-migrate`, `db-migrate-down`, `db-migrate-user`, the `retention` CronJob and the `mysql` members; Redis ports 6379 / 26379 accept only `discovery-server`, `message-manager`, `dlq-service`, the bus services `audit-logger`, `trader-trainer`, `model-evaluator` (ADR-0073) and the Redis pods. Backups go through `kubectl exec`. A new client is a label in `mysql-network-policy` / `redis-network-policy`, checked on kind by `verify_db_ingress`.
 
 MySQL client TLS (K8s, issue #767): server certificate from cert-manager, clients verify the host name; `require_secure_transport=ON`, and each user (`root`, `scraper`, `migrator`, `retention`, `exporter`) is bound to its own cert-manager client certificate (`REQUIRE ISSUER / SUBJECT`) (`docs/deployment/MYSQL_TLS.md`).
 
@@ -54,10 +54,10 @@ Inventory (issue #506). Address-manager caches in memory per process, so only th
 
 | Service | Key prefix | Commands | Purpose |
 | ------- | ---------- | -------- | ------- |
-| discovery-server | `trading-model:discovery:*` | `GET SET DEL MGET SADD SREM SMEMBERS SISMEMBER SCARD MULTI EVAL` | Instance registry and tokens (ADR-0023) |
+| discovery-server | `trading-model:discovery:*` | `GET SET DEL MGET SADD SREM SMEMBERS SISMEMBER SCARD MULTI EVAL` | Instance registry and tokens (ADR-0023; being retired by ADR-0072) |
 | message-manager | `trading-model:message-manager:subscriptions:<topic>` | `HSET HGETALL HDEL PEXPIRE` | Broker subscriptions |
 | message-manager | `trading-model:message-manager:journal:<topic>`, `trading-model:message-manager:journal-groups` | `EXISTS XADD XDEL XLEN XREADGROUP XPENDING XCLAIM XACK XGROUP XINFO XRANGE WAIT SADD SMEMBERS` | Durable message journal (ADR-0048) and dead streams `…:dead:<topic>` (ADR-0073) |
-| audit-logger, trader-trainer, model-evaluator, financial-scraper | same keys as message-manager (`trading-model:message-manager:journal*`, `…:dead:*`) | same stream commands | Bus library: publish and consume in process (ADR-0073); users created when `REDIS_<SERVICE>_PASSWORD` is set |
+| audit-logger, trader-trainer, model-evaluator | per stream (Redis 7 selectors): `journal:<topic>` written (`XADD`, `XDEL`, `XGROUP`) only for the topics the service publishes, `journal:<topic>` read and acknowledged and `dead:<topic>` written only for the topics it subscribes to; `journal-groups` (`SADD`, `SMEMBERS`). Topic lists = `EVENT_PUBLISHERS` / `EVENT_SUBSCRIBERS` (`@trading-model/contracts/event-routes`), checked against `redis-ha.sh` by `bus-acl.spec.ts` | stream commands of those selectors only | Bus library: publish and consume in process (ADR-0073); users created when `REDIS_<SERVICE>_PASSWORD` is set |
 | dlq-service | `dlq:queue` | `LLEN LPUSH LRANGE LTRIM EVAL EVALSHA SCRIPT LOAD` | Replay queue, a cache of the MongoDB entries (rebuilt from MongoDB; the HTTP rate limiter is in memory) |
 | redis_exporter sidecar (user `exporter`) | none | `PING INFO CLIENT SETNAME SLOWLOG GET/LEN LATENCY LATEST/HISTOGRAM`; on the sentinels `SENTINEL MASTERS/SENTINELS/SLAVES/REPLICAS/CKQUORUM` | Metrics (ADR-0056): never `CONFIG GET`, which would hand out `masterauth` |
 

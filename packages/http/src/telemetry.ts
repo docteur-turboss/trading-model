@@ -15,6 +15,9 @@ import { logger } from "./logger";
 
 let sdk: NodeSDK | null = null;
 
+/** Aborts an OTLP request to a silent collector: its open socket would hold the process past the 10 s stop grace. */
+const EXPORT_TIMEOUT_MS = 2000;
+
 const PROBE_PATHS = new Set(["/ping", "/health/ready", "/metrics"]);
 
 /** True for probe and scrape requests, which must not create a trace (they would evict real ones). */
@@ -49,7 +52,10 @@ export function startTelemetry(serviceName: ServiceInstanceName): void {
 				process.env.INSTANCE_ID ?? serviceName
 			),
 		}),
-		traceExporter: new OTLPTraceExporter({ url: `${otlpEndpoint}/v1/traces` }),
+		traceExporter: new OTLPTraceExporter({
+			url: `${otlpEndpoint}/v1/traces`,
+			timeoutMillis: EXPORT_TIMEOUT_MS,
+		}),
 		instrumentations: [
 			new HttpInstrumentation({ ignoreIncomingRequestHook: isProbeRequest }),
 			new ExpressInstrumentation(),

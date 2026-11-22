@@ -1,9 +1,12 @@
+import {
+	ACTION_SET_IDS,
+	ACTION_SETS,
+} from "@trading-model/model-runtime/agent/action-mapper";
+import { mutateInputMask } from "@trading-model/model-runtime/agent/input-mask";
 import { sampleGaussian } from "@trading-model/model-runtime/noise";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
-import { ACTION_SET_IDS, ACTION_SETS } from "../../agent/action-mapper";
 import type { LamarckGenome } from "../genome-fitness";
 import type { MutationGenome } from "../genome-mutation";
-import { mutateInputMask } from "./input-mask";
 import {
 	ActivationType,
 	ConnectionType,
@@ -17,7 +20,6 @@ const NORM_TYPES: NormalisationType[] = [
 	NormalisationType.None,
 	NormalisationType.LogarithmicNormalization,
 	NormalisationType.DecimalScaling,
-	NormalisationType.Border,
 	NormalisationType.MinMax,
 	NormalisationType.RobustScaling,
 	NormalisationType.ZScore,
@@ -110,30 +112,17 @@ function _mutateLayers(
 	);
 }
 
-function _maybeAddNeuron(
+function _maybeResizeLayer(
 	layers: LayerGenome[],
-	mutationConfig: MutationGenome,
+	rate: number,
+	delta: 1 | -1,
 	rng: () => number
 ): void {
-	if (layers.length > 0 && rng() < mutationConfig.structural.addNeuronRate) {
+	if (layers.length > 0 && rng() < rate) {
 		const li = Math.floor(rng() * layers.length);
 		layers[li] = {
 			...layers[li],
-			neurons: (layers[li].neurons + 1) as PositiveInt,
-		};
-	}
-}
-
-function _maybeRemoveNeuron(
-	layers: LayerGenome[],
-	mutationConfig: MutationGenome,
-	rng: () => number
-): void {
-	if (layers.length > 0 && rng() < mutationConfig.structural.removeNeuronRate) {
-		const li = Math.floor(rng() * layers.length);
-		layers[li] = {
-			...layers[li],
-			neurons: Math.max(1, layers[li].neurons - 1) as PositiveInt,
+			neurons: Math.max(1, layers[li].neurons + delta) as PositiveInt,
 		};
 	}
 }
@@ -200,8 +189,13 @@ export function mutateNetworkStructure(
 		rng
 	);
 
-	_maybeAddNeuron(layers, mutationConfig, rng);
-	_maybeRemoveNeuron(layers, mutationConfig, rng);
+	_maybeResizeLayer(layers, mutationConfig.structural.addNeuronRate, 1, rng);
+	_maybeResizeLayer(
+		layers,
+		mutationConfig.structural.removeNeuronRate,
+		-1,
+		rng
+	);
 	_maybeAddLayer(layers, mutationConfig, rng);
 	_maybeRemoveLayer(layers, mutationConfig, rng);
 

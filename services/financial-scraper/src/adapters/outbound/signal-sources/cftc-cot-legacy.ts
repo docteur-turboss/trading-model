@@ -38,6 +38,12 @@ function _nthWeekday(year: number, month: number, dow: number, nth: number) {
 	return last.getTime() - ((last.getUTCDay() - dow + 7) % 7) * DAY_MS;
 }
 
+/** UTC instant of `hour:minute` New York time on the UTC-midnight `day` (EST or EDT). */
+export function newYorkLocalToUtc(day: number, hour: number, minute: number) {
+	const est = day + (hour + 5) * 3_600_000 + minute * 60_000;
+	return Number(NEW_YORK_HOUR.format(est)) === hour ? est : est - 3_600_000;
+}
+
 /** Federal holidays of a year as UTC midnights; a weekend one is observed on Friday or Monday. */
 export function federalHolidays(year: number) {
 	const fixed = [
@@ -62,6 +68,19 @@ export function federalHolidays(year: number) {
 	]);
 }
 
+/** Longest gap between two collections of a calendar source (both run hourly). */
+const COLLECTION_INTERVAL_MS = 3_600_000;
+
+/**
+ * A report published later than its calendar says was unknown until a
+ * collection saw it: never date it before the previous collection window.
+ */
+export function notBeforeCollection(publishedAt: number, ingestedAt?: number) {
+	return ingestedAt === undefined
+		? publishedAt
+		: Math.max(publishedAt, ingestedAt - COLLECTION_INTERVAL_MS);
+}
+
 /**
  * The CFTC publishes at 3:30 pm Eastern Time, three business days after the
  * Tuesday it describes, so a federal holiday in between delays it
@@ -80,11 +99,7 @@ function _publishedAt(tuesday: string) {
 			left--;
 		}
 	}
-	const utc1530Est = day + 20.5 * 3_600_000;
-	// 15:30 EST is 20:30Z, 15:30 EDT is 19:30Z.
-	return Number(NEW_YORK_HOUR.format(utc1530Est)) === 15
-		? utc1530Est
-		: utc1530Est - 3_600_000;
+	return newYorkLocalToUtc(day, 15, 30);
 }
 
 /**
@@ -97,7 +112,7 @@ function _publishedAt(tuesday: string) {
  */
 export const CFTC_COT_LEGACY: SourceAdapter = {
 	dimensions: ["market"],
-	normalize(payload) {
+	normalize(payload, { ingestedAt }) {
 		return Rows.parse(payload).flatMap((row) => {
 			const day = row.report_date_as_yyyy_mm_dd.slice(0, 10);
 			const measures = {
@@ -109,7 +124,7 @@ export const CFTC_COT_LEGACY: SourceAdapter = {
 			};
 			return Object.entries(measures).map(([metric, value]) => ({
 				key: day,
-				observedAt: _publishedAt(day),
+				observedAt: notBeforeCollection(_publishedAt(day), ingestedAt),
 				payload: {
 					metric,
 					value,

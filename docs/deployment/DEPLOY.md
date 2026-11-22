@@ -8,8 +8,10 @@ Start all services:
 
 ```bash
 cp .env.example .env   # then replace the example values
-docker compose up -d
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build   # builds from the sources
 ```
+
+The base `docker-compose.yml` only references released images (`IMAGE_REGISTRY`, `IMAGE_TAG`). The long-running compose stack is deployed by the `deploy-compose.yml` workflow from a release tag, never by `git checkout` + `docker compose up` on the host (ADR-0086).
 
 Follow logs:
 
@@ -132,10 +134,13 @@ environment and prints its secrets):
   branches and tags" with exactly the branches `development` and `main` and the
   tag rule `v*` (the release deploys its tag).
   A required reviewer is advised, not checked.
+- `release` (approval of `release.yml` before any image is published or signed): a required
+  reviewer and the tag rule `v*`. "Prevent self-review" stays off while the owner pushes
+  the tags. `release.yml` checks it first (`ENVIRONMENT_READ_TOKEN`).
 - `backup-key-check` (`BACKUP_ESCROW_AGE_IDENTITY`, the key that decrypts every
-  backup): "Selected branches and tags" with exactly the branch `main`, and at
-  least one required reviewer. Set both **before** storing the escrow key. The
-  weekly run then waits for the reviewer's approval.
+  backup): "Selected branches and tags" with exactly the branch `main`, **before**
+  storing the escrow key. No required reviewer: it would hold the weekly
+  scheduled run until someone approves it (ADR-0034).
 
 The expected rules are the `RULES` table of the script. `backup-key-check.yml`
 runs its own `check-environment` job first and `verify-escrow-key` (the only
@@ -191,6 +196,7 @@ bash scripts/deploy-identity.sh cluster --namespace trading-model --environment 
   `repo` and `environment` of the `production` job to RBAC subjects bound to the same
   Role and ClusterRole, and drop the static secrets. Provider-specific, not done by the
   repository.
+- **Grafana access**: the `production` variable `GRAFANA_ALLOWED_CIDRS` (comma-separated CIDRs, no spaces) is the only source range `grafana-ingress` accepts; `deploy.yml` refuses production without it. Behind a CDN or proxy the controller sees the proxy address: list that. Also check by hand that the sealed Secret has `GRAFANA_OIDC_ENABLED=true` and a non-empty `GRAFANA_OIDC_ALLOWED_DOMAINS` (`check-grafana-oidc.sh` only checks the keys exist).
 - **Human settings** (cannot be checked by the workflow): required reviewer on
   `production` (above), and a second CODEOWNER on `/.github/`, `/deploy/` and
   `/deploy/k8s/secrets/` in `.github/CODEOWNERS` (only `@docteur-turboss` today).
@@ -264,7 +270,7 @@ Two cases:
 > **Not production.** Production runs on Kubernetes (see above). This Compose
 > pull is for development hosts only, with no real data.
 
-Instead of building locally, pull published images from GHCR:
+Pull published images from GHCR (what the base file runs):
 
 ```bash
 # Authenticate to GitHub Container Registry
@@ -286,6 +292,12 @@ tag, `preflight_only: true`) until it passes: it checks everything below that
 the repository can check, and lists every gap in one run. What stays manual
 (owner, with admin rights):
 
+0. **Production-ready objective**: the deploy refuses production until the
+   pinned issue labelled `objectif` reads `n/n audits` (every audit of the
+   objective has a green decision and a score of at least 80). A stable
+   `vX.Y.Z` tag says the version is stable (expand/contract, contract
+   baseline), not that production is ready: releases ship to staging before
+   the objective is met.
 1. **GitHub environment `production`**: create it, required reviewers with
    "Prevent self-review", deployment tag rule `v*` only, and the repository
    secret `ENVIRONMENT_READ_TOKEN` ([Prerequisites](#prerequisites-secrets)).
@@ -308,7 +320,7 @@ the repository can check, and lists every gap in one run. What stays manual
    `ALERTMANAGER_PUSHOVER_TOKEN` (all four required in staging and production), `SIGNAL_CONTACT_EMAIL`,
    `BACKUP_AGE_RECIPIENTS` (two distinct keys), `BACKUP_S3_*` for an Object Lock
    bucket ([Prerequisites (off-site backup bucket)](#prerequisites-off-site-backup-bucket)), `AUDIT_ANCHOR_*` for the audit
-   chain anchor bucket (ADR-0027).
+   chain anchor bucket (ADR-0027; `AUDIT_ANCHOR_REGION` is required and must be an EU region).
 6. **Compliance**: the `Controller` and `Contact` fields of the
    [data processing register](../compliance/data-processing-register.md).
 
@@ -341,6 +353,8 @@ deploys release N-1 on kind, forces a failed upgrade to N, checks every
 Deployment is back on its N-1 pod template (image digests, ConfigMaps) with the
 N-1 migrations still applied, runs `migrate-down 1` and the migrations again,
 then upgrades to N (`tests/k8s/run-kind.sh upgrade`).
+
+**SPIRE order.** A SPIRE agent must not be newer than the server it talks to. The node agents are applied before the server, so a release bumps the server only; the agents (`deploy/k8s/node-agents/spire-agent.yaml`) take that version in the next release. The rollback above does not touch the agents: to downgrade, move the agents back first, then the server. `tests/k8s/check-overlays.mjs` fails when the agent minor is higher than the server's.
 
 "Wait for rollout" gives each Deployment 180 s plus the
 `terminationGracePeriodSeconds` of its pod template: a `Recreate` Deployment
@@ -386,7 +400,7 @@ A Deployment created by the failed deploy has no earlier revision: the step
 deletes it (the next deploy recreates it).
 
 The canary (`deploy-k8s.sh canary`) copies the running pod template, so it runs
-the new image with the configuration of the current release, not the new one.
+the new image with the configuration of the current release, not the new one. With `CANARY_DIGESTS_FILE` (set by `deploy.yml` to the cosign-verified `image-digests`) it runs only the digest listed there for the service and fails when it is missing; without it (manual use) it resolves the tag, falling back to the tag.
 
 `deploy-k8s.sh migrate-down` provisions `migrator` itself (job `db-migrate-user`) before rolling the schema back; pass `MIGRATE_IMAGE` of the release being rolled back. Outside `deploy.yml`, set `SEALED_SECRETS_FILE` (the environment's SealedSecret file) when it carries a key the live Secret lacks: it is applied and waited for before the Jobs. `SEED_MIGRATE_PASSWORD=true` (random password) exists for the kind CI only, which has no Sealed Secrets controller.
 
@@ -456,12 +470,6 @@ For a manual rollback, revert a service to a previous revision:
 
 ```bash
 kubectl rollout undo deployment/<service> -n trading-model
-```
-
-Or via the deploy script:
-
-```bash
-./deploy/k8s/scripts/deploy-k8s.sh rollback <service>
 ```
 
 Schema: `deploy-k8s.sh migrate-down [N|all]`, see the runbook

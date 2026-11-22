@@ -38,6 +38,11 @@ spec:
       activeDeadlineSeconds: 14400
       ttlSecondsAfterFinished: 86400
       template:
+        metadata:
+          # Selected by the egress NetworkPolicy apiserver-egress.
+          labels:
+            app.kubernetes.io/component: backup
+            app.kubernetes.io/part-of: trading-model
         spec:
           serviceAccountName: backup-runner
           restartPolicy: Never
@@ -73,7 +78,12 @@ spec:
                 - |
                   set -euo pipefail
                   /scripts/backup-k8s.sh \
-                    --components mongodb,mysql,checkpoints,spire
+                    --components mongodb,mysql,checkpoints,spire,risk
+              # BACKUP_S3_SECONDARY_* keys of the Secret (second off-site bucket, optional).
+              envFrom:
+                - secretRef:
+                    name: trading-model-backup-s3
+                    optional: true
               env:
                 - name: BACKUP_DIR
                   value: /backups
@@ -260,7 +270,7 @@ spec:
         # busybox ships httpd: nothing to install, so it runs as non-root
         # (restricted Pod Security profile) without network access.
         - name: exporter
-          image: busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+          image: busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
@@ -273,9 +283,10 @@ spec:
             - sh
             - -c
             - |
-              # Served as /metrics, the path Prometheus scrapes.
+              # Scraped as /metrics.txt (text/plain by extension; Prometheus 3 rejects octet-stream).
               mkdir -p /tmp/metrics
               echo '# No backup metrics yet' > /tmp/metrics/metrics
+              ln -s metrics /tmp/metrics/metrics.txt
               httpd -f -p 9118 -h /tmp/metrics &
               HTTPD_PID=$!
               # backup.prom (daily db-backup) and backup-incremental.prom
