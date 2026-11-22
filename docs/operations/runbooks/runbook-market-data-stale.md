@@ -81,7 +81,8 @@ kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
    - **403** (WAF violation) or **418** (IP ban after ignored 429s): not
      retried. Lower the request weight (fewer `SYMBOLS_TO_TRACK`, longer
      `SCRAPE_INTERVAL`) and wait for the ban to expire.
-   - **429** (rate limit): retried with backoff; persistent 429s lead to 418.
+   - **429** (rate limit): not retried; the source is quarantined until
+     `Retry-After` (doubling backoff if absent), as for 418.
    - Network errors: the scraper NetworkPolicy allows egress to any public
      address on 443; check DNS and the node's outbound access.
 4. **MySQL writes failing**: cycles fail (`ScrapeCyclesFailing`), MySQL errors
