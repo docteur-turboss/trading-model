@@ -46,3 +46,29 @@ export function trunkSha256(weights: Float32Array, genome: Genome): string {
 		.update(new Uint8Array(trunk.buffer, trunk.byteOffset, trunk.byteLength))
 		.digest("hex");
 }
+
+/**
+ * The windows of the `count` symbols a generation trains and evaluates on
+ * (ADR-0076 step 1): a circular slice of the group's symbols, moved by `count`
+ * each generation from `seed`, so each symbol is seen the same number of times,
+ * to one. `count` of N or more, or windows without a symbol: all the windows.
+ */
+export function rotatingWindowSets<Window extends { symbol?: string }>(
+	windowSets: readonly Window[],
+	count: number | undefined,
+	seed: number,
+	generation: number
+): readonly Window[] {
+	const symbols = [...new Set(windowSets.flatMap((ws) => ws.symbol ?? []))];
+	if (!count || count >= symbols.length) {
+		return windowSets;
+	}
+	const start = ((seed + generation - 1) * count) % symbols.length;
+	const picked = new Set(
+		Array.from(
+			{ length: count },
+			(_item, offset) => symbols[(start + offset) % symbols.length]
+		)
+	);
+	return windowSets.filter((ws) => ws.symbol && picked.has(ws.symbol));
+}
