@@ -17,12 +17,19 @@ export function backoffDelay(deliveryAttempt: SequenceNumber): number {
 	return Math.max(0, Math.round(delay + jitter));
 }
 
-/** One delivery attempt lasts at most this long (the HTTP client does not retry underneath). */
-export const DELIVERY_ATTEMPT_TIMEOUT_MS = DurationMs.of(10_000);
+/**
+ * One delivery attempt lasts at most this long before another replica may claim
+ * the entry. Above the slowest real handler: model-evaluator downloads weights
+ * (60 s deadline) then reads candles and replays; 90 s leaves margin, and the
+ * 120 s pod grace period still covers a shutdown that waits for it.
+ */
+export const DELIVERY_ATTEMPT_TIMEOUT_MS = DurationMs.of(90_000);
 
-/** A handler is abandoned (retryable failure) 2 s before the entry can be claimed by another replica. */
+const CLAIM_MARGIN_MS = 5000;
+
+/** A handler is abandoned (retryable failure) before the entry can be claimed by another replica. */
 export const HANDLER_TIMEOUT_MS = DurationMs.of(
-	DELIVERY_ATTEMPT_TIMEOUT_MS - 2000
+	DELIVERY_ATTEMPT_TIMEOUT_MS - CLAIM_MARGIN_MS
 );
 
 /**
