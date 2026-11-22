@@ -282,6 +282,16 @@ groups:
           description: 'risk-execution stopped new orders and cancelled the open ones. It stays on until an operator re-arms it by hand after checking the cause (loss limit, stale data, reconciliation, rejections).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#killswitchengaged'
 
+      - alert: RiskTickFailing
+        expr: 'sum by (job, mode) (increase(risk_tick_failures_total[10m])) > 0'
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'risk-execution ticks keep failing ({{ $labels.mode }})'
+          description: 'The periodic risk tick (reconciliation, stale-data and loss checks, state write) threw for 5 min. Gauges are still republished from memory, but the state may not be persisted.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#risktickfailing'
+
       - alert: ReconciliationMismatch
         expr: 'max by (job, mode) (risk_reconciliation_mismatch) > 0'
         for: 1m

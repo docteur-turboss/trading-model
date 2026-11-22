@@ -31,7 +31,9 @@ import {
 	RISK_OPEN_ORDERS,
 	RISK_ORDERS_TOTAL,
 	RISK_RECONCILIATION_MISMATCH,
+	RISK_TICK_FAILURES,
 } from "./metrics";
+import { runTick } from "./run-tick";
 
 export type RiskExecutionApp = Awaited<
 	ReturnType<typeof createRiskExecutionApp>
@@ -97,17 +99,23 @@ export async function createRiskExecutionApp() {
 		RISK_MARKET_DATA_AGE_SECONDS.set({ mode }, snapshot.oldestPriceAgeSeconds);
 	};
 	publish();
+	RISK_TICK_FAILURES.inc({ mode }, 0);
 	const timer = setInterval(() => {
 		void replayRiskEvents();
-		// biome-ignore lint/plugin: logged by onError, inside the job context
-		runJob(
-			"risk-execution.tick",
-			() => risk.tick(),
-			(error) => {
-				const { message, stack } = normalizeError(error);
-				getLogger().error("risk tick failed", { error: message, stack });
-			}
-		).then(publish, () => undefined);
+		void runTick(
+			() =>
+				runJob(
+					"risk-execution.tick",
+					() => risk.tick(),
+					(error) => {
+						const { message, stack } = normalizeError(error);
+						getLogger().error("risk tick failed", { error: message, stack });
+						RISK_TICK_FAILURES.inc({ mode });
+					}
+				),
+			publish,
+			() => undefined
+		);
 	}, ENV.RISK_TICK_MS);
 	timer.unref();
 
