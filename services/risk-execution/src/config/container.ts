@@ -98,7 +98,6 @@ export async function createRiskExecutionApp() {
 	publish();
 	RISK_TICK_FAILURES.inc({ mode }, 0);
 	const timer = setInterval(() => {
-		// biome-ignore lint/plugin: failure logged and counted by runJob's onError, inside the job context
 		void runTick(
 			() =>
 				runJob(
