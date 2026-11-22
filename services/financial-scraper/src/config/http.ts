@@ -8,7 +8,6 @@ import axios, {
 	type AxiosRequestConfig,
 } from "axios";
 
-import { retryAfterMs } from "../domain/retry-after";
 import { ENV } from "../infrastructure/config/env";
 import {
 	BINANCE_REQUEST_DURATION_SECONDS,
@@ -24,18 +23,8 @@ const RETRY_CONFIG = {
 	maxDelayMs: DurationMs.of(10000),
 };
 
-/** Longest Retry-After honoured (also cut by the retry deadline). Beyond it the error surfaces and the next cycle resumes. */
-const RETRY_AFTER_MAX_MS = 60_000;
-
 /** Total time one request may spend retrying, below the 60 s scrape cycle so a slow cycle never makes the next tick skip. */
 const RETRY_DEADLINE_MS = 45_000;
-
-/** Retry-After of a 429, in ms. */
-function _retryAfterMs(error: AxiosError): number {
-	return error.response?.status === 429
-		? retryAfterMs(error.response.headers?.["retry-after"], Date.now())
-		: 0;
-}
 
 type RetryConfig = AxiosRequestConfig & {
 	retryCount?: number;
@@ -53,19 +42,17 @@ function _attachRetryInterceptor(instance: AxiosInstance): void {
 			throw error;
 		}
 		config.retryCount = config.retryCount ?? 0;
+		// A 429 is not retried here: the Binance source quarantine pauses every call until Retry-After.
 		const retryable =
-			!error.response || isRetryableStatusPermissive(error.response.status);
-		const retryAfterMs = _retryAfterMs(error);
-		if (
-			config.retryCount >= RETRY_CONFIG.retries ||
-			!retryable ||
-			retryAfterMs > RETRY_AFTER_MAX_MS
-		) {
+			!error.response ||
+			(error.response.status !== 429 &&
+				isRetryableStatusPermissive(error.response.status));
+		if (config.retryCount >= RETRY_CONFIG.retries || !retryable) {
 			throw error;
 		}
-		const delay = Math.max(
-			computeExponentialBackoffWithJitter(config.retryCount + 1, RETRY_CONFIG),
-			retryAfterMs
+		const delay = computeExponentialBackoffWithJitter(
+			config.retryCount + 1,
+			RETRY_CONFIG
 		);
 		// the next attempt may run a full timeout: it must end before the deadline
 		if (

@@ -20,7 +20,7 @@ import {
 const BAN_BACKOFF_BASE_MS = 5 * 60_000;
 
 /**
- * Binance public REST API (no account, no key: ADR-0026). A 418 or 451
+ * Binance public REST API (no account, no key: ADR-0026). A 429, 418 or 451
  * quarantines it at once: no call until the deadline (`Retry-After` or a
  * doubling backoff), since each call during a ban extends it.
  */
@@ -41,7 +41,7 @@ export class BinanceMarketDataSource implements MarketDataSourcePort {
 	async fetchSnapshot(request: SnapshotRequest): Promise<MarketDataSnapshot> {
 		if (this._quarantine.isOpen(this.id)) {
 			throw new Error(
-				"Binance quarantined after a 418/451: no call until the deadline"
+				"Binance quarantined after a 429/418/451: no call until the deadline"
 			);
 		}
 		let banned = false;

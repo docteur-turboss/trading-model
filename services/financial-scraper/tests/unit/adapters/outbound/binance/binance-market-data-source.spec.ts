@@ -277,7 +277,7 @@ describe("BinanceMarketDataSource", () => {
 			]);
 		});
 
-		describe("418/451 quarantine", () => {
+		describe("429/418/451 quarantine", () => {
 			const ban = (status: number, retryAfter?: string) =>
 				Object.assign(new Error(String(status)), {
 					response: { status, headers: { "retry-after": retryAfter } },
@@ -302,7 +302,7 @@ describe("BinanceMarketDataSource", () => {
 				jest.useRealTimers();
 			});
 
-			it.each([418, 451])(
+			it.each([429, 418, 451])(
 				"makes no call after a %i until the backoff ends, then probes",
 				async (status) => {
 					const banned = new BinanceMarketDataSource();

@@ -794,8 +794,8 @@ tests:
         exp_alerts:
           - exp_labels: {severity: critical}
             exp_annotations:
-              summary: 'Binance quarantined after a 418 or 451'
-              description: 'financial-scraper makes no Binance call until the quarantine ends (Retry-After or doubling backoff, 5 min to 24 h): market data collection is blocked. Check fs_binance_requests_total{status=~"418|451"} and runbook-market-data-stale.'
+              summary: 'Binance quarantined after a 429, 418 or 451'
+              description: 'financial-scraper makes no Binance call until the quarantine ends (Retry-After or doubling backoff, 5 min to 24 h): market data collection is blocked. Check fs_binance_requests_total{status=~"429|418|451"} and runbook-market-data-stale.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
       - eval_time: 50m
         alertname: BinanceQuarantined
