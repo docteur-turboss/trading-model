@@ -447,19 +447,10 @@ cmd_canary_cleanup() {
 cmd_smoke_test() {
   log "Running smoke tests..."
 
-  local services=(
-    "discovery-server:https://discovery-server:3000/health/ready"
-    "message-manager:https://message-manager:3000/health/ready"
-    "api-gateway:https://api-gateway:3000/health/ready"
-    "audit-logger:https://audit-logger:3000/health/ready"
-    "dlq-service:https://dlq-service:3000/health/ready"
-    "model-evaluator:https://model-evaluator:3000/health/ready"
-    "risk-execution:https://risk-execution:3000/health/ready"
-    "financial-scraper:https://financial-scraper:3000/health/ready"
-    "financial-scraper-collector:https://financial-scraper-collector:3000/health/ready"
-    "trader-trainer:https://trader-trainer:3000/health/ready"
-    "edge-proxy:http://edge-proxy:8080/health/ready"
-  )
+  local services=() svc
+  for svc in $(bash "$(dirname "${BASH_SOURCE[0]}")/deploy-release.sh" deployments); do
+    [[ $svc == edge-proxy ]] && services+=("$svc:http://$svc:8080/health/ready") || services+=("$svc:https://$svc:3000/health/ready")
+  done
 
   local failed=0
   for entry in "${services[@]}"; do
