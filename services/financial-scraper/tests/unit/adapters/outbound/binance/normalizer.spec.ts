@@ -3,7 +3,7 @@ import {
 	CandleInterval,
 	TradeSide,
 } from "@trading-model/contracts/market-data.types";
-import { toSymbol } from "@trading-model/primitives/primitives";
+import { toSymbol, UnixTimestamp } from "@trading-model/primitives/primitives";
 import { normalizeBookTicker } from "../../../../../src/adapters/outbound/binance/normalizers/book-ticker";
 import { normalizeCandles } from "../../../../../src/adapters/outbound/binance/normalizers/candles";
 import { normalizeOrderBook } from "../../../../../src/adapters/outbound/binance/normalizers/order-book";
@@ -92,7 +92,7 @@ describe("Binance normalizers", () => {
 					good,
 					{ ...good, high: "0.001" },
 					{ ...good, open: "" },
-					{ ...good, openTime: 1 },
+					{ ...good, openTime: UnixTimestamp.of(1) },
 				]
 			);
 			expect(result.map((c) => c.timestamp)).toEqual([good.openTime, 1]);
