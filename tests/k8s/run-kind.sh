@@ -824,35 +824,40 @@ verify_identity_without_mysql() {
 # Express recorded nothing). Jaeger is read through a port-forward, which the
 # NetworkPolicies do not filter.
 traces_span_services() {
-	curl -sf "http://localhost:18686/api/traces?service=api-gateway&limit=50&lookback=1h" |
+	# The trace ID is the one verify_traces sends in `traceparent`: looking it up
+	# tells a lost propagation (api-gateway spans only) from an absent trace.
+	curl -sf "http://localhost:18686/api/traces/$TRACE_ID" |
 		node -e '
-			const traces = JSON.parse(require("fs").readFileSync(0, "utf8")).data ?? [];
-			const best = traces
-				.map((t) => [...new Set(Object.values(t.processes).map((p) => p.serviceName))])
-				.sort((a, b) => b.length - a.length)[0] ?? [];
-			console.error(`traces=${traces.length} widest=${best.join(",")}`);
-			process.exit(best.length >= 2 ? 0 : 1)'
+			const [trace] = JSON.parse(require("fs").readFileSync(0, "utf8")).data ?? [];
+			const names = [...new Set(Object.values(trace?.processes ?? {}).map((p) => p.serviceName))];
+			console.error(`trace=${process.argv[1]} widest=${names.join(",")}`);
+			process.exit(names.includes("api-gateway") && names.includes("trader-trainer") ? 0 : 1)' "$TRACE_ID"
 }
 
 verify_traces() {
-	log "a request through edge-proxy gives a Jaeger trace with 2+ services"
+	log "a request through edge-proxy gives a Jaeger trace spanning api-gateway and trader-trainer"
 	$K -n "$NS" port-forward svc/edge-proxy 18451:8080 >/dev/null 2>&1 &
 	local edge=$!
 	$K -n "$NS" port-forward svc/jaeger 18686:16686 >/dev/null 2>&1 &
 	local jaeger=$!
-	local result=0
+	local result=0 codes=""
+	TRACE_ID="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
 	wait_for 30 'curl -s -o /dev/null http://localhost:18451/ && curl -s -o /dev/null http://localhost:18686/' || result=1
-	# 30 requests: the collector keeps 20 % of traces, 1 - 0.8^30 ~ 99.9 % that one survives.
+	# ci-render.mjs samples 100 % and the sent traceparent is sampled: all requests join one trace.
 	if [ "$result" = 0 ]; then
-		for _ in $(seq 30); do
-			curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18451/v1/trader-trainer/training-status
-		done
+		codes="$(for _ in $(seq 30); do
+			curl -s -o /dev/null -w '%{http_code}\n' -H "x-api-key: $API_KEY" \
+				-H "traceparent: 00-$TRACE_ID-00f067aa0ba902b7-01" \
+				http://localhost:18451/v1/trader-trainer/training-status
+		done | sort | uniq -c | tr '\n' ' ')"
 	fi
 	# Batch exporter (5 s) then collector batch (1 s): a few polls at most.
 	if [ "$result" = 0 ] && wait_for 120 traces_span_services; then
 		log "  $(traces_span_services 2>&1)"
 	else
 		traces_span_services || true
+		log "  http codes: ${codes:-none}"
+		log "  trader-trainer traces in Jaeger: $(curl -s "http://localhost:18686/api/traces?service=trader-trainer&limit=50&lookback=1h" | node -e 'try{console.log((JSON.parse(require("fs").readFileSync(0,"utf8")).data??[]).length)}catch{console.log("unreadable")}')"
 		result=1
 	fi
 	# No RETURN trap: it would replace the one of verify (traps are global).
@@ -1761,7 +1766,7 @@ dump() {
 	$K -n "$NS" logs deploy/spire-server -c spire-entries --tail=40 2>&1 || true
 	$K -n trading-model-node logs daemonset/spire-agent --tail=40 || true
 	# The market data path and the audit trail, even when their pods look healthy (verify checks them).
-	for workload in binance-stub financial-scraper-collector financial-scraper message-manager audit-logger discovery-server api-gateway; do
+	for workload in binance-stub financial-scraper-collector financial-scraper message-manager audit-logger discovery-server api-gateway trader-trainer otel-collector; do
 		echo "===== deployment/$workload"
 		$K -n "$NS" logs "deployment/$workload" --all-containers --tail=80 2>&1 | grep -v 'x509 context' || true
 	done
