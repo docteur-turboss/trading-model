@@ -426,7 +426,7 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		await ctx.svc.start();
 		const first = intent();
 		const r = await ctx.svc.submitIntent(first);
-		await ctx.svc.engage("global", "operator", "ops");
+		await ctx.svc.engage({ scope: "global" }, "operator", "ops");
 		expect(await ctx.svc.submitIntent(first)).toMatchObject({
 			reason: "duplicate_client_order_id",
 		});
@@ -592,7 +592,11 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 	it("restart: an accepted order too old or under a switch expires unsent", async () => {
 		const a = build();
 		await a.svc.start();
-		await a.svc.engage("symbol", "operator", "ops", "ETHUSDT");
+		await a.svc.engage(
+			{ scope: "symbol", symbol: "ETHUSDT" },
+			"operator",
+			"ops"
+		);
 		const accepted = (id: string, symbol: string, createdAt: number) => ({
 			clientOrderId: id,
 			decisionId: id,
@@ -784,14 +788,22 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		clock += 86_400_000; // a new UTC day re-arms nothing
 		await restarted.svc.tick();
 		expect(restarted.svc.status().killSwitch.global).toBe("daily_loss");
-		await restarted.svc.rearm("global", "cause understood", "operator");
+		await restarted.svc.rearm(
+			{ scope: "global" },
+			"cause understood",
+			"operator"
+		);
 		expect(restarted.svc.status().killSwitch.global).toBeNull();
 	});
 
 	it("per symbol: the other symbol keeps trading; manual engagement works on both scopes", async () => {
 		const ctx = build();
 		await ctx.svc.start();
-		await ctx.svc.engage("symbol", "operator", "ops", "BTCUSDT");
+		await ctx.svc.engage(
+			{ scope: "symbol", symbol: "BTCUSDT" },
+			"operator",
+			"ops"
+		);
 		expect(await ctx.svc.submitIntent(intent())).toMatchObject({
 			reason: "kill_switch",
 		});
@@ -807,29 +819,31 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 				)
 			).status
 		).toBe("filled");
-		await ctx.svc.engage("global", "operator", "ops");
+		await ctx.svc.engage({ scope: "global" }, "operator", "ops");
 		expect(ctx.svc.status().killSwitch.global).toBe("operator");
 	});
 
 	it("drawdown stop: only the owner re-arms", async () => {
 		const ctx = build();
 		await ctx.svc.start();
-		await ctx.svc.engage("global", "drawdown", "system");
+		await ctx.svc.engage({ scope: "global" }, "drawdown", "system");
 		await expect(
-			ctx.svc.rearm("global", "reviewed", "operator")
+			ctx.svc.rearm({ scope: "global" }, "reviewed", "operator")
 		).rejects.toThrow(/owner/);
-		await ctx.svc.rearm("global", "strategy reviewed", "owner");
+		await ctx.svc.rearm({ scope: "global" }, "strategy reviewed", "owner");
 		expect(ctx.svc.status().killSwitch.global).toBeNull();
 	});
 
 	it("drawdown replaces an earlier reason: only the owner re-arms", async () => {
 		const ctx = build();
 		await ctx.svc.start();
-		await ctx.svc.engage("global", "daily_loss", "system");
-		await ctx.svc.engage("global", "drawdown", "system");
+		await ctx.svc.engage({ scope: "global" }, "daily_loss", "system");
+		await ctx.svc.engage({ scope: "global" }, "drawdown", "system");
 		expect(ctx.svc.status().killSwitch.global).toBe("drawdown");
-		await expect(ctx.svc.rearm("global", "x", "ops")).rejects.toThrow(/owner/);
-		await ctx.svc.rearm("global", "reviewed", "owner");
+		await expect(
+			ctx.svc.rearm({ scope: "global" }, "x", "ops")
+		).rejects.toThrow(/owner/);
+		await ctx.svc.rearm({ scope: "global" }, "reviewed", "owner");
 		expect(ctx.svc.status().killSwitch.global).toBeNull();
 	});
 
@@ -850,7 +864,7 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		expect(
 			(ctx.store.value as RiskState).orders[resting.clientOrderId].status
 		).toBe("cancelled");
-		await ctx.svc.rearm("global", "strategy reviewed", "owner");
+		await ctx.svc.rearm({ scope: "global" }, "strategy reviewed", "owner");
 		const state = ctx.store.value as RiskState;
 		expect(state.hwm).toBe(equity(state));
 		expect(emitted[0]).toMatchObject({ hwm: state.hwm });
@@ -868,9 +882,9 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		expect(await ctx.svc.submitIntent(intent())).toMatchObject({
 			reason: "kill_switch",
 		});
-		await expect(ctx.svc.rearm("global", "x", "owner")).rejects.toThrow(
-			/unreadable/
-		);
+		await expect(
+			ctx.svc.rearm({ scope: "global" }, "x", "owner")
+		).rejects.toThrow(/unreadable/);
 	});
 
 	it("engages at once while an admission hangs, and the pending intent is then refused", async () => {
@@ -885,7 +899,7 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		});
 		await ctx.svc.start();
 		const pending = ctx.svc.submitIntent(intent());
-		await ctx.svc.engage("global", "operator", "ops");
+		await ctx.svc.engage({ scope: "global" }, "operator", "ops");
 		expect(ctx.svc.status().killSwitch.global).toBe("operator");
 		release(true);
 		expect(await pending).toMatchObject({ reason: "kill_switch" });
@@ -894,8 +908,8 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 	it("a rearm queued before an engage does not clear it", async () => {
 		const ctx = build();
 		await ctx.svc.start();
-		const rearmed = ctx.svc.rearm("global", "ok", "ops");
-		await ctx.svc.engage("global", "panic", "ops");
+		const rearmed = ctx.svc.rearm({ scope: "global" }, "ok", "ops");
+		await ctx.svc.engage({ scope: "global" }, "panic", "ops");
 		await rearmed;
 		expect(ctx.svc.status().killSwitch.global).toBe("panic");
 		expect((ctx.store.value as RiskState).killSwitch.global).toBe("panic");
@@ -936,7 +950,7 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		await ctx.svc.start();
 		const r = await ctx.svc.submitIntent(intent({ limitPrice: 59_500 }));
 		// Engaging cancels already; a manual cancel afterwards is a no-op on a final order, not an error.
-		await ctx.svc.engage("global", "operator", "ops");
+		await ctx.svc.engage({ scope: "global" }, "operator", "ops");
 		expect(await ctx.svc.cancel(r.clientOrderId)).toBe("cancelled");
 		expect(await ctx.svc.cancel("nope")).toBe("not_found");
 	});

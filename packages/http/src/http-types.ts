@@ -21,6 +21,8 @@ interface HttpRequestOptions {
 	 */
 	idempotent?: boolean;
 	serviceName?: ServiceId;
+	/** Aborts the request and its retries. */
+	signal?: AbortSignal;
 }
 
 export type { HttpRequestOptions };

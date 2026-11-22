@@ -1,5 +1,12 @@
 import { withTimeout } from "@trading-model/common/utils/retry";
 import { DurationMs } from "@trading-model/primitives/primitives";
+import {
+	applyFill,
+	type KillTarget,
+	limitBreaches,
+	reconciliationDiffs,
+	rollDay,
+} from "../domain/accounting";
 import type { RiskLimits } from "../domain/limits";
 import { FINAL, type Order, transition } from "../domain/order";
 import type {
@@ -15,7 +22,6 @@ import {
 	dailyLoss,
 	type Intent,
 	preTradeReject,
-	symbolLoss,
 } from "../domain/pre-trade";
 import {
 	equity,
@@ -24,7 +30,6 @@ import {
 	newState,
 	type RiskState,
 	SEEN_HORIZON_MS,
-	utcDate,
 } from "../domain/state";
 
 export interface RiskExecutionDeps {
@@ -50,26 +55,37 @@ export interface IntentResult {
 }
 
 const RECONCILE_EVERY_MS = 300_000;
-const WIRED_STATES: Order["status"][] = [
-	"submitted",
-	"acknowledged",
-	"partially_filled",
-	"unknown",
-	"cancel_requested",
-];
-
 function targetStatus(order: Order, view: BrokerOrderView): Order["status"] {
-	return view.status === "filled"
-		? "filled"
-		: view.status === "rejected"
-			? "broker_rejected"
-			: view.status === "cancelled"
-				? "cancelled"
-				: view.filledQty > 0
-					? "partially_filled"
-					: order.status === "cancel_requested"
-						? order.status // still open at the broker: no way back to acknowledged (ADR-0064 §3)
-						: "acknowledged";
+	switch (view.status) {
+		case "filled":
+			return "filled";
+		case "rejected":
+			return "broker_rejected";
+		case "cancelled":
+			return "cancelled";
+		default:
+			if (view.filledQty > 0) {
+				return "partially_filled";
+			}
+			// still open at the broker: no way back to acknowledged (ADR-0064 §3)
+			return order.status === "cancel_requested"
+				? order.status
+				: "acknowledged";
+	}
+}
+
+/** Operator view served by the status route. */
+export interface StatusReport {
+	mode: "paper" | "live";
+	ready: boolean;
+	mismatch: boolean;
+	killSwitch: RiskState["killSwitch"];
+	equity: number;
+	exposureRatio: number;
+	dailyLoss: number;
+	openOrders: number;
+	positions: RiskState["positions"];
+	oldestPriceAgeSeconds: number;
 }
 
 /** The Risk/Execution context of ADR-0064: the only owner of the order flow. */
@@ -161,7 +177,7 @@ export class RiskExecution {
 		return this._ready && !this._broken;
 	}
 
-	status() {
+	status(): StatusReport {
 		const state = this._state;
 		return {
 			mode: this._d.mode,
@@ -193,7 +209,7 @@ export class RiskExecution {
 		});
 		return this._run(async () => {
 			const now = this._now();
-			this._rollDay(now);
+			rollDay(this._state, now);
 			const clientOrderId = `rx-${intent.decisionId}`;
 			// First: an existing idempotency key is never rewritten (ADR-0064 §3).
 			if (
@@ -267,7 +283,7 @@ export class RiskExecution {
 
 	private async _tick(): Promise<void> {
 		const now = this._now();
-		this._rollDay(now);
+		rollDay(this._state, now);
 		await this._readPrices(Object.keys(this._d.limits.instruments));
 		for (const order of Object.values(this._state.orders).filter(isOpen)) {
 			if (order.status !== "accepted") {
@@ -285,13 +301,8 @@ export class RiskExecution {
 		await this._save();
 	}
 
-	engage(
-		scope: "global" | "symbol",
-		reason: string,
-		actor: string,
-		symbol?: string
-	): Promise<void> {
-		const target = scope === "global" ? null : (symbol ?? "");
+	engage(scope: KillTarget, reason: string, actor: string): Promise<void> {
+		const target = scope.scope === "global" ? null : scope.symbol;
 		// The flag is set now, whatever the queue holds; cancels and persistence follow in it.
 		const flagged =
 			this._state !== undefined && this._flag(target, reason, actor);
@@ -304,12 +315,8 @@ export class RiskExecution {
 		});
 	}
 
-	rearm(
-		scope: "global" | "symbol",
-		reason: string,
-		actor: string,
-		symbol?: string
-	): Promise<void> {
+	rearm(target: KillTarget, reason: string, actor: string): Promise<void> {
+		const symbol = target.scope === "symbol" ? target.symbol : undefined;
 		return this._run(async () => {
 			if (this._broken) {
 				throw new Error(
@@ -317,7 +324,7 @@ export class RiskExecution {
 				);
 			}
 			const ks = this._state.killSwitch;
-			const current = scope === "global" ? ks.global : ks.symbols[symbol ?? ""];
+			const current = symbol === undefined ? ks.global : ks.symbols[symbol];
 			if (current === "drawdown" && actor !== this._d.ownerActor) {
 				throw new Error("Only the owner re-arms after the drawdown stop");
 			}
@@ -326,13 +333,13 @@ export class RiskExecution {
 			if (current === "drawdown") {
 				this._state.hwm = equity(this._state);
 			}
-			if (scope === "global") {
+			if (symbol === undefined) {
 				ks.global = null;
 			} else {
-				delete ks.symbols[symbol ?? ""];
+				delete ks.symbols[symbol];
 			}
 			this._emit("kill_switch.rearmed", {
-				scope,
+				scope: target.scope,
 				symbol,
 				reason,
 				actor,
@@ -453,29 +460,7 @@ export class RiskExecution {
 
 	/** Applies the delta of the broker's cumulative fills: the position follows the fills, not the request. */
 	private async _apply(order: Order, view: BrokerOrderView): Promise<void> {
-		const state = this._state;
-		const dQty = view.filledQty - order.filledQty;
-		if (dQty > 0) {
-			const dQuote = view.quoteQty - order.quoteQty;
-			const dFee = view.fee - order.fee;
-			const sign = order.side === "buy" ? 1 : -1;
-			state.day.symbols[order.symbol] ??= {
-				startValue:
-					(state.positions[order.symbol] ?? 0) *
-					(state.marks[order.symbol]?.price ?? 0),
-				flow: 0,
-			};
-			const entry = state.day.symbols[order.symbol];
-			entry.flow += -sign * dQuote - dFee;
-			state.cash += -sign * dQuote - dFee;
-			state.positions[order.symbol] =
-				(state.positions[order.symbol] ?? 0) + sign * dQty;
-			Object.assign(order, {
-				filledQty: view.filledQty,
-				quoteQty: view.quoteQty,
-				fee: view.fee,
-			});
-		}
+		const dQty = applyFill(this._state, order, view);
 		const target = targetStatus(order, view);
 		if (
 			order.status !== target ||
@@ -581,23 +566,11 @@ export class RiskExecution {
 	}
 
 	private async _checkLimits(): Promise<void> {
-		const { limits } = this._d;
-		const state = this._state;
-		const eq = equity(state);
-		state.hwm = Math.max(state.hwm, eq);
-		if (dailyLoss(state) >= limits.dailyLossPct * limits.allocatedCapital) {
-			await this._engage(null, "daily_loss");
-		}
-		if (state.hwm - eq >= limits.drawdownPct * limits.allocatedCapital) {
-			await this._engage(null, "drawdown");
-		}
-		for (const symbol of Object.keys(state.day.symbols)) {
-			if (
-				symbolLoss(state, symbol) >=
-				limits.symbolDailyLossPct * limits.allocatedCapital
-			) {
-				await this._engage(symbol, "daily_loss_symbol");
-			}
+		for (const { symbol, reason } of limitBreaches(
+			this._state,
+			this._d.limits
+		)) {
+			await this._engage(symbol, reason);
 		}
 	}
 
@@ -672,34 +645,7 @@ export class RiskExecution {
 			return;
 		}
 		this._lastReconcile = this._now();
-		const diffs: string[] = [];
-		for (const sym of new Set([
-			...Object.keys(state.positions),
-			...Object.keys(acct.positions),
-		])) {
-			if (
-				Math.abs((state.positions[sym] ?? 0) - (acct.positions[sym] ?? 0)) >
-				1e-9
-			) {
-				diffs.push(`position:${sym}`);
-			}
-		}
-		const ours = Object.values(state.orders).filter((order) =>
-			WIRED_STATES.includes(order.status)
-		);
-		const brokerOpen = new Set(acct.openOrders);
-		if (
-			ours.length !== brokerOpen.size ||
-			ours.some((order) => !brokerOpen.has(order.clientOrderId))
-		) {
-			diffs.push("open_orders");
-		}
-		if (
-			Math.abs(state.cash - acct.cash) >
-			this._d.limits.balanceTolerancePct * this._d.limits.allocatedCapital
-		) {
-			diffs.push("balance");
-		}
+		const diffs = reconciliationDiffs(state, acct, this._d.limits);
 		this._mismatch = diffs.length > 0;
 		this._ready = !this._mismatch;
 		if (diffs.length) {
@@ -707,23 +653,5 @@ export class RiskExecution {
 			this._emit("reconciliation.mismatch", { diffs });
 			await this._engage(null, "reconciliation");
 		}
-	}
-
-	private _rollDay(now: number): void {
-		const state = this._state;
-		const date = utcDate(now);
-		if (state.day.date === date) {
-			return;
-		}
-		state.day = {
-			date,
-			startEquity: equity(state),
-			symbols: Object.fromEntries(
-				Object.entries(state.positions).map(([sym, qty]) => [
-					sym,
-					{ startValue: qty * (state.marks[sym]?.price ?? 0), flow: 0 },
-				])
-			),
-		};
 	}
 }

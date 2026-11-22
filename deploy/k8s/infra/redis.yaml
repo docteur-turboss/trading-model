@@ -30,6 +30,9 @@ metadata:
 spec:
   serviceName: redis-headless
   replicas: 3
+  # Parallel: after an outage every node must be up to compare the master markers
+  # (redis-ha.sh cold start); OrderedReady would start redis-0 alone.
+  podManagementPolicy: Parallel
   selector:
     matchLabels:
       app.kubernetes.io/component: redis

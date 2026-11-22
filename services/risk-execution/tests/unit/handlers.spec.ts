@@ -82,7 +82,7 @@ describe("risk-execution routes: each caller only reaches its own routes (ADR-00
 		expect(
 			(await h.adminEngage(input(engage), as("risk-execution"))).status
 		).toBe(200);
-		expect(risk.engage).toHaveBeenCalledWith("global", "x", "op", undefined);
+		expect(risk.engage).toHaveBeenCalledWith({ scope: "global" }, "x", "op");
 	});
 
 	it("a symbol scope needs a symbol, and a refused re-arming is a 403", async () => {

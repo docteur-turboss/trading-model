@@ -32,6 +32,9 @@ export const HANDLER_TIMEOUT_MS = DurationMs.of(
 	DELIVERY_ATTEMPT_TIMEOUT_MS - CLAIM_MARGIN_MS
 );
 
+/** After the abort a handler may take this long to return; within the claim margin, so its slot is freed before another replica can claim the entry. */
+export const ABORT_GRACE_MS = DurationMs.of(CLAIM_MARGIN_MS - 1000);
+
 /**
  * Idle time of a journal entry before the next attempt may start: the previous
  * attempt has timed out (so no replica still works on it) and the backoff of

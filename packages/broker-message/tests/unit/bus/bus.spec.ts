@@ -80,7 +80,7 @@ describe("publishToBus", () => {
 
 describe("BusConsumer", () => {
 	function consumer(
-		handle: (message: Message) => Promise<void>,
+		handle: (message: Message, signal: AbortSignal) => Promise<void>,
 		parts = bus(),
 		onDeadLetter = jest.fn()
 	) {
@@ -297,22 +297,62 @@ describe("BusConsumer", () => {
 
 	it("should abandon a handler that never ends and leave its entry pending", async () => {
 		jest.replaceProperty(backoff, "HANDLER_TIMEOUT_MS", DurationMs.of(50));
+		jest.replaceProperty(backoff, "ABORT_GRACE_MS", DurationMs.of(50));
+		let signal: AbortSignal | undefined;
 		const {
 			consumer: c,
 			journal,
 			redis,
-		} = consumer(() => new Promise(() => {}));
+		} = consumer((_message, s) => {
+			signal = s;
+			return new Promise(() => {});
+		});
 		await c.start([TOPIC]);
 		await publishToBus(journal, "a", METADATA);
 		await new Promise((resolve) => setTimeout(resolve, 300));
 		await c.stop();
 
+		expect(signal?.aborted).toBe(true);
 		expect(pendingOf(redis)).toBe(1);
 		expect(
 			(await MESSAGES_DELIVERED_TOTAL.get()).values.some(
 				(v) => v.labels.status === "failed" && v.value >= 1
 			)
 		).toBe(true);
+	});
+
+	it.each([
+		[
+			"holds the slot for the whole grace while the handler runs on",
+			false,
+			450,
+		],
+		["frees the slot as soon as the aborted handler returns", true, 0],
+	])("should %s", async (_name, returnsOnAbort, minStopMs) => {
+		jest.replaceProperty(backoff, "HANDLER_TIMEOUT_MS", DurationMs.of(50));
+		jest.replaceProperty(backoff, "ABORT_GRACE_MS", DurationMs.of(500));
+		let signal: AbortSignal | undefined;
+		const { consumer: c, journal } = consumer((_message, s) => {
+			signal = s;
+			return new Promise<void>((resolve) => {
+				if (returnsOnAbort) {
+					s?.addEventListener("abort", () => resolve());
+				}
+			});
+		});
+		await c.start([TOPIC]);
+		await publishToBus(journal, "a", METADATA);
+		await until(() => signal?.aborted === true);
+		const startedAt = Date.now();
+		await c.stop();
+		const waited = Date.now() - startedAt;
+
+		// stop() waits for the in-flight slots: still taken during the grace, free once the handler returned.
+		if (returnsOnAbort) {
+			expect(waited).toBeLessThan(300);
+		} else {
+			expect(waited).toBeGreaterThanOrEqual(minStopMs - 50);
+		}
 	});
 
 	it("should dead-letter a rejected message and report it", async () => {
