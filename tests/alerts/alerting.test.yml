@@ -12,6 +12,39 @@ evaluation_interval: 30s
 tests:
   # 1% errors on api-gateway: below every threshold. 10% on dlq-service:
   # fires, per job, with the real ratio.
+  # Recreate restart: a new pod down 3 m (startup) stays quiet, a pod down 10 m fires; other jobs keep the 1 m rule.
+  - name: Recreate jobs tolerate a startup window, a durable outage still fires ServiceDown
+    interval: 1m
+    input_series:
+      - series: 'up{job="risk-execution",instance="start"}'
+        values: '0x3 1x20'
+      - series: 'up{job="model-evaluator",instance="dead"}'
+        values: '0x20'
+      - series: 'up{job="api-gateway",instance="dead"}'
+        values: '0x20'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: ServiceDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: api-gateway, instance: dead}
+            exp_annotations:
+              summary: 'api-gateway is down'
+              description: 'Service api-gateway has been unreachable for over 1 minute.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md'
+      - eval_time: 10m
+        alertname: ServiceDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: api-gateway, instance: dead}
+            exp_annotations:
+              summary: 'api-gateway is down'
+              description: 'Service api-gateway has been unreachable for over 1 minute.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md'
+          - exp_labels: {severity: critical, job: model-evaluator, instance: dead}
+            exp_annotations:
+              summary: 'model-evaluator is down'
+              description: 'Service model-evaluator has been unreachable for over 1 minute.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md'
+
   - name: error ratios are computed per job
     interval: 1m
     input_series:
@@ -1273,6 +1306,25 @@ tests:
         alertname: BackupIncrementalMissing
         exp_alerts: []
 
+  # The copy to the second off-site bucket fails: BackupOffsiteCopyFailed fires
+  # for it, the primary copy stays quiet.
+  - name: a failed second off-site copy raises BackupOffsiteCopyFailed
+    interval: 1m
+    input_series:
+      - series: 'backup_last_status{job="backup-metrics",component="offsite"}'
+        values: '1x10'
+      - series: 'backup_last_status{job="backup-metrics",component="offsite-secondary"}'
+        values: '0x10'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: BackupOffsiteCopyFailed
+        exp_alerts:
+          - exp_labels: {severity: critical, job: backup-metrics, component: offsite-secondary}
+            exp_annotations:
+              summary: 'Off-site backup copy failed: offsite-secondary'
+              description: 'The encrypted backups were not copied to the offsite-secondary bucket: check the S3 credentials (Secret trading-model-backup-s3 in K8s).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+
   # One run of the binlog archive fails (S3 down): warned after 5 m, resolved
   # by the next run (60m), which retries it. A failed off-site copy of the
   # incremental job is BackupOffsiteCopyFailed's, not this alert's.
@@ -1702,6 +1754,26 @@ tests:
               summary: 'Disk /dev/sda1 of 10.0.0.5:9100 is over 85% full'
               description: 'Only 10% of /dev/sda1 is free on 10.0.0.5:9100 (one alert per device, whatever its mount points). A full node disk evicts pods; a full Docker Desktop host disk froze the whole VM (2026-10-28).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#nodefilesystemalmostfull'
+
+  - name: MySQL accepting plain connections is reported after 15 minutes
+    interval: 1m
+    input_series:
+      - series: 'mysql_global_variables_require_secure_transport{job="mysql",instance="10.0.0.1:9104"}'
+        values: '0x20'
+      - series: 'mysql_global_variables_require_secure_transport{job="mysql",instance="10.0.0.2:9104"}'
+        values: '1x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: MySQLSecureTransportOff
+        exp_alerts: []
+      - eval_time: 17m
+        alertname: MySQLSecureTransportOff
+        exp_alerts:
+          - exp_labels: {severity: warning, job: mysql, instance: '10.0.0.1:9104'}
+            exp_annotations:
+              summary: 'MySQL 10.0.0.1:9104 accepts plain connections'
+              description: 'require_secure_transport has been OFF on 10.0.0.1:9104 for 15 minutes: a deploy rollback relaxed MySQL TLS (scraper no longer needs a client certificate) and nothing restored it.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mysqlsecuretransportoff'
 
   - name: a database its exporter cannot query is reported per member
     interval: 1m

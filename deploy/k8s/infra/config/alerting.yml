@@ -49,7 +49,8 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slolatencyfastburn'
 
       - alert: ServiceDown
-        expr: up == 0
+        # Recreate jobs (risk-execution, model-evaluator): the new pod is scraped (phase Running) before it listens, up to the 120 s startup probe; the series must already be at 0 four minutes ago, then the 1 m `for`.
+        expr: up{job!~"risk-execution|model-evaluator"} == 0 or max_over_time(up{job=~"risk-execution|model-evaluator"}[4m]) == 0 and up{job=~"risk-execution|model-evaluator"} offset 4m == 0
         for: 1m
         labels:
           severity: critical
@@ -227,13 +228,13 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
       - alert: BackupOffsiteCopyFailed
-        expr: backup_last_status{component="offsite"} == 0
+        expr: backup_last_status{component=~"offsite|offsite-secondary"} == 0
         for: 5m
         labels:
           severity: critical
         annotations:
-          summary: 'Off-site backup copy failed'
-          description: 'The encrypted backups were not copied off-site: check the S3 credentials (Secret trading-model-backup-s3 in K8s).'
+          summary: 'Off-site backup copy failed: {{ $labels.component }}'
+          description: 'The encrypted backups were not copied to the {{ $labels.component }} bucket: check the S3 credentials (Secret trading-model-backup-s3 in K8s).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
       - alert: BackupVolumeFilling
@@ -838,6 +839,16 @@ groups:
           summary: 'MySQL {{ $labels.instance }} does not answer its exporter'
           description: 'mysqld-exporter of {{ $labels.instance }} cannot query MySQL for 5 minutes: MySQL is down or refuses connections, or the exporter user is missing (Access denied in the mysqld-exporter logs).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mysqldown'
+
+      - alert: MySQLSecureTransportOff
+        expr: mysql_global_variables_require_secure_transport == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'MySQL {{ $labels.instance }} accepts plain connections'
+          description: 'require_secure_transport has been OFF on {{ $labels.instance }} for 15 minutes: a deploy rollback relaxed MySQL TLS (scraper no longer needs a client certificate) and nothing restored it.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mysqlsecuretransportoff'
 
       - alert: RedisDown
         expr: redis_up == 0

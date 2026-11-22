@@ -1,12 +1,25 @@
 # @trading-model/broker-message — Message Bus
 
-Client SDK for interacting with the **message-manager** (pub/sub message broker).
+Inter-service messaging library: the Redis Streams bus used in process ([ADR-0073](../adr/0073-message-bus-as-a-redis-streams-library.md)), plus the HTTP client of **message-manager** until release N+1.
 
 ## Overview
 
-**@trading-model/broker-message** is the inter-service messaging SDK for the platform. It provides topic-based publish/subscribe over HTTP, an in-process event emitter for local message dispatch, a fluent metadata builder, and Zod-based schema validation for all message payloads.
+**@trading-model/broker-message** publishes and consumes typed, validated messages. Since ADR-0073 (release N) a service that sets its `REDIS_*` variables talks to the bus directly in Redis; without them it keeps the HTTP path through message-manager. Both paths share the same streams and consumer groups. It also provides an in-process event emitter, a fluent metadata builder and Zod schemas for all payloads.
 
-Every microservice uses this package to send and receive typed, validated messages through the Message Delivery Service.
+## Bus library (`src/bus/`)
+
+Opt-in: `busJournalFromEnv(env)` (`@trading-model/broker-message/create-message-manager`) returns a `RedisMessageJournal`, or `undefined` when no Redis setting is present (`REDIS_URL` or `REDIS_SENTINELS`, `REDIS_SENTINEL_MASTER_NAME`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_SENTINEL_PASSWORD`, `REDIS_TLS_MODE`, `REDIS_TLS_CA`, `REDIS_TLS_SERVERNAME`, plus `JOURNAL_MIN_REPLICAS`). `createServiceMessageManager` passes it to `BrokerMessage`. Keys keep the prefix `trading-model:message-manager`.
+
+| Export (`@trading-model/broker-message/bus/…`) | Role |
+| ---------------------------------------------- | ---- |
+| `publisher` — `publishToBus` | `XADD` into the topic stream; rejects when Redis refuses the write or when `delivery.requireSubscriber` is set and nobody subscribes |
+| `consumer` — `BusConsumer` | One loop per topic, `XREADGROUP` + `XCLAIM` retries, `XACK` on success; one consumer group per subscriber service |
+| `redis-journal`, `journal.port` | Journal over Redis Streams (`RedisMessageJournal`, `MessageJournalPort`) |
+| `dead-streams` — `DeadStreams` | Entries over the delivery limit (10 for `at-least-once`) expired TTL, failed `exactly-once` attempt, or rejected with a `DeadLetterError` are copied to `trading-model:message-manager:dead:<topic>`, never trimmed |
+| `metrics` | `mm_messages_delivered_total`, `mm_messages_dlq_total`, `mm_journal_*`, `bus_dead_letters`, `bus_publisher_rejected_total` |
+| `backoff`, `delivery-error-classifier`, `delivery-metadata-extractor`, `message-factory` | Retry delay, error classification, delivery metadata, message construction |
+
+Dead letters are read, replayed and deleted with the `audit-dlq` CLI of audit-logger (`dlq-cli.js <operator> list|replay|delete`), see [runbook-dlq-backlog](../operations/runbooks/runbook-dlq-backlog.md). Replicas of a service share the group: one of them gets each entry, message-manager's workers included, never both.
 
 ## Dependencies
 
@@ -14,7 +27,7 @@ Every microservice uses this package to send and receive typed, validated messag
 - `@trading-model/primitives` — branded messaging/service types
 - `@trading-model/validation` — message envelope contracts (`message.types`)
 - `@trading-model/common` — error classes, config re-exports (`event.types`, `services.types`, `tls-paths`)
-- `@trading-model/address-manager` — Service discovery (finds Message Delivery Service)
+- `@trading-model/address-manager` — Service discovery (finds message-manager)
 - `express` — Express `Router`, `Application` types
 - `zod` — Runtime schema validation for metadata and payloads
 
@@ -64,15 +77,9 @@ const message = new BrokerMessage({...});
 await message.post.indirect(payload, metadata);
 ```
 
-## Endpoints
+## HTTP client of message-manager (to be removed with [#1241](https://github.com/docteur-turboss/trading-model/issues/1241))
 
-### Served (Inbound)
-
-None: each subscriber mounts its own `POST /message` route.
-
-### Consumed (Outbound)
-
-Calls made to the Message Delivery Service:
+Served: none (each subscriber mounts its own `POST /message` route). Calls made to message-manager:
 
 | Method | Path                              | Source                                      | Purpose                                |
 | ------ | --------------------------------- | ------------------------------------------- | -------------------------------------- |
@@ -80,7 +87,7 @@ Calls made to the Message Delivery Service:
 | DELETE | `https://{host}:{port}/subscribe` | `MessageManagerClient.unSubscribeToTopic`   | Unsubscribe from a topic               |
 | POST   | `https://{host}:{port}/message`   | `MessageManagerClient.publishAsyncMessage`  | Publish an asynchronous message        |
 
-## MessageManagerClient
+### MessageManagerClient
 
 Internal HTTP client communicating with the message-manager.
 
@@ -96,7 +103,7 @@ class MessageManagerClient {
 }
 ```
 
-### MessageManagerConfig
+#### MessageManagerConfig
 
 ```ts
 type MessageManagerConfig = {
@@ -126,9 +133,6 @@ const metadata = new HELPER.metadataBuilder('training.model.published', 'trainin
 | `setDelivery(context)`                     | Sets delivery mode (mode, ttl)                                                     |
 | `setIds({ causationId?, correlationId? })` | Sets correlation IDs                                                                                |
 | `toJSON()`                                 | Produces the `MessageMetadata` object. Throws `MetadataBuilderError` if required fields are missing |
-| ------------------------------------------ | ----------------------------------------------------------                                          |
-
-> **Note on required fields**: `topic`, `eventType`, and `publisher` are constructor arguments (`new HELPER.metadataBuilder(topic, eventType, publisher)`); `toJSON()` throws a `MetadataBuilderError` if a required field is missing. Previously, unset fields were tracked via the sentinel string `'null'`, which was indistinguishable from a legitimate value — this has been replaced with proper `undefined`-based tracking.
 
 ## Zod Schemas
 
@@ -210,10 +214,6 @@ interface Message<T = unknown> {
 ```typescript
 import BrokerMessage, { HELPER } from '@trading-model/broker-message';
 import AddressManager from '@trading-model/address-manager';
-import express from 'express';
-
-const app = express();
-app.use(express.json());
 
 const am = new AddressManager({/* config */});
 const { stop: stopAM } = am.start();
@@ -243,13 +243,3 @@ cleanup();
 await broker.stopMessageManager();
 stopAM();
 ```
-
-## Deployment
-
-This package is built as a workspace dependency. Consuming services reference it in their `package.json`:
-
-```json
-"dependencies": { "@trading-model/broker-message": "*" }
-```
-
-Build: `bun run build` (tsc, Node16 module output). The compiled output goes to `dist/`.

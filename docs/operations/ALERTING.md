@@ -50,7 +50,7 @@ Dead man's switch margin: `Watchdog` is re-sent every minute (`repeat_interval: 
 
 ## High availability (production)
 
-ADR-0062: production runs Prometheus ×2 and Alertmanager ×2 (cluster on port 9094), so a drain or a release does not stop evaluation or notifications. Check: `kubectl exec alertmanager-0 -- wget -qO- localhost:9093/api/v2/status` shows `cluster.status: ready` and 2 peers. Grafana, Loki, Jaeger, blackbox-exporter and kube-state-metrics stay at one replica (consultation or a missed scrape, not detection). Deduplication relies on `alert_relabel_configs` dropping the `replica` label (expanded by `--enable-feature=expand-external-labels`): both Prometheus send identical alerts to every ready pod (Service `alertmanager-ready`). Staging runs 1 of each.
+ADR-0062: production runs Prometheus ×2 and Alertmanager ×2 (cluster on port 9094), so a drain or a release does not stop evaluation or notifications. Check: `kubectl exec alertmanager-0 -- wget -qO- localhost:9093/api/v2/status` shows `cluster.status: ready` and 2 peers. Grafana, Loki, Jaeger, blackbox-exporter and kube-state-metrics stay at one replica (consultation or a missed scrape, not detection). Deduplication relies on `alert_relabel_configs` dropping the `replica` label (expanded by default since Prometheus 3): both Prometheus send identical alerts to every ready pod (Service `alertmanager-ready`). Staging runs 1 of each.
 
 ## Loki and the trace pipeline
 
@@ -195,6 +195,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `KubePersistentVolumeFillingUp` | warning | [runbook-infrastructure#kubepersistentvolumefillingup](runbooks/runbook-infrastructure.md#kubepersistentvolumefillingup) |
 | `NodeFilesystemAlmostFull` | warning | [runbook-infrastructure#nodefilesystemalmostfull](runbooks/runbook-infrastructure.md#nodefilesystemalmostfull) |
 | `MySQLDown` | critical | [runbook-infrastructure#mysqldown](runbooks/runbook-infrastructure.md#mysqldown) |
+| `MySQLSecureTransportOff` | warning | [runbook-infrastructure#mysqlsecuretransportoff](runbooks/runbook-infrastructure.md#mysqlsecuretransportoff) |
 | `RedisDown` | critical | [runbook-infrastructure#redisdown](runbooks/runbook-infrastructure.md#redisdown) |
 | `RedisReplicasMissing` | warning | [runbook-infrastructure#redisreplicasmissing](runbooks/runbook-infrastructure.md#redisreplicasmissing) |
 | `StatefulSetStuckOnOldRevision` | warning | [runbook-infrastructure#statefulsetstuckonoldrevision](runbooks/runbook-infrastructure.md#statefulsetstuckonoldrevision) |

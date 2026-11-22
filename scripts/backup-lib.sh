@@ -20,6 +20,10 @@
 #    BACKUP_S3_BUCKET           s3://bucket/prefix; rclone reads the AWS_*
 #                               credentials, RCLONE_S3_ENDPOINT/PROVIDER for a
 #                               non-AWS store (MinIO, B2, Scaleway, OVH...)
+#    BACKUP_S3_SECONDARY_BUCKET optional second bucket at another provider: the
+#                               same files, metric component="offsite-secondary";
+#                               its own _ACCESS_KEY_ID, _SECRET_ACCESS_KEY,
+#                               _REGION, _ENDPOINT, _PROVIDER (ADR-0033)
 #    BACKUP_REQUIRE_OFFSITE     true: a run without off-site copy fails
 #                               (backup_last_status{component="offsite"} 0)
 #  Metrics: METRICS_FILE, rewritten atomically at the end of each run.
@@ -604,18 +608,12 @@ offsite_remote() {
 	echo ":s3:${1#s3://}"
 }
 
-upload_offsite() {
-	local bucket="${BACKUP_S3_BUCKET:-}"
-	if [ -z "$bucket" ]; then
-		if [ "${BACKUP_REQUIRE_OFFSITE:-false}" = true ]; then
-			fail "BACKUP_REQUIRE_OFFSITE=true but BACKUP_S3_BUCKET is empty: the backups stay on a single volume"
-			write_metric "offsite" 0
-		fi
-		return 0
-	fi
+# Copies this run's files to bucket `$1`; its metric is component `$2`.
+_upload_offsite_to() {
+	local bucket="$1" component="$2"
 	if [ -z "$AGE_SUFFIX" ]; then
 		fail "Refusing to copy unencrypted backups off-site: set BACKUP_AGE_RECIPIENTS"
-		write_metric "offsite" 0
+		write_metric "$component" 0
 		return 0
 	fi
 	if [ "${#OUTPUTS[@]}" -eq 0 ]; then
@@ -624,7 +622,7 @@ upload_offsite() {
 	fi
 	if ! command -v rclone >/dev/null && ! command -v aws >/dev/null; then
 		fail "Neither rclone nor aws is installed: off-site copy skipped"
-		write_metric "offsite" 0
+		write_metric "$component" 0
 		return 0
 	fi
 	local layout="${BACKUP_OFFSITE_LAYOUT:-flat}" work file tier copied=true
@@ -651,7 +649,7 @@ upload_offsite() {
 		;;
 	*)
 		fail "BACKUP_OFFSITE_LAYOUT must be flat or tiered, not '${layout}': off-site copy skipped"
-		write_metric "offsite" 0
+		write_metric "$component" 0
 		rm -rf "$work"
 		return 0
 		;;
@@ -679,11 +677,38 @@ upload_offsite() {
 	rm -rf "$work"
 	if $copied; then
 		ok "Off-site copy complete"
-		write_metric "offsite" 1
+		write_metric "$component" 1
 	else
 		fail "Off-site copy failed"
-		write_metric "offsite" 0
+		write_metric "$component" 0
 	fi
+}
+
+upload_offsite() {
+	if [ -z "${BACKUP_S3_BUCKET:-}" ]; then
+		if [ "${BACKUP_REQUIRE_OFFSITE:-false}" = true ]; then
+			fail "BACKUP_REQUIRE_OFFSITE=true but BACKUP_S3_BUCKET is empty: the backups stay on a single volume"
+			write_metric "offsite" 0
+		fi
+		return 0
+	fi
+	_upload_offsite_to "$BACKUP_S3_BUCKET" offsite
+	[ -n "${BACKUP_S3_SECONDARY_BUCKET:-}" ] || return 0
+	# Optional second bucket at another provider (ADR-0033): its own credentials
+	# and endpoint, swapped in a subshell; a failure there is counted here.
+	(
+		export AWS_ACCESS_KEY_ID="${BACKUP_S3_SECONDARY_ACCESS_KEY_ID:-}" AWS_SECRET_ACCESS_KEY="${BACKUP_S3_SECONDARY_SECRET_ACCESS_KEY:-}"
+		export AWS_REGION="${BACKUP_S3_SECONDARY_REGION:-}" AWS_DEFAULT_REGION="${BACKUP_S3_SECONDARY_REGION:-}"
+		export RCLONE_S3_PROVIDER="${BACKUP_S3_SECONDARY_PROVIDER:-Other}"
+		if [ -n "${BACKUP_S3_SECONDARY_ENDPOINT:-}" ]; then
+			export RCLONE_S3_ENDPOINT="$BACKUP_S3_SECONDARY_ENDPOINT"
+		else
+			unset RCLONE_S3_ENDPOINT
+		fi
+		BACKUP_FAILURES=0
+		_upload_offsite_to "$BACKUP_S3_SECONDARY_BUCKET" offsite-secondary
+		exit "$BACKUP_FAILURES"
+	) || BACKUP_FAILURES=$((BACKUP_FAILURES + 1))
 }
 
 # Registers for the off-site copy every binlog and oplog archive still on the

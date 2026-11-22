@@ -125,6 +125,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `TRAINER_SIGNAL_FEATURES`         | string       | empty             | no       | `SUBJECT:dimension:metric` list (`BTC:social:pageviews`, subject = asset, sector or area): signals fed to the network as value, age and confidence inputs, 3 per metric (ADR-0081); read only with `FEATURE_SIGNAL_INPUTS`; each key must match the format or the service refuses to start; a key that finds no signal in the window logs a warning and trains on zeros | TT       |
 | `FEATURE_SIGNAL_INPUTS`           | boolean      | `false`           | no       | Feature flag (ADR-0039): `true` appends the `TRAINER_SIGNAL_FEATURES` inputs to the 18 market inputs; `false`: input and published genome as before | TT       |
 | `FEATURE_INPUT_MASK_GENE`         | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0082): `true` lets the GA evolve a mask over the input groups (candle, window, one per signal metric); `false`: no mask, genome and manifest as before | TT       |
+| `FEATURE_SHARED_TRUNK`            | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076 step 1): `true` trains all the symbols in one session, hidden layers shared, one output head per symbol, each symbol published as its own model with `components` naming the trunk; `false`: one session per symbol, genome and manifest as before | TT       |
 | `TRAINER_INPUT_MASK_PROTECT_CANDLE` | boolean    | `false`           | no       | `true` keeps the candle group active in every mask the GA evolves (ADR-0082); read only with `FEATURE_INPUT_MASK_GENE` | TT       |
 | `TRAINER_DATA_WINDOW`             | number       | `500`             | no       | Data window size (inputs per step)   | TT       |
 | `TRAINER_VALIDATION_SPLIT`        | number (]0, 1[) | `0.15`            | no       | Fraction of the steps left after the test cut, used for validation (selection) | TT       |
@@ -350,6 +351,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 
 | Variable | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
+| `BACKUP_S3_SECONDARY_BUCKET` (+ `_REGION`, `_ENDPOINT`, `_PROVIDER`, `_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY`) | `s3://bucket/prefix` + store settings | unset | Optional second off-site backup bucket at another provider: when set, `upload_offsite` sends it every file sent to `BACKUP_S3_BUCKET` (same tiers, metric `component="offsite-secondary"`), and `deploy.yml` checks it like the first (`scripts/backup-bucket-check.sh`). GitHub environment variables / secrets of the same names; `deploy.yml` writes them to the Secret `trading-model-backup-s3`. Unset: nothing changes |
 | `BACKUP_S3_ALLOWED_REGIONS` | space-separated list | EU regions of AWS (`eu-*`), Scaleway (`fr-par nl-ams pl-waw`), OVH (`gra sbg rbx par`) | Regions the off-site backup bucket may be in. `deploy.yml` runs `scripts/backup-bucket-check.sh`: a bucket elsewhere, or whose region cannot be read, is an error in production and a warning elsewhere (`BACKUP_S3_IMMUTABILITY_CHECK=warn` downgrades both). GDPR art. 44, `docs/compliance/third-party-dpas.md` |
 
 ---
@@ -408,6 +410,7 @@ TRAINER_ASSET_COSTS={}
 TRAINER_SIGNAL_FEATURES=
 FEATURE_SIGNAL_INPUTS=false
 FEATURE_INPUT_MASK_GENE=false
+FEATURE_SHARED_TRUNK=false
 TRAINER_INPUT_MASK_PROTECT_CANDLE=false
 TRAINER_DATA_WINDOW=500
 TRAINER_VALIDATION_SPLIT=0.15

@@ -170,6 +170,12 @@ old logs. Then grow the disk if the usage is real.
 2. Otherwise MySQL itself:
    [runbook-database-failover#mysql](runbook-database-failover.md#mysql).
 
+## MySQLSecureTransportOff
+
+`mysql_global_variables_require_secure_transport == 0` for 15 minutes: a deploy rollback
+(`deploy-release.sh rollback`) relaxed TLS so release N-1 can connect. Redeploy release N
+with `deploy.yml`: `db-migrate-user` binds the users to their certificate again and sets `ON`.
+
 ## RedisDown
 
 `redis_up == 0` for 5 minutes on a data node (`job="redis"`) or a sentinel

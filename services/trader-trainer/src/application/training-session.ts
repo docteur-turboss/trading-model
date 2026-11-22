@@ -17,6 +17,7 @@ import type {
 	LamarckGenome,
 } from "../domain/genetic-algorithm/genome";
 import { makeSeededBackendFactory } from "../domain/genetic-algorithm/rl-backend";
+import { weightsOf } from "../domain/genetic-algorithm/shared-trunk";
 import type { DeepReadonly } from "../domain/genetic-algorithm/shared-types";
 import type { TrainingSettings } from "../domain/training-settings";
 
@@ -27,6 +28,11 @@ export interface TrainingSessionResult {
 	generation: number;
 	/** Input masks of the final population (FEATURE_INPUT_MASK_GENE). */
 	inputMasks?: boolean[][];
+	/** FEATURE_SHARED_TRUNK: weights (trunk + own head) and test score of each symbol of the group. */
+	symbols?: Record<
+		string,
+		{ weights: Float32Array; bestFitnessMeta?: GenomeFitnessMeta }
+	>;
 }
 
 /**
@@ -85,6 +91,7 @@ class TrainingSession {
 			bestFitness: published?.fitness ?? ctx?.bestFitness ?? 0,
 			bestFitnessMeta: this._testMeta(bestGenome) ?? selectionMeta,
 			generation: runner.processor.generation,
+			symbols: this._symbolResults(bestGenome),
 			inputMasks: (ctx?.population ?? []).flatMap((genome) =>
 				genome.network.inputMask ? [[...genome.network.inputMask]] : []
 			),
@@ -95,10 +102,31 @@ class TrainingSession {
 	 * Scores the published genome once on the test segment, which the training
 	 * and the selection never read (ADR-0068). Undefined without a test segment.
 	 */
-	private _testMeta(
+	private _symbolResults(
 		genome: DeepReadonly<LamarckGenome>
+	): TrainingSessionResult["symbols"] {
+		const symbols = new Set(this._windowSets.flatMap((ws) => ws.symbol ?? []));
+		if (symbols.size === 0 || !genome.trainedWeights) {
+			return undefined;
+		}
+		return Object.fromEntries(
+			[...symbols].map((symbol) => {
+				const weights = weightsOf(genome, symbol);
+				const own = { ...genome, trainedWeights: weights };
+				const windows = this._windowSets.filter((ws) => ws.symbol === symbol);
+				return [
+					symbol,
+					{ weights, bestFitnessMeta: this._testMeta(own, windows) },
+				];
+			})
+		);
+	}
+
+	private _testMeta(
+		genome: DeepReadonly<LamarckGenome>,
+		windowSets = this._windowSets
 	): GenomeFitnessMeta | undefined {
-		const test = this._windowSets[this._windowSets.length - 1]?.test;
+		const test = windowSets[windowSets.length - 1]?.test;
 		if (!test?.length) {
 			return undefined;
 		}

@@ -3,6 +3,7 @@
   "__requires": [],
   "title": "Trading Model — Services Overview",
   "uid": "trading-services",
+  "annotations": { "list": [ { "name": "Deploys", "enable": true, "iconColor": "blue", "expr": "count by (service, version) (build_info) unless count by (service, version) (build_info offset 5m)", "titleFormat": "Deploy", "textFormat": "{{service}} {{version}}", "step": "60s" } ] },
   "panels": [
     {
       "title": "Service Health",
