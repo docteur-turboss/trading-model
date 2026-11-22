@@ -742,6 +742,16 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		expect(await pending).toMatchObject({ reason: "kill_switch" });
 	});
 
+	it("a rearm queued before an engage does not clear it", async () => {
+		const ctx = build();
+		await ctx.svc.start();
+		const rearmed = ctx.svc.rearm("global", "ok", "ops");
+		await ctx.svc.engage("global", "panic", "ops");
+		await rearmed;
+		expect(ctx.svc.status().killSwitch.global).toBe("panic");
+		expect((ctx.store.value as RiskState).killSwitch.global).toBe("panic");
+	});
+
 	it("a broker call that hangs times out instead of holding the queue", async () => {
 		const inner = new PaperBroker(new MemoryStore<never>(), CAPITAL);
 		const hang = () => new Promise<never>(() => undefined);

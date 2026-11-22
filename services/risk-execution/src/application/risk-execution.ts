@@ -304,10 +304,9 @@ export class RiskExecution {
 		const flagged =
 			this._state !== undefined && this._flag(target, reason, actor);
 		return this._run(async () => {
-			if (flagged) {
+			// A rearm queued before this engage may have cleared the flag set above.
+			if (this._flag(target, reason, actor) || flagged) {
 				await this._cancelOpen(target);
-			} else {
-				await this._engage(target, reason, actor);
 			}
 			await this._save();
 		});
