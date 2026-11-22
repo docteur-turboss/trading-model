@@ -160,7 +160,11 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 	};
 
 	it.each<[string, Partial<Intent>, string]>([
-		["unlisted symbol", { symbol: "DOGEUSDT" }, "instrument_not_allowed"],
+		[
+			"unlisted symbol",
+			{ symbol: "DOGEUSDT", model: { symbol: "DOGEUSDT", version: "v1" } },
+			"instrument_not_allowed",
+		],
 		[
 			"quantity cap + 1",
 			{ quantity: 0.1001, referencePrice: 100 },
@@ -170,6 +174,12 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		["price outside the band", { limitPrice: 63_000 }, "price_band"],
 		["stale intent (> 1 min)", { referenceAt: T0 - 61_000 }, "stale_intent"],
 		["short selling", { side: "sell" }, "short_selling"],
+		[
+			"model admitted on another symbol",
+			{ model: { symbol: "ETHUSDT", version: "v1" } },
+			"model_symbol_mismatch",
+		],
+		["future intent", { referenceAt: T0 + 6000 }, "stale_intent"],
 	])("rejects %s", async (_n, i, expected) => {
 		expect(await reject(i)).toBe(expected);
 	});
@@ -183,6 +193,13 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 	it("rejects a model that is not admitted", async () => {
 		admissible = false;
 		expect(await reject({})).toBe("model_not_admitted");
+	});
+
+	it("ignores a price pushed from the future", async () => {
+		const r = await reject({}, (c) =>
+			c.svc.observePrice("BTCUSDT", 61_500, clock + 6000)
+		);
+		expect(r).toBe("accepted");
 	});
 
 	it("rejects a gap between the intent and the service's own price", async () => {
@@ -303,18 +320,28 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		expect((await ctx.broker.account()).positions.BTCUSDT).toBeCloseTo(0.05);
 	});
 
-	it("purges final orders past the longest window on save, after which the same intent is accepted", async () => {
+	it("purges final orders past the longest window on save, yet a late replay of the same decisionId is still a duplicate and not counted twice", async () => {
 		const ctx = build();
 		await ctx.svc.start();
-		const first = await ctx.svc.submitIntent(intent({ allowRepeat: false }));
+		const original = intent({ allowRepeat: false });
+		const first = await ctx.svc.submitIntent(original);
 		clock += 61_000;
 		const again = await ctx.svc.submitIntent(
 			intent({ allowRepeat: false, referenceAt: clock })
 		);
 		expect(again.status).not.toBe("rejected");
-		const orders = (ctx.store.value as RiskState).orders;
-		expect(orders[first.clientOrderId]).toBeUndefined();
-		expect(orders[again.clientOrderId]).toBeDefined();
+		const replay = await ctx.svc.submitIntent({
+			...original,
+			referenceAt: clock,
+		});
+		expect(replay).toMatchObject({ reason: "duplicate_client_order_id" });
+		const state = ctx.store.value as RiskState;
+		expect(state.orders[first.clientOrderId]).toBeUndefined();
+		expect(state.seen?.[first.clientOrderId]).toBeDefined();
+		expect(state.orders[again.clientOrderId]).toBeDefined();
+		expect(state.positions.BTCUSDT).toBeCloseTo(
+			(await ctx.broker.account()).positions.BTCUSDT
+		);
 	});
 
 	it("a replay under the kill switch never rewrites the existing order", async () => {
@@ -497,6 +524,8 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 		down = true;
 		expect((await ctx.svc.submitIntent(intent())).status).toBe("unknown");
 		expect(ctx.svc.isReady()).toBe(false);
+		await ctx.svc.tick();
+		expect(ctx.svc.status().mismatch).toBe(false); // unreachable is not a mismatch
 		down = false;
 		expect(await ctx.svc.submitIntent(intent())).toMatchObject({
 			reason: "not_reconciled",
@@ -557,6 +586,7 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 		await ctx.svc.start();
 		await ctx.svc.submitIntent(intent());
 		expect(ctx.svc.status().positions.BTCUSDT).toBeCloseTo(0.02);
+		expect(ctx.svc.status().exposureRatio).toBeGreaterThan(0);
 		view = {
 			...view,
 			status: "filled",
@@ -757,6 +787,7 @@ describe("reconciliation (ADR-0064 §4)", () => {
 		await ctx.svc.tick();
 		expect(ctx.svc.status().killSwitch.global).toBe("reconciliation");
 		expect(ctx.svc.isReady()).toBe(false);
+		expect(ctx.svc.status().mismatch).toBe(true);
 		expect(
 			ctx.events.some((e) => e.startsWith("reconciliation.mismatch"))
 		).toBe(true);

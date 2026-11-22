@@ -1,7 +1,7 @@
 # Runbook: Risk/Execution Kill Switch, Reconciliation, Stale Prices
 
-**Severity:** L1 (`KillSwitchEngaged`, `ReconciliationMismatch`), L2 (`RiskMarketDataStale`)
-**Alerts:** `KillSwitchEngaged`, `ReconciliationMismatch`, `RiskMarketDataStale`
+**Severity:** L1 (`KillSwitchEngaged`, `ReconciliationMismatch`), L2 (`RiskRejectRatioHigh`, `RiskMarketDataStale`)
+**Alerts:** `KillSwitchEngaged`, `ReconciliationMismatch`, `RiskRejectRatioHigh`, `RiskMarketDataStale`
 **Decision:** [ADR-0064](../../adr/0064-risk-and-execution-context-before-order-flow.md) · **Policy:** [risk-limits-policy](../../compliance/risk-limits-policy.md) · **Drill log:** [risk-drill-log](../../compliance/risk-drill-log.md)
 
 `risk-execution` owns every order (paper only: simulated broker, no live adapter). The switch state is in `/data/risk-execution/state.json` on its PVC. Nothing re-arms the switch except an operator, by hand.
@@ -39,7 +39,15 @@ The service state and the broker differ (a position, an open order, or a balance
 1. Read the `reconciliation.mismatch` log line (`diffs`: `position:<symbol>`, `open_orders`, `balance`).
 2. Paper mode: compare `state.json` and `paper-ledger.json`. Someone or something changed one of them (restore of one file only, manual edit, crash between the two writes of a fill).
 3. Copy both files out of the pod (no backup covers the PVC), decide which side is right, make the other file match it (or remove both together to start flat), restart the pod, check `ready: true`, then re-arm.
-4. Broker unreachable instead (`reconciliation.error` log line, pod not ready, intents rejected `not_reconciled`): no switch is engaged; the service retries at every tick and is ready again once a reconciliation passes.
+4. Broker unreachable instead (`reconciliation.error` log line, pod not ready, intents rejected `not_reconciled`): this alert does not fire (`risk_reconciliation_mismatch` stays 0); no switch is engaged; the service retries at every tick and is ready again once a reconciliation passes.
+
+## RiskRejectRatioHigh
+
+More than 50% of the intents were rejected over 15 min (no alert without traffic). Dashboard `risk-execution`: panel "Rejects by reason" names the cause.
+
+1. `price_band`, `price_gap`, `stale_intent`: the decision consumer sends bad or old reference prices; check it and the feed ([runbook-market-data-stale](runbook-market-data-stale.md)).
+2. `global_exposure`, `instrument_exposure`, `loss_limit_*`: a limit is close (panels "Exposure" and "Daily loss"); this is the limit working, check the strategy.
+3. `not_reconciled`, `kill_switch`: see the sections above.
 
 ## RiskMarketDataStale
 

@@ -1,6 +1,7 @@
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { AssetId, type AssetType } from "@trading-model/contracts/wire/signals";
+import { SignalBarHistory } from "@trading-model/http/signals/signal-bar-history";
 import { inputGroupNames } from "@trading-model/model-runtime/agent/input-mask";
 import { toSymbol } from "@trading-model/primitives/primitives";
 import {
@@ -15,7 +16,6 @@ import {
 import { TrainingLoop } from "../adapters/inbound/scheduler/training-loop";
 import { FileModelArtifactStore } from "../adapters/outbound/file-model-artifact-store";
 import { ModelPublisher } from "../adapters/outbound/model-publisher";
-import { SignalBarHistory } from "../adapters/outbound/signal-bar-history";
 import { runInWorker } from "../adapters/outbound/training-worker/worker-training-runner";
 import { Trainer } from "../application/trainer";
 import { DEFAULT_ASSET_COSTS, parseAssets } from "../domain/asset-costs";
@@ -39,6 +39,7 @@ import {
 import { MessageManager } from "./message-manager";
 import {
 	CURRENT_GENERATION,
+	DAILY_BAR_ISSUES_TOTAL,
 	GENOME_EVALUATION_SECONDS,
 	MARKET_DATA_BUFFER_SIZE,
 	MARKET_DATA_SYMBOLS,
@@ -187,7 +188,9 @@ export function createTraderTrainerContainer(
 			},
 		])
 	);
-	const bars = new SignalBarHistory(signalHistory, assets);
+	const bars = new SignalBarHistory(signalHistory, assets, (symbol, issue) =>
+		DAILY_BAR_ISSUES_TOTAL.inc({ symbol, issue })
+	);
 	const signalKeys = settings.FEATURE_SIGNAL_INPUTS
 		? parseCommaSeparated(settings.TRAINER_SIGNAL_FEATURES ?? "")
 		: [];
