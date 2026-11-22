@@ -61,7 +61,8 @@ export const MTLSAuthMiddleware = catchSync((req, _res, next) => {
 		mtlsDenialsTotal.inc({ reason: "identity_unresolved" });
 		throw ResponseException({
 			error: "Client identity could not be resolved",
-			reason: "Certificate has no SAN or CN",
+			reason:
+				"Certificate has no SPIFFE SAN of this trust domain and namespace",
 		}).unauthorized();
 	}
 

@@ -37,6 +37,7 @@ export class ScrapeCronOrchestrator {
 		// Fresh cursors: after a lost lease, another collector moved them (ADR-0057).
 		this._workerOrchestrator = this._createWorker();
 		this._task = scheduleNoOverlap(
+			"financial-scraper.scrape",
 			this._config.schedule,
 			(signal) => this._runCycle(signal),
 			() => logger.warn("Previous execution still running")

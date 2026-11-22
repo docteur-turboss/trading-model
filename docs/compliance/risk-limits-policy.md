@@ -75,7 +75,7 @@ Below the stale data threshold, an intent decided on a price older than 1 min (v
 
 ### 4.4 Re-arming
 
-Re-arming is manual only, through the admin route, by an operator (§2), with a reason recorded in the audit trail. Nothing re-arms the switch automatically: not a new trading day, not a restart, not fresh data. Before re-arming, the operator checks that the cause is gone (data fresh again, reconciliation clean, rejection cause understood). After the drawdown stop, only the project owner re-arms, once the strategy has been reviewed.
+Re-arming is manual only, through the admin route, by an operator (§2), with a reason recorded in the audit trail. Nothing re-arms the switch automatically: not a new trading day, not a restart, not fresh data. Before re-arming, the operator checks that the cause is gone (data fresh again, reconciliation clean, rejection cause understood). After the drawdown stop, only the project owner re-arms, once the strategy has been reviewed; the high-water mark then restarts from the current equity, and the audit event records the old and new values.
 
 ## 5. Independence from the decision component
 
@@ -108,6 +108,6 @@ Runbook: [runbook-risk-execution](../operations/runbooks/runbook-risk-execution.
 | Control | Status |
 |---|---|
 | Loss limits and global exposure cap (§3) | ✅ Implemented and specified in `risk-execution` (paper); live still forbidden |
-| Kill switch, manual and automatic (§4) | ✅ Implemented and specified in `risk-execution` (paper); live still forbidden. Engagements and re-arming are logged, not yet in the audit trail (#1732); the owner-only re-arming after the drawdown stop trusts the declared `actor` of the admin request (anyone with `kubectl exec` on the pod) |
+| Kill switch, manual and automatic (§4) | ✅ Implemented and specified in `risk-execution` (paper); live still forbidden. Engagements and re-arming go to the audit trail; a refused publish is kept in `risk-event-outbox.json` (`RISK_STATE_DIR`) and replayed (#2133); the owner-only re-arming after the drawdown stop trusts the declared `actor` of the admin request (anyone with `kubectl exec` on the pod) |
 | Drill (§7) | ✅ Passed 2026-11-20 in-process ([risk-drill-log](risk-drill-log.md)); to repeat on the deployed paper environment before the 30 days start (#1733) |
 | Values | ✅ Validated by the project owner, 2026-11-20 (issue #1652) |

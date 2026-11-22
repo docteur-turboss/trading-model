@@ -26,7 +26,7 @@ export interface DecisionGenome {
 	mode: "every_bar" | "on_event";
 	/** |close move| over the event window (fraction) that fires the detector. */
 	priceMove: number;
-	/** Volume in standard deviations (`volumeRatio`) that fires the detector. */
+	/** Volume / its standard deviation (`volumeRatio`) that fires the detector. */
 	volumeMultiple: number;
 	/** Fewest bars between two decisions. */
 	minGap: PositiveInt;

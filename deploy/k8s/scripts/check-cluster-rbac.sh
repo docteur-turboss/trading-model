@@ -20,20 +20,22 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$NAMESPACE" ] && [ -n "$ENVIRONMENT" ] || { echo "Usage: $0 --namespace NS --environment OVERLAY" >&2; exit 1; }
 
-# Only the RBAC documents: the other cluster-scope kinds are applied by the identity itself.
+# Only what the identity cannot create or change: RBAC, Namespaces (labels), DaemonSets.
 rbac=$(awk '
-function flush() { if (kind == "ClusterRole" || kind == "ClusterRoleBinding") { printf "%s%s", sep, doc; sep = "---\n" } doc = ""; kind = "" }
+function flush() { if (kind == "ClusterRole" || kind == "ClusterRoleBinding" || kind == "Namespace" || kind == "DaemonSet") { printf "%s%s", sep, doc; sep = "---\n" } doc = ""; kind = "" }
 /^---[ \t]*$/ { flush(); next }
 /^kind:[ \t]/ && kind == "" { kind = $2 }
 { doc = doc $0 "\n" }
 END { flush() }
 ')
-[ -n "$rbac" ] || { echo "No ClusterRole or ClusterRoleBinding in the render"; exit 0; }
+[ -n "$rbac" ] || { echo "No ClusterRole, ClusterRoleBinding, Namespace or DaemonSet in the render"; exit 0; }
 
 # What `kubectl apply` would change: subjects lose apiGroup, which the API server defaults.
 NORM='def norm: if .kind == "ClusterRole" then (if .aggregationRule then {aggregationRule} else {rules: (.rules // [])} end)
+  elif .kind == "Namespace" then {labels: ((.metadata.labels // {}) | del(."kubernetes.io/metadata.name"))}
+  elif .kind == "DaemonSet" then {}
   else {roleRef, subjects: ((.subjects // []) | map(del(.apiGroup)))} end;'
-desired=$(kubectl create --dry-run=client -o json -f - <<<"$rbac" | jq -c "$NORM"' if .kind == "List" then .items[] else . end | {kind, name: .metadata.name, spec: norm}')
+desired=$(kubectl create --dry-run=client -o json -f - <<<"$rbac" | jq -c "$NORM"' if .kind == "List" then .items[] else . end | {kind, name: .metadata.name, ns: .metadata.namespace, spec: norm}')
 
 problems=()
 err=$(mktemp)
@@ -41,7 +43,8 @@ trap 'rm -f "$err"' EXIT
 while IFS= read -r obj; do
 	kind=$(jq -r .kind <<<"$obj")
 	name=$(jq -r .name <<<"$obj")
-	if ! live=$(kubectl get "$kind" "$name" -o json 2>"$err"); then
+	ns=$(jq -r '.ns // empty' <<<"$obj")
+	if ! live=$(kubectl get "$kind" "$name" ${ns:+-n "$ns"} -o json 2>"$err"); then
 		# Any other error (API unreachable, Forbidden) fails the script, not "missing".
 		grep -q NotFound "$err" || { cat "$err" >&2; exit 2; }
 		problems+=("$kind $name (missing)")
@@ -57,7 +60,7 @@ if [ ${#problems[@]} -gt 0 ]; then
 		cmd="bash scripts/deploy-identity.sh cluster --namespace $NAMESPACE --environment $ENVIRONMENT"
 	fi
 	printf -v list '%s, ' "${problems[@]}"
-	echo "::error::The deploy-cluster identity cannot create or change ${list%, }: an admin must run \`$cmd\` (with the new release checked out) before this deploy (ADR-0041)"
+	echo "::error::The deploy-cluster identity cannot create or change ${list%, } (RBAC, Namespace labels, DaemonSets): an admin must run \`$cmd\` (with the new release checked out) before this deploy (ADR-0041)"
 	exit 1
 fi
-echo "ClusterRoles and ClusterRoleBindings of the render are present and up to date"
+echo "ClusterRoles, bindings, Namespaces and DaemonSets of the render are present and up to date"

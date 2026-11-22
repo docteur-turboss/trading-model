@@ -29,9 +29,21 @@ export class SubscriptionRegistry {
 		await this.getSubscriptions(params.topic);
 	}
 
-	async unsubscribe(params: TopicSubscription): Promise<void> {
+	/** Removes the subscription of `caller`'s instance; false (nothing removed) when the instance belongs to another service. */
+	async unsubscribe(
+		params: TopicSubscription,
+		caller: string
+	): Promise<boolean> {
+		const bindings = await this._store.list(params.topic);
+		const owner = bindings.find(
+			(binding) => binding.serviceIdentity.instanceId === params.instanceId
+		)?.serviceIdentity.serviceName;
+		if (owner !== undefined && owner !== caller) {
+			return false;
+		}
 		await this._store.remove(params.topic, params.instanceId);
 		await this.getSubscriptions(params.topic);
+		return true;
 	}
 
 	/** Live subscriptions of a topic, one per subscribed instance. */

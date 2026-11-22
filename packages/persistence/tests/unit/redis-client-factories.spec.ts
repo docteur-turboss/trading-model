@@ -97,6 +97,7 @@ describe("command deadline", () => {
 		build();
 		const options = (Redis as unknown as { lastOptions: Record<string, any> })
 			.lastOptions;
+		expect(options.connectTimeout).toBe(2000);
 		expect(options.commandTimeout).toBe(2000);
 		expect(options.maxRetriesPerRequest).toBe(5);
 	});
