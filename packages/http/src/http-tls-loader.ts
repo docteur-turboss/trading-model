@@ -8,7 +8,10 @@ import type {
 	TlsPemBundle,
 } from "@trading-model/common/config/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { extractCanonicalServiceName } from "@trading-model/common/utils/spiffe";
+import {
+	extractCanonicalServiceName,
+	normalizeServiceName,
+} from "@trading-model/common/utils/spiffe";
 import { CaPem, CertPem, KeyPem } from "@trading-model/primitives/primitives";
 
 function readTlsFileSync(filePath: string, label: string): string {
@@ -135,7 +138,7 @@ export function spiffeServerIdentityCheck(
 			return tls.checkServerIdentity(host, cert);
 		}
 		const actual = extractCanonicalServiceName(cert.subjectaltname ?? "");
-		if (actual !== extractCanonicalServiceName(expectedService)) {
+		if (actual !== normalizeServiceName(expectedService)) {
 			return Object.assign(
 				new Error(
 					`Server SVID is ${actual ?? "unknown"}, expected ${expectedService}`

@@ -7,7 +7,7 @@ function mockRequest(overrides?: Record<string, unknown>): Request {
 	return {
 		clientIdentity:
 			(overrides?.clientIdentity as string) ??
-			"spiffe://cluster.local/ns/default/sa/test-service",
+			"spiffe://trading-model.local/ns/default/sa/test-service",
 		...overrides,
 	} as unknown as Request;
 }
@@ -16,15 +16,15 @@ describe("AclService", () => {
 	it("should resolve caller name from SPIFFE identity", () => {
 		const acl = new AclService();
 		const req = mockRequest({
-			clientIdentity: "spiffe://cluster.local/ns/default/sa/my-service",
+			clientIdentity: "spiffe://trading-model.local/ns/default/sa/my-service",
 		});
 		expect(acl.resolveCallerName(req)).toBe(ServiceId.of("my-service"));
 	});
 
-	it("should resolve caller from client: prefix", () => {
+	it("should refuse a client: identity", () => {
 		const acl = new AclService();
 		const req = mockRequest({ clientIdentity: "client:gateway" });
-		expect(acl.resolveCallerName(req)).toBe(ServiceId.of("api-gateway"));
+		expect(() => acl.resolveCallerName(req)).toThrow();
 	});
 
 	it("should throw unauthorized when no identity", () => {
