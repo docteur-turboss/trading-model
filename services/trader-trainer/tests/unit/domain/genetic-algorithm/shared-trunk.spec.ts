@@ -6,6 +6,9 @@ import {
 	runInProcess,
 	type TrainingSessionResult,
 } from "../../../../src/application/training-session";
+import * as pipeline from "../../../../src/domain/genetic-algorithm/evaluation-pipeline";
+import { createDefaultGenome } from "../../../../src/domain/genetic-algorithm/factory";
+import { GenerationProcessor } from "../../../../src/domain/genetic-algorithm/generation-processor";
 import { FitnessType } from "../../../../src/domain/genetic-algorithm/genome";
 import { makeSeededBackendFactory } from "../../../../src/domain/genetic-algorithm/rl-backend";
 import {
@@ -192,5 +195,44 @@ describe("rotatingWindowSets", () => {
 		const seen = [...counts.values()];
 		expect(Math.max(...seen) - Math.min(...seen)).toBeLessThanOrEqual(1);
 		expect(counts.size).toBe(5);
+	});
+});
+
+describe("selectOnAllSymbols", () => {
+	it("k < N: publishes the archive member best on all symbols, not on its slice", async () => {
+		const windowSets = ["A", "B", "C"].map((symbol) => ({ symbol })) as any[];
+		const cfg = { windowSets, symbolsPerGeneration: 1 } as any;
+		const [lucky, robust] = [
+			createDefaultGenome("a"),
+			createDefaultGenome("b"),
+		];
+		const processor = new GenerationProcessor(cfg);
+		(processor as any)._archive.update(
+			[lucky, robust],
+			[
+				{ avgPnl: 9, sharpe: 0, negFlops: 0 },
+				{ avgPnl: 1, sharpe: 9, negFlops: 0 },
+			],
+			[{ fitness: 9 }, { fitness: 1 }]
+		);
+		expect(processor.archiveBest?.genome).toBe(lucky);
+		const score = new Map([
+			[lucky, 0],
+			[robust, 5],
+		]);
+		const spy = jest
+			.spyOn(pipeline, "evaluateGenomeAllWindows")
+			.mockImplementation(((genome: any, sets: any[]) => {
+				expect(sets).toBe(windowSets);
+				return Promise.resolve({
+					updatedGenome: genome,
+					meta: { efficiencyScore: score.get(genome) },
+					objectives: {},
+				});
+			}) as any);
+		await processor.selectOnAllSymbols();
+		spy.mockRestore();
+		expect(processor.archiveBest?.genome).toBe(robust);
+		expect(processor.archiveBest?.fitness).toBe(5);
 	});
 });
