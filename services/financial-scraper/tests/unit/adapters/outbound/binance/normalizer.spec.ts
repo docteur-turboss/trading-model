@@ -90,8 +90,8 @@ describe("Binance normalizers", () => {
 				{ symbol: SYMBOL, interval: CandleInterval.Min1 },
 				[
 					good,
-					{ ...good, high: "0.001" },
-					{ ...good, open: "" },
+					{ ...good, high: "0.001" as any },
+					{ ...good, open: "" as any },
 					{ ...good, openTime: UnixTimestamp.of(1) },
 				]
 			);
