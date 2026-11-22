@@ -123,14 +123,20 @@ export class RiskExecution {
 		);
 	}
 
-	/** Loads the state (unreadable: global switch on, fail closed), finishes interrupted orders, then reconciles. */
+	/**
+	 * Loads the state, finishes interrupted orders, then reconciles. Fail closed:
+	 * unreadable, global switch on for good; missing (first install or lost
+	 * volume, indistinguishable), global switch on until an operator re-arms.
+	 */
 	start(): Promise<void> {
 		return this._run(async () => {
 			const now = this._now();
 			try {
-				this._state =
-					(await this._d.store.load()) ??
-					newState(this._d.limits.allocatedCapital, now);
+				const loaded = await this._d.store.load();
+				this._state = loaded ?? newState(this._d.limits.allocatedCapital, now);
+				if (!loaded) {
+					await this._engage(null, "state_missing");
+				}
 			} catch (error) {
 				this._broken = true;
 				this._state = newState(this._d.limits.allocatedCapital, now);

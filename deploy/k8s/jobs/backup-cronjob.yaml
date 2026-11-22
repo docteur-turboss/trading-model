@@ -78,7 +78,7 @@ spec:
                 - |
                   set -euo pipefail
                   /scripts/backup-k8s.sh \
-                    --components mongodb,mysql,checkpoints,spire
+                    --components mongodb,mysql,checkpoints,spire,risk
               # BACKUP_S3_SECONDARY_* keys of the Secret (second off-site bucket, optional).
               envFrom:
                 - secretRef:

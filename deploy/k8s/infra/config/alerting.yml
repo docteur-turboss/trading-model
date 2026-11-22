@@ -208,7 +208,7 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
       - alert: BackupComponentMissing
-        expr: 'absent(backup_last_success_timestamp{component="mongodb"}) or absent(backup_last_success_timestamp{component="mongodb-audit"}) or absent(backup_last_success_timestamp{component="mysql"}) or absent(backup_last_success_timestamp{component="spire"}) or absent(backup_last_success_timestamp{component="checkpoints"})'
+        expr: 'absent(backup_last_success_timestamp{component="mongodb"}) or absent(backup_last_success_timestamp{component="mongodb-audit"}) or absent(backup_last_success_timestamp{component="mysql"}) or absent(backup_last_success_timestamp{component="spire"}) or absent(backup_last_success_timestamp{component="checkpoints"}) or absent(backup_last_success_timestamp{component="risk"})'
         for: 26h
         labels:
           severity: warning

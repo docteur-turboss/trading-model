@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 #  Trading Model — Database Restore Script (Kubernetes)
-#  Usage:  bash scripts/restore-k8s.sh [--dry-run] [--components mongodb,mongodb-audit,mysql,mysql-core,checkpoints,spire]
+#  Usage:  bash scripts/restore-k8s.sh [--dry-run] [--components mongodb,mongodb-audit,mysql,mysql-core,checkpoints,spire,risk]
 #          [--timestamp 2025-01-01_120000 | --until 2025-01-01T13:45:00Z]
 #          [--no-retention]
 #          [--allow-mixed-runs] [--ns <db.coll|db.*>]... [--into-scratch]
@@ -61,7 +61,7 @@ set -euo pipefail
 BACKUP_DIR="${BACKUP_DIR:-/backups}"
 RESTORE_TIMESTAMP="${RESTORE_TIMESTAMP:-latest}"
 DRY_RUN=false
-COMPONENTS="mongodb,mysql,checkpoints,spire"
+COMPONENTS="mongodb,mysql,checkpoints,spire,risk"
 K8S_NAMESPACE="${K8S_NAMESPACE:-trading-model}"
 # Writes the SPIRE datastore and CA keys into the server volume while the
 # server is stopped (the spire-server image has neither a shell nor tar).
@@ -458,35 +458,27 @@ restore_checkpoints() {
   fi
 }
 
-# Stops the SPIRE server, writes the datastore and CA keys of the run
-# (data_<TS>.tar) into its volume from a helper pod running as the server's
-# user, then starts the server again. The WAL files of the replaced datastore
-# are removed: replayed onto the restored file they would corrupt it.
-restore_spire() {
-  log "Starting SPIRE server restore..."
-  resolve_and_verify spire || return 0
-  local file="$RESOLVED_FILE"
-  case "$file" in
-    */keys_*)
-      fail "SPIRE: ${file} was taken before ADR-0065 (datastore in MySQL): its CA keys do not match the SQLite datastore; restore a newer run, or let the server start a new CA (agents bootstrap again)"
-      return
-      ;;
-  esac
-
-  local deploy="deployment/spire-server"
+# restore_into_volume <component> <volume> <file> <script>
+# Writes backup <file> into volume <volume> of deployment <component>: stops
+# it, runs <script> (stdin: the plaintext backup) in a helper pod mounting the
+# volume at /data as the deployment's user, then starts it again. Returns 0
+# once written, 1 after `fail`, 2 in dry-run.
+restore_into_volume() {
+  local component="$1" volume="$2" file="$3" script="$4"
+  local deploy="deployment/${component}" pod="${component}-restore"
   local claim uid gid
   claim=$(kubectl get -n "${K8S_NAMESPACE}" "$deploy" \
-    -o jsonpath='{.spec.template.spec.volumes[?(@.name=="spire-data")].persistentVolumeClaim.claimName}' 2>/dev/null || true)
+    -o jsonpath="{.spec.template.spec.volumes[?(@.name==\"${volume}\")].persistentVolumeClaim.claimName}" 2>/dev/null || true)
   if [ -z "$claim" ]; then
-    fail "SPIRE server has no spire-data volume claim"
-    return
+    fail "${component} has no ${volume} volume claim"
+    return 1
   fi
   uid=$(kubectl get -n "${K8S_NAMESPACE}" "$deploy" -o jsonpath='{.spec.template.spec.securityContext.runAsUser}')
   gid=$(kubectl get -n "${K8S_NAMESPACE}" "$deploy" -o jsonpath='{.spec.template.spec.securityContext.runAsGroup}')
 
   if $DRY_RUN; then
-    warn "[DRY-RUN] Would restore the SPIRE datastore and CA keys into claim ${claim} from ${file}"
-    return
+    warn "[DRY-RUN] Would restore ${file} into claim ${claim} of ${component}"
+    return 2
   fi
 
   local plain
@@ -494,22 +486,27 @@ restore_spire() {
   chmod 600 "$plain"
   if ! open_backup "$file" > "$plain"; then
     rm -f "$plain"
-    fail "SPIRE restore failed: cannot read ${file}"
-    return
+    fail "${component} restore failed: cannot read ${file}"
+    return 1
   fi
 
-  log "Stopping the SPIRE server..."
-  kubectl scale -n "${K8S_NAMESPACE}" "$deploy" --replicas=0 >/dev/null
-  kubectl wait -n "${K8S_NAMESPACE}" --for=delete pod -l app.kubernetes.io/component=spire-server --timeout=120s >/dev/null 2>&1 || true
+  log "Stopping ${component}..."
+  # errexit is off in a function called with `||`: never write under a running service.
+  if ! kubectl scale -n "${K8S_NAMESPACE}" "$deploy" --replicas=0 >/dev/null; then
+    rm -f "$plain"
+    fail "${component} restore failed: cannot stop ${deploy}"
+    return 1
+  fi
+  kubectl wait -n "${K8S_NAMESPACE}" --for=delete pod -l "app.kubernetes.io/component=${component}" --timeout=120s >/dev/null 2>&1 || true
 
-  kubectl delete pod -n "${K8S_NAMESPACE}" spire-restore --ignore-not-found >/dev/null
+  kubectl delete pod -n "${K8S_NAMESPACE}" "$pod" --ignore-not-found >/dev/null
   kubectl apply -n "${K8S_NAMESPACE}" -f - >/dev/null <<EOF
 apiVersion: v1
 kind: Pod
 metadata:
-  name: spire-restore
+  name: ${pod}
   labels:
-    app.kubernetes.io/component: spire-restore
+    app.kubernetes.io/component: ${pod}
 spec:
   restartPolicy: Never
   securityContext:
@@ -529,40 +526,69 @@ spec:
         capabilities:
           drop: ["ALL"]
       volumeMounts:
-        - name: spire-data
+        - name: data
           mountPath: /data
   volumes:
-    - name: spire-data
+    - name: data
       persistentVolumeClaim:
         claimName: ${claim}
 EOF
   local written=false
-  if kubectl wait -n "${K8S_NAMESPACE}" --for=condition=ready pod/spire-restore --timeout=120s >/dev/null &&
-    kubectl exec -i -n "${K8S_NAMESPACE}" spire-restore -- \
-      sh -c 'set -e; umask 077; rm -rf /data/restore.tmp; mkdir /data/restore.tmp
-        tar -xf - -C /data/restore.tmp datastore.sqlite3 keys-sqlite.json
-        rm -f /data/datastore.sqlite3-wal /data/datastore.sqlite3-shm
-        mv /data/restore.tmp/datastore.sqlite3 /data/datastore.sqlite3
-        mv /data/restore.tmp/keys-sqlite.json /data/keys-sqlite.json
-        rmdir /data/restore.tmp' < "$plain"; then
+  if kubectl wait -n "${K8S_NAMESPACE}" --for=condition=ready "pod/${pod}" --timeout=120s >/dev/null &&
+    kubectl exec -i -n "${K8S_NAMESPACE}" "$pod" -- sh -c "set -e; umask 077; ${script}" < "$plain"; then
     written=true
   fi
   rm -f "$plain"
-  kubectl delete pod -n "${K8S_NAMESPACE}" spire-restore --wait=true >/dev/null 2>&1 || true
+  kubectl delete pod -n "${K8S_NAMESPACE}" "$pod" --wait=true >/dev/null 2>&1 || true
 
-  log "Starting the SPIRE server..."
+  log "Starting ${component}..."
   kubectl scale -n "${K8S_NAMESPACE}" "$deploy" --replicas=1 >/dev/null
   if ! $written; then
-    fail "SPIRE restore failed: the datastore and CA keys were not written (server restarted with its previous state)"
-    return
+    fail "${component} restore failed: ${file} was not written (restarted with its previous state)"
+    return 1
   fi
-  if kubectl rollout status -n "${K8S_NAMESPACE}" "$deploy" --timeout=180s >/dev/null &&
-    kubectl exec -n "${K8S_NAMESPACE}" "$deploy" -c spire-server -- \
-      /opt/spire/bin/spire-server healthcheck -socketPath /run/spire/server-sockets/api.sock >/dev/null; then
+  kubectl rollout status -n "${K8S_NAMESPACE}" "$deploy" --timeout=180s >/dev/null || {
+    fail "${component} is not ready after the restore"
+    return 1
+  }
+}
+
+# The datastore and CA keys of the run (data_<TS>.tar). The WAL files of the
+# replaced datastore are removed: replayed onto the restored file they would
+# corrupt it.
+restore_spire() {
+  log "Starting SPIRE server restore..."
+  resolve_and_verify spire || return 0
+  local file="$RESOLVED_FILE"
+  case "$file" in
+    */keys_*)
+      fail "SPIRE: ${file} was taken before ADR-0065 (datastore in MySQL): its CA keys do not match the SQLite datastore; restore a newer run, or let the server start a new CA (agents bootstrap again)"
+      return
+      ;;
+  esac
+  restore_into_volume spire-server spire-data "$file" 'rm -rf /data/restore.tmp; mkdir /data/restore.tmp
+    tar -xf - -C /data/restore.tmp datastore.sqlite3 keys-sqlite.json
+    rm -f /data/datastore.sqlite3-wal /data/datastore.sqlite3-shm
+    mv /data/restore.tmp/datastore.sqlite3 /data/datastore.sqlite3
+    mv /data/restore.tmp/keys-sqlite.json /data/keys-sqlite.json
+    rmdir /data/restore.tmp' || return 0
+  if kubectl exec -n "${K8S_NAMESPACE}" deployment/spire-server -c spire-server -- \
+    /opt/spire/bin/spire-server healthcheck -socketPath /run/spire/server-sockets/api.sock >/dev/null; then
     ok "SPIRE server restore complete"
   else
     fail "SPIRE server is not healthy after the restore"
   fi
+}
+
+# state.json and paper-ledger.json together (ADR-0064): the files on the
+# volume are replaced only once the whole tar is extracted.
+restore_risk() {
+  log "Starting risk-execution state restore..."
+  resolve_and_verify risk || return 0
+  restore_into_volume risk-execution state "$RESOLVED_FILE" 'rm -rf /data/restore.tmp; mkdir /data/restore.tmp
+    tar -xzf - -C /data/restore.tmp
+    rm -f /data/*.json; mv /data/restore.tmp/*.json /data/; rmdir /data/restore.tmp' || return 0
+  ok "risk-execution state restore complete"
 }
 
 # Sets RESTORE_HELPER_IMAGE when no override: the image of the `backup`
@@ -587,7 +613,7 @@ IFS=',' read -ra REQUESTED <<< "$COMPONENTS"
 for part in "${REQUESTED[@]}"; do
   case "$part" in
     mongodb)       RUN_KEYS+=(mongodb mongodb-audit) ;;
-    mongodb-audit|mysql|mysql-core|checkpoints|spire) RUN_KEYS+=("$part") ;;
+    mongodb-audit|mysql|mysql-core|checkpoints|spire|risk) RUN_KEYS+=("$part") ;;
   esac
 done
 if ! select_common_run "${RUN_KEYS[@]}"; then
@@ -595,7 +621,7 @@ if ! select_common_run "${RUN_KEYS[@]}"; then
   exit 1
 fi
 
-if [[ ",${COMPONENTS}," == *,spire,* ]]; then resolve_helper_image; fi
+if [[ ",${COMPONENTS}," == *,spire,* || ",${COMPONENTS}," == *,risk,* ]]; then resolve_helper_image; fi
 
 echo ""
 echo "══════════════════════════════════════════════════"
@@ -629,6 +655,7 @@ run_components() {
       mysql-core)  restore_mysql mysql-core ;;
       checkpoints) restore_checkpoints ;;
       spire)       restore_spire ;;
+      risk)        restore_risk ;;
       # Derived state only (discovery registrations and tokens, DLQ retry queue
       # rebuilt from MongoDB): rebuilt by the services, never restored.
       redis)       warn "Redis is not backed up: its content is rebuilt by the services" ;;

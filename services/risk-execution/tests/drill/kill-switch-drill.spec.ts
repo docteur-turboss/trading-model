@@ -81,6 +81,7 @@ describe("kill switch drill (policy §7)", () => {
 	it("passes the seven steps, restart included", async () => {
 		let { svc, ledger } = boot();
 		await svc.start();
+		await svc.rearm("global", "fresh install", "operator"); // no state file yet: engaged (state_missing)
 
 		// 1. An order flow on two symbols, with one resting order each.
 		for (const s of ["BTCUSDT", "ETHUSDT"] as const) {
@@ -164,6 +165,7 @@ describe("kill switch drill (policy §7)", () => {
 			await rm(join(dir, "ledger.json"), { force: true });
 			const booted = boot();
 			await booted.svc.start();
+			await booted.svc.rearm("global", "fresh state", "operator");
 			for (let n = 0; n < 2; n++) {
 				await booted.svc.submitIntent(intent("BTCUSDT", { quantity: 0.05 }));
 			}
@@ -217,6 +219,7 @@ describe("kill switch drill (policy §7)", () => {
 		await rm(join(dir, "state.json"), { force: true });
 		const { svc } = boot(rejecting);
 		await svc.start();
+		await svc.rearm("global", "fresh state", "operator");
 		for (let n = 0; n < 5; n++) {
 			await svc.submitIntent(intent("BTCUSDT", { quantity: 0.001 }));
 			clock += 13_000;

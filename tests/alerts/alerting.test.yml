@@ -1287,6 +1287,32 @@ tests:
               description: 'db-backup-incremental reported nothing for mongodb-audit-oplog (job never ran, component removed, or backup-metrics-exporter down): no point-in-time recovery.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
+  # The risk-execution state stops being backed up.
+  - name: a daily component that never reports fires after 26 h
+    interval: 10m
+    input_series:
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mongodb"}'
+        values: '0+600x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mongodb-audit"}'
+        values: '0+600x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mysql"}'
+        values: '0+600x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="spire"}'
+        values: '0+600x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="checkpoints"}'
+        values: '0+600x200'
+    alert_rule_test:
+      - eval_time: 25h
+        alertname: BackupComponentMissing
+        exp_alerts: []
+      - eval_time: 27h
+        alertname: BackupComponentMissing
+        exp_alerts:
+          - exp_labels: {severity: warning, component: risk}
+            exp_annotations:
+              summary: 'A database is no longer backed up: risk'
+              description: 'The last backup runs reported nothing for risk (component removed from the job, or skipped).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
   # The copy to the second off-site bucket fails: BackupOffsiteCopyFailed fires
   # for it, the primary copy stays quiet.
   - name: a failed second off-site copy raises BackupOffsiteCopyFailed
