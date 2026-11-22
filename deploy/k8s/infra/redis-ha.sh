@@ -139,6 +139,19 @@ master_from_nodes() {
 	return 1
 }
 
+# No grace to wait out when no peer exists (single node) or one already runs as replica
+# (rolling update of redis-0): the group is not cold, the master role is only being replaced.
+no_cold_start() {
+	found=0
+	for host in $REDIS_HOSTS; do
+		ip=$(resolve "$host") || continue
+		[ "$ip" = "$SELF_IP" ] && continue
+		found=1
+		[ "$(node_cli -h "$ip" -p "$REDIS_PORT" --raw ROLE 2>/dev/null | head -n 1)" = "slave" ] && return 0
+	done
+	[ "$found" = 0 ]
+}
+
 give_up_after_wait() {
 	waited=$((waited + 1))
 	if [ "$waited" -ge "$MASTER_WAIT_SECONDS" ]; then
@@ -260,9 +273,10 @@ ACL
 		# two nodes marked together (old master back in the same outage as the promoted
 		# one, or the 2 s before the marker follows a promotion) both bootstrap and
 		# Sentinel picks one; nodes that are not running yet share no channel to break
-		# the tie, and it takes a double fault.
+		# the tie, and it takes a double fault. No peer, or a peer already running as replica, means
+# no cold start (single node, rolling update of redis-0): no grace, as before.
 		elif [ -e "$MASTER_MARKER" ] || { [ "${SELF_NAME##*-}" = "0" ] &&
-			{ { [ ! -d "$DATA_DIR/appendonlydir" ] && [ ! -e "$DATA_DIR/dump.rdb" ]; } || [ "$waited" -ge "$COLD_START_GRACE_SECONDS" ]; }; }; then
+			{ { [ ! -d "$DATA_DIR/appendonlydir" ] && [ ! -e "$DATA_DIR/dump.rdb" ]; } || [ "$waited" -ge "$COLD_START_GRACE_SECONDS" ] || no_cold_start; }; }; then
 			log "no master anywhere: bootstrapping the group as master"
 			exec redis-server "$@"
 		fi
