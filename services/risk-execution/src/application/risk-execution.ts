@@ -52,6 +52,20 @@ const WIRED_STATES: Order["status"][] = [
 	"cancel_requested",
 ];
 
+function targetStatus(order: Order, view: BrokerOrderView): Order["status"] {
+	return view.status === "filled"
+		? "filled"
+		: view.status === "rejected"
+			? "broker_rejected"
+			: view.status === "cancelled"
+				? "cancelled"
+				: view.filledQty > 0
+					? "partially_filled"
+					: order.status === "cancel_requested"
+						? order.status // still open at the broker: no way back to acknowledged (ADR-0064 §3)
+						: "acknowledged";
+}
+
 /** The Risk/Execution context of ADR-0064: the only owner of the order flow. */
 export class RiskExecution {
 	private _state!: RiskState;
@@ -405,16 +419,7 @@ export class RiskExecution {
 				fee: view.fee,
 			});
 		}
-		const target: Order["status"] =
-			view.status === "filled"
-				? "filled"
-				: view.status === "rejected"
-					? "broker_rejected"
-					: view.status === "cancelled"
-						? "cancelled"
-						: view.filledQty > 0
-							? "partially_filled"
-							: "acknowledged";
+		const target = targetStatus(order, view);
 		if (
 			order.status !== target ||
 			(target === "partially_filled" && dQty > 0)

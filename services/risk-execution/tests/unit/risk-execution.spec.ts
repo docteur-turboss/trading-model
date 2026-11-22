@@ -634,6 +634,43 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		expect(await ctx.svc.cancel("nope")).toBe("not_found");
 	});
 
+	it("a failed cancel leaves the order cancel_requested and the ticks keep the limits", async () => {
+		const inner = new PaperBroker(new MemoryStore<never>(), CAPITAL);
+		let cancelFails = true;
+		const broker: BrokerPort = {
+			submit: (o) => inner.submit(o),
+			query: (id) => inner.query(id),
+			cancel: async (id) => {
+				if (cancelFails) {
+					cancelFails = false;
+					throw new Error("ECONNRESET");
+				}
+				return inner.cancel(id);
+			},
+			account: () => inner.account(),
+			haltedSymbols: async () => [],
+		};
+		const ctx = build({ broker });
+		await ctx.svc.start();
+		await ctx.svc.submitIntent(intent({ quantity: 0.08 }));
+		const resting = await ctx.svc.submitIntent(
+			intent({ limitPrice: 59_500, quantity: 0.0001 })
+		);
+		expect(await ctx.svc.cancel(resting.clientOrderId)).toBe(
+			"cancel_requested"
+		);
+		await ctx.svc.tick(); // the broker still sees it open
+		const orders = () => (ctx.store.value as RiskState).orders;
+		expect(orders()[resting.clientOrderId].status).toBe("cancel_requested");
+		expect(ctx.events.filter((e) => e.startsWith("broker.error"))).toHaveLength(
+			1
+		); // the failed cancel only, no illegal transition at each tick
+		await ctx.svc.observePrice("BTCUSDT", 30_000, clock);
+		await ctx.svc.tick();
+		expect(ctx.svc.status().killSwitch.global).toBe("daily_loss");
+		expect(orders()[resting.clientOrderId].status).toBe("cancelled");
+	});
+
 	it("5 broker rejections engage the symbol, 10 the global switch (reject storm)", async () => {
 		const broker: BrokerPort = {
 			submit: async (o) => ({
