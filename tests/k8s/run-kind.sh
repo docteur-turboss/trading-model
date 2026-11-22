@@ -824,13 +824,14 @@ verify_identity_without_mysql() {
 # Express recorded nothing). Jaeger is read through a port-forward, which the
 # NetworkPolicies do not filter.
 traces_span_services() {
-	curl -sf "http://localhost:18686/api/traces?service=api-gateway&limit=50&lookback=1h" |
+	# The trace ID is the one verify_traces sends in `traceparent`: looking it up
+	# tells a lost propagation (api-gateway spans only) from an absent trace.
+	curl -sf "http://localhost:18686/api/traces/$TRACE_ID" |
 		node -e '
-			const traces = JSON.parse(require("fs").readFileSync(0, "utf8")).data ?? [];
-			const names = traces.map((t) => [...new Set(Object.values(t.processes).map((p) => p.serviceName))]);
-			const best = names.sort((a, b) => b.length - a.length)[0] ?? [];
-			console.error(`traces=${traces.length} widest=${best.join(",")}`);
-			process.exit(names.some((n) => n.includes("api-gateway") && n.includes("trader-trainer")) ? 0 : 1)'
+			const [trace] = JSON.parse(require("fs").readFileSync(0, "utf8")).data ?? [];
+			const names = [...new Set(Object.values(trace?.processes ?? {}).map((p) => p.serviceName))];
+			console.error(`trace=${process.argv[1]} widest=${names.join(",")}`);
+			process.exit(names.includes("api-gateway") && names.includes("trader-trainer") ? 0 : 1)' "$TRACE_ID"
 }
 
 verify_traces() {
@@ -840,14 +841,15 @@ verify_traces() {
 	$K -n "$NS" port-forward svc/jaeger 18686:16686 >/dev/null 2>&1 &
 	local jaeger=$!
 	local result=0 codes=""
+	TRACE_ID="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
 	wait_for 30 'curl -s -o /dev/null http://localhost:18451/ && curl -s -o /dev/null http://localhost:18686/' || result=1
-	# ci-render.mjs samples 100 %: one request is enough, 30 only fill the batch window.
+	# ci-render.mjs samples 100 % and the sent traceparent is sampled: all requests join one trace.
 	if [ "$result" = 0 ]; then
 		codes="$(for _ in $(seq 30); do
-			curl -s -o /dev/null -w '%{http_code}
-' -H "x-api-key: $API_KEY" http://localhost:18451/v1/trader-trainer/training-status
-		done | sort | uniq -c | tr '
-' ' ')"
+			curl -s -o /dev/null -w '%{http_code}\n' -H "x-api-key: $API_KEY" \
+				-H "traceparent: 00-$TRACE_ID-00f067aa0ba902b7-01" \
+				http://localhost:18451/v1/trader-trainer/training-status
+		done | sort | uniq -c | tr '\n' ' ')"
 	fi
 	# Batch exporter (5 s) then collector batch (1 s): a few polls at most.
 	if [ "$result" = 0 ] && wait_for 120 traces_span_services; then
