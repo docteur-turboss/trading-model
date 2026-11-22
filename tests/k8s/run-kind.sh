@@ -245,7 +245,7 @@ identities() {
 		log "deploy-cluster could relabel the application namespace (or failed other than Forbidden): $out"
 		return 1
 	fi
-	if out="$($as_cluster -n trading-model-node create daemonset rogue --image=busybox 2>&1)" || ! grep -qi forbidden <<<"$out"; then
+	if out="$($as_cluster -n trading-model-node create -f - 2>&1 <<<'{"apiVersion":"apps/v1","kind":"DaemonSet","metadata":{"name":"rogue"},"spec":{"selector":{"matchLabels":{"a":"b"}},"template":{"metadata":{"labels":{"a":"b"}},"spec":{"containers":[{"name":"c","image":"busybox"}]}}}}')" || ! grep -qi forbidden <<<"$out"; then
 		log "deploy-cluster could create a DaemonSet in trading-model-node (or failed other than Forbidden): $out"
 		return 1
 	fi
