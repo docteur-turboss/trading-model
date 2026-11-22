@@ -89,6 +89,19 @@ const FINANCIAL_SCRAPER_ENV_SCHEMA = BaseEnvSchema.extend(
 		 * (compose, dev: a single collector).
 		 */
 		COLLECTOR_LEASE_NAME: z.string().trim().default(""),
+	})
+	.superRefine((env, ctx) => {
+		if (
+			env.NODE_ENV === "production" &&
+			new URL(env.BINANCE_BASE_URL).hostname.endsWith("binance.vision")
+		) {
+			ctx.addIssue({
+				code: "custom",
+				path: ["BINANCE_BASE_URL"],
+				message:
+					"binance.vision is refused in production: its Dataset Terms (CC BY-NC-SA 4.0, §4.2) forbid live trading (ADR-0077)",
+			});
+		}
 	});
 
 export const ENV = validateEnv(FINANCIAL_SCRAPER_ENV_SCHEMA);
