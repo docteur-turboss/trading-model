@@ -71,7 +71,8 @@ export async function createRiskExecutionApp() {
 		broker: new PaperBroker(
 			new JsonFile(join(ENV.RISK_STATE_DIR, "paper-ledger.json")),
 			limits.allocatedCapital,
-			limits.feeBps
+			limits.feeBps,
+			limits.slippageBps
 		),
 		store: new JsonFile<RiskState>(join(ENV.RISK_STATE_DIR, "state.json")),
 		admission: new TrainerAdmission(buildTlsFromEnv(ENV)),

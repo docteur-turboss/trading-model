@@ -463,6 +463,7 @@ services:
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/api-gateway:${IMAGE_TAG:-latest}
     container_name: trading-gateway
     restart: unless-stopped
+    stop_grace_period: 30s
     mem_limit: 256m
     ports:
       - '127.0.0.1:${GATEWAY_PORT:-8448}:3000'
@@ -498,6 +499,7 @@ services:
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/audit-logger:${IMAGE_TAG:-latest}
     container_name: trading-audit
     restart: unless-stopped
+    stop_grace_period: 30s
     mem_limit: 256m
     ports:
       - '127.0.0.1:${AUDIT_PORT:-8450}:3000'
@@ -537,6 +539,7 @@ services:
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/model-evaluator:${IMAGE_TAG:-latest}
     container_name: trading-model-evaluator
     restart: unless-stopped
+    stop_grace_period: 2m
     mem_limit: 256m
     ports:
       - '127.0.0.1:${MODEL_EVALUATOR_PORT:-8453}:3000'
@@ -572,6 +575,7 @@ services:
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/risk-execution:${IMAGE_TAG:-latest}
     container_name: trading-risk-execution
     restart: unless-stopped
+    stop_grace_period: 30s
     mem_limit: 256m
     ports:
       - '127.0.0.1:${RISK_EXECUTION_PORT:-8454}:3000'
@@ -590,7 +594,7 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping || exit 1
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
       interval: 15s
       timeout: 5s
       retries: 3
@@ -608,6 +612,7 @@ services:
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/dlq-service:${IMAGE_TAG:-latest}
     container_name: trading-dlq
     restart: unless-stopped
+    stop_grace_period: 30s
     mem_limit: 256m
     ports:
       - '127.0.0.1:${DLQ_PORT:-8452}:3000'

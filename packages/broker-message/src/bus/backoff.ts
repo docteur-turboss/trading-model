@@ -20,8 +20,8 @@ export function backoffDelay(deliveryAttempt: SequenceNumber): number {
 /**
  * One delivery attempt lasts at most this long before another replica may claim
  * the entry. Above the slowest real handler: model-evaluator downloads weights
- * (60 s deadline) then reads candles and replays; 90 s leaves margin, and the
- * 120 s pod grace period still covers a shutdown that waits for it.
+ * (60 s deadline) then reads candles and replays; 90 s leaves margin. The
+ * model-evaluator pod grace period (120 s) covers preStop plus an 85 s handler.
  */
 export const DELIVERY_ATTEMPT_TIMEOUT_MS = DurationMs.of(90_000);
 

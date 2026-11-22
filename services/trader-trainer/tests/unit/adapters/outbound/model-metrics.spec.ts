@@ -119,6 +119,12 @@ describe("metrics of a trained model", () => {
 		expect((await publishedPayload([1, 2, 3])).maxDrawdown).toBe(0);
 	});
 
+	it("training.model.published is refused when no group exists, so the trainer retries it", async () => {
+		expect((await publishedMessage()).metadata.delivery.requireSubscriber).toBe(
+			true
+		);
+	});
+
 	it("an agent without evaluation episodes publishes no drawdown", async () => {
 		expect((await publishedPayload()).maxDrawdown).toBe(0);
 	});
