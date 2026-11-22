@@ -88,14 +88,10 @@ describe("risk-execution E2E", () => {
 		["/prices", { symbol: "BTCUSDT", price: 100, at: 1 }],
 	])("refuses %s from another service of the mesh", (path, body) => {
 		const before = status();
-		const res = meshRequest(
-			CALLER.trainer,
-			`${URL}${path}`,
-			{
-				method: "POST",
-				body,
-			}
-		);
+		const res = meshRequest(CALLER.trainer, `${URL}${path}`, {
+			method: "POST",
+			body,
+		});
 		expect(res.status).toBe(403);
 		const after = status();
 		expect(after.openOrders).toBe(before.openOrders);
