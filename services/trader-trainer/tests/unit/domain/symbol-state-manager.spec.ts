@@ -19,11 +19,15 @@ describe("SymbolStateManager norms", () => {
 			evictionPolicy: EvictionPolicy.None,
 		});
 		const timestamp = UnixTimestamp.of(T0);
-		manager.addData(DataType.Candle, SYMBOL, makeCandle({ symbol: SYMBOL, timestamp }));
 		manager.addData(
 			DataType.Candle,
 			SYMBOL,
-			makeCandle({ symbol: SYMBOL, timestamp, close: Price.of(101) }),
+			makeCandle({ symbol: SYMBOL, timestamp })
+		);
+		manager.addData(
+			DataType.Candle,
+			SYMBOL,
+			makeCandle({ symbol: SYMBOL, timestamp, close: Price.of(101) })
 		);
 
 		const state = manager.states.get(SYMBOL);
