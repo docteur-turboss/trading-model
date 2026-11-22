@@ -395,7 +395,7 @@ A Deployment created by the failed deploy has no earlier revision: the step
 deletes it (the next deploy recreates it).
 
 The canary (`deploy-k8s.sh canary`) copies the running pod template, so it runs
-the new image with the configuration of the current release, not the new one.
+the new image with the configuration of the current release, not the new one. With `CANARY_DIGESTS_FILE` (set by `deploy.yml` to the cosign-verified `image-digests`) it runs only the digest listed there for the service and fails when it is missing; without it (manual use) it resolves the tag, falling back to the tag.
 
 `deploy-k8s.sh migrate-down` provisions `migrator` itself (job `db-migrate-user`) before rolling the schema back; pass `MIGRATE_IMAGE` of the release being rolled back. Outside `deploy.yml`, set `SEALED_SECRETS_FILE` (the environment's SealedSecret file) when it carries a key the live Secret lacks: it is applied and waited for before the Jobs. `SEED_MIGRATE_PASSWORD=true` (random password) exists for the kind CI only, which has no Sealed Secrets controller.
 
@@ -465,12 +465,6 @@ For a manual rollback, revert a service to a previous revision:
 
 ```bash
 kubectl rollout undo deployment/<service> -n trading-model
-```
-
-Or via the deploy script:
-
-```bash
-./deploy/k8s/scripts/deploy-k8s.sh rollback <service>
 ```
 
 Schema: `deploy-k8s.sh migrate-down [N|all]`, see the runbook

@@ -1,3 +1,4 @@
+import type { Signal } from "@trading-model/contracts/wire/signals";
 import { AGENT_STATE_DIM } from "@trading-model/model-runtime/agent/agent-state";
 import { FEATURE_DIM } from "@trading-model/model-runtime/feature-vector-codec";
 import {
@@ -6,7 +7,6 @@ import {
 	UnixTimestamp,
 	Volume,
 } from "@trading-model/primitives/primitives";
-import type { Signal } from "@trading-model/validation/wire/signals";
 import {
 	eventInputLayout,
 	NETWORK_INPUT_LAYOUT,

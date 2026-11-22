@@ -1,3 +1,4 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
 import type { Message } from "@trading-model/contracts/message-types";
 import { logger } from "@trading-model/http/logger";
 import { messageManagerError } from "../shared/errors";
@@ -8,7 +9,10 @@ import {
 	type JournalGroupLag,
 	type MessageJournalPort,
 } from "./journal.port";
-import { JOURNAL_TRIMMED_PENDING_TOTAL } from "./metrics";
+import {
+	JOURNAL_TRIMMED_PENDING_TOTAL,
+	JOURNAL_UNREADABLE_TOTAL,
+} from "./metrics";
 
 /** The ioredis commands the bus uses (a client of `@trading-model/persistence` fits). */
 export interface BusRedis {
@@ -419,11 +423,25 @@ export class RedisMessageJournal implements MessageJournalPort {
 			if (fields && at >= 0 && forOthers) {
 				await this.ack(group, id);
 			} else if (fields && at >= 0) {
-				entries.push({
-					id,
-					message: JSON.parse(fields[at + 1] as string) as Message,
-					deliveries: deliveries(),
-				});
+				let message: Message;
+				try {
+					message = JSON.parse(fields[at + 1] as string) as Message;
+				} catch (err) {
+					// Not JSON: no `Message` to dead-letter, so it is counted, logged and acked; the others go on.
+					JOURNAL_UNREADABLE_TOTAL.inc({
+						topic: group.topic,
+						service: group.service,
+					});
+					logger.error("Journal entry unreadable: dropped", {
+						topic: group.topic,
+						service: group.service,
+						entryId: id,
+						error: normalizeError(err),
+					});
+					await this.ack(group, id);
+					continue;
+				}
+				entries.push({ id, message, deliveries: deliveries() });
 			} else {
 				// Trimmed (24 h) before delivery: the message is gone for good, so it is counted, logged and alerted.
 				JOURNAL_TRIMMED_PENDING_TOTAL.inc({

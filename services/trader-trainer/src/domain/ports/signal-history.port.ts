@@ -1,4 +1,4 @@
-import type { Signal } from "@trading-model/validation/wire/signals";
+import type { Signal } from "@trading-model/contracts/wire/signals";
 
 /** Stored signals of an asset, served by the scraper (ADR-0036). */
 export interface SignalHistoryPort {

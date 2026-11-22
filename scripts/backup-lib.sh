@@ -207,8 +207,10 @@ write_dump() {
 	fi
 	size="$(file_size "$file")"
 	record_output "$file"
-	MANIFEST_ENTRIES+=("$(printf '{"component":"%s","path":"%s","size":%s,"sha256":"%s"}' \
-		"$key" "${file#"${BACKUP_DIR}"/}" "$size" "$sum")")
+	# DUMP_ROWS (optional, set by the caller): JSON object of row counts at dump time.
+	MANIFEST_ENTRIES+=("$(printf '{"component":"%s","path":"%s","size":%s,"sha256":"%s"%s}' \
+		"$key" "${file#"${BACKUP_DIR}"/}" "$size" "$sum" "${DUMP_ROWS:+,\"rows\":$DUMP_ROWS}")")
+	DUMP_ROWS=""
 }
 
 # Writes this run's manifest (`manifests/manifest_<TIMESTAMP>.json`, sealed
@@ -264,7 +266,7 @@ manifests_newest_first() {
 }
 
 # One manifest entry line, as written by write_dump (trailing comma optional).
-MANIFEST_ENTRY_RE='^\{"component":"[^"]+","path":"[^"]+","size":[0-9]+,"sha256":"[0-9a-f]{64}"\},?$'
+MANIFEST_ENTRY_RE='^\{"component":"[^"]+","path":"[^"]+","size":[0-9]+,"sha256":"[0-9a-f]{64}"(,"rows":\{[^{}]*\})?\},?$'
 
 # Prints `<path> <size> <sha256>` of entry `$2` in manifest file `$1`
 # (nothing when the run has no such entry). Returns 1 when the manifest
@@ -291,7 +293,7 @@ manifest_entry() {
 		esac
 	done <<<"$body"
 	printf '%s\n' "$body" | sed -n \
-		's/^{"component":"'"$key"'","path":"\([^"]*\)","size":\([0-9]*\),"sha256":"\([0-9a-f]*\)"}.*$/\1 \2 \3/p' | head -1
+		's/^{"component":"'"$key"'","path":"\([^"]*\)","size":\([0-9]*\),"sha256":"\([0-9a-f]*\)"[,}].*$/\1 \2 \3/p' | head -1
 }
 
 # read_manifest_entry <key> <manifest>

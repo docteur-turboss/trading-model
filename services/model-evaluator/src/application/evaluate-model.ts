@@ -1,4 +1,3 @@
-import { normalizeError } from "@trading-model/common/utils/errors";
 import type { CandleData } from "@trading-model/contracts/market-data.types";
 import { MODEL_REPLAY_SHARPE_GAP } from "../config/metrics";
 import {
@@ -39,15 +38,12 @@ async function replay(
 	if (!window) {
 		return { replay: "failed", reason: "no-window" };
 	}
-	let candles: CandleData[];
-	try {
-		candles = await scraper.candles(manifest.symbol, window.from, window.to);
-	} catch (err) {
-		return {
-			replay: "failed",
-			reason: `read-error: ${normalizeError(err).message}`,
-		};
-	}
+	// A read error propagates: the delivery fails and the bus retries it (ADR-0019).
+	const candles = await scraper.candles(
+		manifest.symbol,
+		window.from,
+		window.to
+	);
 	return replayOutcome(
 		window,
 		manifest.genome,

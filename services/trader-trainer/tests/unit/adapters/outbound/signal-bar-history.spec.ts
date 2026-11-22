@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
+import type { Signal } from "@trading-model/contracts/wire/signals";
 import { toSymbol } from "@trading-model/primitives/primitives";
-import type { Signal } from "@trading-model/validation/wire/signals";
 import { SignalBarHistory } from "../../../../src/adapters/outbound/signal-bar-history";
 import { DAILY_BAR_ISSUES_TOTAL } from "../../../../src/config/metrics";
 

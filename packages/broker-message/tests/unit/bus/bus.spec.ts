@@ -329,6 +329,32 @@ describe("BusConsumer", () => {
 		expect(pendingOf(redis)).toBe(0);
 	});
 
+	it("should drop a non-JSON entry, dead-letter one without publisher and still handle the valid one", async () => {
+		const handled: unknown[] = [];
+		const parts = bus();
+		const {
+			consumer: c,
+			journal,
+			redis,
+			streams,
+		} = consumer(async (m) => {
+			handled.push(m.payload);
+		}, parts);
+		await c.start([TOPIC]);
+		await redis.call("XADD", journal.stream(TOPIC), "*", "message", "not-json");
+		await redis.call("XADD", journal.stream(TOPIC), "*", "message", "{}");
+		await publishToBus(journal, "ok", METADATA);
+		await until(() => handled.length === 1 && pendingOf(redis) === 0);
+		await c.stop();
+
+		expect(handled).toEqual(["ok"]);
+		expect(await streams.list(TOPIC)).toEqual([
+			expect.objectContaining({
+				reason: expect.stringContaining("publisher.serviceName"),
+			}),
+		]);
+	});
+
 	it("should dead-letter on the last allowed attempt, counting deliveries of the pending list", async () => {
 		const parts = bus();
 		await parts.journal.register(GROUP);

@@ -18,7 +18,8 @@
     "@trading-model/primitives": "*",
     "@trading-model/contracts": "*",
     "ioredis": "^6.0.0",
-    "mongodb": "^7.9.0"
+    "mongodb": "^7.9.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@jest/globals": "^30.5.2",

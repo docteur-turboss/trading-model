@@ -1,10 +1,10 @@
+import type { Signal } from "@trading-model/contracts/wire/signals";
 import {
 	candleSteps,
 	contiguousCandles,
 	FEATURE_LOOKBACK,
 } from "@trading-model/model-runtime/features/feature-builder";
 import { Percentage, PositiveInt } from "@trading-model/primitives/primitives";
-import type { Signal } from "@trading-model/validation/wire/signals";
 import type { WindowSet } from "../genetic-algorithm/generation-types";
 import type { MarketStep } from "../genetic-algorithm/genome";
 import type { SymbolState, TradingSymbol } from "../market-data-types";
