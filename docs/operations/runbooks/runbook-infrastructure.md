@@ -188,17 +188,17 @@ with `deploy.yml`: `db-migrate-user` binds the users to their certificate again 
 
 ## RedisMemoryHigh
 
-A Redis container uses over 80 % of its memory limit for 10 minutes. Redis runs
-with `noeviction` and the journal streams are trimmed by age only (`MINID` 24 h,
-ADR-0048): nothing unread is dropped, so a burst grows memory until the
-container is OOMKilled.
+A Redis node uses over 80 % of its `maxmemory` (384 MiB, 75 % of the container
+limit) for 10 minutes. Redis runs with `noeviction` and the journal streams are
+trimmed by age only (`MINID` 24 h, ADR-0048): nothing unread is dropped, so at
+100 % Redis refuses writes and publishes fail with `OOM command not allowed`.
 
 ```bash
 kubectl -n $NS top pod -l app.kubernetes.io/component=redis
 ```
 
 A subscriber group stopped during a burst: restart it so it reads and acks.
-Otherwise raise the `redis` container memory limit in `redis.yaml`.
+Otherwise raise the `redis` container memory limit and `--maxmemory` (75 % of it) in `redis.yaml`.
 
 ## RedisReplicasMissing
 
