@@ -132,6 +132,9 @@ environment and prints its secrets):
   branches and tags" with exactly the branches `development` and `main` and the
   tag rule `v*` (the release deploys its tag).
   A required reviewer is advised, not checked.
+- `release` (approval of `release.yml` before any image is published or signed): a required
+  reviewer and the tag rule `v*`. "Prevent self-review" stays off while the owner pushes
+  the tags. `release.yml` checks it first (`ENVIRONMENT_READ_TOKEN`).
 - `backup-key-check` (`BACKUP_ESCROW_AGE_IDENTITY`, the key that decrypts every
   backup): "Selected branches and tags" with exactly the branch `main`, **before**
   storing the escrow key. No required reviewer: it would hold the weekly
