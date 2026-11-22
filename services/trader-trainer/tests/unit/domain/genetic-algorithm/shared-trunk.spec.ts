@@ -62,6 +62,7 @@ async function run(
 	const saved: NewModelArtifact[] = [];
 	let session: TrainingSessionResult | undefined;
 	const models = {
+		list: async () => [],
 		save: async (artifact: NewModelArtifact) => {
 			if (artifact.symbol === options.failSave) {
 				throw new Error("disk full");
