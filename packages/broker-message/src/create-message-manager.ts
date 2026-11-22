@@ -19,7 +19,7 @@ import type { MessageManagerConfig } from "./types/config";
 export interface MessageManagerOptions extends MessageManagerConfig {
 	addressManagerClient: addressManagerClient;
 	tlsPaths: TlsPaths;
-	/** The bus in Redis (ADR-0073); absent: HTTP through message-manager. */
+	/** The bus in Redis (ADR-0073, `busJournalFromEnv`); absent: HTTP through message-manager. */
 	journal?: RedisMessageJournal;
 }
 
@@ -45,14 +45,27 @@ interface ServiceEnv extends TlsEnvVars, RedisEnv {
 }
 
 /**
- * The bus of a service (ADR-0073): the journal in the shared Redis, or
- * `undefined` without Redis settings (then the service goes through message-manager over HTTP).
+ * The bus of a service (ADR-0073), chosen by `BUS_TRANSPORT`: `library` gives the
+ * journal in the shared Redis, `http` gives `undefined` (message-manager over HTTP).
+ * Unset (N-1): the journal when Redis settings exist, `undefined` otherwise.
+ * @throws {Error} `library` without Redis settings
  */
 export function busJournalFromEnv(
-	env: RedisEnv & { JOURNAL_MIN_REPLICAS?: number }
+	env: RedisEnv & {
+		JOURNAL_MIN_REPLICAS?: number;
+		BUS_TRANSPORT?: "library" | "http";
+	}
 ): RedisMessageJournal | undefined {
+	if (env.BUS_TRANSPORT === "http") {
+		return undefined;
+	}
 	const connection = redisConnectionFromEnv(env);
 	if (!connection) {
+		if (env.BUS_TRANSPORT === "library") {
+			throw new Error(
+				"BUS_TRANSPORT=library needs REDIS_URL or REDIS_SENTINELS"
+			);
+		}
 		return undefined;
 	}
 	const redis = createRedisClient(connection);

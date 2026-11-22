@@ -33,7 +33,13 @@ describe("bus contract: publisher → subscriber, no HTTP", () => {
 		await publishToBus(
 			new RedisMessageJournal({ redis, keyPrefix: "p" }),
 			{ close: 101.5 },
-			{ topic: TOPIC, publisher: "financial-scraper" } as never
+			{
+				topic: TOPIC,
+				publisher: {
+					serviceName: "financial-scraper",
+					instanceId: "financial-scraper-1",
+				},
+			} as never
 		);
 		for (
 			let i = 0;
