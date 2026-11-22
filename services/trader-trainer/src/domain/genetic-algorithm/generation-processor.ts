@@ -78,6 +78,7 @@ export class GenerationProcessor {
 			windowSets: this._cfg.windowSets,
 			backendFactory: this._cfg.backendFactory,
 			telemetry: this._telemetry,
+			rng,
 		});
 		const paretoResult = buildParetoFronts(
 			evalResult.updatedPop,
