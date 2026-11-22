@@ -27,6 +27,8 @@ export function safeStringify(value: unknown): string {
 		if (key && isSensitiveKey(key)) {
 			return "[REDACTED]";
 		}
-		return sanitizeForLog(val);
+		return typeof val === "string" || val instanceof Error
+			? sanitizeForLog(val)
+			: val;
 	});
 }

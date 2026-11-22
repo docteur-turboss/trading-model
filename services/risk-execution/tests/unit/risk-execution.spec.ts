@@ -745,6 +745,17 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		expect(ctx.svc.status().killSwitch.global).toBeNull();
 	});
 
+	it("drawdown replaces an earlier reason: only the owner re-arms", async () => {
+		const ctx = build();
+		await ctx.svc.start();
+		await ctx.svc.engage("global", "daily_loss", "system");
+		await ctx.svc.engage("global", "drawdown", "system");
+		expect(ctx.svc.status().killSwitch.global).toBe("drawdown");
+		await expect(ctx.svc.rearm("global", "x", "ops")).rejects.toThrow(/owner/);
+		await ctx.svc.rearm("global", "reviewed", "owner");
+		expect(ctx.svc.status().killSwitch.global).toBeNull();
+	});
+
 	it("drawdown stop engages by itself, cancels open orders, and the owner's re-arm restarts from current equity", async () => {
 		const emitted: Record<string, unknown>[] = [];
 		const ctx = build({
