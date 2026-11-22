@@ -576,7 +576,7 @@ describe("Trainer — model publication", () => {
 					sha256: "0123456789abcdef",
 				}),
 				latest: jest.fn<(...args: any[]) => any>(),
-				list: jest.fn<(...args: any[]) => any>(),
+				list: jest.fn<(...args: any[]) => any>().mockResolvedValue([]),
 				manifest: jest.fn<(...args: any[]) => any>(),
 				weights: jest.fn<(...args: any[]) => any>(),
 			};

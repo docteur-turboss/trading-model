@@ -138,8 +138,14 @@ export class ModelArtifactService {
 		}
 		const normalization = this._dataBuffer.snapshotNormalization(result.symbol);
 		const last = windowSets[windowSets.length - 1];
-		const admission = assessAdmission(result.bestFitnessMeta, last?.test ?? []);
 		try {
+			// Retention prunes old versions: the rank is a lower bound (ADR-0069).
+			const attempt = (await models.list(result.symbol)).length + 1;
+			const admission = assessAdmission(
+				result.bestFitnessMeta,
+				last?.test ?? [],
+				attempt
+			);
 			const stored = await models.save({
 				symbol: result.symbol,
 				instanceId: this._deps.instanceId ?? "trader-trainer",
