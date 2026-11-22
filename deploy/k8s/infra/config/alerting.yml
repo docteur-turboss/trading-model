@@ -49,7 +49,8 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slolatencyfastburn'
 
       - alert: ServiceDown
-        expr: up == 0
+        # Recreate jobs (risk-execution, model-evaluator): the new pod is scraped (phase Running) before it listens, up to the 120 s startup probe; the series must already be at 0 four minutes ago, then the 1 m `for`.
+        expr: up{job!~"risk-execution|model-evaluator"} == 0 or max_over_time(up{job=~"risk-execution|model-evaluator"}[4m]) == 0 and up{job=~"risk-execution|model-evaluator"} offset 4m == 0
         for: 1m
         labels:
           severity: critical
@@ -127,6 +128,18 @@ groups:
           summary: 'Database backup failed or too old'
           description: 'Last successful backup was more than 25 hours ago — check backup job.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+
+      # The key backup runs from GitHub Actions: a disabled cron or a held run
+      # fails nothing. db-backup reads the bucket (BACKUP_SEALED_KEY_CHECK).
+      - alert: SealedSecretsKeyBackupStale
+        expr: 'time() - backup_sealed_secrets_key_timestamp > 172800'
+        for: 1h
+        labels:
+          severity: critical
+        annotations:
+          summary: 'SealedSecrets key backup is older than 48 hours (or missing)'
+          description: 'The newest sealed-secrets-key_<TS>.yaml.age of the off-site bucket is more than 48 hours old, none exists, or the bucket prefix cannot be listed: sealed-secrets-key-backup.yml stopped (schedule disabled, run held, kubeconfig expired).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#sealedsecretskeybackupstale'
 
       - alert: BackupNotRunning
         expr: backup_last_success_timestamp == 0

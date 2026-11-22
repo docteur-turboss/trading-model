@@ -569,6 +569,7 @@ and Prometheus scrapes them (job `backup-metrics`).
 | `BackupIncrementalStale`  | a binlog / oplog archive last succeeded more than 2 h ago (2 × the interval) |
 | `BackupIncrementalMissing` | a binlog / oplog component reported nothing for 2 h                        |
 | `BackupIncrementalFailed` | the last hourly run of a binlog / oplog failed (warning; the next run retries) |
+| `SealedSecretsKeyBackupStale` | the newest off-site `sealed-secrets-key_<TS>.yaml.age` is over 48 h old, none exists, or the prefix cannot be listed (production: `BACKUP_SEALED_KEY_CHECK=true`) |
 | `BackupPitrGap`           | a binlog / oplog chain has a break after the newest daily dump: no `--until` past it, until the next daily dump (stays firing while the runs succeed again) |
 | `BackupMetricsAbsent`     | no metric of the daily job (`run=""`: the incremental job's series do not count; job never ran, exporter down) |
 | `BackupUnencrypted`       | no age recipient                                                             |
@@ -755,6 +756,15 @@ Every component asked for is checked (backup, checksum, `.pitr`, archive
 chain, archives decrypted) in a first pass that writes nothing; the restore
 starts only if all of them pass. A broken MySQL chain therefore never leaves
 MongoDB already brought back to the instant: exit 1, every database as it was.
+
+#### SealedSecretsKeyBackupStale
+
+`sealed-secrets-key-backup.yml` stopped, or `db-backup` cannot list the prefix (S3 credentials, endpoint) (schedule disabled after 60 days
+without activity, run held, kubeconfig or S3 credentials expired). Check
+`gh workflow list --all` and the last runs, re-enable or fix it, then run it
+once by hand (`gh workflow run sealed-secrets-key-backup.yml`): the alert
+resolves at the next `db-backup` run. Until then a renewed controller key may
+be missing from the bucket.
 
 #### Point-in-time chain broken
 
@@ -1081,12 +1091,11 @@ Drill timings (issue #329): both drills time every step (`tests/backup/drill-tim
   GitHub disables the `schedule` trigger of a public repository after 60
   days without activity, and mails a failed scheduled run only to the last
   person who changed the cron. `sealed-secrets-key-backup.yml` and
-  `backup-key-check.yml` (ADR-0034) then stop silently: nothing fails, so
-  nothing alerts. Check that the newest
-  `sealed-secrets-key_<TIMESTAMP>.yaml.age` of the bucket is less than two
-  days old, and that both workflows are enabled
-  (`gh workflow list --all`), at least at each quarterly operator-key check
-  ([Key custody](ENCRYPTION_AT_REST.md#key-custody)).
+  `backup-key-check.yml` (ADR-0034) then stop silently. Alert
+  `SealedSecretsKeyBackupStale` covers the key backup (see [below](#sealedsecretskeybackupstale));
+  the escrow-key check is not covered: at each quarterly operator-key check
+  ([Key custody](ENCRYPTION_AT_REST.md#key-custody)), confirm both workflows are
+  enabled (`gh workflow list --all`).
 
 - **RPO 1 h, not continuous** (ADR-0031): writes since the last hourly
   archive are lost with the volume. Point in time only over the last 72 h;

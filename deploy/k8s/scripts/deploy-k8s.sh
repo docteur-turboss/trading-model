@@ -5,7 +5,6 @@
 #    ./deploy-k8s.sh [-n <namespace>] apply           # Apply all manifests (dev cluster only, ALLOW_DEV_APPLY=1)
 #    ./deploy-k8s.sh [-n <namespace>] apply <service> # Apply a single service
 #    ./deploy-k8s.sh [-n <namespace>] status          # Show deployment status
-#    ./deploy-k8s.sh [-n <namespace>] rollback <service> [revision]
 #    ./deploy-k8s.sh [-n <namespace>] migrate-down [count|all]
 #    ./deploy-k8s.sh [-n <namespace>] canary <service> [image-tag] [percentage]
 #    ./deploy-k8s.sh [-n <namespace>] canary-all <image-tag> <percentage> <service>...
@@ -142,27 +141,6 @@ cmd_status() {
   log ""
   log "=== Ingress Status ==="
   kubectl get ingress -n "$NAMESPACE"
-}
-
-cmd_rollback() {
-  local service="$1"
-  local revision="${2:-}"
-
-  if [[ -z "$service" ]]; then
-    err "Usage: $0 rollback <service> [revision]"
-    exit 1
-  fi
-
-  if [[ -n "$revision" ]]; then
-    log "Rolling back $service to revision $revision..."
-    kubectl rollout undo -n "$NAMESPACE" "deployment/${service}" --to-revision="$revision"
-  else
-    log "Rolling back $service to previous revision..."
-    kubectl rollout undo -n "$NAMESPACE" "deployment/${service}"
-  fi
-
-  kubectl rollout status -n "$NAMESPACE" "deployment/${service}" --timeout=120s
-  log "Rollback of $service complete."
 }
 
 cmd_migrate_down() {
@@ -684,9 +662,6 @@ case "${1:-help}" in
   status)
     cmd_status
     ;;
-  rollback)
-    cmd_rollback "${2:-}" "${3:-}"
-    ;;
   migrate-down)
     cmd_migrate_down "${2:-1}"
     ;;
@@ -718,7 +693,6 @@ case "${1:-help}" in
     echo "Usage:"
     echo "  $0 [-n namespace] apply [service]       Apply manifests"
     echo "  $0 [-n namespace] status                Show cluster status"
-    echo "  $0 [-n namespace] rollback <srv> [rev]  Rollback deployment"
     echo "  $0 [-n namespace] migrate-down [N|all]  Rollback N DB migrations (default: 1)"
     echo "  $0 [-n namespace] canary <srv> [tag] [pct]     Canary deployment"
     echo "  $0 [-n namespace] canary-all <tag> <pct> <srv>...  Canaries in parallel, one gate window"

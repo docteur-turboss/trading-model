@@ -167,8 +167,9 @@ export class WorkerOrchestrator {
 
 	/**
 	 * Resumes the fetch at the newest persisted candle, so a stop longer than
-	 * one fetch window leaves no gap. Unreadable: logged, fetches the latest
-	 * candles and tries again next cycle.
+	 * one fetch window leaves no gap. Unreadable: the cycle fails (logged by
+	 * `executeAll`) and nothing is fetched or persisted, since a fallback fetch
+	 * would store candles past the gap and hide it from the next read.
 	 */
 	private async _loadCursor(
 		symbol: TradingSymbol,
@@ -177,19 +178,10 @@ export class WorkerOrchestrator {
 		if (state.cursorLoaded) {
 			return;
 		}
-		try {
-			// Its open time, not close + 1: the newest candle may have been stored
-			// still open; fetching it again is an idempotent upsert.
-			state.cursor ??= await this._deps.lastCandleOpenTime(
-				this._seriesOf(symbol)
-			);
-			state.cursorLoaded = true;
-		} catch (err) {
-			getLogger().error("Last persisted candle unreadable", {
-				context: { symbol },
-				error: err,
-			});
-		}
+		// Its open time, not close + 1: the newest candle may have been stored
+		// still open; fetching it again is an idempotent upsert.
+		state.cursor = await this._deps.lastCandleOpenTime(this._seriesOf(symbol));
+		state.cursorLoaded = true;
 	}
 
 	private _advanceCursor(
