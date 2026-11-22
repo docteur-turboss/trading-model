@@ -23,7 +23,7 @@ WORK="$(mktemp -d)"
 if command -v cygpath >/dev/null; then WORK="$(cygpath -m "$WORK")"; fi
 # Relative compose path: survives MSYS_NO_PATHCONV=1 (local runs on Git Bash).
 cd "$ROOT"
-COMPOSE="docker compose -f docker-compose.yml"
+COMPOSE="docker compose -f docker-compose.yml -f docker-compose.build.yml"
 
 log() { echo "[drill] $*"; }
 # shellcheck source=drill-timings.sh

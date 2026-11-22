@@ -113,9 +113,11 @@ build_images() {
 		if docker compose -f "$root/docker-compose.yml" config --services | grep -qx "$svc"; then have="$have $svc"; else missing="$missing $svc"; fi
 	done
 	# shellcheck disable=SC2086
-	retry 3 docker compose -f "$root/docker-compose.yml" build $have spire-bootstrap
+	local f="-f $root/docker-compose.yml"
+	[ ! -f "$root/docker-compose.build.yml" ] || f="$f -f $root/docker-compose.build.yml"
+	retry 3 docker compose $f build $have spire-bootstrap
 	# shellcheck disable=SC2086
-	[ -z "$missing" ] || retry 3 docker compose -f "$ROOT/docker-compose.yml" build $missing
+	[ -z "$missing" ] || retry 3 docker compose -f "$ROOT/docker-compose.yml" -f "$ROOT/docker-compose.build.yml" build $missing
 	retry 3 docker build -q -t "ghcr.io/trading-model/backup-tools:$tag" "$root/deploy/backup"
 	# N-1 may predate the image: its digest entry is a stand-in built from this checkout.
 	local mroot="$root"
