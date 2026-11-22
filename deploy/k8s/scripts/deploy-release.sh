@@ -55,8 +55,8 @@ FACTOR="${DEPLOY_TIMEOUT_FACTOR:-1}"
 }
 
 # Deployments a release rolls out and a failed release rolls back.
-DEPLOYMENTS="discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer
-  api-gateway audit-logger dlq-service model-evaluator risk-execution edge-proxy"
+# The service list is deploy/k8s/services/kustomization.yaml; the collector is a second Deployment of financial-scraper.
+DEPLOYMENTS="$(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$(dirname "${BASH_SOURCE[0]}")/../services/kustomization.yaml") financial-scraper-collector"
 
 # Redis and its sentinels: the services' credentials (ADR-0047) only work
 # against the nodes of their own release, so these roll out and back too.
