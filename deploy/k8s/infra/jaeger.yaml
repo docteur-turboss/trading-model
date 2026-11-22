@@ -108,7 +108,8 @@ spec:
               path: /
               port: 16686
             periodSeconds: 10
-            failureThreshold: 30
+            # Badger opens 3+ GiB on the slow staging disk in over 5 min (#2329).
+            failureThreshold: 90
           livenessProbe:
             httpGet:
               path: /
