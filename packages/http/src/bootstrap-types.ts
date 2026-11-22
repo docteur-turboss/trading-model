@@ -18,6 +18,6 @@ export interface GracefulShutdownOptions {
 	 * failure is logged and the shutdown goes on.
 	 */
 	beforeClose?: () => Promise<void>;
-	/** How long in-flight requests may take to finish (default 10 s). */
+	/** How long in-flight requests may take to finish (default 5 s). */
 	closeTimeoutMs?: DurationMs;
 }

@@ -16,10 +16,14 @@ function _closeServerOnShutdown(server: HttpServer | null): void {
 	);
 }
 
+/** Options whose onStop already started: it runs once, whichever path shuts down. */
+const onStopStarted = new WeakSet<BootstrapOptions>();
+
 function _runOnStop(options: BootstrapOptions): void {
-	if (!options.onStop) {
+	if (!options.onStop || onStopStarted.has(options)) {
 		return;
 	}
+	onStopStarted.add(options);
 	try {
 		Promise.resolve(options.onStop()).catch((err) =>
 			getLogger().warn("onStop callback failed during forced shutdown", {
@@ -33,7 +37,9 @@ function _runOnStop(options: BootstrapOptions): void {
 	}
 }
 
-const DEFAULT_CLOSE_TIMEOUT_MS = DurationMs.of(10000);
+const DEFAULT_CLOSE_TIMEOUT_MS = DurationMs.of(5000);
+/** Server close (5 s) + onStop (3 s) stay below the shortest grace, 10 s (edge-proxy). */
+const ON_STOP_TIMEOUT_MS = DurationMs.of(3000);
 
 async function _runBeforeClose(options: BootstrapOptions): Promise<void> {
 	const beforeClose = options.shutdown?.beforeClose;
@@ -50,8 +56,16 @@ async function _runBeforeClose(options: BootstrapOptions): Promise<void> {
 }
 
 async function _awaitOnStop(options: BootstrapOptions): Promise<void> {
+	if (!options.onStop || onStopStarted.has(options)) {
+		return;
+	}
+	onStopStarted.add(options);
 	try {
-		await options.onStop?.();
+		await withTimeout(
+			Promise.resolve().then(options.onStop),
+			ON_STOP_TIMEOUT_MS,
+			"onStop timed out"
+		);
 	} catch (err) {
 		getLogger().warn("onStop callback failed during graceful shutdown", {
 			context: { err: normalizeError(err) },
@@ -92,6 +106,7 @@ export async function gracefulShutdown(
 		}
 		await _awaitOnStop(options);
 		getLogger().info("Shutdown completed gracefully");
+		process.exit(0);
 	} catch (error) {
 		getLogger().error("Error during graceful shutdown", {
 			context: { err: normalizeError(error) },
