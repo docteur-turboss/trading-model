@@ -78,6 +78,22 @@ describe("env", () => {
 		consoleSpy.mockRestore();
 	});
 
+	it("should throw naming SCRAPE_INTERVAL when it is not a cron expression", () => {
+		const consoleSpy = jest
+			.spyOn(console, "error")
+			.mockImplementation(() => {});
+
+		setRequiredVars();
+		process.env.SCRAPE_INTERVAL = "bad";
+
+		expect(() =>
+			require("../../../../src/infrastructure/config/env")
+		).toThrow();
+		expect(consoleSpy.mock.calls.flat().join(" ")).toContain("SCRAPE_INTERVAL");
+
+		consoleSpy.mockRestore();
+	});
+
 	it("should set default values for scraper-specific env vars", () => {
 		setRequiredVars();
 
