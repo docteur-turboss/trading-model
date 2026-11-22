@@ -256,6 +256,18 @@ describe("admission of a model (ADR-0069)", () => {
 		expect(assessAdmission(testMeta(8766), bars(prices))).toBeDefined();
 	});
 
+	it("asks 30 days of bars and carries the attempt rank", () => {
+		const prices = [5, 4, 3, 2];
+		const perYear = 525_600; // one-minute bars
+		const thirtyDays = 30 * 1440;
+		expect(
+			assessAdmission(testMeta(perYear), bars(prices, thirtyDays - 1))
+		).toBeUndefined();
+		expect(
+			assessAdmission(testMeta(perYear), bars(prices, thirtyDays), 2)?.attempt
+		).toBe(2);
+	});
+
 	it("asks daily bars for a year of them, not 1440", () => {
 		const prices = [5, 4, 3, 2];
 		expect(assessAdmission(testMeta(252), bars(prices, 251))).toBeUndefined();

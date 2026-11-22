@@ -289,6 +289,10 @@ export class SignalCollector {
 				context: { source: source.id, count: signals.length },
 			});
 		} catch (err) {
+			if (err instanceof HttpStatusError) {
+				// `result` is already "invalid_payload" here: without this, an HTTP failure an adapter finds in a 200 body would skip `_track` and never quarantine.
+				result = "fetch_error";
+			}
 			if (err instanceof InvalidPayloadError) {
 				result = "invalid_payload";
 			}
@@ -330,7 +334,10 @@ export class SignalCollector {
 			throw new Error(`No source adapter named ${source.adapter}`);
 		}
 		const { subject, dimension } = request;
-		const observations = adapter.normalize(payload, { params: request.params });
+		const observations = adapter.normalize(payload, {
+			params: request.params,
+			ingestedAt: requireObservedAt ? undefined : ingestedAt,
+		});
 		const ingestedIso = new Date(ingestedAt).toISOString();
 		// One parse: Signal checks the payload against its dimension, and metric has no transform.
 		return observations.map((observation) => {

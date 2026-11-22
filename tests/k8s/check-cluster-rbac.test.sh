@@ -48,10 +48,16 @@ metadata:
   name: prometheus-nodes'
 ROLE='{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"ClusterRole","metadata":{"name":"prometheus-nodes"},"rules":[{"apiGroups":[""],"resources":["nodes/metrics"],"verbs":["get"]}]}'
 BINDING='{"apiVersion":"rbac.authorization.k8s.io/v1","kind":"ClusterRoleBinding","metadata":{"name":"prometheus-nodes"},"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"ClusterRole","name":"prometheus-nodes"},"subjects":[{"kind":"ServiceAccount","name":"prometheus","namespace":"trading-model-staging"}]}'
+NAMESPACE_OBJ='{"apiVersion":"v1","kind":"Namespace","metadata":{"name":"trading-model-staging","labels":{"pod-security.kubernetes.io/enforce":"restricted"}}}'
+DAEMONSET='{"apiVersion":"apps/v1","kind":"DaemonSet","metadata":{"name":"promtail","namespace":"trading-model-node"}}'
 export STUB_DESIRED="$ROLE
-$BINDING"
+$BINDING
+$NAMESPACE_OBJ
+$DAEMONSET"
 # live objects as the API server returns them: metadata, apiGroup defaulted on the subject
 live_role() { jq '.metadata += {uid: "u1", resourceVersion: "7"}' <<<"${1:-$ROLE}" >"$WORK/live/ClusterRole_prometheus-nodes.json"; }
+live_namespace() { jq ".metadata.labels[\"pod-security.kubernetes.io/enforce\"] = \"${1:-restricted}\" | .metadata.labels[\"kubernetes.io/metadata.name\"] = \"trading-model-staging\"" <<<"$NAMESPACE_OBJ" >"$WORK/live/Namespace_trading-model-staging.json"; }
+live_daemonset() { echo "$DAEMONSET" >"$WORK/live/DaemonSet_promtail.json"; }
 live_binding() { jq '.metadata.uid = "u2" | .subjects[0].apiGroup = ""' <<<"$BINDING" >"$WORK/live/ClusterRoleBinding_prometheus-nodes.json"; }
 
 check() { # env -> output; status in $rc
@@ -65,7 +71,7 @@ check staging
 [ $rc = 1 ] && ok "missing ClusterRole refused" || ko "missing ClusterRole: rc=$rc $out"
 [[ $out == *"::error::"*"ClusterRole prometheus-nodes (missing)"*"ClusterRoleBinding prometheus-nodes (missing)"* ]] && ok "names the missing objects" || ko "objects not named: $out"
 [[ $out == *"bash scripts/deploy-identity.sh cluster --namespace trading-model-staging --environment staging"* ]] && ok "gives the deploy-identity.sh command" || ko "no admin command: $out"
-[[ $out != *"Namespace"* ]] && ok "non-RBAC kinds ignored" || ko "Namespace listed: $out"
+[[ $out == *"Namespace trading-model-staging (missing)"*"DaemonSet promtail (missing)"* ]] && ok "missing Namespace and DaemonSet refused" || ko "Namespace/DaemonSet not listed: $out"
 no_write && ok "nothing written" || ko "write attempted: $(cat "$STUB_LOG")"
 check staging-local
 [[ $out == *"bash deploy/staging-local/bootstrap.sh identities"* ]] && ok "staging-local: gives bootstrap.sh identities" || ko "staging-local: $out"
@@ -76,11 +82,17 @@ live_binding
 check production
 [ $rc = 1 ] && [[ $out == *"ClusterRole prometheus-nodes (differs)"* && $out != *"ClusterRoleBinding prometheus-nodes"* ]] && ok "different rules refused, binding accepted" || ko "differs: rc=$rc $out"
 
-# 3. all present and identical
-live_role
+# 3. all present and identical (the server adds kubernetes.io/metadata.name)
+live_role; live_namespace; live_daemonset
 check production
 [ $rc = 0 ] && [[ $out == *"up to date"* ]] && ok "identical objects pass" || ko "identical: rc=$rc $out"
 no_write && ok "nothing written" || ko "write attempted: $(cat "$STUB_LOG")"
+
+# 3b. a PSA label lifted on the live Namespace: refused, nothing written
+live_namespace privileged
+check production
+[ $rc = 1 ] && [[ $out == *"Namespace trading-model-staging (differs)"* ]] && ok "Pod Security label drift refused" || ko "PSA drift: rc=$rc $out"
+live_namespace
 
 # 4. an API error other than NotFound fails the check, not "missing"
 STUB_GET_ERROR='error: You must be logged in to the server (Unauthorized)' check production

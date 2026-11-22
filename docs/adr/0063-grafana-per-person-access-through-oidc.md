@@ -27,4 +27,4 @@ Grafana had one shared `admin` account. Reads of Loki logs (truncated IPs) were 
 
 ## Consequences
 
-Grafana has no egress NetworkPolicy, so the IdP is reachable; add an HTTPS egress rule if one is introduced. Secret values are sealed: the gate checks key presence, not that `ENABLED` is `true`. The OIDC flow is not run in CI (no Internet egress): only the rendered settings are checked.
+The IdP is reached through the public HTTPS egress rule of the NetworkPolicy `grafana-alertmanager-egress`. Secret values are sealed: the gate checks key presence, not that `ENABLED` is `true`. The OIDC flow is not run in CI (no Internet egress): only the rendered settings are checked.

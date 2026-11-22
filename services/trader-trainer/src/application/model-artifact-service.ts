@@ -20,6 +20,7 @@ import type {
 	ModelComponent,
 	ModelReplayWindow,
 } from "../domain/model-artifact";
+import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
 import type { StoredModelRef } from "../domain/ports/model-publisher.port";
 import {
 	ArtifactTrainingInfo,
@@ -40,6 +41,28 @@ export interface RehydratedModel {
 	snapshot: ArtifactTrainingInfo;
 	lastModel: LastModel;
 	ref: StoredModelRef;
+}
+
+/**
+ * Rank of the next admission verdict of a symbol (ADR-0069): above the
+ * newest recorded rank and the versions still held, so retention pruning
+ * never lowers it. A read failure only drops the optional field.
+ */
+export async function nextAttempt(
+	models: ModelArtifactStorePort,
+	symbol: string
+): Promise<number | undefined> {
+	try {
+		const [latest, versions] = await Promise.all([
+			models.latest(symbol),
+			models.list(symbol),
+		]);
+		return Math.max(latest?.admission?.attempt ?? 0, versions.length) + 1;
+	} catch (err) {
+		getLogger().warn("Admission attempt rank unavailable", {
+			context: { symbol, err: normalizeError(err).message },
+		});
+	}
 }
 
 /** Reads and writes the versioned model artifacts (ADR-0022); owns no trainer state. */
@@ -138,8 +161,13 @@ export class ModelArtifactService {
 		}
 		const normalization = this._dataBuffer.snapshotNormalization(result.symbol);
 		const last = windowSets[windowSets.length - 1];
-		const admission = assessAdmission(result.bestFitnessMeta, last?.test ?? []);
 		try {
+			const attempt = await nextAttempt(models, result.symbol);
+			const admission = assessAdmission(
+				result.bestFitnessMeta,
+				last?.test ?? [],
+				attempt
+			);
 			const stored = await models.save({
 				symbol: result.symbol,
 				instanceId: this._deps.instanceId ?? "trader-trainer",

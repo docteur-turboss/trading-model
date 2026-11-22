@@ -18,11 +18,13 @@ jest.mock("@trading-model/contracts/logger-registry", () => ({
 
 import {
 	KubernetesLease,
+	LEASE_DURATION_SECONDS,
 	type Lease,
 	type LeaseApi,
 } from "../../src/kubernetes-lease";
 import type { LeaderLeasePort } from "../../src/leader-lease.port";
 import {
+	JOB_STOP_DEADLINE_MS,
 	type LeaderJob,
 	Leadership,
 	SOLE_INSTANCE_LEASE,
@@ -196,6 +198,31 @@ describe("Leadership", () => {
 		await jest.advanceTimersByTimeAsync(TIMING.retryMs);
 		expect(collection.stop).toHaveBeenCalledTimes(1);
 		await leadership.stop();
+	});
+
+	it("stops waiting for a job that does not drain, before the lease can expire", async () => {
+		const lease = fakeLease([]);
+		const job = fakeJob([]);
+		job.stop = jest.fn(() => new Promise<void>(() => undefined));
+		const leadership = new Leadership(
+			lease,
+			job,
+			setGauge,
+			"Collector",
+			TIMING
+		);
+		leadership.start();
+		await jest.advanceTimersByTimeAsync(0);
+		lease.held = jest.fn(async () => false);
+		await jest.advanceTimersByTimeAsync(TIMING.retryMs);
+		expect(job.stop).toHaveBeenCalledTimes(1);
+		// the next attempt waits for the drain, which gives up at the deadline
+		lease.held = jest.fn(async () => true);
+		await jest.advanceTimersByTimeAsync(JOB_STOP_DEADLINE_MS + TIMING.retryMs);
+		expect(lease.held).toHaveBeenCalled();
+		expect(JOB_STOP_DEADLINE_MS).toBeLessThan(
+			LEASE_DURATION_SECONDS * 1000 - TIMING.renewDeadlineMs
+		);
 	});
 
 	it("on stop drains the collection, then releases the lease", async () => {

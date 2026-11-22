@@ -1,10 +1,8 @@
 import { createHash } from "node:crypto";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { CandleData } from "@trading-model/contracts/market-data.types";
-import {
-	type PolicyGenome,
-	replayModel,
-} from "@trading-model/model-runtime/replay";
+import { ModelManifestSchema } from "@trading-model/model-runtime/model-manifest";
+import { replayModel } from "@trading-model/model-runtime/replay";
 import type { SegmentRatios } from "@trading-model/model-runtime/replay-metrics";
 import { z } from "zod";
 
@@ -20,43 +18,18 @@ export const PublishedModel = z.looseObject({
 });
 export type PublishedModel = z.infer<typeof PublishedModel>;
 
-/** Window and simulator of the manifest `replay` block (ADR-0079). */
-const ReplayWindow = z.looseObject({
-	from: z.number().int(),
-	testFrom: z.number().int(),
-	to: z.number().int(),
-	intervalMs: z.number().int(),
-	simulator: z.object({
-		initialCash: z.number(),
-		feeRate: z.number(),
-		executionCostRate: z.number(),
-		tradeFraction: z.number(),
-		observePosition: z.boolean(),
-	}),
-});
-type ReplayWindow = z.infer<typeof ReplayWindow>;
-
 /** The part of the trainer manifest the evaluator relies on (ADR-0022). */
-export const ModelManifest = z.looseObject({
-	symbol: z.string(),
-	version: z.string(),
-	weights: z.looseObject({
-		length: z.number().int().nonnegative(),
-		sha256: z.string().regex(/^[0-9a-f]{64}$/),
-	}),
-	/** The genes the replay plays with; checked by the replay itself. */
-	genome: z.record(z.string(), z.unknown()),
-	admission: z
-		.looseObject({
-			admissible: z.boolean(),
-			criteria: z.looseObject({ sharpe: z.number() }).optional(),
-		})
-		.optional(),
-	replay: ReplayWindow.optional(),
-	/** Absent before metricsVersion 5: those models trained with a cap of 1. */
-	riskLimits: z.looseObject({ maxExposureFraction: z.number() }).optional(),
+export const ModelManifest = ModelManifestSchema.pick({
+	symbol: true,
+	version: true,
+	weights: true,
+	genome: true,
+	admission: true,
+	replay: true,
+	riskLimits: true,
 });
 export type ModelManifest = z.infer<typeof ModelManifest>;
+type ReplayWindow = NonNullable<ModelManifest["replay"]>;
 
 /** Fees and execution cost paid over the replay, in quote currency. */
 interface ReplayCosts {
@@ -137,7 +110,7 @@ export function replayOutcome(
 	}
 	try {
 		const ratios = replayModel({
-			genome: genome as unknown as PolicyGenome,
+			genome,
 			// A copy: float32 needs 4-byte alignment, a Buffer slice may not have it.
 			weights: new Float32Array(new Uint8Array(weights).buffer),
 			testFrom: window.testFrom,
