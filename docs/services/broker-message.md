@@ -25,7 +25,7 @@ Dead letters are read, replayed and deleted with the `audit-dlq` CLI of audit-lo
 
 - `@trading-model/http` — HttpClient, middleware (`catchSync`, `ResponseException`)
 - `@trading-model/primitives` — branded messaging/service types
-- `@trading-model/validation` — message envelope contracts (`message.types`)
+- `@trading-model/contracts` — message envelope contracts (`message.types`)
 - `@trading-model/common` — error classes, config re-exports (`event.types`, `services.types`, `tls-paths`)
 - `@trading-model/address-manager` — Service discovery (finds message-manager)
 - `express` — Express `Router`, `Application` types

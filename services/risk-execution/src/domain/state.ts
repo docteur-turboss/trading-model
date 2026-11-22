@@ -53,11 +53,17 @@ export function equity(state: RiskState): number {
 	return total;
 }
 
-/** Position per symbol with open orders counted as filled (ADR-0064 §2). */
-export function projectedPositions(state: RiskState): Record<string, number> {
+/**
+ * Position per symbol with the open orders of one side counted as filled
+ * (ADR-0064 §2, worst case): an open order of the other side never hedges.
+ */
+export function projectedPositions(
+	state: RiskState,
+	side: Order["side"]
+): Record<string, number> {
 	const out = { ...state.positions };
 	for (const order of Object.values(state.orders)) {
-		if (isOpen(order)) {
+		if (isOpen(order) && order.side === side) {
 			out[order.symbol] =
 				(out[order.symbol] ?? 0) +
 				(order.side === "buy" ? 1 : -1) * (order.quantity - order.filledQty);

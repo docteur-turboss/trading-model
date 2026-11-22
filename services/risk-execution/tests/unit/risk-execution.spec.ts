@@ -210,6 +210,38 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		});
 	});
 
+	it("rejects a sell hedged only by an open buy", async () => {
+		const ctx = build();
+		await ctx.svc.start();
+		await ctx.svc.submitIntent(intent({ limitPrice: 59_500 })); // resting buy
+		const r = await ctx.svc.submitIntent(intent({ side: "sell" }));
+		expect(r).toMatchObject({ status: "rejected", reason: "short_selling" });
+	});
+
+	it("rejects a buy over the cap even with an open sell", () => {
+		const state = newState(CAPITAL, T0);
+		state.positions.BTCUSDT = 0.2;
+		state.orders.o1 = {
+			symbol: "BTCUSDT",
+			side: "sell",
+			status: "acknowledged",
+			quantity: 0.2,
+			filledQty: 0,
+			createdAt: T0,
+		} as unknown as Order;
+		expect(
+			preTradeReject({
+				intent: intent({ quantity: 0.06, allowRepeat: false }),
+				limits: LIMITS,
+				state,
+				now: T0,
+				admissible: true,
+				reconciled: true,
+				halted: [],
+			})
+		).toBe("instrument_exposure");
+	});
+
 	it("caps the global exposure across two instruments (30 %)", async () => {
 		const limits = RiskLimits.parse({
 			...LIMITS,
@@ -632,6 +664,43 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		await ctx.svc.engage("global", "operator", "ops");
 		expect(await ctx.svc.cancel(r.clientOrderId)).toBe("cancelled");
 		expect(await ctx.svc.cancel("nope")).toBe("not_found");
+	});
+
+	it("a failed cancel leaves the order cancel_requested and the ticks keep the limits", async () => {
+		const inner = new PaperBroker(new MemoryStore<never>(), CAPITAL);
+		let cancelFails = true;
+		const broker: BrokerPort = {
+			submit: (o) => inner.submit(o),
+			query: (id) => inner.query(id),
+			cancel: async (id) => {
+				if (cancelFails) {
+					cancelFails = false;
+					throw new Error("ECONNRESET");
+				}
+				return inner.cancel(id);
+			},
+			account: () => inner.account(),
+			haltedSymbols: async () => [],
+		};
+		const ctx = build({ broker });
+		await ctx.svc.start();
+		await ctx.svc.submitIntent(intent({ quantity: 0.08 }));
+		const resting = await ctx.svc.submitIntent(
+			intent({ limitPrice: 59_500, quantity: 0.0001 })
+		);
+		expect(await ctx.svc.cancel(resting.clientOrderId)).toBe(
+			"cancel_requested"
+		);
+		await ctx.svc.tick(); // the broker still sees it open
+		const orders = () => (ctx.store.value as RiskState).orders;
+		expect(orders()[resting.clientOrderId].status).toBe("cancel_requested");
+		expect(ctx.events.filter((e) => e.startsWith("broker.error"))).toHaveLength(
+			1
+		); // the failed cancel only, no illegal transition at each tick
+		await ctx.svc.observePrice("BTCUSDT", 30_000, clock);
+		await ctx.svc.tick();
+		expect(ctx.svc.status().killSwitch.global).toBe("daily_loss");
+		expect(orders()[resting.clientOrderId].status).toBe("cancelled");
 	});
 
 	it("5 broker rejections engage the symbol, 10 the global switch (reject storm)", async () => {

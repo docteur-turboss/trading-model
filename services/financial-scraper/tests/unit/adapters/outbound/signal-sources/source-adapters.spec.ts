@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
-import { PAYLOADS } from "@trading-model/validation/wire/signals";
+import { PAYLOADS } from "@trading-model/contracts/wire/signals";
 import {
 	CFTC_COT_LEGACY,
 	newYorkLocalToUtc,

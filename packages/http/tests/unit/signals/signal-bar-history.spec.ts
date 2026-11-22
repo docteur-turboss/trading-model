@@ -1,6 +1,6 @@
+import type { Signal } from "@trading-model/contracts/wire/signals";
 import { toSymbol } from "@trading-model/primitives/primitives";
-import { SignalBarHistory } from "../src/signals/signal-bar-history";
-import type { Signal } from "../src/wire/signals";
+import { SignalBarHistory } from "../../../src/signals/signal-bar-history";
 
 const AT = Date.parse("2026-03-20T00:00:00Z");
 

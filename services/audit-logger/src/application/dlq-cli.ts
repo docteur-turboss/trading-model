@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import {
 	DlqEvent,
 	type DlqEventMap,
@@ -48,27 +49,42 @@ export async function runDlqCli(
 		return 0;
 	}
 	const done: string[] = [];
-	for (const id of ids) {
-		if (await deps.streams[command](topic, id)) {
-			done.push(id);
+	const errors: unknown[] = [];
+	try {
+		for (const id of ids) {
+			if (await deps.streams[command](topic, id)) {
+				done.push(id);
+			}
 		}
+	} catch (error) {
+		errors.push(error);
+	}
+	try {
+		if (command === "replay") {
+			await deps.publish(DlqEvent.ReplayCompleted, {
+				batchId: randomUUID(),
+				topic,
+				replayed: done.length,
+				failed: ids.length - done.length,
+				actor,
+			});
+		} else {
+			await deps.publish(DlqEvent.EntriesDeleted, {
+				ids: done,
+				deleted: done.length,
+				actor,
+			});
+		}
+	} catch (publishError) {
+		deps.err(
+			`audit event not published: ${normalizeError(publishError).message}`
+		);
+		errors.push(publishError);
+	}
+	if (errors.length > 0) {
+		throw errors[0];
 	}
 	const failed = ids.length - done.length;
-	if (command === "replay") {
-		await deps.publish(DlqEvent.ReplayCompleted, {
-			batchId: randomUUID(),
-			topic,
-			replayed: done.length,
-			failed,
-			actor,
-		});
-	} else {
-		await deps.publish(DlqEvent.EntriesDeleted, {
-			ids,
-			deleted: done.length,
-			actor,
-		});
-	}
 	deps.out(`${command}: ${done.length} done, ${failed} not found`);
 	return failed > 0 ? 1 : 0;
 }

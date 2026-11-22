@@ -1,5 +1,6 @@
+import { describe, expect, it } from "@jest/globals";
 import { z } from "zod";
-import { featureFlag } from "../src/config/feature-flags";
+import { featureFlag } from "../../../src/config/feature-flags";
 
 const schema = z.object({ FEATURE_X: featureFlag(true) });
 

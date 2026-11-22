@@ -1,1 +1,1 @@
-export type { SignalHistoryPort } from "@trading-model/validation/signals/scraper-signal-history";
+export type { SignalHistoryPort } from "@trading-model/http/signals/scraper-signal-history";

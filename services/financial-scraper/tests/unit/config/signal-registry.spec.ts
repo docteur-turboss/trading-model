@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
-import { Signal } from "@trading-model/validation/wire/signals";
+import { Signal } from "@trading-model/contracts/wire/signals";
 import {
 	loadSignalRegistry,
 	parseSignalRegistry,

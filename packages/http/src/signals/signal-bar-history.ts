@@ -5,13 +5,13 @@ import {
 	MarketType,
 	type SourceType,
 } from "@trading-model/contracts/market-data.types";
+import type { AssetType, Signal } from "@trading-model/contracts/wire/signals";
 import {
 	Price,
 	type TradingSymbol,
 	UnixTimestamp,
 	Volume,
 } from "@trading-model/primitives/primitives";
-import type { AssetType, Signal } from "../wire/signals";
 import type { SignalHistoryPort } from "./scraper-signal-history";
 
 const DAY_MS = 86_400_000;

@@ -36,7 +36,8 @@ function evaluateSingleGenomeOnWindow(
 	genome: DeepReadonly<LamarckGenome>,
 	windowSet: WindowSet,
 	backendFactory: BackendFactory,
-	telemetry?: GaTelemetry
+	telemetry?: GaTelemetry,
+	rng?: () => number
 ): EvaluationResult & { failed: boolean } {
 	validateGenomeInputs(genome, windowSet);
 	const { symbol } = windowSet;
@@ -48,6 +49,7 @@ function evaluateSingleGenomeOnWindow(
 			backend: trainBackend,
 			trainData: windowSet.train,
 			genome: start,
+			rng,
 		});
 
 		const trained = lamarckianUpdate(start, trainBackend);
@@ -91,7 +93,8 @@ export function evaluateGenomeAllWindows(
 	genome: DeepReadonly<LamarckGenome>,
 	windowSets: WindowSet[],
 	backendFactory: BackendFactory,
-	telemetry?: GaTelemetry
+	telemetry?: GaTelemetry,
+	rng?: () => number
 ): Promise<{
 	updatedGenome: DeepReadonly<LamarckGenome>;
 	meta: GenomeFitnessMeta;
@@ -109,7 +112,8 @@ export function evaluateGenomeAllWindows(
 			currentGenome,
 			ws,
 			backendFactory,
-			telemetry
+			telemetry,
+			rng
 		);
 		currentGenome = result.updatedGenome;
 		episodePnl.push(...result.episodePnl);
@@ -153,12 +157,14 @@ interface EvaluateFitnessContext {
 	windowSets: WindowSet[];
 	backendFactory: BackendFactory;
 	telemetry?: GaTelemetry;
+	rng?: () => number;
 }
 
 function _makeEvalFn(
 	windowSets: WindowSet[],
 	backendFactory: BackendFactory,
-	telemetry?: GaTelemetry
+	telemetry?: GaTelemetry,
+	rng?: () => number
 ): (
 	genome: DeepReadonly<LamarckGenome>
 ) => ReturnType<typeof evaluateGenomeAllWindows> {
@@ -168,7 +174,8 @@ function _makeEvalFn(
 			genome,
 			windowSets,
 			backendFactory,
-			telemetry
+			telemetry,
+			rng
 		);
 		telemetry?.genomeEvaluated(performance.now() - start);
 		return result;
@@ -180,10 +187,10 @@ export async function evaluateFitness(ctx: EvaluateFitnessContext): Promise<{
 	objectives: { avgPnl: number; sharpe: number; negFlops: number }[];
 	metas: GenomeFitnessMeta[];
 }> {
-	const { population, windowSets, backendFactory, telemetry } = ctx;
+	const { population, windowSets, backendFactory, telemetry, rng } = ctx;
 	const evalResults = await sequentialEval(
 		population,
-		_makeEvalFn(windowSets, backendFactory, telemetry)
+		_makeEvalFn(windowSets, backendFactory, telemetry, rng)
 	);
 
 	return {

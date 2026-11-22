@@ -101,13 +101,15 @@ function priceReject(ctx: PreTradeContext): string | null {
 function exposureReject(ctx: PreTradeContext): string | null {
 	const { intent, limits, state } = ctx;
 	const cap = limits.allocatedCapital;
-	const projected = projectedPositions(state);
-	const after =
-		(projected[intent.symbol] ?? 0) +
-		(intent.side === "buy" ? intent.quantity : -intent.quantity);
-	if (after < -1e-12) {
+	const signed = intent.side === "buy" ? intent.quantity : -intent.quantity;
+	if (
+		(projectedPositions(state, "sell")[intent.symbol] ?? 0) + signed <
+		-1e-12
+	) {
 		return "short_selling";
 	}
+	const projected = projectedPositions(state, "buy");
+	const after = (projected[intent.symbol] ?? 0) + signed;
 	if (after * intent.referencePrice > limits.instrumentExposurePct * cap) {
 		return "instrument_exposure";
 	}
