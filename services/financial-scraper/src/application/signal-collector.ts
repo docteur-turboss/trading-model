@@ -289,6 +289,10 @@ export class SignalCollector {
 				context: { source: source.id, count: signals.length },
 			});
 		} catch (err) {
+			if (err instanceof HttpStatusError) {
+				// An adapter may report an HTTP-level failure found in a 200 body.
+				result = "fetch_error";
+			}
 			if (err instanceof InvalidPayloadError) {
 				result = "invalid_payload";
 			}

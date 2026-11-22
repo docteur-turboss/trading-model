@@ -1039,6 +1039,17 @@ describe("twelvedata-daily-prices", () => {
 		expect(observations.every((o) => o.observedAt === undefined)).toBe(true);
 	});
 
+	it("throws a 429 HttpStatusError for a quota body sent with HTTP 200", () => {
+		const body = { code: 429, message: "out of API credits", status: "error" };
+
+		expect(() => TWELVEDATA_DAILY_PRICES.normalize(body, NO_PARAMS)).toThrow(
+			expect.objectContaining({ name: "HttpStatusError", status: 429 })
+		);
+		expect(() =>
+			TWELVEDATA_DAILY_PRICES.normalize({ ...body, code: 400 }, NO_PARAMS)
+		).not.toThrow(expect.objectContaining({ name: "HttpStatusError" }));
+	});
+
 	it("gives nothing for a day without quotation (no value)", () => {
 		expect(
 			TWELVEDATA_DAILY_PRICES.normalize({ values: [] }, NO_PARAMS)
