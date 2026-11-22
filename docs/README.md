@@ -40,7 +40,7 @@ Per-service and per-package documentation ([full index](services/README.md)):
 | `trader-trainer` | 8446 | GA + DQN agent evolution engine |
 | `api-gateway` | 8448 | External entry point: auth, rate-limit, cache, proxy |
 | `audit-logger` | 8450 | Immutable event traceability |
-| `dlq-service` | 8452 | Dead letter queue with auto-retry + replay |
+| `dlq-service` | 8452 | Dead letter queue storage + replay |
 | `risk-execution` | 8454 | Orders and kill switch (paper only, ADR-0064) |
 | `edge-proxy` | 8449 | nginx: external HTTP entry, `/v1` → api-gateway over mTLS |
 
