@@ -76,7 +76,7 @@ Below the stale data threshold, an intent decided on a price older than 1 min (v
 
 ### 4.4 Re-arming
 
-Re-arming is manual only, through the admin route, by an operator (§2), with a reason recorded in the audit trail. Nothing re-arms the switch automatically: not a new trading day, not a restart, not fresh data. Before re-arming, the operator checks that the cause is gone (data fresh again, reconciliation clean, rejection cause understood). After the drawdown stop, only the project owner re-arms, once the strategy has been reviewed.
+Re-arming is manual only, through the admin route, by an operator (§2), with a reason recorded in the audit trail. Nothing re-arms the switch automatically: not a new trading day, not a restart, not fresh data. Before re-arming, the operator checks that the cause is gone (data fresh again, reconciliation clean, rejection cause understood). After the drawdown stop, only the project owner re-arms, once the strategy has been reviewed; the high-water mark then restarts from the current equity, and the audit event records the old and new values.
 
 ## 5. Independence from the decision component
 

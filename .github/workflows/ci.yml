@@ -298,7 +298,8 @@ jobs:
       # The overlay points the scraper at a Binance stub. The observability
       # stack is not needed here.
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      # buildx reads the gha cache only with these variables, which a run: step does not get.
+      # buildx reads the gha cache only with these variables, which a run: step does not get:
+      # exported for the build step alone, cleared right after (tests and dependencies never see them).
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -315,6 +316,11 @@ jobs:
             args+=(--set "$t.tags=$COMPOSE_PROJECT_NAME-$t" --set "$t.cache-from=type=gha,scope=e2e-$t" --set "$t.cache-to=type=gha,mode=max,ignore-error=true,scope=e2e-$t")
           done
           docker buildx bake $f --load "${args[@]}"
+      - if: ${{ always() }}
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            for (const k of ['ACTIONS_RUNTIME_TOKEN', 'ACTIONS_RESULTS_URL', 'ACTIONS_CACHE_URL']) core.exportVariable(k, '');
       - name: Boot the application stack
         run: >-
           docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml

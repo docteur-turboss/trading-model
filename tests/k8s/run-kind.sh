@@ -241,7 +241,15 @@ identities() {
 		log "deploy-app can read Secrets of kube-system"
 		return 1
 	}
-	log "  deploy-cluster: self-bind Forbidden, no nodes/proxy; deploy-app: no Secret in kube-system"
+	if out="$($as_cluster label namespace "$NS" pod-security.kubernetes.io/enforce=privileged --overwrite 2>&1)" || ! grep -qi forbidden <<<"$out"; then
+		log "deploy-cluster could relabel the application namespace (or failed other than Forbidden): $out"
+		return 1
+	fi
+	if out="$($as_cluster -n trading-model-node create -f - 2>&1 <<<'{"apiVersion":"apps/v1","kind":"DaemonSet","metadata":{"name":"rogue"},"spec":{"selector":{"matchLabels":{"a":"b"}},"template":{"metadata":{"labels":{"a":"b"}},"spec":{"containers":[{"name":"c","image":"busybox"}]}}}}')" || ! grep -qi forbidden <<<"$out"; then
+		log "deploy-cluster could create a DaemonSet in trading-model-node (or failed other than Forbidden): $out"
+		return 1
+	fi
+	log "  deploy-cluster: self-bind, namespace relabel and DaemonSet create Forbidden, no nodes/proxy; deploy-app: no Secret in kube-system"
 }
 
 # deploy-release.sh (the release steps of deploy.yml) against the kind cluster.

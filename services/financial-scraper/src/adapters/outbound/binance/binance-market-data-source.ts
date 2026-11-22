@@ -3,7 +3,10 @@ import {
 	DataSource,
 	type TradingSymbol,
 } from "@trading-model/primitives/primitives";
-import { SourceQuarantine } from "../../../application/source-quarantine";
+import {
+	type QuarantineStore,
+	SourceQuarantine,
+} from "../../../application/source-quarantine";
 import type {
 	MarketDataSnapshot,
 	SnapshotRequest,
@@ -29,8 +32,19 @@ export class BinanceMarketDataSource implements MarketDataSourcePort {
 	private _tickers?: TickerBatch;
 
 	constructor(
-		private readonly _quarantine = new SourceQuarantine(BAN_BACKOFF_BASE_MS, 1)
+		store?: QuarantineStore,
+		private readonly _quarantine = new SourceQuarantine(
+			BAN_BACKOFF_BASE_MS,
+			1,
+			undefined,
+			store
+		)
 	) {}
+
+	/** Reads back a ban recorded before a restart or by the previous leader. */
+	restore(): Promise<void> {
+		return this._quarantine.restore();
+	}
 
 	beginCycle(symbols: TradingSymbol[], signal?: AbortSignal): void {
 		this._tickers = this._quarantine.isOpen(this.id)

@@ -307,12 +307,26 @@ export class RiskExecution {
 			if (current === "drawdown" && actor !== this._d.ownerActor) {
 				throw new Error("Only the owner re-arms after the drawdown stop");
 			}
+			// Without this the drawdown (hwm - equity) is still over the limit and the switch re-engages at the next tick.
+			const previousHwm = this._state.hwm;
+			if (current === "drawdown") {
+				this._state.hwm = equity(this._state);
+			}
 			if (scope === "global") {
 				ks.global = null;
 			} else {
 				delete ks.symbols[symbol ?? ""];
 			}
-			this._emit("kill_switch.rearmed", { scope, symbol, reason, actor });
+			this._emit("kill_switch.rearmed", {
+				scope,
+				symbol,
+				reason,
+				actor,
+				...(current === "drawdown" && {
+					previousHwm,
+					hwm: this._state.hwm,
+				}),
+			});
 			await this._save();
 		});
 	}
