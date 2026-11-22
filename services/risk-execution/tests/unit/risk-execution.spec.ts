@@ -210,6 +210,38 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		});
 	});
 
+	it("rejects a sell hedged only by an open buy", async () => {
+		const ctx = build();
+		await ctx.svc.start();
+		await ctx.svc.submitIntent(intent({ limitPrice: 59_500 })); // resting buy
+		const r = await ctx.svc.submitIntent(intent({ side: "sell" }));
+		expect(r).toMatchObject({ status: "rejected", reason: "short_selling" });
+	});
+
+	it("rejects a buy over the cap even with an open sell", () => {
+		const state = newState(CAPITAL, T0);
+		state.positions.BTCUSDT = 0.2;
+		state.orders.o1 = {
+			symbol: "BTCUSDT",
+			side: "sell",
+			status: "acknowledged",
+			quantity: 0.2,
+			filledQty: 0,
+			createdAt: T0,
+		} as unknown as Order;
+		expect(
+			preTradeReject({
+				intent: intent({ quantity: 0.06, allowRepeat: false }),
+				limits: LIMITS,
+				state,
+				now: T0,
+				admissible: true,
+				reconciled: true,
+				halted: [],
+			})
+		).toBe("instrument_exposure");
+	});
+
 	it("caps the global exposure across two instruments (30 %)", async () => {
 		const limits = RiskLimits.parse({
 			...LIMITS,
