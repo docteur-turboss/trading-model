@@ -31,12 +31,43 @@ import {
 const WEIGHTS = new Float32Array([0.5, -1, 2]);
 const BYTES = Buffer.from(WEIGHTS.buffer);
 const SHA = createHash("sha256").update(BYTES).digest("hex");
+const GENOME = {
+	id: "g-1",
+	gaControl: {
+		population: { size: 10, elitismFraction: 0.1, survivorFraction: 0.5 },
+		evaluation: { episodesPerIndividual: 1 },
+		selectionType: "tournament",
+		fitnessType: "sharpe",
+	},
+	network: {
+		inputDim: 4,
+		outputDim: 3,
+		hiddenLayers: [{ neurons: 8, activation: "relu" }],
+		normalization: "min-max",
+	},
+	rl: {
+		gamma: 0.9,
+		learningRate: 0.001,
+		discretePolicy: { epsilonStart: 1, epsilonMin: 0.05, epsilonDecay: 0.99 },
+		horizon: { frameSkip: 1 },
+	},
+};
 const MANIFEST = {
 	symbol: "BTCUSDT",
 	version: "20261114T000000Z-abcdef012345",
-	weights: { length: 3, sha256: SHA },
-	genome: {},
-	admission: { admissible: true },
+	weights: {
+		file: "weights.f32",
+		dtype: "float32-le",
+		length: 3,
+		sha256: SHA,
+	},
+	genome: GENOME,
+	admission: {
+		admissible: true,
+		evaluatedOn: "test",
+		criteria: { sharpe: 1, sortino: 1, calmar: 1, buyAndHoldSharpe: 0 },
+		thresholds: { minSharpe: 0, minSortino: 0, minCalmar: 0 },
+	},
 } as ModelManifest;
 const NO_CANDLES = { candles: async () => [] };
 /** Two one-minute candles, the second one the test segment. */
@@ -159,7 +190,6 @@ describe("evaluate a published model", () => {
 		) => {
 			const manifest = {
 				...MANIFEST,
-				admission: { admissible: true, criteria: { sharpe: 1 } },
 				replay,
 			} as ModelManifest;
 			await createEvaluateModel({
@@ -252,6 +282,12 @@ describe("evaluate a published model", () => {
 		await expect(readdir(dir)).resolves.toEqual([]);
 	});
 
+	it("rejects a manifest whose genome cannot be replayed", () => {
+		expect(ModelManifest.safeParse(MANIFEST).success).toBe(true);
+		const bad = { ...MANIFEST, genome: { ...GENOME, network: {} } };
+		expect(ModelManifest.safeParse(bad).success).toBe(false);
+	});
+
 	it("refuses a manifest of another version or a wrong weights length", async () => {
 		const other = createEvaluateModel({
 			store: new FileEvaluationStore(dir),
@@ -268,7 +304,7 @@ describe("evaluate a published model", () => {
 			trainer: {
 				manifest: async () => ({
 					...MANIFEST,
-					weights: { length: 4, sha256: SHA },
+					weights: { ...MANIFEST.weights, length: 4 },
 				}),
 				weights: async () => ({ bytes: BYTES, sha256: SHA }),
 			},
