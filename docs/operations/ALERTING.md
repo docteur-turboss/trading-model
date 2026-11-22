@@ -197,6 +197,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `MySQLDown` | critical | [runbook-infrastructure#mysqldown](runbooks/runbook-infrastructure.md#mysqldown) |
 | `MySQLSecureTransportOff` | warning | [runbook-infrastructure#mysqlsecuretransportoff](runbooks/runbook-infrastructure.md#mysqlsecuretransportoff) |
 | `RedisDown` | critical | [runbook-infrastructure#redisdown](runbooks/runbook-infrastructure.md#redisdown) |
+| `RedisMemoryHigh` | warning | [runbook-infrastructure#redismemoryhigh](runbooks/runbook-infrastructure.md#redismemoryhigh) |
 | `RedisReplicasMissing` | warning | [runbook-infrastructure#redisreplicasmissing](runbooks/runbook-infrastructure.md#redisreplicasmissing) |
 | `StatefulSetStuckOnOldRevision` | warning | [runbook-infrastructure#statefulsetstuckonoldrevision](runbooks/runbook-infrastructure.md#statefulsetstuckonoldrevision) |
 | `RedisSentinelQuorumLost` | critical | [runbook-infrastructure#redissentinelquorumlost](runbooks/runbook-infrastructure.md#redissentinelquorumlost) |
