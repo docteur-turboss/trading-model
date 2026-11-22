@@ -7,6 +7,8 @@ export interface GenomeEvaluationContext {
 	genome: DeepReadonly<LamarckGenome>;
 	validationData: MarketStep[];
 	backendFactory: BackendFactory;
+	/** One greedy pass (epsilon 0), as the replay and the deployed model play. */
+	greedy?: boolean;
 }
 
 /**
@@ -39,7 +41,8 @@ export const EVAL_EPSILON = 0.05;
 
 /** The genome as evaluated: same weights and policy, evaluation exploration. */
 function evaluationGenome(
-	genome: DeepReadonly<LamarckGenome>
+	genome: DeepReadonly<LamarckGenome>,
+	epsilon: number
 ): DeepReadonly<LamarckGenome> {
 	return {
 		...genome,
@@ -47,8 +50,8 @@ function evaluationGenome(
 			...genome.rl,
 			discretePolicy: {
 				...genome.rl.discretePolicy,
-				epsilonStart: EVAL_EPSILON,
-				epsilonMin: EVAL_EPSILON,
+				epsilonStart: epsilon,
+				epsilonMin: epsilon,
 			},
 		},
 	} as DeepReadonly<LamarckGenome>;
@@ -64,7 +67,9 @@ function _runEvalEpisode(
 	pnlCurve: number[]
 ): { pnl: number; decisions: number } {
 	const { genome, validationData, backendFactory } = ctx;
-	const backend = backendFactory(evaluationGenome(genome));
+	const backend = backendFactory(
+		evaluationGenome(genome, ctx.greedy ? 0 : EVAL_EPSILON)
+	);
 	const episode = playEpisode(
 		validationData,
 		genome.rl.horizon,
@@ -79,7 +84,9 @@ function _runEvalEpisode(
 }
 
 export function evalPhase(ctx: GenomeEvaluationContext): EvaluationPnl {
-	const numEpisodes = ctx.genome.gaControl.evaluation.episodesPerIndividual;
+	const numEpisodes = ctx.greedy
+		? 1
+		: ctx.genome.gaControl.evaluation.episodesPerIndividual;
 	const episodePnl: number[] = [];
 	const pnlCurve: number[] = [];
 

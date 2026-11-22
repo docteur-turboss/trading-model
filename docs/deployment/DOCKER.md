@@ -6,20 +6,7 @@
 > backup metrics. Do not store real data in it. Real data belongs in the
 > [Kubernetes deployment](KUBERNETES.md) ([BACKUP_DR.md](BACKUP_DR.md#known-limits)).
 
-The platform runs **7 microservices** (no frontend, see [ADR-0018](../adr/0018-temporary-frontend-removal.md)) plus infrastructure containers (MongoDB, MySQL, Redis, SPIRE):
-
-| Service               | Image / Build           | Container           | Host port                        | Network(s)              |
-| --------------------- | ----------------------- | ------------------- | -------------------------------- | ----------------------- |
-| `mongo`               | `mongo:7`               | `trading-mongo`     | —                                | `data-net` (internal)   |
-| `mysql`               | `mysql:8`               | `trading-mysql`     | —                                | `data-net` (internal)   |
-| `discovery-server`    | Build local             | `trading-discovery` | `${DISCOVERY_PORT:-8443}` → 3000 | `backend-net`            |
-| `message-manager`     | Build local             | `trading-message`   | `${MESSAGE_PORT:-8444}` → 3000   | `backend-net`, `data-net` |
-| `financial-scraper`   | Build local             | `trading-scraper`   | `${SCRAPER_PORT:-8445}` → 3000   | `backend-net`, `data-net` |
-| `trader-trainer`      | Build local             | `trading-trainer`   | `${TRAINER_PORT:-8446}` → 3000   | `backend-net`            |
-| `api-gateway`         | Build local             | `trading-gateway`   | `${GATEWAY_PORT:-8448}` → 3000   | `backend-net`            |
-| `audit-logger`        | Build local             | `trading-audit`     | `${AUDIT_PORT:-8450}` → 3000     | `backend-net`, `data-net` |
-| `dlq-service`         | Build local             | `trading-dlq`       | `${DLQ_PORT:-8452}` → 3000       | `backend-net`, `data-net` |
-| `edge-proxy`          | `nginx` (digest-pinned) | `trading-edge`      | `${EDGE_PORT:-8449}` → 8080      | `backend-net`            |
+The platform runs the services listed in [services/README.md](../services/README.md) (no frontend, see [ADR-0018](../adr/0018-temporary-frontend-removal.md)) plus infrastructure containers (MongoDB, MySQL, Redis, SPIRE). The exact list is `docker compose config --services`.
 
 ### Networks
 
@@ -40,13 +27,13 @@ Services on `backend-net` can reach each other by Docker service name (e.g. `dis
 
 ## Multi-stage Dockerfile
 
-All 7 TypeScript services use the same 3-stage pattern, for example [`services/discovery-server/Dockerfile`](../../services/discovery-server/Dockerfile). Base images are pinned by digest (Dependabot bumps them): read the digests in the Dockerfile.
+Every TypeScript service uses the same 3-stage pattern, for example [`services/discovery-server/Dockerfile`](../../services/discovery-server/Dockerfile). Base images are pinned by digest (Dependabot bumps them): read the digests in the Dockerfile.
 
 | Stage     | Base image | Operations |
 | --------- | ---------- | ---------- |
 | `deps`    | `oven/bun:1.4.4`, pinned by digest | Copy manifests, `bun install --frozen-lockfile --production` (prod dependencies only) |
 | `build`   | `oven/bun:1.4.4`, pinned by digest | Full `bun install --frozen-lockfile`, `bun run build` (shared packages) + `bun run build` (service) |
-| `runtime` | `node:26.13.0-alpine`, pinned by digest | Add `tini` (init process) and `curl` (healthcheck), remove npm/npx, copy artifacts from previous stages, run as `appuser`; `HEALTHCHECK` calls `/health/ready` over mTLS with the SVID; `CMD ["node", ...]` |
+| `runtime` | `node:26.13.1-alpine`, pinned by digest | Add `tini` (init process) and `curl` (healthcheck), remove npm/npx, copy artifacts from previous stages, run as `appuser`; `HEALTHCHECK` calls `/health/ready` over mTLS with the SVID; `CMD ["node", ...]` |
 
 Bun builds, Node runs: Bun exposes neither the peer certificate on HTTPS request sockets nor `server.setSecureContext`, which caller identity and SVID rotation need ([ADR-0011](../adr/0011-spiffe-spire-workload-identity.md)).
 
@@ -66,26 +53,7 @@ curl -s http://localhost:8449/v1/trader-trainer/training-status -H "x-api-key: <
 
 ## Images and registry
 
-Images are published to **GitHub Container Registry** (`ghcr.io`) with multiple tags:
-
-```
-ghcr.io/<owner>/trading-model/<service>:<semver>
-ghcr.io/<owner>/trading-model/<service>:<major>.<minor>
-ghcr.io/<owner>/trading-model/<service>:<major>
-ghcr.io/<owner>/trading-model/<service>:<sha-commit>
-```
-
-All **7 microservices** are built and published by the release workflow:
-
-| Service               | Image                                                        |
-| --------------------- | ------------------------------------------------------------ |
-| discovery-server      | `ghcr.io/trading-model/discovery-server`                     |
-| message-manager       | `ghcr.io/trading-model/message-manager`                      |
-| financial-scraper     | `ghcr.io/trading-model/financial-scraper`                    |
-| trader-trainer        | `ghcr.io/trading-model/trader-trainer`                       |
-| api-gateway           | `ghcr.io/trading-model/api-gateway`                          |
-| audit-logger          | `ghcr.io/trading-model/audit-logger`                         |
-| dlq-service           | `ghcr.io/trading-model/dlq-service`                          |
+Every service image is built and published by the release workflow under `ghcr.io/trading-model/<service>`, tagged `X.Y.Z` and `latest` when it is the highest stable tag ([release.md](../contributing/release.md)).
 
 ---
 

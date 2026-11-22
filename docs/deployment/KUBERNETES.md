@@ -208,11 +208,11 @@ Run `deploy.yml`. `deploy-k8s.sh apply <service-name>` exists for local developm
 
 ```bash
 # Rollback to previous version
-./deploy/k8s/scripts/deploy-k8s.sh rollback <service-name>
+kubectl rollout undo -n trading-model deployment/<service-name>
 
 # Rollback to specific revision
 kubectl rollout history -n trading-model deployment/<service-name>
-./deploy/k8s/scripts/deploy-k8s.sh rollback <service-name> <revision>
+kubectl rollout undo -n trading-model deployment/<service-name> --to-revision=<revision>
 ```
 
 Several services or the schema: runbook

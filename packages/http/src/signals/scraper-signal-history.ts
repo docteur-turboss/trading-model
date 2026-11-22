@@ -1,13 +1,22 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
-import { HttpClient } from "@trading-model/http/http-client";
-import { ServiceId, URLString } from "@trading-model/primitives/primitives";
-import { HostPort } from "@trading-model/primitives/service-identity";
 import {
 	AssetSignalsResponse,
 	type Signal,
-} from "@trading-model/validation/wire/signals";
-import type { SignalHistoryPort } from "../../domain/ports/signal-history.port";
+} from "@trading-model/contracts/wire/signals";
+import { ServiceId, URLString } from "@trading-model/primitives/primitives";
+import { HostPort } from "@trading-model/primitives/service-identity";
+import { HttpClient } from "../http-client";
+
+/** Stored signals of an asset, served by the scraper (ADR-0036). */
+export interface SignalHistoryPort {
+	/**
+	 * Every signal of `assetId` (own, sector and area) observed in
+	 * `[from, to]` (epoch ms), oldest first, no duplicate: nothing observed
+	 * after `to` is read (point-in-time, ADR-0030).
+	 */
+	loadWindow(assetId: string, from: number, to: number): Promise<Signal[]>;
+}
 
 /**
  * Reads signals through the scraper's route `GET /signals/assets/:assetId`;

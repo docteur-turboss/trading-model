@@ -1,7 +1,9 @@
 import { join } from "node:path";
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { mountRoute } from "@trading-model/http/api-route/mount-route";
+import { runJob } from "@trading-model/http/correlation-id";
 import { createServiceServer } from "@trading-model/http/service-server-factory";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import { Router } from "express";
@@ -22,8 +24,11 @@ import {
 import { publishRiskEvent } from "./audit";
 import {
 	metricsHandler,
+	RISK_DAILY_LOSS,
+	RISK_EXPOSURE_RATIO,
 	RISK_KILL_SWITCH,
 	RISK_MARKET_DATA_AGE_SECONDS,
+	RISK_OPEN_ORDERS,
 	RISK_ORDERS_TOTAL,
 	RISK_RECONCILIATION_MISMATCH,
 } from "./metrics";
@@ -82,16 +87,23 @@ export async function createRiskExecutionApp() {
 			{ mode, scope: "symbol" },
 			Object.keys(snapshot.killSwitch.symbols).length > 0 ? 1 : 0
 		);
-		RISK_RECONCILIATION_MISMATCH.set({ mode }, snapshot.ready ? 0 : 1);
+		RISK_RECONCILIATION_MISMATCH.set({ mode }, snapshot.mismatch ? 1 : 0);
+		RISK_EXPOSURE_RATIO.set({ mode }, snapshot.exposureRatio);
+		RISK_DAILY_LOSS.set({ mode }, snapshot.dailyLoss);
+		RISK_OPEN_ORDERS.set({ mode }, snapshot.openOrders);
 		RISK_MARKET_DATA_AGE_SECONDS.set({ mode }, snapshot.oldestPriceAgeSeconds);
 	};
 	publish();
 	const timer = setInterval(() => {
-		risk
-			.tick()
-			.then(publish, (error) =>
-				getLogger().error("risk tick failed", { error: String(error) })
-			);
+		// biome-ignore lint/plugin: logged by onError, inside the job context
+		runJob(
+			"risk-execution.tick",
+			() => risk.tick(),
+			(error) => {
+				const { message, stack } = normalizeError(error);
+				getLogger().error("risk tick failed", { error: message, stack });
+			}
+		).then(publish, () => undefined);
 	}, ENV.RISK_TICK_MS);
 	timer.unref();
 

@@ -77,8 +77,13 @@ jobs:
       - run: bun run compose-ports:check
       - run: bun run env-protection:test
       - run: bun run preflight:test
-      - name: Workflows parse as YAML
-        run: python3 scripts/check-workflows.py
+      - name: Workflows valid (actionlint; shellcheck off, run blocks not yet clean)
+        run: |
+          v=1.7.12
+          curl -fsSL -o "$RUNNER_TEMP/actionlint.tgz" "https://github.com/rhysd/actionlint/releases/download/v${v}/actionlint_${v}_linux_amd64.tar.gz"
+          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $RUNNER_TEMP/actionlint.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/actionlint.tgz" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -shellcheck= .github/workflows/*.yml
 
   security:
     # Not in pre-push: bun audit needs the network, gitleaks the full history.
@@ -506,16 +511,16 @@ jobs:
         if: failure()
         run: bash tests/k8s/run-kind.sh dump
 
-  # One check for the development ruleset: a skipped matrix reports
+  # One check for the development ruleset (aggregates lint, so actionlint gates the merge): a skipped matrix reports
   # "k8s (${{ matrix.group }})", never "k8s (network)", so a required matrix
   # name would wait forever on a PR the gate spares from kind.
   k8s-result:
-    needs: [gate, k8s-images, k8s]
+    needs: [gate, lint, k8s-images, k8s]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
-          echo "gate, k8s-images, k8s: $RESULTS"
+          echo "gate, lint, k8s-images, k8s: $RESULTS"
           case " $RESULTS " in *" failure "* | *" cancelled "*) exit 1 ;; esac

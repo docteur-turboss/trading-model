@@ -22,6 +22,8 @@ export interface SnapshotRequest {
 	candleStartTime?: UnixTimestamp;
 	tradeLimit?: Limit;
 	orderBookLimit?: Limit;
+	/** Fires when the cycle must stop: in-flight requests are cancelled and not retried. */
+	signal?: AbortSignal;
 }
 
 interface BookTickerQuote {

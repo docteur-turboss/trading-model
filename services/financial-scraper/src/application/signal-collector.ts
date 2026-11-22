@@ -1,10 +1,10 @@
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import { sha256Hex } from "@trading-model/crypto/node-crypto";
 import {
 	SIGNAL_SCHEMA_VERSION,
 	Signal,
-} from "@trading-model/validation/wire/signals";
+} from "@trading-model/contracts/wire/signals";
+import { sha256Hex } from "@trading-model/crypto/node-crypto";
 import {
 	SIGNAL_COLLECTIONS_TOTAL,
 	SIGNAL_LAST_SUCCESS,
@@ -83,7 +83,7 @@ export async function restoreFreshness(
 			{ source: source.id },
 			(stored?.ingestedAt ?? now) / 1000
 		);
-		if (stored) {
+		if (stored && stored.observedAt !== null) {
 			SIGNAL_NEWEST_OBSERVED.set(
 				{ source: source.id },
 				stored.observedAt / 1000
@@ -276,10 +276,12 @@ export class SignalCollector {
 			worker.confirm?.(url);
 			result = "success";
 			SIGNAL_LAST_SUCCESS.set({ source: source.id }, ingestedAt / 1000);
-			if (signals.length > 0) {
+			// observedAt === ingestedAt: the source gave no date, the gauge would follow the clock.
+			const dated = signals.filter((sig) => sig.observedAt !== sig.ingestedAt);
+			if (dated.length > 0) {
 				SIGNAL_NEWEST_OBSERVED.set(
 					{ source: source.id },
-					Math.max(...signals.map(({ observedAt }) => Date.parse(observedAt))) /
+					Math.max(...dated.map(({ observedAt }) => Date.parse(observedAt))) /
 						1000
 				);
 			}

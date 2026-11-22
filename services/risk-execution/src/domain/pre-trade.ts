@@ -46,6 +46,9 @@ export function preTradeReject(ctx: PreTradeContext): string | null {
 const orderPrice = (intent: Intent): number =>
 	intent.limitPrice ?? intent.referencePrice;
 
+/** Clock skew accepted on a timestamp pushed by a caller. */
+export const CLOCK_SKEW_MS = 5000;
+
 function gateReject(ctx: PreTradeContext): string | null {
 	const { intent, limits, state, now } = ctx;
 	const instrument = limits.instruments[intent.symbol];
@@ -54,6 +57,9 @@ function gateReject(ctx: PreTradeContext): string | null {
 	}
 	if (!ctx.reconciled) {
 		return "not_reconciled";
+	}
+	if (intent.model.symbol !== intent.symbol) {
+		return "model_symbol_mismatch";
 	}
 	if (!ctx.admissible) {
 		return "model_not_admitted";
@@ -64,7 +70,10 @@ function gateReject(ctx: PreTradeContext): string | null {
 	if (ctx.halted.includes(intent.symbol)) {
 		return "instrument_halted";
 	}
-	if (now - intent.referenceAt > limits.maxIntentAgeMs) {
+	if (
+		intent.referenceAt > now + CLOCK_SKEW_MS ||
+		now - intent.referenceAt > limits.maxIntentAgeMs
+	) {
 		return "stale_intent";
 	}
 	if (intent.quantity > instrument.maxQuantity) {
@@ -101,13 +110,15 @@ function priceReject(ctx: PreTradeContext): string | null {
 function exposureReject(ctx: PreTradeContext): string | null {
 	const { intent, limits, state } = ctx;
 	const cap = limits.allocatedCapital;
-	const projected = projectedPositions(state);
-	const after =
-		(projected[intent.symbol] ?? 0) +
-		(intent.side === "buy" ? intent.quantity : -intent.quantity);
-	if (after < -1e-12) {
+	const signed = intent.side === "buy" ? intent.quantity : -intent.quantity;
+	if (
+		(projectedPositions(state, "sell")[intent.symbol] ?? 0) + signed <
+		-1e-12
+	) {
 		return "short_selling";
 	}
+	const projected = projectedPositions(state, "buy");
+	const after = (projected[intent.symbol] ?? 0) + signed;
 	if (after * intent.referencePrice > limits.instrumentExposurePct * cap) {
 		return "instrument_exposure";
 	}

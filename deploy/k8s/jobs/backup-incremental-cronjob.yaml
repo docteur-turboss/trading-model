@@ -70,6 +70,11 @@ spec:
                   set -euo pipefail
                   /scripts/backup-incremental-k8s.sh \
                     --components mysql,mongodb,mongodb-audit
+              # BACKUP_S3_SECONDARY_* keys of the Secret (second off-site bucket, optional).
+              envFrom:
+                - secretRef:
+                    name: trading-model-backup-s3
+                    optional: true
               env:
                 - name: BACKUP_DIR
                   value: /backups

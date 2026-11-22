@@ -1,6 +1,6 @@
 {
   "name": "discovery-server",
-  "version": "3.1.0-rc.4",
+  "version": "3.1.0",
   "description": "Service discovery for the microservice architecture",
   "homepage": "https://github.com/docteur-turboss/trading-model#readme",
   "bugs": {
@@ -43,7 +43,6 @@
     "@trading-model/persistence": "*",
     "@trading-model/crypto": "*",
     "@trading-model/http": "*",
-    "@trading-model/validation": "*",
     "express": "^5.3.0",
     "express-rate-limit": "^8.7.4",
     "ioredis": "^6.0.0",

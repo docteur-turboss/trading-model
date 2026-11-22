@@ -422,6 +422,7 @@ services:
       APP_NAME: trader-trainer
       APP_VERSION: ${APP_VERSION:-1.3.0}
       SERVICE_NAME: trader-trainer
+      BUS_TRANSPORT: library
       INSTANCE_ID: trader-trainer-1
       TRAINER_SYMBOLS: ${TRAINER_SYMBOLS:-BTCUSDT,ETHUSDT}
       TRAINER_SYMBOL_ASSETS: ${TRAINER_SYMBOL_ASSETS:-}
@@ -430,6 +431,8 @@ services:
       TRAINER_SIGNAL_FEATURES: ${TRAINER_SIGNAL_FEATURES:-}
       FEATURE_SIGNAL_INPUTS: ${FEATURE_SIGNAL_INPUTS:-false}
       FEATURE_INPUT_MASK_GENE: ${FEATURE_INPUT_MASK_GENE:-false}
+      FEATURE_SHARED_TRUNK: ${FEATURE_SHARED_TRUNK:-false}
+      TRAINER_SHARED_TRUNK_SYMBOLS_PER_GENERATION: ${TRAINER_SHARED_TRUNK_SYMBOLS_PER_GENERATION:-0}
       TRAINER_INPUT_MASK_PROTECT_CANDLE: ${TRAINER_INPUT_MASK_PROTECT_CANDLE:-false}
       TRAINER_DATA_WINDOW: ${TRAINER_DATA_WINDOW:-500}
       TRAINER_VALIDATION_SPLIT: ${TRAINER_VALIDATION_SPLIT:-0.15}
@@ -521,6 +524,7 @@ services:
       APP_NAME: audit-logger
       APP_VERSION: ${APP_VERSION:-1.0.0}
       SERVICE_NAME: audit-logger
+      BUS_TRANSPORT: library
       INSTANCE_ID: audit-logger-1
       MONGODB_URI: mongodb://mongo:27017/audit-logger?authSource=admin
       MONGO_USERNAME: audit-logger
@@ -561,6 +565,7 @@ services:
       APP_NAME: model-evaluator
       APP_VERSION: ${APP_VERSION:-1.0.0}
       SERVICE_NAME: model-evaluator
+      BUS_TRANSPORT: library
       INSTANCE_ID: model-evaluator-1
       EVALUATIONS_DIR: /data/evaluations
     volumes:

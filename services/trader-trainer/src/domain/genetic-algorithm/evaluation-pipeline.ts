@@ -21,6 +21,7 @@ import type { GaTelemetry } from "./ga-telemetry";
 import type { WindowSet } from "./generation-types";
 import type { GenomeFitnessMeta, LamarckGenome } from "./genome";
 import type { BackendFactory } from "./rl-backend";
+import { keepHead, withHeadOf } from "./shared-trunk";
 import type { DeepReadonly } from "./shared-types";
 import { deepFreeze } from "./shared-types";
 import { trainPhase } from "./training-phase";
@@ -35,15 +36,26 @@ function evaluateSingleGenomeOnWindow(
 	genome: DeepReadonly<LamarckGenome>,
 	windowSet: WindowSet,
 	backendFactory: BackendFactory,
-	telemetry?: GaTelemetry
+	telemetry?: GaTelemetry,
+	rng?: () => number
 ): EvaluationResult & { failed: boolean } {
 	validateGenomeInputs(genome, windowSet);
+	const { symbol } = windowSet;
+	const start = symbol ? withHeadOf(genome, symbol) : genome;
 
 	try {
-		const trainBackend = backendFactory(genome);
-		trainPhase({ backend: trainBackend, trainData: windowSet.train, genome });
+		const trainBackend = backendFactory(start);
+		trainPhase({
+			backend: trainBackend,
+			trainData: windowSet.train,
+			genome: start,
+			rng,
+		});
 
-		const updatedGenome = deepFreeze(lamarckianUpdate(genome, trainBackend));
+		const trained = lamarckianUpdate(start, trainBackend);
+		const updatedGenome = deepFreeze(
+			symbol ? keepHead(trained, symbol) : trained
+		);
 
 		const evalCtx: GenomeEvaluationContext = {
 			genome: updatedGenome,
@@ -81,7 +93,8 @@ export function evaluateGenomeAllWindows(
 	genome: DeepReadonly<LamarckGenome>,
 	windowSets: WindowSet[],
 	backendFactory: BackendFactory,
-	telemetry?: GaTelemetry
+	telemetry?: GaTelemetry,
+	rng?: () => number
 ): Promise<{
 	updatedGenome: DeepReadonly<LamarckGenome>;
 	meta: GenomeFitnessMeta;
@@ -99,7 +112,8 @@ export function evaluateGenomeAllWindows(
 			currentGenome,
 			ws,
 			backendFactory,
-			telemetry
+			telemetry,
+			rng
 		);
 		currentGenome = result.updatedGenome;
 		episodePnl.push(...result.episodePnl);
@@ -143,12 +157,14 @@ interface EvaluateFitnessContext {
 	windowSets: WindowSet[];
 	backendFactory: BackendFactory;
 	telemetry?: GaTelemetry;
+	rng?: () => number;
 }
 
 function _makeEvalFn(
 	windowSets: WindowSet[],
 	backendFactory: BackendFactory,
-	telemetry?: GaTelemetry
+	telemetry?: GaTelemetry,
+	rng?: () => number
 ): (
 	genome: DeepReadonly<LamarckGenome>
 ) => ReturnType<typeof evaluateGenomeAllWindows> {
@@ -158,7 +174,8 @@ function _makeEvalFn(
 			genome,
 			windowSets,
 			backendFactory,
-			telemetry
+			telemetry,
+			rng
 		);
 		telemetry?.genomeEvaluated(performance.now() - start);
 		return result;
@@ -170,10 +187,10 @@ export async function evaluateFitness(ctx: EvaluateFitnessContext): Promise<{
 	objectives: { avgPnl: number; sharpe: number; negFlops: number }[];
 	metas: GenomeFitnessMeta[];
 }> {
-	const { population, windowSets, backendFactory, telemetry } = ctx;
+	const { population, windowSets, backendFactory, telemetry, rng } = ctx;
 	const evalResults = await sequentialEval(
 		population,
-		_makeEvalFn(windowSets, backendFactory, telemetry)
+		_makeEvalFn(windowSets, backendFactory, telemetry, rng)
 	);
 
 	return {
