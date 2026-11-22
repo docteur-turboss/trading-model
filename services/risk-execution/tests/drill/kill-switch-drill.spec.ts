@@ -96,7 +96,11 @@ describe("kill switch drill (policy §7)", () => {
 
 		// 2. Per-symbol switch: that symbol stops and its resting order is cancelled, the other trades.
 		let t = performance.now();
-		await svc.engage("symbol", "drill", "operator", "BTCUSDT");
+		await svc.engage(
+			{ scope: "symbol", symbol: "BTCUSDT" },
+			"drill",
+			"operator"
+		);
 		timings.symbolSwitchToLastCancelMs = Math.round(performance.now() - t);
 		expect(await svc.submitIntent(intent("BTCUSDT"))).toMatchObject({
 			reason: "kill_switch",
@@ -106,7 +110,7 @@ describe("kill switch drill (policy §7)", () => {
 
 		// 3. Global switch: no new order, open orders cancelled.
 		t = performance.now();
-		await svc.engage("global", "drill", "operator");
+		await svc.engage({ scope: "global" }, "drill", "operator");
 		timings.globalSwitchToLastCancelMs = Math.round(performance.now() - t);
 		expect(svc.status().openOrders).toBe(0);
 		expect((await ledger.account()).openOrders).toEqual([]);
@@ -145,7 +149,11 @@ describe("kill switch drill (policy §7)", () => {
 			asCaller("risk-execution")
 		);
 		expect(ok.status).toBe(200);
-		await svc.rearm("symbol", "cause understood", "operator", "BTCUSDT");
+		await svc.rearm(
+			{ scope: "symbol", symbol: "BTCUSDT" },
+			"cause understood",
+			"operator"
+		);
 		expect(svc.status().killSwitch).toEqual({ global: null, symbols: {} });
 		expect((await svc.submitIntent(intent("BTCUSDT"))).status).toBe("filled");
 		expect(RISK_API.adminRearm.path).toBe("/admin/kill-switch/rearm");
