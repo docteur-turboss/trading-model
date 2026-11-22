@@ -289,7 +289,7 @@ No price is stated: it depends on the provider, which is not chosen.
 
 | Dependency | Free only if | Where |
 | ---------- | ------------ | ----- |
-| GitHub Actions (CI, about 10^5 runner-minutes per month per the 2026-11-12 FinOps audit, an estimate) | the repository stays **public**; private repositories bill minutes | `.github/workflows/` |
+| GitHub Actions (CI, about 3×10^5 job-minutes per month, measured on 2026-11-22 over 1000 runs (±50 %); re-measure: `gh run list --limit 1000 --json databaseId,createdAt`, then sum the job durations of `gh run view <id> --json jobs`) | the repository stays **public**; private repositories bill minutes | `.github/workflows/` |
 | GHCR images (`ghcr.io/<owner>`) | the packages stay public | `release.yml` |
 | Data sources | each `accessPolicy.terms` is `public-domain` or `attribution` | `services/financial-scraper/src/config/signal-registry.json`, ADR-0036 |
 | Off-site backup bucket (S3, Object Lock) | never: paid storage, provider not chosen | [BACKUP_DR.md](BACKUP_DR.md), ADR-0033 |
