@@ -32,24 +32,19 @@ describe("env", () => {
 		});
 	});
 
-	it("should refuse a weak DLQ_AUTH_HMAC_SECRET in production", () => {
+	it("should start in production without DLQ_AUTH_HMAC_SECRET", () => {
 		jest.isolateModules(() => {
+			const { DLQ_AUTH_HMAC_SECRET: _unused, ...rest } = process.env;
 			process.env = {
-				...process.env,
+				...rest,
 				APP_NAME: "test-app",
 				NODE_ENV: "production",
 				INSTANCE_ID: "test-instance",
 				REDIS_URL: "redis://localhost:6379",
-				DLQ_AUTH_HMAC_SECRET: "short-secret-16-chars",
 			};
-			const logged = jest.spyOn(console, "error").mockImplementation(() => {});
-			expect(() => require("../../../src/infrastructure/config/env")).toThrow(
-				"Environment validation failed"
-			);
-			expect(JSON.stringify(logged.mock.calls)).toContain(
-				"DLQ_AUTH_HMAC_SECRET must be at least 32 characters"
-			);
-			logged.mockRestore();
+			expect(() =>
+				require("../../../src/infrastructure/config/env")
+			).not.toThrow();
 		});
 	});
 });

@@ -5,7 +5,7 @@
 This document defines the backup strategy, disaster recovery procedures, and
 restore verification for the trading-model platform.
 
-> **Status (2026-10-28):** a backup counts only once it has been restored.
+> **Status:** a backup counts only once it has been restored.
 > Both sets of scripts are restored for real by CI:
 >
 > - Kubernetes: the CI `k8s` job (pull requests touching databases, backups or their services, and releases) backs up with the `db-backup`
@@ -22,8 +22,8 @@ restore verification for the trading-model platform.
 >   by audit-logger after the restore.
 > - Docker: `backup-test.yml` (weekly and on changes to the scripts) deletes
 >   the containers and their volumes and restores them with
->   `scripts/restore.sh` (`tests/backup/compose-restore-drill.sh`). Last run
->   passed on 2026-10-28.
+>   `scripts/restore.sh` (`tests/backup/compose-restore-drill.sh`). Results:
+>   the workflow runs ([Backup Verification](#backup-verification-cicd)).
 >
 > Known limits are listed at the end of this document.
 
@@ -67,7 +67,7 @@ The observability stores are not backed up either, and this is a deliberate
 choice, not an oversight. Logs and metrics are operational data kept for a
 short window: Loki keeps access and operational logs for 31 days
 (`retention_period: 744h`, [data retention policy](../compliance/data-retention-policy.md)),
-Prometheus keeps metrics for 30 days (`--storage.tsdb.retention.time=30d`).
+Prometheus keeps metrics for 30 days or 40 GB, whichever comes first (`--storage.tsdb.retention.time=30d`, `--storage.tsdb.retention.size=40GB`).
 A backup would hold no more than the window itself, and the monitoring
 platform is not on the path to restoring the trading data. The loss in a
 disaster is therefore the log and metric history of the last 30 days, and
@@ -227,7 +227,7 @@ dump. So the backup scripts (`write_dump` in `scripts/backup-lib.sh`):
 ```
 
 `component` is the restore unit: `mongodb`, `mongodb-audit`, `mysql`,
-`checkpoints`, `spire` (Kubernetes); `mongodb`, `mysql`, `redis:<container>`,
+`mysql-core`, `checkpoints`, `spire` (Kubernetes); `mongodb`, `mysql`, `mysql-core`, `redis:<container>`,
 `checkpoints`, `spire` (Docker). `path` is relative to `BACKUP_DIR`, `size` is
 the size of the file on disk (encrypted), `sha256` the checksum of its
 decrypted content. One entry per line: the restore scripts read it without
@@ -401,8 +401,8 @@ off-site layout (`scripts/backup-lib.sh`):
 | Tier | Run kept | Components | `backup-data` (CronJob) | Off-site |
 | ---- | -------- | ---------- | ----------------------- | -------- |
 | daily | every run | all | 30 days (`RETENTION_DAYS`) | `daily/`, 31 days |
-| weekly | first complete run of each ISO week (Monday's, normally) | `mongodb-audit`, `mysql` | no (`RETENTION_WEEKLY_WEEKS=0`) | `weekly/`, 85 days (12 weeks) |
-| monthly | first complete run of each calendar month | `mongodb-audit`, `mysql` | no (`RETENTION_MONTHLY_MONTHS=0`) | `monthly/`, 1830 days (60 months) |
+| weekly | first complete run of each ISO week (Monday's, normally) | `mongodb-audit`, `mysql-core` | no (`RETENTION_WEEKLY_WEEKS=0`) | `weekly/`, 85 days (12 weeks) |
+| monthly | first complete run of each calendar month | `mongodb-audit`, `mysql-core` | no (`RETENTION_MONTHLY_MONTHS=0`) | `monthly/`, 1830 days (60 months) |
 
 - **Age** comes from the `%Y-%m-%d_%H%M%S` timestamp in the file name, never
   from the mtime (a copy or a fetch from the bucket changes it). A file
@@ -422,7 +422,7 @@ off-site layout (`scripts/backup-lib.sh`):
 - A manifest is kept as long as one of its dumps, and at least 30 days.
 - Variables: `RETENTION_DAYS` (default 30), `RETENTION_WEEKLY_WEEKS` and
   `RETENTION_MONTHLY_MONTHS` (long tiers on the volume, default 0),
-  `RETENTION_LONG_COMPONENTS` (manifest keys, default `mongodb-audit mysql`),
+  `RETENTION_LONG_COMPONENTS` (manifest keys, default `mongodb-audit mysql-core`),
   `BACKUP_OFFSITE_LAYOUT` (`flat` by default, `tiered` in the CronJob).
   Without any of them the behaviour is the former one: 30 days, plus the
   guard. With `RETENTION_WEEKLY_WEEKS=12 RETENTION_MONTHLY_MONTHS=60` the same
@@ -459,9 +459,16 @@ holds no earlier complete run of it in the same ISO week (month); the daily
 tier keeps those earlier runs (`RETENTION_DAYS` >= 30). Under each prefix
 the layout is the volume's: `fetch-offsite.sh` reads `daily/` by default on a
 tiered bucket, `--tier weekly` or `--tier monthly` another tier
-(`--components mongodb-audit,mysql` there), and `--tier flat` the bucket root
+(`--components mongodb-audit,mysql-core` there), and `--tier flat` the bucket root
 ([From the off-site bucket](#from-the-off-site-bucket)). The weekly and monthly
-prefixes hold only `mongodb-audit`, the MySQL dump and the manifests: no
+prefixes hold only `mongodb-audit`, `mysql-core` and the manifests.
+`mysql-core` is a second MySQL dump of each run without the rows of the tables of
+`MYSQL_CORE_EXCLUDED_TABLES` (`backup-lib.sh`): `market_trades` and
+`market_candles` (re-downloadable from Binance) and `market_order_books`
+(kept 180 days in the database, ADR-0053). The full `mysql` dump, with
+them, is daily only (31 days); restoring `mysql-core` recreates those tables
+empty when they are missing (`CREATE TABLE IF NOT EXISTS`, matching
+`_migrations`), never touches their existing rows, and logs it. No
 operational `mongodb`, no checkpoints, no CA keys, and no `.pitr` starting
 point (useless once the binlogs and oplogs, kept 72 h, are gone). The
 incremental job (`db-backup-incremental`) uses the tiered layout too: its
@@ -521,7 +528,7 @@ them back with `aws s3api get-bucket-lifecycle-configuration`. `deploy.yml` chec
 
 ## Retention job
 
-ADR-0051. Market data (`market_candles`, `market_trades`, `market_tickers`, `market_order_books`) and `signals` older than `RETENTION_DAYS` (default 1827, 5 years; `RETENTION_SIGNALS_DAYS` for `signals`, `RETENTION_ORDER_BOOKS_DAYS` for `market_order_books`: 180 in the CronJob) are deleted by `scripts/retention-mysql.sh`, in `DELETE ... LIMIT RETENTION_BATCH_SIZE` batches with a pause between them. A rerun deletes only what is still too old. Variables: [ENV.md](ENV.md#mysql-retention-job-adr-0051).
+ADR-0051. Market data (`market_candles`, `market_trades`, `market_tickers`, `market_order_books`) and `signals` older than `RETENTION_DAYS` (default 1827, 5 years; `RETENTION_SIGNALS_DAYS` for `signals`, `RETENTION_ORDER_BOOKS_DAYS` for `market_order_books`, `RETENTION_TRADES_DAYS` for `market_trades`: 180 in the CronJob) are deleted by `scripts/retention-mysql.sh`, in `DELETE ... LIMIT RETENTION_BATCH_SIZE` batches with a pause between them. A rerun deletes only what is still too old. Variables: [ENV.md](ENV.md#mysql-retention-job-adr-0051).
 
 **Kubernetes.** CronJob `db-retention` (`deploy/k8s/jobs/retention-cronjob.yaml`), daily 03:30 UTC, image `backup-tools`, script from the `backup-scripts` ConfigMap. It connects as MySQL user `retention` (SELECT, DELETE on the five tables only), created and granted per table by `db-migrate-user` from `MYSQL_RETENTION_PASSWORD` in `trading-model-secrets`. `run-migrations.sh` runs that Job again after the migrations, so the grants exist on a new database.
 
@@ -556,16 +563,16 @@ and Prometheus scrapes them (job `backup-metrics`).
 | Alert                     | Fires when                                                                   |
 | ------------------------- | ---------------------------------------------------------------------------- |
 | `BackupFailed`            | a component's last success is older than 25 h                                |
-| `BackupNotRunning`        | a component never succeeded                                                  |
 | `BackupComponentMissing`  | a component (mongodb, mongodb-audit, mysql, spire, checkpoints) reports nothing |
 | `BackupJobStale`          | the job has not run for 26 h                                                 |
 | `BackupIncrementalStale`  | a binlog / oplog archive last succeeded more than 2 h ago (2 × the interval) |
 | `BackupIncrementalMissing` | a binlog / oplog component reported nothing for 2 h                        |
 | `BackupIncrementalFailed` | the last hourly run of a binlog / oplog failed (warning; the next run retries) |
+| `SealedSecretsKeyBackupStale` | the newest off-site `sealed-secrets-key_<TS>.yaml.age` is over 48 h old, none exists, or the prefix cannot be listed (production: `BACKUP_SEALED_KEY_CHECK=true`) |
 | `BackupPitrGap`           | a binlog / oplog chain has a break after the newest daily dump: no `--until` past it, until the next daily dump (stays firing while the runs succeed again) |
 | `BackupMetricsAbsent`     | no metric of the daily job (`run=""`: the incremental job's series do not count; job never ran, exporter down) |
 | `BackupUnencrypted`       | no age recipient                                                             |
-| `BackupOffsiteCopyFailed` | the off-site copy failed or is not configured (the next daily run sends the missed weekly / monthly copies again: [catch-up](#off-site-tiers); fix within 30 days) |
+| `BackupOffsiteCopyFailed` | the off-site copy failed (`component="offsite"`, or `offsite-secondary` for the second bucket) or is not configured (the next daily run sends the missed weekly / monthly copies again: [catch-up](#off-site-tiers); fix within 30 days) |
 | `RetentionFailed`         | the last `db-retention` run failed on a table ([Retention job](#retention-job); warning) |
 | `RetentionStale`          | no successful `db-retention` run for 36 h (daily job) |
 | `BackupVolumeFilling`     | the `backup-data` volume is more than 80 % full for 30 min (`backup_volume_used_ratio`, measured with `df` by both jobs; independent of kubelet volume metrics) |
@@ -585,7 +592,7 @@ backups from the off-site copy first).
 
 Limit: the compose `scripts/restore.sh` does not run it (no `db-retention` job in compose, where no purge runs at all); purge by hand after a compose restore.
 
-MongoDB: `mongorestore` runs without `--noIndexRestore`, so the TTL indexes of `audit_events` and the DLQ come back with the data and the TTL monitor purges expired documents on its own (it wakes every 60 s). This is read from the code (`audit-repository.ts`, `index-manager.ts`) and has not been measured on a live restore: no drill asserts it yet.
+MongoDB: `mongorestore` runs without `--noIndexRestore`, so the TTL indexes of `audit_events` and the DLQ come back with the data and the TTL monitor purges expired documents on its own (it wakes every 60 s). The CI `k8s` drill asserts both indexes after the restore and that an expired DLQ document (31 days old, inserted after the restore) is purged within 2 minutes.
 
 ## Restore Procedures
 
@@ -670,8 +677,8 @@ bash scripts/fetch-offsite.sh --dest ./restore          # newest complete run
 bash scripts/fetch-offsite.sh --dest ./restore --timestamp 2026-10-01_020000 --components mongodb,mysql
 BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
   bash scripts/restore-k8s.sh --timestamp <TS printed by fetch-offsite.sh>
-# Long tiers of a tiered bucket (ADR-0032): audit trail and market data only
-bash scripts/fetch-offsite.sh --dest ./restore --tier monthly --components mongodb-audit,mysql
+# Long tiers of a tiered bucket (ADR-0032): audit trail and MySQL without the market tables
+bash scripts/fetch-offsite.sh --dest ./restore --tier monthly --components mongodb-audit,mysql-core
 bash scripts/fetch-offsite.sh --dest ./restore --tier monthly --components mongodb-audit --timestamp 2025-09-01_020000
 BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
   bash scripts/restore-k8s.sh --timestamp <TS> --components mongodb-audit   # audit replica set alone
@@ -748,6 +755,15 @@ Every component asked for is checked (backup, checksum, `.pitr`, archive
 chain, archives decrypted) in a first pass that writes nothing; the restore
 starts only if all of them pass. A broken MySQL chain therefore never leaves
 MongoDB already brought back to the instant: exit 1, every database as it was.
+
+#### SealedSecretsKeyBackupStale
+
+`sealed-secrets-key-backup.yml` stopped, or `db-backup` cannot list the prefix (S3 credentials, endpoint) (schedule disabled after 60 days
+without activity, run held, kubeconfig or S3 credentials expired). Check
+`gh workflow list --all` and the last runs, re-enable or fix it, then run it
+once by hand (`gh workflow run sealed-secrets-key-backup.yml`): the alert
+resolves at the next `db-backup` run. Until then a renewed controller key may
+be missing from the bucket.
 
 #### Point-in-time chain broken
 
@@ -848,19 +864,12 @@ operator key, or the escrow key from the safe if it is lost
 ([Key custody](ENCRYPTION_AT_REST.md#key-custody)).
 
 1. Provision replacement hosts and install Kubernetes. Restore the
-   SealedSecrets controller keys **before** the manifests are deployed:
-   without them no SealedSecret of `deploy/k8s/secrets/` decrypts in the new
-   cluster. `bash scripts/restore-sealed-secrets-key.sh --identity <key file>`
-   (newest `sealed-secrets-key_<TIMESTAMP>.yaml.age` of the off-site bucket,
-   same credentials as below, restored into the namespace `sealed-secrets`),
-   then install the controller (`bash scripts/install-sealed-secrets.sh`)
+   SealedSecrets controller keys **before** the manifests are deployed, or no
+   SealedSecret decrypts: `bash scripts/restore-sealed-secrets-key.sh --identity <key file>`,
+   then `bash scripts/install-sealed-secrets.sh`
    ([sealed-secrets.md](sealed-secrets.md#restore-the-controller-keys-in-a-new-cluster)).
-   Then deploy the manifests from git (`deploy.yml`), back up the keys of
-   the new cluster (`bash scripts/backup-sealed-secrets-key.sh`) and create
-   the identity of the daily key backup again
-   (`bash scripts/sealed-secrets-backup-identity.sh | gh secret set
-   SEALED_SECRETS_BACKUP_KUBECONFIG --env sealed-secrets-key-backup`): until
-   then `sealed-secrets-key-backup.yml` fails every day
+   Then deploy the manifests from git (`deploy.yml`) and re-arm the key backup
+   of the new cluster (step 9 of [Disaster Recovery Without a Second Region](#disaster-recovery-without-a-second-region))
 2. Fetch the newest complete run from the off-site bucket, still encrypted:
    `bash scripts/fetch-offsite.sh --dest ./restore` (credentials and options
    in [From the off-site bucket](#from-the-off-site-bucket)); it prints the
@@ -968,8 +977,11 @@ credentials of the cloud account (not the ones stored in the cluster);
 
 3. **Access to the buckets from the new region.** The off-site backup bucket
    and the audit anchor bucket are S3 or S3-compatible. Their data is only
-   reachable if the provider still serves them; the repository configures no
-   replica. If reachable:
+   reachable if the provider still serves them. The backup bucket has an
+   optional second copy at another provider (`BACKUP_S3_SECONDARY_*`, ADR-0033):
+   fetch from it by setting `BACKUP_S3_BUCKET` and the `AWS_*` / `RCLONE_S3_*`
+   variables of `scripts/fetch-offsite.sh` to its values. The anchor bucket has
+   no replica. If reachable:
    - keep the **same buckets**: Object Lock (compliance mode; 30-31 days
      default for backups, `AUDIT_RETENTION_DAYS` for anchors) and the
      credentials without delete right stay as they are
@@ -1070,29 +1082,19 @@ Drill timings (issue #329): both drills time every step (`tests/backup/drill-tim
 
 ## Known Limits
 
-- **SealedSecrets controller keys are backed up once a day** by
-  `sealed-secrets-key-backup.yml` (ADR-0035): a key created less than 24 h
-  before the loss of the cluster may be missing, unless an operator ran
-  `scripts/backup-sealed-secrets-key.sh` after the change
-  ([sealed-secrets.md](sealed-secrets.md#back-up-the-controller-keys)). The
-  workflow holds a production kubeconfig that can list every Secret of the
-  controller namespace (RBAC cannot filter by label). That namespace,
-  `sealed-secrets`, holds the controller keys and the identity's token only:
-  a leak of the kubeconfig exposes every SealedSecret of the repository, no
-  other cluster credential (response in
-  [sealed-secrets.md](sealed-secrets.md#daily-backup-by-github-actions)).
-  Deploying anything else in `sealed-secrets` widens that exposure. The
-  workflow needs the API server reachable from GitHub-hosted runners.
+- **SealedSecrets controller keys are backed up once a day** (ADR-0035): a key
+  created less than 24 h before the loss of the cluster may be missing unless
+  an operator backed it up after the change. Risks and the daily workflow:
+  [sealed-secrets.md](sealed-secrets.md#daily-backup-by-github-actions).
 - **A disabled schedule stops the key backup without any failed run.**
   GitHub disables the `schedule` trigger of a public repository after 60
   days without activity, and mails a failed scheduled run only to the last
   person who changed the cron. `sealed-secrets-key-backup.yml` and
-  `backup-key-check.yml` (ADR-0034) then stop silently: nothing fails, so
-  nothing alerts. Check that the newest
-  `sealed-secrets-key_<TIMESTAMP>.yaml.age` of the bucket is less than two
-  days old, and that both workflows are enabled
-  (`gh workflow list --all`), at least at each quarterly operator-key check
-  ([Key custody](ENCRYPTION_AT_REST.md#key-custody)).
+  `backup-key-check.yml` (ADR-0034) then stop silently. Alert
+  `SealedSecretsKeyBackupStale` covers the key backup (see [below](#sealedsecretskeybackupstale));
+  the escrow-key check is not covered: at each quarterly operator-key check
+  ([Key custody](ENCRYPTION_AT_REST.md#key-custody)), confirm both workflows are
+  enabled (`gh workflow list --all`).
 
 - **RPO 1 h, not continuous** (ADR-0031): writes since the last hourly
   archive are lost with the volume. Point in time only over the last 72 h;
@@ -1110,8 +1112,13 @@ Drill timings (issue #329): both drills time every step (`tests/backup/drill-tim
   store real data in it ([SETUP.md](SETUP.md#local-development-setup),
   [DOCKER.md](DOCKER.md#docker-compose-services)).
 - **Business validation after a restore** is `scripts/verify-restore-k8s.sh`
-  (Recovery Verification); it has no source of expected row counts (the run
-  manifest holds none) and the audit anchors (ADR-0027) are not checked.
+  (Recovery Verification); it fails when a main table (`market_candles`,
+  `market_trades`, `market_tickers`, `signals`, `audit_events`, `dlq_entries`)
+  holds fewer rows than the run manifest counted at dump time (more is fine:
+  PITR replays later writes; `db-retention` purging since the dump can also
+  trip it). Manifests written before this have no counts (warning). The
+  counts are exact `COUNT(*)` taken just before the dump, not in its
+  transaction. The audit anchors (ADR-0027) are not checked.
 - Events stored before 2026-10-31 hold `correlationId: null` where their hash saw no field; the
   verifier drops that null (audit-logger never hashes one), so they verify too.
 

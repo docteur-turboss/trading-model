@@ -36,8 +36,6 @@ x-message-env: &message-env
   TOKEN_REFRESH_INTERVAL_MS: '60000'
   TTL_REFRESH_INTERVAL_MS: '15000'
   ADDRESS_MANAGER_URL: https://discovery-server:3000
-  MESSAGE_BUS_INIT_TIMEOUT_MS: '5000'
-  MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: '5000'
   MESSAGE_CALLBACK_PATH: message
 
 services:
@@ -46,8 +44,9 @@ services:
   # ---------------------------------------------------------------------------
   mongo:
     logging: *default-logging
-    image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+    image: mongo:7.0.43@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
     container_name: trading-mongo
+    stop_grace_period: 2m
     restart: unless-stopped
     mem_limit: 2g
     # Authentication on (issue #669, ADR-0067): the image creates `root` on an
@@ -74,7 +73,7 @@ services:
   # Jobs mongo-*-users). Idempotent: runs at every `up`.
   mongo-users:
     logging: *default-logging
-    image: mongo@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+    image: mongo:7.0.43@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
     container_name: trading-mongo-users
     restart: "no"
     command: mongosh --quiet mongo:27017/admin --file /scripts/users.js
@@ -100,7 +99,7 @@ services:
   # ---------------------------------------------------------------------------
   redis:
     logging: *default-logging
-    image: redis@sha256:1f88291b4c57bdf249f02eb085a8669889b2d2954e91d4de5118a5da6b78dd53
+    image: redis:8.10.3@sha256:1f88291b4c57bdf249f02eb085a8669889b2d2954e91d4de5118a5da6b78dd53
     container_name: trading-redis
     restart: unless-stopped
     mem_limit: 512m
@@ -132,8 +131,9 @@ services:
   # ---------------------------------------------------------------------------
   mysql:
     logging: *default-logging
-    image: mysql@sha256:3819b2b23835c4a73c8b022fafc33c8095c0f81c929a8b7a84613d2fba6c52f5
+    image: mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
     container_name: trading-mysql
+    stop_grace_period: 2m
     restart: unless-stopped
     mem_limit: 2g
     environment:
@@ -316,8 +316,6 @@ services:
       APP_VERSION: ${APP_VERSION:-1.3.0}
       SERVICE_NAME: message-manager
       INSTANCE_ID: message-manager-1
-      # Signs the dead letters sent to dlq-service: same key as dlq-service.
-      DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:?DLQ_AUTH_HMAC_SECRET must be set (min 32 chars, shared by message-manager and dlq-service)}
     # Leaves discovery, waits CACHE_TTL_MS (30 s), then lets in-flight
     # publishes (PUBLISH_ACCEPT_TIMEOUT_MS) and deliveries finish: see
     # application/index.ts. Undelivered messages stay in the Redis journal.
@@ -414,6 +412,7 @@ services:
       context: .
       dockerfile: services/trader-trainer/Dockerfile
     container_name: trading-trainer
+    stop_grace_period: 2m
     restart: unless-stopped
     mem_limit: 1g
     ports:
@@ -423,6 +422,7 @@ services:
       APP_NAME: trader-trainer
       APP_VERSION: ${APP_VERSION:-1.3.0}
       SERVICE_NAME: trader-trainer
+      BUS_TRANSPORT: library
       INSTANCE_ID: trader-trainer-1
       TRAINER_SYMBOLS: ${TRAINER_SYMBOLS:-BTCUSDT,ETHUSDT}
       TRAINER_SYMBOL_ASSETS: ${TRAINER_SYMBOL_ASSETS:-}
@@ -431,6 +431,7 @@ services:
       TRAINER_SIGNAL_FEATURES: ${TRAINER_SIGNAL_FEATURES:-}
       FEATURE_SIGNAL_INPUTS: ${FEATURE_SIGNAL_INPUTS:-false}
       FEATURE_INPUT_MASK_GENE: ${FEATURE_INPUT_MASK_GENE:-false}
+      FEATURE_SHARED_TRUNK: ${FEATURE_SHARED_TRUNK:-false}
       TRAINER_INPUT_MASK_PROTECT_CANDLE: ${TRAINER_INPUT_MASK_PROTECT_CANDLE:-false}
       TRAINER_DATA_WINDOW: ${TRAINER_DATA_WINDOW:-500}
       TRAINER_VALIDATION_SPLIT: ${TRAINER_VALIDATION_SPLIT:-0.15}
@@ -438,13 +439,14 @@ services:
       TRAINER_GENERATIONS: ${TRAINER_GENERATIONS:-50}
       TRAINER_POPULATION_SIZE: ${TRAINER_POPULATION_SIZE:-20}
       TRAINER_TIME_BUDGET_MS: ${TRAINER_TIME_BUDGET_MS:-300000}
-      TRAINER_INTERVAL_MS: ${TRAINER_INTERVAL_MS:-3600000}
+      TRAINER_INTERVAL_MS: ${TRAINER_INTERVAL_MS:-14400000}
       TRAINER_MAX_DATA_AGE_MS: ${TRAINER_MAX_DATA_AGE_MS:-900000}
       TRAINER_EPISODES_PER_INDIVIDUAL: ${TRAINER_EPISODES_PER_INDIVIDUAL:-10}
       TRAINER_FITNESS_TYPE: ${TRAINER_FITNESS_TYPE:-total_pnl}
       FEATURE_RISK_ADJUSTED_FITNESS: ${FEATURE_RISK_ADJUSTED_FITNESS:-true}
       FEATURE_ACTION_SPACE_GENE: ${FEATURE_ACTION_SPACE_GENE:-false}
       TRAINER_OBSERVE_POSITION: ${TRAINER_OBSERVE_POSITION:-true}
+      TRAINER_SEED_OFFSET: ${TRAINER_SEED_OFFSET:-0}
       # Model artifacts (ADR-0022), backed up by scripts/backup.sh (checkpoints)
       TRAINER_MODEL_DIR: /data/checkpoints/models
       MODEL_DOWNLOAD_CALLERS: ${MODEL_DOWNLOAD_CALLERS:-model-evaluator}
@@ -521,6 +523,7 @@ services:
       APP_NAME: audit-logger
       APP_VERSION: ${APP_VERSION:-1.0.0}
       SERVICE_NAME: audit-logger
+      BUS_TRANSPORT: library
       INSTANCE_ID: audit-logger-1
       MONGODB_URI: mongodb://mongo:27017/audit-logger?authSource=admin
       MONGO_USERNAME: audit-logger
@@ -561,6 +564,7 @@ services:
       APP_NAME: model-evaluator
       APP_VERSION: ${APP_VERSION:-1.0.0}
       SERVICE_NAME: model-evaluator
+      BUS_TRANSPORT: library
       INSTANCE_ID: model-evaluator-1
       EVALUATIONS_DIR: /data/evaluations
     volumes:
@@ -575,6 +579,44 @@ services:
       retries: 3
     depends_on:
       spiffe-helper-evaluator:
+        condition: service_started
+      discovery-server:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  #  Risk/Execution — order flow owner of ADR-0064 (simulated broker, paper only)
+  # ---------------------------------------------------------------------------
+  risk-execution:
+    logging: *default-logging
+    build:
+      context: .
+      dockerfile: services/risk-execution/Dockerfile
+    container_name: trading-risk-execution
+    restart: unless-stopped
+    mem_limit: 256m
+    ports:
+      - '127.0.0.1:${RISK_EXECUTION_PORT:-8454}:3000'
+    environment:
+      <<: *message-env
+      APP_NAME: risk-execution
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+      SERVICE_NAME: risk-execution
+      INSTANCE_ID: risk-execution-1
+      EXECUTION_MODE: paper
+      DEPLOYMENT_ENV: development
+      RISK_STATE_DIR: /data/risk-execution
+    volumes:
+      - svid-risk:/run/spire/svid
+      - risk-execution-data:/data/risk-execution
+    networks:
+      - backend-net
+    healthcheck:
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      spiffe-helper-risk:
         condition: service_started
       discovery-server:
         condition: service_healthy
@@ -737,6 +779,21 @@ services:
       spire-agent:
         condition: service_healthy
 
+  spiffe-helper-risk:
+    logging: *default-logging
+    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
+    container_name: trading-helper-risk
+    restart: unless-stopped
+    network_mode: none
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    volumes:
+      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-risk:/run/spire/svid
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+
   spiffe-helper-dlq:
     logging: *default-logging
     image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
@@ -804,7 +861,7 @@ services:
   # ---------------------------------------------------------------------------
   edge-proxy:
     logging: *default-logging
-    image: nginx@sha256:814a8e88df978ade80e584cc5b333144b9372a8e3c98872d07137dbf3b44d0e4  # nginx 1.27.3-alpine
+    image: nginx:1.31.8-alpine@sha256:fed7e14be83cbd2661a75cdc5b872d936cf155d46c327084d30b8df19ae88d72  # nginx 1.31.8-alpine
     container_name: trading-edge
     restart: unless-stopped
     mem_limit: 128m
@@ -840,7 +897,7 @@ services:
   # ---------------------------------------------------------------------------
   prometheus:
     logging: *default-logging
-    image: prom/prometheus@sha256:378f4e03703557d1c6419e6caccf922f96e6d88a530f7431d66a4c4f4b1000fe
+    image: prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
     container_name: trading-prometheus
     restart: unless-stopped
     mem_limit: 2g
@@ -859,6 +916,7 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.retention.size=10GB'
     extra_hosts:
       - 'host.docker.internal:host-gateway'
 
@@ -867,7 +925,7 @@ services:
   # backup-metrics-exporter does. Docker has no scheduler: the host runs backup.sh.
   backup-metrics-exporter:
     logging: *default-logging
-    image: busybox@sha256:a46257e06c82ad85242d0d38077d0a52d9896389ca60a1a59d3463db586e5fa4
+    image: busybox:1.38.0@sha256:a46257e06c82ad85242d0d38077d0a52d9896389ca60a1a59d3463db586e5fa4
     container_name: trading-backup-metrics
     restart: unless-stopped
     user: '65534:65534'
@@ -899,7 +957,7 @@ services:
   # creates it. Idempotent: runs at every `up`.
   mysql-exporter-user:
     logging: *default-logging
-    image: mysql@sha256:3819b2b23835c4a73c8b022fafc33c8095c0f81c929a8b7a84613d2fba6c52f5
+    image: mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
     container_name: trading-mysql-exporter-user
     restart: "no"
     environment:
@@ -971,7 +1029,7 @@ services:
 
   node-exporter:
     logging: *default-logging
-    image: quay.io/prometheus/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
+    image: quay.io/prometheus/node-exporter:v1.13.1@sha256:011e2d12c5bff759b90804bda642664775d7b4b127bf5148539bb82d3f590bb7
     container_name: trading-node-exporter
     restart: unless-stopped
     mem_limit: 128m
@@ -987,7 +1045,7 @@ services:
 
   alertmanager:
     logging: *default-logging
-    image: prom/alertmanager@sha256:e13b6ed5cb929eeaee733479dce55e10eb3bc2e9c4586c705a4e8da41e5eacf5
+    image: prom/alertmanager:v0.35.0@sha256:e638797febd034838eca8b98cdbd46f951e9bf7f178777aa8669167406a9946c
     container_name: trading-alertmanager
     restart: unless-stopped
     mem_limit: 256m
@@ -1009,7 +1067,7 @@ services:
 
   grafana:
     logging: *default-logging
-    image: grafana/grafana@sha256:0615ec4fbd4072004b7d86b46ded63013a74b7d6eb1119273dd89e8fa25c13cf
+    image: grafana/grafana:13.3.1@sha256:0615ec4fbd4072004b7d86b46ded63013a74b7d6eb1119273dd89e8fa25c13cf
     container_name: trading-grafana
     restart: unless-stopped
     mem_limit: 1g
@@ -1046,7 +1104,7 @@ services:
 
   loki:
     logging: *default-logging
-    image: grafana/loki@sha256:b43c257ccfc925d4a50b8717cac61a3b51df8c48d01847936057e5c4075a24a7
+    image: grafana/loki:3.7.10@sha256:b43c257ccfc925d4a50b8717cac61a3b51df8c48d01847936057e5c4075a24a7
     container_name: trading-loki
     restart: unless-stopped
     mem_limit: 1g
@@ -1062,7 +1120,7 @@ services:
   # Probes /ping of every service with its own SVID (CertificateExpiry).
   blackbox-exporter:
     logging: *default-logging
-    image: prom/blackbox-exporter@sha256:ea1c7aa3ef3f307cd03e85f34abb604478ccb90b567fc690da0cd9776da76b13
+    image: prom/blackbox-exporter:v0.29.1@sha256:ea1c7aa3ef3f307cd03e85f34abb604478ccb90b567fc690da0cd9776da76b13
     container_name: trading-blackbox
     restart: unless-stopped
     mem_limit: 64m
@@ -1079,7 +1137,7 @@ services:
   # Traces: services export OTLP/HTTP straight to Jaeger (no collector in compose).
   jaeger:
     logging: *default-logging
-    image: jaegertracing/all-in-one@sha256:ab6f1a1f0fb49ea08bcd19f6b84f6081d0d44b364b6de148e1798eb5816bacac
+    image: jaegertracing/all-in-one:1.76.0@sha256:ab6f1a1f0fb49ea08bcd19f6b84f6081d0d44b364b6de148e1798eb5816bacac
     container_name: trading-jaeger
     restart: unless-stopped
     ports:
@@ -1106,7 +1164,7 @@ services:
   # No shell in the image, so no healthcheck: dependants start with it and retry.
   docker-socket-proxy:
     logging: *default-logging
-    image: wollomatic/socket-proxy@sha256:ff95d6ff6c27853005ef85eb8f4ab5923dc3d2f1e055f98fb6aeeaceec3fe848
+    image: wollomatic/socket-proxy:1.13.2@sha256:ff95d6ff6c27853005ef85eb8f4ab5923dc3d2f1e055f98fb6aeeaceec3fe848
     container_name: trading-docker-socket-proxy
     restart: unless-stopped
     # Root to read the socket, no capability.
@@ -1126,7 +1184,7 @@ services:
   # Logs: reads the container logs through the Docker API of docker-socket-proxy.
   promtail:
     logging: *default-logging
-    image: grafana/promtail@sha256:6cfa64ec432b24a912d640e2edb940eeae2666f61861a66c121d763dd7241381
+    image: grafana/promtail:3.6.8@sha256:6cfa64ec432b24a912d640e2edb940eeae2666f61861a66c121d763dd7241381
     container_name: trading-promtail
     restart: unless-stopped
     mem_limit: 256m
@@ -1167,6 +1225,7 @@ volumes:
   redis-data:
   trainer-checkpoints:
   model-evaluations:
+  risk-execution-data:
   mysql-data:
   spire-server-data:
   spire-agent-data:
@@ -1181,6 +1240,7 @@ volumes:
   svid-audit:
   svid-dlq:
   svid-evaluator:
+  svid-risk:
   svid-edge:
   svid-prometheus:
   svid-blackbox:

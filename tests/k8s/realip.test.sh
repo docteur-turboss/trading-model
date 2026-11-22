@@ -8,7 +8,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 export MSYS_NO_PATHCONV=1
-IMAGE=$(grep -o 'nginx@sha256:[0-9a-f]*' docker-compose.yml | head -1)
+IMAGE=$(grep -oE 'nginx:[^ ]+@sha256:[0-9a-f]+' docker-compose.yml | head -1)
 P=realip-test-$$
 W="$PWD/.realip-test-$$"
 mkdir "$W"

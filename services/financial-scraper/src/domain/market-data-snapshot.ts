@@ -22,6 +22,8 @@ export interface SnapshotRequest {
 	candleStartTime?: UnixTimestamp;
 	tradeLimit?: Limit;
 	orderBookLimit?: Limit;
+	/** Fires when the cycle must stop: in-flight requests are cancelled and not retried. */
+	signal?: AbortSignal;
 }
 
 interface BookTickerQuote {
@@ -35,7 +37,7 @@ interface BookTickerQuote {
 /**
  * Normalized market data fetched for one symbol during a scrape cycle,
  * whatever the source. Candles hold closed candles only. A part the source
- * failed to fetch is absent: the others are still persisted and published.
+ * failed to fetch is absent: the others are still persisted.
  */
 export interface MarketDataSnapshot {
 	orderBook?: OrderBookData;
@@ -47,5 +49,5 @@ export interface MarketDataSnapshot {
 	fetchedAt: number;
 }
 
-/** A kind of market data in a snapshot, fetched and published on its own. */
+/** A kind of market data in a snapshot, fetched and persisted on its own. */
 export type SnapshotPart = Exclude<keyof MarketDataSnapshot, "fetchedAt">;

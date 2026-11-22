@@ -28,14 +28,6 @@ describe("ConnectionManager", () => {
 		expect(connectFn).toHaveBeenCalledTimes(1);
 	});
 
-	it("should return null client before connection", () => {
-		const cm = new ConnectionManager<string>(
-			jest.fn<() => Promise<string>>().mockResolvedValue("conn"),
-			jest.fn<(conn: string) => Promise<void>>().mockResolvedValue(undefined)
-		);
-		expect(cm.getClient()).toBeNull();
-	});
-
 	it("should report isConnected after connection", async () => {
 		const cm = new ConnectionManager<string>(
 			jest.fn<() => Promise<string>>().mockResolvedValue("conn"),
@@ -71,6 +63,5 @@ describe("ConnectionManager", () => {
 		await cm.getConnection();
 		await cm.close();
 		expect(disconnectFn).toHaveBeenCalledWith("conn");
-		expect(cm.getClient()).toBeNull();
 	});
 });

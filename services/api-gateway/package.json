@@ -36,7 +36,6 @@
     "@trading-model/contracts": "*",
     "@trading-model/common": "*",
     "@trading-model/http": "*",
-    "@trading-model/validation": "*",
     "express": "^5.3.0",
     "express-rate-limit": "^8.7.4",
     "prom-client": "^15.1.3",

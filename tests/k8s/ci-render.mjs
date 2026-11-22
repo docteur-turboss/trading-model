@@ -15,6 +15,8 @@
 //   - drops every internet egress rule (`ipBlock` 0.0.0.0/0) of the
 //     NetworkPolicies: fail closed, a new outside call is refused in CI
 //     instead of reaching the real service
+//   - keeps 100 % of the traces: verify_traces needs the api-gateway and
+//     trader-trainer spans of one request, the 20 % sampler makes it random
 //   - suspends the CronJobs: a cluster kept after the test must not run the
 //     nightly backup on the host disk (the drill starts its job by hand)
 // Usage: kubectl kustomize ... | node tests/k8s/ci-render.mjs > out.yaml
@@ -53,6 +55,9 @@ stringData:
   REDIS_DISCOVERY_PASSWORD: dev-redis-discovery-password
   REDIS_MESSAGE_MANAGER_PASSWORD: dev-redis-message-manager-password
   REDIS_DLQ_PASSWORD: dev-redis-dlq-password
+  REDIS_AUDIT_LOGGER_PASSWORD: dev-redis-audit-logger-password
+  REDIS_TRADER_TRAINER_PASSWORD: dev-redis-trader-trainer-password
+  REDIS_MODEL_EVALUATOR_PASSWORD: dev-redis-model-evaluator-password
   REDIS_EXPORTER_PASSWORD: dev-redis-exporter-password
   MONGO_ROOT_PASSWORD: dev-mongo-root-password
   MONGO_EXPORTER_PASSWORD: dev-mongo-exporter-password
@@ -99,6 +104,7 @@ function adapt(manifest) {
 			/SIGNAL_COLLECTION_ENABLED: "?true"?/g,
 			'SIGNAL_COLLECTION_ENABLED: "false"'
 		)
+		.replace(/sampling_percentage: 20$/gm, "sampling_percentage: 100")
 		// An egress item: "  - " then its lines indented by 4 or more (kustomize layout).
 		.replace(/^ {2}- .*\n(?: {4}.*\n)*/gm, (item) =>
 			item.includes("cidr: 0.0.0.0/0") ? "" : item

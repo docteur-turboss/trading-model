@@ -67,6 +67,7 @@ const MOCK_AUDIT_REPOSITORY_INSTANCE = {
 	query: jest.fn<(...args: any[]) => any>(),
 	getStats: jest.fn<(...args: any[]) => any>(),
 	ensureIndexes: jest.fn<(...args: any[]) => any>(),
+	warmStats: jest.fn<(...args: any[]) => any>(),
 };
 
 jest.mock(
@@ -101,6 +102,7 @@ jest.mock("mongodb", () => ({
 }));
 
 const MOCK_BROKER_MESSAGE_INSTANCE = {
+	on: jest.fn<(...args: any[]) => any>(),
 	intents: jest.fn<(...args: any[]) => any>(),
 	stopMessageManager: jest.fn<(...args: any[]) => any>(),
 };
@@ -114,9 +116,6 @@ jest.mock("@trading-model/broker-message", () => {
 	};
 });
 
-jest.mock("@trading-model/contracts/market-events", () => ({
-	MarketEvent: {},
-}));
 jest.mock("@trading-model/contracts/audit-events", () => ({
 	AuditEvent: {},
 }));
@@ -152,5 +151,50 @@ describe("Audit Logger entry point (index.ts)", () => {
 		).toHaveBeenCalledTimes(1);
 		expect(MOCK_ADDRESS_MANAGER.stop).toHaveBeenCalledTimes(1);
 		expect(MOCK_MONGO_CLIENT.close).toHaveBeenCalledTimes(1);
+	});
+
+	// The bus consumer (ADR-0073) records like POST /message: listeners registered before intents.
+	it("registers a recording listener per audited topic before subscribing", async () => {
+		const { on, intents } = MOCK_BROKER_MESSAGE_INSTANCE;
+		const [topic, listener] = on.mock.calls.find(
+			([name]) => name === "training.model.published"
+		) as [string, (payload: unknown, metadata: unknown) => Promise<void>];
+		expect(on.mock.invocationCallOrder[0]).toBeLessThan(
+			intents.mock.invocationCallOrder[0]
+		);
+
+		await listener({ id: 1 }, { topic, messageId: "m-bus" });
+
+		expect(MOCK_AUDIT_REPOSITORY_INSTANCE.insert).toHaveBeenCalledWith(
+			expect.objectContaining({
+				metadata: expect.objectContaining({ topic, messageId: "m-bus" }),
+				payload: { id: 1 },
+			})
+		);
+	});
+
+	it("listens while MongoDB is down, answers 503, then serves once it is up", async () => {
+		const { createServer } = jest.requireMock(
+			"../../../src/application/server"
+		) as { createServer: jest.Mock<(...args: any[]) => any> };
+		MOCK_MONGO_CLIENT.connect.mockRejectedValueOnce(new Error("ECONNREFUSED"));
+		createServer.mockClear();
+		jest.useFakeTimers();
+
+		await capturedOptions.createServer();
+		const [repo, mongoManager, , isReady] = createServer.mock.calls[0];
+		expect(mongoManager.isConnected()).toBe(false);
+		expect(isReady()).toBe(false);
+		expect(() => repo.findById("m1")).toThrow(/not ready/);
+
+		await jest.advanceTimersByTimeAsync(3000);
+		jest.useRealTimers();
+		expect(mongoManager.isConnected()).toBe(true);
+		expect(isReady()).toBe(true);
+		expect(MOCK_AUDIT_REPOSITORY_INSTANCE.warmStats).toHaveBeenCalled();
+		repo.findById("m1");
+		expect(MOCK_AUDIT_REPOSITORY_INSTANCE.findById).toHaveBeenCalledWith("m1");
+		capturedOptions.onStart();
+		await capturedOptions.onStop();
 	});
 });

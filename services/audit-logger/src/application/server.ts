@@ -21,7 +21,8 @@ type MessageHandler = ReturnType<typeof createMessageHandler>;
 export function createServer(
 	auditRepo: AuditRepository,
 	mongoManager: MongoConnectionManager,
-	messageHandler: MessageHandler
+	messageHandler: MessageHandler,
+	isReady: () => boolean
 ) {
 	return createServiceServer({
 		env: ENV,
@@ -34,7 +35,7 @@ export function createServer(
 			{
 				name: "mongo",
 				check: async () => {
-					if (!mongoManager.isConnected()) {
+					if (!(isReady() && mongoManager.isConnected())) {
 						return false;
 					}
 					const db = await mongoManager.getDb();

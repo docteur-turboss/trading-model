@@ -1,12 +1,8 @@
 import type { EventMap } from "@trading-model/contracts/event-map";
-import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import type { ApiRouteHandler } from "@trading-model/http/api-route/mount-route";
 import { runWithCorrelationId } from "@trading-model/http/correlation-id";
-import { sendResponse } from "@trading-model/http/response-exception";
 import { toCorrelationId } from "@trading-model/primitives/primitives";
-import type { BROKER_CALLBACK_API } from "./api-routes";
-import { EVENT_MANAGER } from "./event-manager-client";
+import { type DeliveredMetadata, EVENT_MANAGER } from "./event-manager-client";
 import { MESSAGE_PAYLOAD_SCHEMA } from "./shared/barrel/message.schema";
 
 /** Delivered `messageId`s remembered per process: bounds the memory of the dedup. */
@@ -24,11 +20,7 @@ const deliveredIds = new Set<string>();
  * @returns false when the payload does not match the schema of its topic.
  */
 export async function deliverToListeners(
-	metadata: {
-		topic: string;
-		messageId?: string;
-		correlationId?: string;
-	},
+	metadata: DeliveredMetadata,
 	payload: unknown
 ): Promise<boolean> {
 	const resultPayload = await MESSAGE_PAYLOAD_SCHEMA.safeParseAsync({
@@ -51,12 +43,14 @@ export async function deliverToListeners(
 	// The payload as received (not its parsed copy), checked just above.
 	// Listeners run in the message's correlation context: their logs and outgoing calls carry it.
 	const emit = () =>
-		EVENT_MANAGER.emit(metadata.topic as keyof EventMap, payload as never);
-	if (metadata.correlationId) {
-		runWithCorrelationId(toCorrelationId(metadata.correlationId), emit);
-	} else {
-		emit();
-	}
+		EVENT_MANAGER.emit(
+			metadata.topic as keyof EventMap,
+			payload as never,
+			metadata
+		);
+	await (metadata.correlationId
+		? runWithCorrelationId(toCorrelationId(metadata.correlationId), emit)
+		: emit());
 	// Remembered only after a successful emit: a listener that throws must leave the redelivery possible.
 	if (messageId) {
 		deliveredIds.add(messageId);
@@ -66,14 +60,3 @@ export async function deliverToListeners(
 	}
 	return true;
 }
-
-/** Callback route of message-manager's HTTP delivery (kept for release N, ADR-0073). */
-export const MESSAGE_CONTROLLER: ApiRouteHandler<
-	(typeof BROKER_CALLBACK_API)["receive"]
-> = async ({ body: { metadata, payload } }) =>
-	(await deliverToListeners(metadata, payload))
-		? sendResponse({ status: "delivered" }, HTTP_STATUS.OK)
-		: sendResponse(
-				{ error: "Invalid payload format" },
-				HTTP_STATUS.BAD_REQUEST
-			);

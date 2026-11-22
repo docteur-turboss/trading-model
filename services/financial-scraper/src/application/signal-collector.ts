@@ -1,10 +1,10 @@
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import { sha256Hex } from "@trading-model/crypto/node-crypto";
 import {
 	SIGNAL_SCHEMA_VERSION,
 	Signal,
-} from "@trading-model/validation/wire/signals";
+} from "@trading-model/contracts/wire/signals";
+import { sha256Hex } from "@trading-model/crypto/node-crypto";
 import {
 	SIGNAL_COLLECTIONS_TOTAL,
 	SIGNAL_LAST_SUCCESS,
@@ -23,6 +23,7 @@ import {
 	type SourceAdapter,
 } from "../domain/ports/signal-source.port";
 import type { SignalStorePort } from "../domain/ports/signal-store.port";
+import { retryAfterMs } from "../domain/retry-after";
 import {
 	DATE_PLACEHOLDER,
 	dailyRequests,
@@ -31,6 +32,7 @@ import {
 	type SourceRequest,
 	type Subject,
 } from "../domain/signals";
+import { SourceQuarantine } from "./source-quarantine";
 
 const FAILURES = [
 	"fetch_error",
@@ -81,7 +83,7 @@ export async function restoreFreshness(
 			{ source: source.id },
 			(stored?.ingestedAt ?? now) / 1000
 		);
-		if (stored) {
+		if (stored && stored.observedAt !== null) {
 			SIGNAL_NEWEST_OBSERVED.set(
 				{ source: source.id },
 				stored.observedAt / 1000
@@ -152,24 +154,6 @@ const HOUR_MS = 3_600_000;
 /** Consecutive failed ticks that quarantine a source. */
 const QUARANTINE_AFTER = 3;
 
-interface Quarantine {
-	failures: number;
-	/** Quarantines opened so far: the back-off doubles with each. */
-	opened: number;
-	until: number;
-}
-
-/** `Retry-After` as a delay in ms: delta-seconds or HTTP date; 0 when absent or unreadable. */
-function _retryAfterMs(header: string | undefined, now: number): number {
-	if (header === undefined) {
-		return 0;
-	}
-	const delay = /^[0-9]+$/.test(header.trim())
-		? Number(header) * 1000
-		: Date.parse(header) - now;
-	return Number.isFinite(delay) && delay > 0 ? delay : 0;
-}
-
 function _expandUrl(url: string, ingestedAt: number): string {
 	return url.replace(DATE_PLACEHOLDER, (_placeholder, days?: string) => {
 		const date = new Date(
@@ -208,11 +192,14 @@ export function signalId(
 export class SignalCollector {
 	constructor(private readonly _deps: SignalCollectorDeps) {}
 
-	private readonly _quarantines = new Map<string, Quarantine>();
+	private readonly _quarantine = new SourceQuarantine(
+		HOUR_MS,
+		QUARANTINE_AFTER,
+		() => this._deps.now()
+	);
 
 	async collect(source: Source): Promise<void> {
-		const quarantine = this._quarantines.get(source.id);
-		if (quarantine && this._deps.now() < quarantine.until) {
+		if (this._quarantine.isOpen(source.id)) {
 			SIGNAL_COLLECTIONS_TOTAL.inc({
 				source: source.id,
 				result: "skipped_quarantine",
@@ -229,43 +216,21 @@ export class SignalCollector {
 			const failure = await this._collectRequest(source, request);
 			fetchFailure ??= failure;
 		}
-		this._track(source.id, fetchFailure, quarantine);
+		this._track(source.id, fetchFailure);
 	}
 
 	/** Opens, extends or closes the quarantine of a source after a tick. */
-	private _track(
-		sourceId: string,
-		fetchFailure: Error | undefined,
-		previous: Quarantine | undefined
-	): void {
+	private _track(sourceId: string, fetchFailure: Error | undefined): void {
 		if (!fetchFailure) {
-			this._quarantines.delete(sourceId);
-			SIGNAL_SOURCE_QUARANTINED.set({ source: sourceId }, 0);
+			this._quarantine.clear(sourceId);
 			return;
 		}
-		const now = this._deps.now();
 		const http = fetchFailure instanceof HttpStatusError ? fetchFailure : null;
-		const retryAfter = _retryAfterMs(http?.retryAfter, now);
 		const refused = http?.status === 401 || http?.status === 403;
-		const failures = (previous?.failures ?? 0) + 1;
-		if (!refused && retryAfter === 0 && failures < QUARANTINE_AFTER) {
-			this._quarantines.set(sourceId, { failures, opened: 0, until: 0 });
-			return;
-		}
-		const opened = (previous?.opened ?? 0) + 1;
-		const backoff = refused
-			? 24 * HOUR_MS
-			: Math.min(24 * HOUR_MS, HOUR_MS * 2 ** (opened - 1));
-		const until = now + Math.max(backoff, retryAfter);
-		this._quarantines.set(sourceId, { failures, opened, until });
-		SIGNAL_SOURCE_QUARANTINED.set({ source: sourceId }, 1);
-		getLogger().warn("Signal source quarantined", {
-			context: {
-				source: sourceId,
-				failures,
-				until: new Date(until).toISOString(),
-			},
-		});
+		this._quarantine.fail(
+			sourceId,
+			refused ? 24 * HOUR_MS : retryAfterMs(http?.retryAfter, this._deps.now())
+		);
 	}
 
 	/**
@@ -311,10 +276,12 @@ export class SignalCollector {
 			worker.confirm?.(url);
 			result = "success";
 			SIGNAL_LAST_SUCCESS.set({ source: source.id }, ingestedAt / 1000);
-			if (signals.length > 0) {
+			// observedAt === ingestedAt: the source gave no date, the gauge would follow the clock.
+			const dated = signals.filter((sig) => sig.observedAt !== sig.ingestedAt);
+			if (dated.length > 0) {
 				SIGNAL_NEWEST_OBSERVED.set(
 					{ source: source.id },
-					Math.max(...signals.map(({ observedAt }) => Date.parse(observedAt))) /
+					Math.max(...dated.map(({ observedAt }) => Date.parse(observedAt))) /
 						1000
 				);
 			}

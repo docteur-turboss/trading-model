@@ -19,8 +19,8 @@ function _registerScraperRoutes(app: Application): void {
 
 /**
  * Secure Express server: financial routes, address manager, metrics. The
- * scraper only publishes, so it mounts no broker callback (`POST /message`):
- * it subscribes to nothing and message-manager never delivers to it.
+ * scraper subscribes to nothing, so it mounts no broker callback (`POST /message`):
+ * message-manager never delivers to it.
  */
 export function createServer() {
 	return createServiceServer({

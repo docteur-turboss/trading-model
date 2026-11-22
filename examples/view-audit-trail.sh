@@ -21,5 +21,5 @@ curl -s "${API_GATEWAY}/v1/audit-logger/events?limit=5" \
 
 echo ""
 echo "=== Events filtered by topic ==="
-curl -s "${API_GATEWAY}/v1/audit-logger/events?topic=market.trade.recent.fetch&limit=2" \
+curl -s "${API_GATEWAY}/v1/audit-logger/events?topic=training.model.published&limit=2" \
   -H "x-api-key: ${ADMIN_TOKEN}" | pretty

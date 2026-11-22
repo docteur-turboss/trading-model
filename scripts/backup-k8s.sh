@@ -30,6 +30,14 @@ done
 # shellcheck source=backup-lib.sh
 source "$(dirname "$0")/backup-lib.sh"
 
+# Sets DUMP_ROWS for the next write_dump: {"<db>.<table>":<rows>,...} from
+# "name<TAB>count" lines on stdin. Without counts the manifest entry simply has
+# no rows (warned): the dump itself is not blocked.
+rows_from_counts() {
+  DUMP_ROWS="$(awk -F'	' 'NF==2 && $2 ~ /^[0-9]+$/ { printf "%s\"%s\":%s", (n++ ? "," : ""), $1, $2 } END { if (n) printf "}" }' | sed 's/^/{/')" || true
+  [ -n "$DUMP_ROWS" ] || warn "row counts unavailable: manifest entry without rows"
+}
+
 backup_mongodb() {
   log "Starting MongoDB backup..."
   local dest="${BACKUP_DIR}/mongodb/${TIMESTAMP}"
@@ -55,6 +63,9 @@ backup_mongodb() {
       write_metric "$label" 0
       continue
     fi
+    local coll=audit.audit_events
+    [ "$label" = mongodb ] && coll=dlq.dlq_entries
+    rows_from_counts < <(mongo_tool backup "${primary}" mongosh --quiet --eval       "print('${coll}	' + db.getSiblingDB('${coll%%.*}').${coll#*.}.countDocuments({}))")
     local file="${dest}/${label}.archive.gz${AGE_SUFFIX}"
     local pitr="${dest}/${label}.pitr${AGE_SUFFIX}"
     if write_dump "$label" "$file" mongo_tool backup "${primary}" mongodump --quiet --gzip --archive --oplog &&
@@ -77,6 +88,10 @@ mysql_dump_gz() {
   mysql_root_sh "$1" "$MYSQL_DUMP_SH --source-data=2" |
     awk -v out="$2" '!found && /^-- CHANGE (REPLICATION SOURCE|MASTER) TO/ { print > out; close(out); found = 1 } { print }' |
     gzip
+}
+
+mysql_core_dump_gz() {
+  mysql_root_sh "$1" "$MYSQL_CORE_DUMP_SH" | mysql_core_if_not_exists | gzip
 }
 
 backup_mysql() {
@@ -104,6 +119,11 @@ backup_mysql() {
     return
   fi
   coords=$(mktemp)
+  local t q=""
+  for t in market_candles market_trades market_tickers signals; do
+    q="${q:+$q UNION ALL }SELECT 'financial_scraper.$t', COUNT(*) FROM financial_scraper.$t"
+  done
+  rows_from_counts < <(mysql_root_sh "${pod}" "mysql --user=root -N -e \"$q\"")
   if write_dump mysql "$file" mysql_dump_gz "${pod}" "$coords" &&
     sealed_write "$pitr" mysql_pitr "$uuid" "$coords"; then
     ok "MySQL backup complete: ${file}"
@@ -114,6 +134,7 @@ backup_mysql() {
     write_metric "mysql" 0
   fi
   rm -f "$coords"
+  backup_mysql_core mysql_core_dump_gz "${pod}"
 }
 
 backup_checkpoints() {
@@ -223,6 +244,7 @@ prune_old
 # failure is counted by write_metric (component "manifest"): the run exits 1.
 $DRY_RUN || write_manifest || true
 upload_offsite
+write_sealed_key_timestamp
 finalize_metrics
 
 echo ""

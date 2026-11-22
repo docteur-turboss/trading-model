@@ -1,15 +1,13 @@
-import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
-import { BaseEnvSchema } from "@trading-model/validation/config/env";
-import { featureFlag } from "@trading-model/validation/config/feature-flags";
-import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
-import { validateEnv } from "@trading-model/validation/config/validate-env";
-import { AssetType } from "@trading-model/validation/wire/signals";
+import { AddressManagerEnvSchema } from "@trading-model/address-manager/config/address-manager-env";
+import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
+import { AssetType } from "@trading-model/contracts/wire/signals";
+import { BaseEnvSchema } from "@trading-model/http/config/env";
+import { featureFlag } from "@trading-model/http/config/feature-flags";
+import { validateEnv } from "@trading-model/http/config/validate-env";
+import { BusEnvSchema } from "@trading-model/persistence/redis-env";
 import { z } from "zod";
 import { FitnessType } from "../../domain/genetic-algorithm/genome-control";
-import {
-	parseSignalKeys,
-	SIGNAL_KEY_PATTERN,
-} from "../../domain/signal-features";
+import { SIGNAL_KEY_PATTERN } from "../../domain/signal-features";
 
 const COST_RATE = z.number().min(0).max(0.1);
 /** Overrides of `DEFAULT_ASSET_COSTS`, by asset type. */
@@ -46,7 +44,7 @@ const TRAINER_ENV_SHAPE = {
 		.default("")
 		.refine(
 			(csv) =>
-				parseSignalKeys(csv).every((key) => SIGNAL_KEY_PATTERN.test(key)),
+				parseCommaSeparated(csv).every((key) => SIGNAL_KEY_PATTERN.test(key)),
 			"TRAINER_SIGNAL_FEATURES: each key must be SUBJECT:dimension:metric"
 		),
 	/** Feature flag (ADR-0039): false keeps the network input at the market values. */
@@ -55,6 +53,8 @@ const TRAINER_ENV_SHAPE = {
 	FEATURE_INPUT_MASK_GENE: featureFlag(false),
 	/** ADR-0082: true keeps the candle group active in every evolved mask; read only with FEATURE_INPUT_MASK_GENE. */
 	TRAINER_INPUT_MASK_PROTECT_CANDLE: featureFlag(false),
+	/** Feature flag (ADR-0039, ADR-0076 step 1): true trains all the symbols in one session, hidden layers shared, one head per symbol; false: one session per symbol. */
+	FEATURE_SHARED_TRUNK: featureFlag(false),
 	/** Model artifacts (ADR-0022): on the checkpoint volume shared by the replicas. */
 	TRAINER_MODEL_DIR: z.string().min(1).default("/data/checkpoints/models"),
 	TRAINER_MODEL_RETENTION: z.coerce.number().int().min(1).default(20),
@@ -68,8 +68,8 @@ const TRAINER_ENV_SHAPE = {
 	TRAINER_GENERATIONS: z.coerce.number().int().positive().default(50),
 	TRAINER_POPULATION_SIZE: z.coerce.number().int().positive().default(20),
 	TRAINER_TIME_BUDGET_MS: z.coerce.number().int().positive().default(300000),
-	/** Time between two training sessions (1 h: one new candle per 1-min session was not worth a full retrain, 20 models then cover 20 h). Keep well above TRAINER_TIME_BUDGET_MS. */
-	TRAINER_INTERVAL_MS: z.coerce.number().int().positive().default(3600000),
+	/** Time between two training sessions (4 h: no paper trading consumes the models yet, a full retrain per hour was wasted CPU; 20 models then cover 80 h). Keep well above TRAINER_TIME_BUDGET_MS. */
+	TRAINER_INTERVAL_MS: z.coerce.number().int().positive().default(14400000),
 	/** Newest candle older than this: the symbol is not trained (15 min, like MarketDataStale). */
 	TRAINER_MAX_DATA_AGE_MS: z.coerce.number().int().positive().default(900000),
 	/** At least 10: the risk ratios and the drawdown need several episodes. */
@@ -88,6 +88,8 @@ const TRAINER_ENV_SHAPE = {
 	FEATURE_EVENT_DRIVEN_DECISIONS: featureFlag(false),
 	/** Show the agent its position; false to measure what it is worth (ADR-0025). */
 	TRAINER_OBSERVE_POSITION: z.stringbool().default(true),
+	/** Added to the default PRNG seeds: same value + same data = same run (A/B measures, ADR-0030). */
+	TRAINER_SEED_OFFSET: z.coerce.number().int().default(0),
 	/**
 	 * Kubernetes Lease the trainer pods compete for (ADR-0058): only its holder
 	 * trains. Empty: no election, this instance trains (compose, dev).
@@ -98,7 +100,7 @@ const TRAINER_ENV_SHAPE = {
 export const TRADER_TRAINER_ENV_SCHEMA = BaseEnvSchema.merge(
 	AddressManagerEnvSchema
 )
-	.extend(RedisEnvSchema.shape)
+	.extend(BusEnvSchema.shape)
 	.extend(TRAINER_ENV_SHAPE);
 
 export const ENV = validateEnv(TRADER_TRAINER_ENV_SCHEMA);

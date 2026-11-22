@@ -1,8 +1,8 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import { Dimension } from "@trading-model/contracts/wire/signals";
 import { DurationMs } from "@trading-model/primitives/primitives";
-import { Dimension } from "@trading-model/validation/wire/signals";
 import type { Trainer } from "../../../application/trainer";
 import {
 	LAST_CANDLE_AGE_SECONDS,
@@ -54,7 +54,9 @@ export class TrainingLoop {
 			windowMs: number;
 		},
 		/** Symbols on daily bars: their freshness and cadence follow the series (ADR-0083). */
-		private readonly _daily: ReadonlySet<TradingSymbol> = new Set()
+		private readonly _daily: ReadonlySet<TradingSymbol> = new Set(),
+		/** FEATURE_SHARED_TRUNK: symbols trained together in one session; absent: one symbol per session. */
+		private readonly _sharedTrunk?: readonly TradingSymbol[]
 	) {}
 
 	start(config: TrainingLoopConfig): void {
@@ -212,6 +214,8 @@ export class TrainingLoop {
 		symbols: TradingSymbol[],
 		maxDataAgeMs: number
 	): Promise<void> {
+		// Not awaited: a slow bus must not delay the cycle; republishPending never rejects.
+		void this._trainer.republishPending();
 		if (this._trainer.isTraining()) {
 			return;
 		}
@@ -220,23 +224,67 @@ export class TrainingLoop {
 			const symbol = symbols[index];
 			if (
 				(await this._loadStoredCandles(symbol)) &&
-				this._hasEnoughData(symbol) &&
-				this._hasFreshData(symbol, maxDataAgeMs) &&
-				!this._isTrainedOnNewestBar(symbol)
+				this._isReady(symbol, maxDataAgeMs)
 			) {
 				// Advance before training: a rejected train() still passes the turn.
 				this._nextIndex = (index + 1) % symbols.length;
-				if (this._signals?.assets.has(symbol)) {
-					await this._observeSignals(symbol);
-				}
-				const bar = this._dataBuffer.getLastCandleCloseTime(symbol);
-				const result = await this._trainer.train(symbol);
-				if (this._daily.has(symbol) && result.success && bar !== undefined) {
-					this._trainedBar.set(symbol, bar);
-				}
+				await this._trainReady(symbol, maxDataAgeMs);
 				return;
 			}
 		}
+	}
+
+	/** Trains `symbol`, with the eligible symbols of its group under FEATURE_SHARED_TRUNK. */
+	private async _trainReady(
+		symbol: TradingSymbol,
+		maxDataAgeMs: number
+	): Promise<void> {
+		const group = this._sharedTrunk?.includes(symbol)
+			? await this._eligibleGroup(symbol, maxDataAgeMs)
+			: [symbol];
+		for (const member of group) {
+			if (this._signals?.assets.has(member)) {
+				await this._observeSignals(member);
+			}
+		}
+		const bars = group.map((member) =>
+			this._dataBuffer.getLastCandleCloseTime(member)
+		);
+		const result =
+			group.length > 1
+				? await this._trainer.trainGroup(group)
+				: await this._trainer.train(symbol);
+		for (const [i, member] of group.entries()) {
+			if (this._daily.has(member) && result.success && bars[i] !== undefined) {
+				this._trainedBar.set(member, bars[i] as number);
+			}
+		}
+	}
+
+	private _isReady(symbol: TradingSymbol, maxDataAgeMs: number): boolean {
+		return (
+			this._hasEnoughData(symbol) &&
+			this._hasFreshData(symbol, maxDataAgeMs) &&
+			!this._isTrainedOnNewestBar(symbol)
+		);
+	}
+
+	/** `symbol` and the other eligible symbols of its shared-trunk group. */
+	private async _eligibleGroup(
+		symbol: TradingSymbol,
+		maxDataAgeMs: number
+	): Promise<TradingSymbol[]> {
+		const group = [symbol];
+		for (const other of this._sharedTrunk ?? []) {
+			if (
+				other !== symbol &&
+				(await this._loadStoredCandles(other)) &&
+				this._isReady(other, maxDataAgeMs)
+			) {
+				group.push(other);
+			}
+		}
+		return group;
 	}
 
 	/**

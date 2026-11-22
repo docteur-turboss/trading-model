@@ -9,11 +9,8 @@ import { logger } from "@trading-model/http/logger";
 import { ResponseProtocol } from "@trading-model/http/response-protocol";
 
 const addressManagerError = makeErrorCode(ErrorCode.AddressManager, 503);
-const serviceNotFoundError = makeErrorCode(ErrorCode.ServiceNotFound, 404);
-const serviceUnreachableError = makeErrorCode(
-	ErrorCode.ServiceUnreachable,
-	410
-);
+const serviceNotFoundError = makeErrorCode(ErrorCode.Agent, 404);
+const serviceUnreachableError = makeErrorCode(ErrorCode.DlqCapacity, 410);
 
 describe("ResponseProtocol", () => {
 	let req: any;
@@ -87,6 +84,25 @@ describe("ResponseProtocol", () => {
 		expect(res.status).toHaveBeenCalledWith(500);
 		expect(res.json).toHaveBeenCalledWith({ error: "Internal server error" });
 	});
+
+	it.each([
+		[400, "Invalid request body"],
+		[413, "Request body too large"],
+	])(
+		"should answer %i for a body-parser error without a Server error log",
+		(status, error) => {
+			const spy = jest.spyOn(logger, "error").mockImplementation(() => {});
+			const err = Object.assign(new Error("Unexpected token { in JSON"), {
+				status,
+				expose: true,
+			});
+			ResponseProtocol(err, req, res, next);
+			expect(res.status).toHaveBeenCalledWith(status);
+			expect(res.json).toHaveBeenCalledWith({ error });
+			expect(spy).not.toHaveBeenCalled();
+			spy.mockRestore();
+		}
+	);
 
 	it("should send the message of an anticipated error as an ErrorResponse", () => {
 		ResponseProtocol(serviceNotFoundError("Service not found"), req, res, next);

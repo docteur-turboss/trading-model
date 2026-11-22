@@ -24,14 +24,14 @@ export const RULES = {
   // Tags `v*`: the release deploys its tag (deploy.yml dispatched with --ref vX.Y.Z).
   staging: { policies: [branch('development'), branch('main'), { type: 'tag', name: 'v*' }], exact: true },
   // No reviewer: it would hold the weekly scheduled run (ADR-0034).
-  'backup-key-check': { policies: [branch('main')], exact: true },
+  'backup-key-check': { policies: [branch('main')], exact: true, noReviewer: true },
 };
 const FALLBACK = { reviewer: 'strict', policies: [] };
 
 /**
  * @param {object|null} env GET /environments/{name} body, null when 404
  * @param {object[]} policies deployment-branch-policies entries
- * @param {{reviewer?: 'strict'|'any', policies: object[], exact?: boolean}} [rule] expected rule
+ * @param {{reviewer?: 'strict'|'any', noReviewer?: boolean, policies: object[], exact?: boolean}} [rule] expected rule
  * @returns {string[]} problems, empty when compliant
  */
 export function checkEnvironment(env, policies, rule = RULES.production) {
@@ -42,6 +42,8 @@ export function checkEnvironment(env, policies, rule = RULES.production) {
     if (!reviewers || !(reviewers.reviewers ?? []).length) problems.push('no required reviewer');
     else if (rule.reviewer === 'strict' && !reviewers.prevent_self_review) problems.push('"Prevent self-review" is off');
   }
+  if (rule.noReviewer && (env.protection_rules ?? []).some((r) => r.type === 'required_reviewers' && (r.reviewers ?? []).length))
+    problems.push('a required reviewer holds the scheduled run silently: remove it');
   if (!env.deployment_branch_policy?.custom_branch_policies) {
     problems.push('deployment branches are not limited to selected branches and tags');
     return problems;

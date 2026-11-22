@@ -9,10 +9,10 @@ Some concerns are genuinely cross-cutting and have no single owning domain: the 
 > **Package split (ADR-0007, extended 2026-10):** `common` went from 135 → **30 source files**. Hard migration — **no re-export shims**. Moved out to dedicated packages:
 > - Domain primitives (branded types, pagination, circuit-state, service-identity, retry-policy, topic-binding…) → `@trading-model/primitives`
 > - Contracts (event types, market-data, http-status, http-headers, LoggerPort registry) → `@trading-model/contracts`
-> - Reliability (circuit-breaker, circuit-state-machine, latency-tracker, heartbeat interfaces) → `@trading-model/reliability`
+> - Reliability (circuit-breaker, circuit-state-machine, heartbeat interfaces) → `@trading-model/reliability`
 > - Persistence (Redis/Mongo connection managers, store adapters, key builders) → `@trading-model/persistence`
 > - Server bootstrap / secure HTTPS factory → `@trading-model/http`
-> - Environment validation & Zod schemas → `@trading-model/validation`
+> - Environment validation & Zod schemas → `@trading-model/http` (`config/*`)
 > - Crypto primitives → `@trading-model/crypto`
 > - HTTP middleware, HTTP client, logging system → `@trading-model/http`
 > - Distributed worker protocol & orphan recovery → `@trading-model/jobs` (removed by ADR-0029: no producer, no worker)
@@ -21,22 +21,20 @@ Some concerns are genuinely cross-cutting and have no single owning domain: the 
 
 ## Package Map Post-Split
 
-The monorepo has **12 shared packages** under the `@trading-model/*` scope. Build order is topological (base → derived); there are **no cyclic dependencies**. `primitives` and `contracts` are the foundations and must never import higher-layer packages such as `http`.
+The monorepo has shared packages under the `@trading-model/*` scope. Build order is topological (base → derived); there are **no cyclic dependencies**. `primitives` and `contracts` are the foundations and must never import higher-layer packages such as `http`.
 
 | # | Package | Role | Dependencies |
 |---|---------|------|--------------|
 | 1 | `@trading-model/primitives` | Pure domain primitives: branded types, pagination, circuit-state, service-identity, topic-binding. **Zero deps.** | — |
 | 2 | `@trading-model/contracts` | Shared contracts: event/market-data types, http-status, http-headers, `LoggerPort` registry (setLogger/getLogger) | primitives |
-| 3 | `@trading-model/reliability` | Circuit-breaker, circuit-state-machine, latency-tracker, heartbeat interfaces | primitives, contracts |
+| 3 | `@trading-model/reliability` | Circuit-breaker, circuit-state-machine, heartbeat interfaces | primitives, contracts |
 | 4 | `@trading-model/common` | Residual shared infra: `AppError`/`ErrorCodes`, retry/backoff, SPIFFE, TLS config, cache, sanitize, shared schemas | primitives, contracts |
 | 5 | `@trading-model/model-runtime` | Network forward pass, feature codec, portfolio simulator (ADR-0066); moved out of the trainer | primitives, contracts, common |
 | 6 | `@trading-model/persistence` | Redis/Mongo connection managers, store adapters, key builders (absorbed `redis-config`) | common, primitives, contracts (+ ioredis, mongodb) |
-| 7 | `@trading-model/http` | HTTP middleware, HTTP client, concrete logging pipeline | primitives, contracts, common, reliability |
-| 8 | `@trading-model/validation` | Environment validation, Zod schemas, DTOs, shared type contracts | primitives, contracts, common, http |
-| 9 | `@trading-model/http` | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry | primitives, contracts, common, http |
-| 10 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness | primitives, contracts, common, validation |
-| 11 | `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing | primitives, contracts, common, persistence, http, reliability, validation |
-| 12 | `@trading-model/broker-message` | Inter-service messaging SDK: message-manager client, event emitter, controller/routes | primitives, contracts, address-manager, common, http, validation |
+| 7 | `@trading-model/http` | HTTP middleware, HTTP client, concrete logging pipeline, secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry | primitives, contracts, common, reliability |
+| 9 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness | primitives, contracts, common, validation |
+| 10 | `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing | primitives, contracts, common, persistence, http, reliability, validation |
+| 11 | `@trading-model/broker-message` | Inter-service messaging SDK: message-manager client, event emitter, controller/routes | primitives, contracts, address-manager, common, http, validation |
 
 ## What Remains in `common`
 
@@ -49,7 +47,7 @@ The monorepo has **12 shared packages** under the `@trading-model/*` scope. Buil
 | `event.types.ts` | **Deprecated** facade — re-exports per-context types from `@trading-model/contracts`. Import directly from `contracts` for new code (see [Event Types](#event-types)) |
 | `db-connection-config.ts` | `createDbConfigFromEnv()` — builds `DbConnectionConfig` from `DB_HOST`/`DB_PORT`/`DB_USER`/`DB_PASSWORD`/`DB_NAME` |
 | `tls-paths.ts` | `TlsPaths`, `TlsEnvVars`, `TlsConfig`, `TlsPemBundle`, Zod `TlsEnvVarsSchema`, and helpers (`buildTlsFromEnv`, `resolveSecureContextOptions`, …) |
-| `workload-identity.ts` | SPIFFE workload-identity primitives (ADR-0011): trust domain, SPIFFE ID scheme, canonical service identities, `parseSpiffeId`, `buildSpiffeId`, `extractServiceName` |
+| `workload-identity.ts` | SPIFFE workload-identity primitives (ADR-0011): trust domain, SPIFFE ID scheme, canonical service identities, `parseSpiffeId`, `extractServiceName` |
 
 > Note: `redis-config` was absorbed into `@trading-model/persistence` — it is **not** in `common`.
 
@@ -106,7 +104,7 @@ import { retry } from '@trading-model/common/utils/retry';
 ## Event Types
 
 Event types are owned by `@trading-model/contracts` (the former `@trading-model/common/config/event.types` facade was removed, see ADR-0015):
-- Market events & market data types: `@trading-model/contracts/market-events` + `@trading-model/contracts/market-data.types`
+- Market data types: `@trading-model/contracts/market-data.types`
 - Audit events: `@trading-model/contracts/audit-events`
 - Training events (and the canonical `Optimizer` enum): `@trading-model/contracts/training-events`
 
@@ -114,7 +112,7 @@ The combined helpers live in `@trading-model/contracts/event-map`:
 
 | Export | Description |
 | ------ | ----------- |
-| `EventMap` | Event → payload type mapping (MarketEventMap ∪ AuditEventMap ∪ TrainingEventMap) |
+| `EventMap` | Event → payload type mapping (AuditEventMap ∪ TrainingEventMap) |
 | `EventMessagesArgs<K>` | Payload type for a given event K |
 | `EventEnumMap` | Union of all valid event name strings |
 
@@ -127,7 +125,7 @@ The combined helpers live in `@trading-model/contracts/event-map`:
 
 - **Import**: `@trading-model/common/config/workload-identity` (or the `utils/spiffe` facade)
 
-Provides the platform's SPIFFE trust domain, ID scheme, canonical service identities (ADR-0011): `buildSpiffeId`, `parseSpiffeId`, `isSpiffeId`, `extractCanonicalServiceName`, `normalizeServiceName`, `PLATFORM_SERVICES`.
+Provides the platform's SPIFFE trust domain, ID scheme, canonical service identities (ADR-0011): `parseSpiffeId`, `isSpiffeId`, `extractCanonicalServiceName`, `normalizeServiceName`, `PLATFORM_SERVICES`.
 
 ## TLS Configuration
 
@@ -152,10 +150,10 @@ import { sanitizeForLog } from '@trading-model/common/utils/sanitize';
 | Logger / logging pipeline | `@trading-model/http` (concrete `Logger`); `LoggerPort` registry in `@trading-model/contracts/logger-registry` |
 | Contracts (events, market-data, http-status, http-headers) | `@trading-model/contracts` |
 | Domain primitives (branded types, pagination, identities) | `@trading-model/primitives` |
-| Circuit breakers, latency tracker, heartbeats | `@trading-model/reliability` |
+| Circuit breakers, heartbeats, leader lease | `@trading-model/reliability` |
 | Redis/Mongo stores, connection managers, `redis-config` | `@trading-model/persistence` |
 | Server bootstrap, secure HTTPS factory, TLS loading | `@trading-model/http` |
-| Environment validation (Zod) | `@trading-model/validation` |
+| Environment validation (Zod) | `@trading-model/http` |
 | Crypto primitives (PRNG, random string) | `@trading-model/crypto` |
 | HTTP middleware, HTTP client | `@trading-model/http` |
 | Worker protocol, orphan recovery | removed (ADR-0029) |

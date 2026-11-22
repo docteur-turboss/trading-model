@@ -5,6 +5,7 @@ namespace: trading-model
 
 resources:
   - namespace.yaml
+  - resource-quota.yaml
   - network-policies.yaml
   - ../config
   - ../services

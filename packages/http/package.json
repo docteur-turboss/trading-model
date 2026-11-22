@@ -12,6 +12,10 @@
     "./bootstrap": "./dist/bootstrap.js",
     "./catch-error": "./dist/catch-error.js",
     "./circuit-recorder": "./dist/circuit-recorder.js",
+    "./config/env": "./dist/config/env.js",
+    "./config/feature-flags": "./dist/config/feature-flags.js",
+    "./config/secret-strength": "./dist/config/secret-strength.js",
+    "./config/validate-env": "./dist/config/validate-env.js",
     "./configure-app": "./dist/configure-app.js",
     "./console-formatter": "./dist/console-formatter.js",
     "./correlation-id": "./dist/correlation-id.js",
@@ -38,6 +42,8 @@
     "./service-server-factory": "./dist/service-server-factory.js",
     "./shared/constants": "./dist/shared/constants.js",
     "./shared/node-env": "./dist/shared/node-env.js",
+    "./signals/scraper-signal-history": "./dist/signals/scraper-signal-history.js",
+    "./signals/signal-bar-history": "./dist/signals/signal-bar-history.js",
     "./signal-handler": "./dist/signal-handler.js",
     "./telemetry": "./dist/telemetry.js"
   },
@@ -58,7 +64,7 @@
     "@opentelemetry/instrumentation-mysql2": "^0.71.0",
     "@opentelemetry/resources": "^3.0.0",
     "@opentelemetry/sdk-node": "^0.301.2",
-    "@opentelemetry/semantic-conventions": "^1.44.0",
+    "@opentelemetry/semantic-conventions": "^1.45.0",
     "helmet": "^8.3.0"
   },
   "devDependencies": {

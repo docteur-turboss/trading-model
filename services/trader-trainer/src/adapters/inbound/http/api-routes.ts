@@ -1,6 +1,6 @@
+import { brand } from "@trading-model/contracts/wire/brand";
 import {
 	binary,
-	brand,
 	defineRoute,
 	ErrorResponse,
 } from "@trading-model/http/api-route/api-route";

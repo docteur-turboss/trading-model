@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { TRADER_TRAINER_ENV_SCHEMA } from "../../../../src/infrastructure/config/env";
 
 // Importing env.ts parses process.env into ENV; only the schema is under test here.
-jest.mock("@trading-model/validation/config/validate-env", () => ({
+jest.mock("@trading-model/http/config/validate-env", () => ({
 	validateEnv: () => ({}),
 }));
 
@@ -89,7 +89,7 @@ describe("Env Schema", () => {
 			expect(result.data.TRAINER_VALIDATION_SPLIT).toBe(0.15);
 			expect(result.data.TRAINER_GENERATIONS).toBe(50);
 			expect(result.data.TRAINER_POPULATION_SIZE).toBe(20);
-			expect(result.data.TRAINER_INTERVAL_MS).toBe(3_600_000);
+			expect(result.data.TRAINER_INTERVAL_MS).toBe(14_400_000);
 			expect(result.data.TRAINER_SYMBOLS).toBe("BTCUSDT,ETHUSDT");
 		}
 	});

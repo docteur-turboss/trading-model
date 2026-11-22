@@ -1,5 +1,5 @@
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
-import type { ResolvedEndpoint } from "@trading-model/validation/wire/service-resolver.types";
+import type { ResolvedEndpoint } from "@trading-model/contracts/wire/service-resolver.types";
 import type { Request } from "express";
 
 /** Forwards a request to a resolved service and returns its raw answer. */
@@ -25,6 +25,14 @@ export class UpstreamResponseTooLargeError extends Error {
 	}
 }
 
+/** The upstream did not finish answering within PROXY_TIMEOUT_MS: the dispatcher answers 504. */
+export class UpstreamTimeoutError extends Error {
+	constructor(readonly timeoutMs: number) {
+		super(`Upstream did not answer within ${timeoutMs}ms`);
+		this.name = "UpstreamTimeoutError";
+	}
+}
+
 /** Short-lived cache of successful GET answers, keyed by method + path + query. */
 export interface ResponseCachePort {
 	get(key: string): { data: unknown; status: HttpStatusCode } | undefined;
@@ -37,4 +45,8 @@ export interface ResponseCachePort {
 export interface ProxyDeps {
 	forward: ForwardRequestPort;
 	cache: ResponseCachePort;
+	observeDuration(
+		labels: { service: string; status: string },
+		seconds: number
+	): void;
 }

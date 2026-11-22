@@ -64,6 +64,17 @@ patches:
           periodSeconds: 10
           failureThreshold: 180
 
+  # The kind node pulls images one at a time (imagePullPolicy Always): a release's
+  # last pod waited 8.5 min for its image and missed the default 600 s progress
+  # deadline, which `rollout status` fails on before its own timeout (run
+  # 44731618077). 600 s x DEPLOY_TIMEOUT_FACTOR (4).
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/progressDeadlineSeconds
+        value: 2400
+
   # One pod per data or observability StatefulSet: a release must not restart it (issue #700).
   # Planned restart for a new template: docs/deployment/STAGING_LOCAL.md.
   - target:
@@ -120,7 +131,21 @@ configMapGenerator:
     behavior: merge
     literals:
       - MONGODB_URI=mongodb://mongo-audit-0.mongo-audit-headless:27017,mongo-audit-1.mongo-audit-headless:27017,mongo-audit-2.mongo-audit-headless:27017/audit?replicaSet=rs0-audit&authSource=admin
+      - BUS_TRANSPORT=http  # bus switch below (issue #1931)
   - name: dlq-service-config
     behavior: merge
     literals:
       - MONGO_URI=mongodb://mongo-dlq-0.mongo-dlq-headless:27017,mongo-dlq-1.mongo-dlq-headless:27017,mongo-dlq-2.mongo-dlq-headless:27017/dlq?replicaSet=rs0&authSource=admin
+  # The partitioned redis-0 creates an ACL user only at start: it lacks the bus users of
+  # 3.1.0 (issue #1931). BUS_TRANSPORT=http keeps these services (and audit-logger,
+  # entry above) on message-manager
+  # over HTTP until the planned switch of STAGING_LOCAL.md, "Bus switch", removes the entries
+  # (tests/k8s/check-overlays.mjs then needs the service in BUS_ON_PARTITIONED_REDIS).
+  - name: trader-trainer-config
+    behavior: merge
+    literals:
+      - BUS_TRANSPORT=http
+  - name: model-evaluator-config
+    behavior: merge
+    literals:
+      - BUS_TRANSPORT=http

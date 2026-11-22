@@ -16,7 +16,10 @@ import { summaryFromManifest } from "../domain/genome-summary-builder";
 import type { MarketDataBuffer } from "../domain/market-data-buffer";
 import { DAY_MS, type TradingSymbol } from "../domain/market-data-types";
 import { assessAdmission } from "../domain/model-admission";
-import type { ModelReplayWindow } from "../domain/model-artifact";
+import type {
+	ModelComponent,
+	ModelReplayWindow,
+} from "../domain/model-artifact";
 import type { StoredModelRef } from "../domain/ports/model-publisher.port";
 import {
 	ArtifactTrainingInfo,
@@ -36,6 +39,7 @@ export interface RehydratedModel {
 	symbol: TradingSymbol;
 	snapshot: ArtifactTrainingInfo;
 	lastModel: LastModel;
+	ref: StoredModelRef;
 }
 
 /** Reads and writes the versioned model artifacts (ADR-0022); owns no trainer state. */
@@ -62,9 +66,7 @@ export class ModelArtifactService {
 		}
 		for (const symbol of symbols) {
 			try {
-				const latest = await models.latest(String(symbol));
-				const manifest =
-					latest && (await models.manifest(String(symbol), latest.version));
+				const manifest = await models.latest(String(symbol));
 				if (!manifest) {
 					continue;
 				}
@@ -90,6 +92,11 @@ export class ModelArtifactService {
 						createdAt: Date.parse(manifest.createdAt),
 						normalization: manifest.normalization,
 					},
+					ref: {
+						version: manifest.version,
+						sha256: manifest.weights.sha256,
+						admissible: manifest.admission?.admissible ?? false,
+					},
 				});
 				getLogger().info("Best agent rehydrated", {
 					context: { symbol, version: manifest.version },
@@ -111,7 +118,8 @@ export class ModelArtifactService {
 	async store(
 		result: TrainingSuccess,
 		windowSets: WindowSet[],
-		summary: BestAgentSummary | null
+		summary: BestAgentSummary | null,
+		components?: ModelComponent[]
 	): Promise<{ ref: StoredModelRef; lastModel: LastModel } | undefined> {
 		const models = this._deps.models;
 		if (!models) {
@@ -144,6 +152,7 @@ export class ModelArtifactService {
 				summary,
 				admission,
 				window: this._replayWindow(result.symbol, last),
+				components,
 			});
 			MODEL_ARTIFACTS_TOTAL.inc({ result: "stored" });
 			const admissible = admission?.admissible ?? false;

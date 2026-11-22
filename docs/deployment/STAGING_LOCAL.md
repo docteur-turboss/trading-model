@@ -68,6 +68,15 @@ list, ADR-0027). Their keys and the age recipient go to the environment
 MinIO no longer publishes binaries or images: the compose file pins the
 `pgsty/minio` community build by digest.
 
+MinIO's region is `eu-west-3` (`MINIO_SITE_REGION` in the compose file), so
+the checks of `backup-bucket-check.sh` and `deploy.yml` see an EU region. To
+change it, in this order:
+
+1. Restart MinIO: `docker compose -p trading-staging -f deploy/staging-local/docker-compose.yml --env-file ~/.trading-staging/env up -d minio`
+2. Check: `aws --endpoint-url http://127.0.0.1:9000 s3api get-bucket-location --bucket trading-staging-backup` returns `eu-west-3`.
+3. Set `BACKUP_S3_REGION` and `AUDIT_ANCHOR_REGION` to `eu-west-3` in the GitHub environment `staging`.
+4. Redeploy staging. MinIO rejects signatures from another region, so the pods and `backup-key-check.yml` need the new value at the same time.
+
 ## Runner
 
 In a container, without the Docker socket. Registered once with a
@@ -173,7 +182,8 @@ enforced by `tests/k8s/check-overlays.mjs`):
 
 - the Redis ACL written by `redis-ha.sh` reaches a partitioned `redis-0` only
   with the planned `redis` / `redis-sentinel` restart: code must not need a
-  new Redis command in the release that grants it;
+  new Redis command in the release that grants it, nor a new ACL user (see
+  "Bus switch" below);
 - until restarted, the pods lack what the new template adds. 3.1.0: no
   exporter, so no Prometheus target and no `mysql_up` / `redis_up` /
   `mongodb_up` series. `MySQLDown`, `RedisDown` and `MongoDBDown` stay silent
@@ -199,6 +209,25 @@ The next deploy sets the partition back to 1 anyway (it is in the overlay).
 Check the result: `kubectl -n "$NS" get sts <x> -o jsonpath='{.status.currentRevision} {.status.updateRevision}'`
 prints the same revision twice.
 
+### Bus switch
+
+`redis-0` creates the bus ACL users of 3.1.0 (`trader-trainer`, `audit-logger`,
+`model-evaluator`) only when it restarts. Until then the overlay sets
+`BUS_TRANSPORT=http` for these three services (issue #1931): they publish and
+receive through message-manager over HTTP. `audit-dlq` (dead streams, runbook
+`BusDeadLetters`) is unavailable in staging-local until the switch: it needs
+the `audit-logger` user on Redis. Outside a deploy:
+
+1. Restart `redis` and `redis-sentinel` with the loop above.
+2. Merge the removal of the three `BUS_TRANSPORT=http` entries from
+   `overlays/staging-local/kustomization.yaml`, with the three users added to
+   `BUS_ON_PARTITIONED_REDIS` in `tests/k8s/check-overlays.mjs`, and deploy.
+3. Check that model-evaluator reads its topic in process:
+
+```bash
+kubectl -n "$NS" exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli --user message-manager XINFO CONSUMERS trading-model:message-manager:journal:training.model.published model-evaluator' | grep '^model-evaluator-'
+```
+
 ### TLS and keyFile switch
 
 The pods of `mysql`, `mongo-dlq` and `mongo-audit` still run the 3.0.0 template
@@ -213,7 +242,8 @@ the same two deploys: a deploy between them brings the outage back.
 
 1. Merge the removal of the three `configMapGenerator` entries and of the
    `mysql-client-tls` patch of issue #1066 from
-   `overlays/staging-local/kustomization.yaml`, and of
+   `overlays/staging-local/kustomization.yaml` (keep audit-logger's
+   `BUS_TRANSPORT=http` until the bus switch), and of
    `mysql-group-replication-config.yaml` (issue #1456): the next deploy must
    not bring them back.
 2. Restart `mongo-dlq`, then `mongo-audit`, then `mysql` with the loop above.

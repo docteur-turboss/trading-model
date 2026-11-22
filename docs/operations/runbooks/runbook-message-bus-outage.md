@@ -1,6 +1,6 @@
 # Runbook: Message Bus Outage
 
-**Alerts:** `ServiceDown` on `message-manager`, `MessageDeliveryLowSuccessRate`, `MessagesDeadLettered`, `BusDeadLetters`, `MessagesUnrouted`, `JournalBacklogOld`, `JournalEntriesTrimmed`  
+**Alerts:** `ServiceDown` on `message-manager`, `MessageDeliveryLowSuccessRate`, `BusDeadLetters`, `MessagesUnrouted`, `JournalBacklogOld`, `JournalEntriesTrimmed`  
 **Severity:** L1
 
 ## Architecture Context
@@ -9,26 +9,22 @@ message-manager is an HTTP pub/sub broker with a durable Redis Streams journal (
 
 - **A publish is answered (202) once the message is in the journal** (one Redis stream per topic, one consumer group per subscriber service, key `trading-model:message-manager:journal:<topic>`); the workers of every replica deliver and retry afterwards. A stop or a crash of a replica loses nothing: another replica claims its pending entries within about 30 s. Messages accepted for a service that does not subscribe wait for it up to 24 h. The journal is Redis state with no backup: AOF and replication protect it, so a Redis outage stops publishing (503) and losing Redis with its replicas loses what was not delivered yet. Inspect a backlog with `XPENDING <journal key> <service>`; never `KEYS`.
 - **Subscriptions live in Redis** (one hash per topic, `REDIS_SENTINELS`), expire 60 s after their last renewal, and subscribers renew every 15 s. Without Redis, message-manager cannot route anything.
-- **A message published with no subscriber is dropped** and counted (`mm_messages_unrouted_total`) (`delivery.requireSubscriber` refuses it with 503 instead; no publisher sets it since the trainer stopped subscribing, #1252).
+- **A message published on a topic with no journal group is dropped** and counted (`mm_messages_unrouted_total`) (`delivery.requireSubscriber` refuses it with 503 instead; no publisher sets it since the trainer stopped subscribing, #1252).
 - **Dead letters go to dlq-service** (signed `POST /dlq`). While it cannot take one, or while a subscriber's circuit breaker is open, the message stays pending in the journal and is retried (no local file): it is only lost if it stays pending past the 24 h trim (`JournalEntriesTrimmed`).
 
 An outage affects:
 
-- financial-scraper (cannot publish market data)
-- trader-trainer (receives no market data)
 - audit-logger (receives no events: gap in the audit trail)
 
 ## Detection
 
 - `ServiceDown`: message-manager not scraped.
 - `MessageDeliveryLowSuccessRate`: more than 0.5 % of messages dead-lettered over 5 min.
-- `MessagesDeadLettered`: messages given up, now in the dead streams.
 - `BusDeadLetters`: a dead stream holds entries waiting for an operator.
-- `MessagesUnrouted`: a topic has had no subscriber for 10 min.
-- `JournalBacklogOld`: a subscriber has not acknowledged an entry for 15 min (see 7).
-- `JournalEntriesTrimmed`: undelivered journal entries were trimmed after 24 h: messages lost (see 6).
+- `MessagesUnrouted`: a topic has had no journal group for 10 min.
+- `JournalBacklogOld`: a subscriber has not acknowledged an entry for 15 min (see 6).
+- `JournalEntriesTrimmed`: undelivered journal entries were trimmed after 24 h: messages lost (see 5).
 - Publishers log timeouts or connection errors to message-manager.
-- `MarketDataUnpublished`: candles persisted by the scraper have waited 15 min for the bus (see 5).
 
 ## Initial Triage
 
@@ -69,7 +65,7 @@ Subscriptions come back on their own within 15 s once Redis answers (subscribers
 
 ### 2. Slow or failing subscriber
 
-**Symptoms:** `MessageDeliveryLowSuccessRate`, `MessagesDeadLettered` on one topic, publishers slow (they wait for the retries: up to 10 attempts, 20 s cap, ~4.3 min at worst; the publish times out after 5 min).  
+**Symptoms:** `MessageDeliveryLowSuccessRate`, `BusDeadLetters` on one topic, publishers slow (they wait for the retries: up to 10 attempts, 20 s cap, ~4.3 min at worst; the publish times out after 5 min).  
 **Check:**
 
 ```bash
@@ -82,12 +78,12 @@ kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
 
 ### 3. No subscriber on a topic
 
-**Symptoms:** `MessagesUnrouted` on a topic.  
+**Symptoms:** `MessagesUnrouted` on a topic: it has no group, so no service ever subscribed (a service that is only absent keeps its group, its messages wait up to 24 h).
 **Fix:** check that the subscribing service is up and that its logs show no subscription error (403 from the message-manager ACL, Redis errors). audit-logger subscribes to the audit, training and dlq topics: if all of them are unrouted, look at audit-logger and at Redis first.
 
 ### 4. Dead letters stuck, refused or lost
 
-**Symptoms:** `MessagesDeadLettered` or `BusDeadLetters` (warning). A dead letter is an entry of the stream `trading-model:message-manager:dead:<topic>` with its group, attempts and reason (ADR-0073). While Redis refuses the write, the journal entry stays pending (`JournalBacklogOld` after 15 min, see 7); message-manager logs the cause.
+**Symptoms:** `BusDeadLetters` (warning). A dead letter is an entry of the stream `trading-model:message-manager:dead:<topic>` with its group, attempts and reason (ADR-0073). While Redis refuses the write, the journal entry stays pending (`JournalBacklogOld` after 15 min, see 6); message-manager logs the cause.
 
 **Inspect, replay, delete** (inside an audit-logger pod; `<operator>` is recorded as the actor of the `dlq.*` audit event):
 
@@ -99,19 +95,13 @@ node services/audit-logger/dist/application/dlq-cli.js <operator> delete <topic>
 
 A replay gives the entry back to the one group that failed, under its own `messageId`, then removes it from the dead stream. Fix the cause first (a payload the subscriber refuses, a schema drift), or it is dead-lettered again. Dead streams are never trimmed: the alert stays until they are empty.
 
-### 5. Scraper publish backlog
-
-**Symptoms:** `fs_unpublished_candles` grows on the collector, `fs_publishes_skipped_total` grows (a publish held up to `PUBLISH_ACCEPT_TIMEOUT_MS`, 15 s), the scraper logs `Previous publish still in flight: skipped` or `Market data publish failed`. MySQL is still fed: the scraper persists before publishing and does not wait for the bus.
-
-Nothing is lost: the candles persisted while the bus is down stay in MySQL past the series publish cursor (`market_publish_cursors`, migration 005) and go out oldest first, 100 per cycle, once message-manager answers again, even after a collector restart. Fix the bus and `fs_unpublished_candles` falls back to 0; until then the scraper publishes lag (the trainer reads MySQL, not the bus). To skip a backlog on purpose (e.g. after a very long outage, if old candles are not wanted), move the cursor: `UPDATE market_publish_cursors SET published_until = NOW(3) WHERE symbol = '<SYMBOL>'` (UTC session); the skipped candles stay in MySQL only.
-
-### 6. Journal entries trimmed before delivery
+### 5. Journal entries trimmed before delivery
 
 **Symptoms:** `JournalEntriesTrimmed` (critical) with `topic` and `service`; message-manager logs `Journal entry trimmed before delivery: message lost` with the entry id.
 **Cause:** `service` did not receive its messages for more than 24 h (ADR-0048). They are gone from the journal and not dead-lettered. Only the named `service` is affected: the other groups of the topic keep their own entries.
 **Fix:** bring `service` back up. Then recover what it missed from the source: re-scrape the candles for `market.*` topics; for `audit-logger`, accept the gap and run `chain-cli.js acknowledge-loss` if its chain reports a loss (runbook-audit-chain-broken).
 
-### 7. Journal backlog of a subscriber
+### 6. Journal backlog of a subscriber
 
 **Symptoms:** `JournalBacklogOld` (warning) with `topic` and `service`: the oldest entry that `service` has not acknowledged is more than 15 min old (`mm_journal_oldest_pending_age_seconds`; `mm_journal_pending_entries` is the size of the backlog, unread entries included). Hours before the 24 h trim of 6.
 **Cause:** `service` is down or refuses the callback, or its circuit breaker is open in message-manager (`mm_circuit_breaker_state`).
@@ -130,7 +120,6 @@ kubectl exec -n trading-model "$REDIS_MASTER" -- redis-cli --scan --pattern 'tra
 
 # 3. Metrics: mm_messages_delivered_total{status="success"} grows again,
 #    mm_messages_unrouted_total stops growing
-# 4. Unpublished candles drain: MarketDataUnpublished resolves
 ```
 
 ## Prevention

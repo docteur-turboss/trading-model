@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { SourceAdapter } from "../../../domain/ports/signal-source.port";
-import { federalHolidays } from "./cftc-cot-legacy";
+import { federalHolidays, newYorkLocalToUtc } from "./cftc-cot-legacy";
 
 /** `GET https://api.eia.gov/v2/<route>/data/?facets[series][]=<id>`: weekly rows, the value a string. */
 const Rows = z.object({
@@ -19,11 +19,6 @@ const Rows = z.object({
 });
 
 const DAY_MS = 86_400_000;
-const NEW_YORK_HOUR = new Intl.DateTimeFormat("en-US", {
-	timeZone: "America/New_York",
-	hour: "numeric",
-	hourCycle: "h23",
-});
 
 /**
  * The Weekly Petroleum Status Report comes out Wednesday 10:30 ET after the
@@ -37,11 +32,7 @@ function _publishedAt(friday: string) {
 	const delayed = [0, 1, 2].some((offset) =>
 		holidays.has(monday + offset * DAY_MS)
 	);
-	const utc1030Est = monday + (delayed ? 3 : 2) * DAY_MS + 15.5 * 3_600_000;
-	// 10:30 EST is 15:30Z, 10:30 EDT is 14:30Z.
-	return Number(NEW_YORK_HOUR.format(utc1030Est)) === 10
-		? utc1030Est
-		: utc1030Est - 3_600_000;
+	return newYorkLocalToUtc(monday + (delayed ? 3 : 2) * DAY_MS, 10, 30);
 }
 
 /** The series are US-wide: the contextual payload gets the centre of the contiguous states. */

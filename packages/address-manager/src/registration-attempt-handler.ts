@@ -8,7 +8,6 @@ const RETRY_CONFIG = {
 	maxRetries: 10,
 	baseDelayMs: DurationMs.of(1000),
 	maxDelayMs: DurationMs.of(30_000),
-	jitterMs: DurationMs.of(1000),
 };
 
 /** Performs one registration attempt with the discovery server. */

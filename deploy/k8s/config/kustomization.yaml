@@ -50,6 +50,10 @@ configMapGenerator:
     envs: [model-evaluator.properties]
     options:
       labels: {app.kubernetes.io/component: model-evaluator, app.kubernetes.io/part-of: trading-model}
+  - name: risk-execution-config
+    envs: [risk-execution.properties]
+    options:
+      labels: {app.kubernetes.io/component: risk-execution, app.kubernetes.io/part-of: trading-model}
   - name: audit-logger-config
     envs: [audit-logger.properties]
     options:

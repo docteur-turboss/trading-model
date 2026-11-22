@@ -1,40 +1,33 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { CandleInterval } from "@trading-model/contracts/market-data.types";
 import {
+	type DataSource,
 	type PositiveInt,
 	type TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import {
 	CANDLES_PERSISTED_TOTAL,
-	PUBLISHES_SKIPPED_TOTAL,
 	SYMBOLS_FAILED_TOTAL,
 	SYMBOLS_SCRAPED_TOTAL,
-	UNPUBLISHED_CANDLES,
 } from "../config/metrics";
-import type { CandleData } from "../domain/market-data.types";
 import type { MarketDataSnapshot } from "../domain/market-data-snapshot";
-import type {
-	CandlePublishBacklogPort,
-	CandleSeries,
-	PublishCursor,
-} from "../domain/ports/candle-publish-backlog.port";
-import type { MarketDataPublisherPort } from "../domain/ports/market-data-publisher.port";
 import type { MarketDataSourcePort } from "../domain/ports/market-data-source.port";
 
-/**
- * One scrape of a symbol: fetch from the source, persist, then publish the
- * next persisted candles of the backlog (wired by config/container.ts).
- */
-export interface WorkerOrchestratorDeps {
-	source: MarketDataSourcePort;
-	publisher: MarketDataPublisherPort;
-	persist(snapshot: MarketDataSnapshot): Promise<void>;
-	backlog: CandlePublishBacklogPort;
+/** A candle series: one symbol and interval from one source. */
+export interface CandleSeries {
+	source: DataSource;
+	symbol: TradingSymbol;
+	interval: CandleInterval;
 }
 
-/** Candles per publish, so a backlog drains in messages of one fetch window. */
-export const MAX_CANDLES_PER_PUBLISH = 100;
+/** One scrape of a symbol: fetch from the source, then persist (wired by config/container.ts). */
+export interface WorkerOrchestratorDeps {
+	source: MarketDataSourcePort;
+	persist(snapshot: MarketDataSnapshot): Promise<void>;
+	/** Open time of the newest persisted candle of the series (undefined: none). */
+	lastCandleOpenTime(series: CandleSeries): Promise<UnixTimestamp | undefined>;
+}
 
 type LimitFunction = <TArgs extends unknown[], TResult>(
 	fn: (...args: TArgs) => PromiseLike<TResult> | TResult,
@@ -46,11 +39,6 @@ interface SymbolState {
 	cursor?: UnixTimestamp;
 	/** Fetch cursor read from the newest persisted candle (once per process). */
 	cursorLoaded: boolean;
-	/** Publish cursor of the series, read from the backlog once per process. */
-	publish?: PublishCursor;
-	publishLoaded: boolean;
-	/** Publish in flight: the next ones wait for it. */
-	publishing?: Promise<void>;
 	/** Run of identical scrape failures in progress (absent: last cycle succeeded). */
 	failure?: { signature: string; repeats: number; lastLoggedAt: number };
 }
@@ -58,23 +46,11 @@ interface SymbolState {
 /** Minimum gap between two summary lines of the same repeated failure. */
 export const REPEATED_FAILURE_LOG_INTERVAL_MS = 15 * 60_000;
 
-/** The next candles to publish, from `cursor` (absent: nothing queued yet). */
-interface NextCandles {
-	cursor?: PublishCursor;
-	batch: CandleData[];
-}
-
 /**
  * Runs the scrape of every tracked symbol. Each symbol is isolated: its
  * failure is logged and counted, the others go on.
  *
- * MySQL does not wait for the bus: a cycle persists, then starts the publish
- * without awaiting it (a hung message-manager may hold a publish for
- * PUBLISH_ACCEPT_TIMEOUT_MS). While a symbol's publish is in flight, the next cycles
- * only persist. The candles to publish are read back from MySQL from the
- * series publish cursor, which moves only once a publish of theirs succeeded:
- * a bus outage or a scraper restart loses none of them. A series without a
- * cursor starts at the first candle this process persists, not at the history.
+ * The fetch resumes at the newest persisted candle, so a restart loses none.
  */
 export class WorkerOrchestrator {
 	private readonly _maxConcurrency: PositiveInt;
@@ -96,13 +72,21 @@ export class WorkerOrchestrator {
 		}
 	}
 
-	async executeAll(): Promise<void> {
-		this._deps.source.beginCycle?.(this._symbols);
+	/**
+	 * Once `signal` fires (lease lost), no symbol starts another step: at most
+	 * the requests already in flight finish.
+	 */
+	async executeAll(signal?: AbortSignal): Promise<void> {
+		this._deps.source.beginCycle?.(this._symbols, signal);
 		const limiter = await _createLimiter(this._maxConcurrency);
 
 		const settled = await Promise.allSettled(
-			this._symbols.map((symbol) => limiter(() => this._scrape(symbol)))
+			this._symbols.map((symbol) => limiter(() => this._scrape(symbol, signal)))
 		);
+
+		if (signal?.aborted) {
+			return; // Aborted symbols are not failures.
+		}
 
 		settled.forEach((outcome, index) => {
 			const symbol = this._symbols[index];
@@ -157,39 +141,32 @@ export class WorkerOrchestrator {
 		}
 	}
 
-	/** Waits for the publishes in flight (shutdown, tests). */
-	async drain(): Promise<void> {
-		await Promise.all(
-			[...this._states.values()].map((state) => state.publishing)
-		);
-	}
-
-	private async _scrape(symbol: TradingSymbol): Promise<void> {
+	private async _scrape(
+		symbol: TradingSymbol,
+		signal?: AbortSignal
+	): Promise<void> {
 		const state = this._stateOf(symbol);
+		signal?.throwIfAborted();
 		await this._loadCursor(symbol, state);
+		signal?.throwIfAborted();
 		const snapshot = await this._deps.source.fetchSnapshot({
 			symbol,
 			interval: this._candleInterval,
 			candleStartTime: state.cursor,
+			signal,
 		});
 
-		let persisted = false;
-		try {
-			await this._deps.persist(snapshot);
-			persisted = true;
-			getLogger().debug("Data persisted");
-			// Moves past the last persisted candle; a failed cycle is fetched again.
-			this._advanceCursor(state, snapshot);
-		} finally {
-			// Published even when MySQL failed: the bus does not wait for it either.
-			this._publish(symbol, state, snapshot, persisted);
-		}
+		signal?.throwIfAborted();
+		await this._deps.persist(snapshot);
+		getLogger().debug("Data persisted");
+		// Moves past the last persisted candle; a failed cycle is fetched again.
+		this._advanceCursor(state, snapshot);
 	}
 
 	private _stateOf(symbol: TradingSymbol): SymbolState {
 		let state = this._states.get(symbol);
 		if (!state) {
-			state = { cursorLoaded: false, publishLoaded: false };
+			state = { cursorLoaded: false };
 			this._states.set(symbol, state);
 		}
 		return state;
@@ -205,8 +182,9 @@ export class WorkerOrchestrator {
 
 	/**
 	 * Resumes the fetch at the newest persisted candle, so a stop longer than
-	 * one fetch window leaves no gap. Unreadable: logged, fetches the latest
-	 * candles and tries again next cycle.
+	 * one fetch window leaves no gap. Unreadable: the cycle fails (logged by
+	 * `executeAll`) and nothing is fetched or persisted, since a fallback fetch
+	 * would store candles past the gap and hide it from the next read.
 	 */
 	private async _loadCursor(
 		symbol: TradingSymbol,
@@ -215,19 +193,10 @@ export class WorkerOrchestrator {
 		if (state.cursorLoaded) {
 			return;
 		}
-		try {
-			// Its open time, not close + 1: the newest candle may have been stored
-			// still open; fetching it again is an idempotent upsert.
-			state.cursor ??= await this._deps.backlog.lastCandleOpenTime(
-				this._seriesOf(symbol)
-			);
-			state.cursorLoaded = true;
-		} catch (err) {
-			getLogger().error("Last persisted candle unreadable", {
-				context: { symbol },
-				error: err,
-			});
-		}
+		// Its open time, not close + 1: the newest candle may have been stored
+		// still open; fetching it again is an idempotent upsert.
+		state.cursor = await this._deps.lastCandleOpenTime(this._seriesOf(symbol));
+		state.cursorLoaded = true;
 	}
 
 	private _advanceCursor(
@@ -238,128 +207,6 @@ export class WorkerOrchestrator {
 		const last = candles[candles.length - 1];
 		if (last) {
 			state.cursor = UnixTimestamp.of(last.closeTimestamp + 1);
-		}
-	}
-
-	/**
-	 * Starts the publish of this cycle's data with the next persisted candles,
-	 * unless one is in flight. Not awaited by the cycle; never rejects.
-	 */
-	private _publish(
-		symbol: TradingSymbol,
-		state: SymbolState,
-		snapshot: MarketDataSnapshot,
-		persisted: boolean
-	): void {
-		if (state.publishing !== undefined) {
-			PUBLISHES_SKIPPED_TOTAL.inc();
-			getLogger().warn("Previous publish still in flight: skipped", {
-				context: { symbol },
-			});
-			void this._refreshBacklogGauge(symbol, state);
-			return;
-		}
-
-		state.publishing = this._publishNext(symbol, state, snapshot, persisted)
-			.catch((err: unknown) => {
-				getLogger().error("Market data publish failed", {
-					context: { symbol },
-					error: err,
-				});
-			})
-			.finally(() => {
-				state.publishing = undefined;
-			});
-	}
-
-	private async _publishNext(
-		symbol: TradingSymbol,
-		state: SymbolState,
-		snapshot: MarketDataSnapshot,
-		persisted: boolean
-	): Promise<void> {
-		const series = this._seriesOf(symbol);
-		const fresh = persisted ? (snapshot.candles ?? []) : [];
-		const next = await this._nextCandles(series, state, fresh);
-		const candles =
-			next === undefined ||
-			(next.batch.length === 0 && snapshot.candles === undefined)
-				? undefined
-				: next.batch;
-
-		const failed = await this._deps.publisher.publish({ ...snapshot, candles });
-
-		const last = next?.batch[next.batch.length - 1];
-		if (next?.cursor && last && !failed.includes("candles")) {
-			const moved: PublishCursor = {
-				market: next.cursor.market,
-				publishedUntil: UnixTimestamp.of(last.timestamp + 1),
-			};
-			// Ahead of MySQL if the save fails: a restart then sends the batch
-			// again, which the trainer skips (strictly increasing timestamps).
-			state.publish = moved;
-			await this._deps.backlog.saveCursor(series, moved);
-		}
-		await this._refreshBacklogGauge(symbol, state);
-	}
-
-	/**
-	 * The next persisted candles to publish, or undefined when the backlog is
-	 * unreadable (MySQL down): the other parts of the snapshot still go out.
-	 */
-	private async _nextCandles(
-		series: CandleSeries,
-		state: SymbolState,
-		fresh: CandleData[]
-	): Promise<NextCandles | undefined> {
-		try {
-			if (!state.publishLoaded) {
-				state.publish = await this._deps.backlog.cursor(series);
-				state.publishLoaded = true;
-			}
-			const first = fresh[0];
-			if (!state.publish && first) {
-				state.publish = {
-					market: first.market,
-					publishedUntil: first.timestamp,
-				};
-				await this._deps.backlog.saveCursor(series, state.publish);
-			}
-			if (!state.publish) {
-				return { batch: [] };
-			}
-			const batch = await this._deps.backlog.candlesFrom(
-				series,
-				state.publish,
-				MAX_CANDLES_PER_PUBLISH
-			);
-			return { cursor: state.publish, batch };
-		} catch (err) {
-			getLogger().error("Candle publish backlog unreadable", {
-				context: { symbol: series.symbol },
-				error: err,
-			});
-		}
-	}
-
-	private async _refreshBacklogGauge(
-		symbol: TradingSymbol,
-		state: SymbolState
-	): Promise<void> {
-		if (!state.publish) {
-			return;
-		}
-		try {
-			const waiting = await this._deps.backlog.countFrom(
-				this._seriesOf(symbol),
-				state.publish
-			);
-			UNPUBLISHED_CANDLES.set({ symbol }, waiting);
-		} catch (err) {
-			getLogger().warn("Candle publish backlog not counted", {
-				context: { symbol },
-				error: err,
-			});
 		}
 	}
 }

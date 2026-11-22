@@ -13,6 +13,13 @@ for (const result of ["stored", "skipped", "error"] as const) {
 	MODEL_ARTIFACTS_TOTAL.inc({ result }, 0);
 }
 
+/** Stored models whose publication failed (issue #1739): the leader retries every cycle. */
+export const MODEL_PUBLISH_FAILURES_TOTAL = new promClient.Counter({
+	name: "tt_model_publish_failures_total",
+	help: "Failed publications of a stored model on the bus",
+	labelNames: ["symbol"] as const,
+});
+
 /** ADR-0030 verdict of each stored model on its test segment (ADR-0069). */
 export const MODEL_ADMISSION_TOTAL = new promClient.Counter({
 	name: "tt_model_admission_total",

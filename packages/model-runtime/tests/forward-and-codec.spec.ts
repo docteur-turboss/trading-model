@@ -27,9 +27,6 @@ function layer(
 		fanOut,
 		weights: new Float32Array(fanIn * fanOut).fill(w),
 		bias: new Float32Array(fanOut).fill(b),
-		output: z(),
-		preActivation: z(),
-		delta: z(),
 		gradW: new Float32Array(fanIn * fanOut),
 		gradB: z(),
 	} as unknown as LayerMemory;
@@ -75,6 +72,37 @@ describe("FeedForwardEngine", () => {
 			new Float32Array([1, 2])
 		);
 		expect(Array.from(ctx.layerOutputs[0])).toEqual([4, 5]);
+	});
+
+	test("residual adds the layer input to hidden layers, truncated or zero-padded", () => {
+		const cfg = (neurons: number[]) =>
+			mergeConfig({
+				neuronsByLayer: neurons as never,
+				activationType: [ActivationType.Linear, ActivationType.Linear],
+				connectionType: ConnectionType.ResidualConnection,
+			});
+		const same = new FeedForwardEngine(cfg([2, 2, 1]), [
+			layer(2, 2, 1, 0),
+			layer(2, 1, 1, 0),
+		]).forward(new Float32Array([1, 2]));
+		expect(Array.from(same.layerOutputs[0])).toEqual([4, 5]);
+		expect(Array.from(same.output)).toEqual([9]);
+		// same genome, same input: FullyConnected gives 3 + 3 = 6, so the residual is not a duplicate
+		const fully = engine(ConnectionType.FullyConnected, [
+			layer(2, 2, 1, 0),
+			layer(2, 1, 1, 0),
+		]).forward(new Float32Array([1, 2]));
+		expect(Array.from(fully.output)).toEqual([6]);
+		const pad = new FeedForwardEngine(cfg([2, 3, 1]), [
+			layer(2, 3, 1, 0),
+			layer(3, 1, 1, 0),
+		]).forward(new Float32Array([1, 2]));
+		expect(Array.from(pad.layerOutputs[0])).toEqual([4, 5, 3]);
+		const cut = new FeedForwardEngine(cfg([3, 2, 1]), [
+			layer(3, 2, 1, 0),
+			layer(2, 1, 1, 0),
+		]).forward(new Float32Array([1, 2, 3]));
+		expect(Array.from(cut.layerOutputs[0])).toEqual([7, 8]);
 	});
 
 	test("rejects a wrong input size", () => {

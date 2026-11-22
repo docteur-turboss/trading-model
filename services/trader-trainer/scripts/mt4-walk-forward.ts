@@ -59,7 +59,7 @@ const CRITERIA = {
 
 /** openTime, open, high, low, close, volume, closeTime, then optionally
  * quoteVolume, trade count, taker buy base volume (Binance order). */
-type Kline = number[];
+export type Kline = number[];
 
 interface Options {
 	data: string[];
@@ -140,7 +140,10 @@ function toCandle(symbol: TradingSymbol, kline: Kline): CandleData {
 }
 
 /** Market steps of `klines` as the trainer builds them from its buffer. */
-function marketSteps(symbol: TradingSymbol, klines: Kline[]): MarketStep[] {
+export function marketSteps(
+	symbol: TradingSymbol,
+	klines: Kline[]
+): MarketStep[] {
 	const buffer = new MarketDataBuffer({ maxSize: 2 * klines.length + 10 });
 	for (const kline of klines) {
 		buffer.addData(DataType.Candle, symbol, toCandle(symbol, kline));
@@ -446,7 +449,9 @@ async function main(): Promise<void> {
 	summarise(results);
 }
 
-main().catch((err: unknown) => {
-	console.error(err);
-	process.exit(1);
-});
+if (require.main === module) {
+	main().catch((err: unknown) => {
+		console.error(err);
+		process.exit(1);
+	});
+}

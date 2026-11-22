@@ -30,15 +30,14 @@
     "dev": "ts-node src/application/index.ts"
   },
   "dependencies": {
+    "@trading-model/persistence": "*",
     "@trading-model/primitives": "*",
     "@trading-model/contracts": "*",
     "@trading-model/address-manager": "*",
-    "@trading-model/broker-message": "*",
     "@trading-model/common": "*",
     "@trading-model/crypto": "*",
     "@trading-model/http": "*",
     "@trading-model/reliability": "*",
-    "@trading-model/validation": "*",
     "axios": "^1.21.1",
     "express": "^5.3.0",
     "mysql2": "^3.24.6",

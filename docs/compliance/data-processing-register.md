@@ -7,8 +7,8 @@
 
 | Field                       | Value                                                                                       |
 | --------------------------- | ------------------------------------------------------------------------------------------- |
-| **Controller**              | _To be filled by the operating entity: legal name, address, registration number. Production prerequisite ([DEPLOY.md](../deployment/DEPLOY.md))_ |
-| **Contact**                 | _To be filled: privacy contact address. Production prerequisite ([DEPLOY.md](../deployment/DEPLOY.md))_ |
+| **Controller**              | `docteur-turboss` (GitHub account of the project owner), natural person operating the platform; no registered company, so no registration number. Identity and postal address are given on request at the contact address below |
+| **Contact**                 | rgpd@horus-turboss.fr |
 | **Representative (Art. 27)**| Not applicable when the controller is established in the EU                                 |
 | **Data Protection Officer** | Not designated. Art. 37 requires one only for public bodies, or when the core activity is large-scale regular monitoring of individuals or large-scale processing of special categories; neither applies. (The 250-employee threshold of Art. 30(5) concerns the register, not the DPO: this register is kept regardless) |
 
@@ -109,7 +109,7 @@ This register documents the processing activities of the trading-model platform,
 | **Personal data**        | None (application logs truncate IPs and redact sensitive keys). Backups hold none in activities 1, 2 and 4; the audit trail (activity 3) carries the pseudonymous API key name `actor` (activity 8) |
 | **Recipients**           | Internal: operators. Alerts: Slack or Discord, Pushover, dead man's switch (alert names, labels, descriptions and runbook links only). Backups: off-site S3 store, age-encrypted before upload. Audit anchors: S3 Object Lock bucket (hashes only). Sheets: `third-party-dpas.md` |
 | **Transfers outside EU** | Depends on the region of the off-site S3 store, of the audit-anchor bucket and on the alert providers (Slack or Discord, Pushover, dead man's switch) — to be recorded by the operating entity in the sheets of `third-party-dpas.md`. Requirement: backup bucket in an EU region (`BACKUP_S3_ALLOWED_REGIONS`, checked by `deploy.yml`); the audit-anchor bucket must follow it (not checked) |
-| **Retention period**     | Loki: 31 days. Prometheus: 30 days. Jaeger: 72 hours (Badger on the PVC `jaeger-data`, `BADGER_SPAN_STORE_TTL`, ADR-0055). Backups (ADR-0032): 30 days locally (`RETENTION_DAYS`, dailies only); off-site daily 31 days, plus for the audit trail and the MySQL dump weekly 12 weeks and monthly 60 months (bucket lifecycle rules per prefix) |
+| **Retention period**     | Loki: 31 days. Prometheus: 30 days. Jaeger: 72 hours (Badger on the PVC `jaeger-data`, `BADGER_SPAN_STORE_TTL`, ADR-0055). Backups (ADR-0032): 30 days locally (`RETENTION_DAYS`, dailies only); off-site daily 31 days, plus for the audit trail and the MySQL dump without the market tables (`mysql-core`) weekly 12 weeks and monthly 60 months (bucket lifecycle rules per prefix) |
 | **Technical measures**   | LUKS2 data disks, age encryption of every dump before it is written, only `.age` files copied off-site             |
 | **System**               | Promtail → Loki, Prometheus, Jaeger, Alertmanager; `db-backup` CronJob / `scripts/backup*.sh`                      |
 

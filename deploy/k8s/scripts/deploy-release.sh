@@ -55,8 +55,8 @@ FACTOR="${DEPLOY_TIMEOUT_FACTOR:-1}"
 }
 
 # Deployments a release rolls out and a failed release rolls back.
-DEPLOYMENTS="discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer
-  api-gateway audit-logger dlq-service model-evaluator edge-proxy"
+# The service list is deploy/k8s/services/kustomization.yaml; the collector is a second Deployment of financial-scraper.
+DEPLOYMENTS="$(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$(dirname "${BASH_SOURCE[0]}")/../services/kustomization.yaml") financial-scraper-collector"
 
 # Redis and its sentinels: the services' credentials (ADR-0047) only work
 # against the nodes of their own release, so these roll out and back too.
@@ -146,6 +146,8 @@ release_replicas() {
 	# Deployment. trader-trainer is a singleton (ADR-0044, issue #501);
 	# audit-logger runs 2 fixed pods (one lease holder writes, issue #1395).
 	kubectl delete hpa/trader-trainer-hpa hpa/audit-logger-hpa -n "$ns" --ignore-not-found
+	# Retired redis-cert-cache (unused, unauthenticated; issue #1993).
+	kubectl delete deployment/redis-cert-cache service/redis-cert -n "$ns" --ignore-not-found
 	# A Job's pod template is immutable: apply fails on a finished init Job
 	# whose template changed (labels, issues #727 and #771). All are idempotent and
 	# run again from the overlay.
@@ -309,6 +311,10 @@ wait_rollout() {
 # turn ready (readiness runs SELECT 1): lift both through the local socket,
 # which TLS rules do not touch, before the undo. A mysqld restart re-applies
 # the ON of mysql.cnf; the next deploy binds the users again.
+# Only `scraper` (financial-scraper and its collector, the Deployments that
+# come back to N-1) is released: `exporter` (sidecar of the mysql pod) and
+# `retention` (CronJob) are not rolled back and keep their certificate, `migrator`
+# only runs in release N Jobs, and no N-1 pod connects as root over the network.
 relax_mysql() {
 	local ns="$1" pod
 	# Not the label alone: Job pods carry it too (no mysql container).
@@ -318,7 +324,7 @@ relax_mysql() {
 			m "SET GLOBAL require_secure_transport=OFF"
 			# Only the writable member can alter users (replicated to the others).
 			if [ "$(m "SELECT @@super_read_only")" = 0 ]; then
-				m "ALTER USER IF EXISTS \"scraper\"@\"%\", \"root\"@\"%\" REQUIRE NONE"
+				m "ALTER USER IF EXISTS \"scraper\"@\"%\" REQUIRE NONE"
 			fi' || return 1
 	done
 }
@@ -364,10 +370,12 @@ rollback() {
 		sleep 10
 		waited=$((waited + 10))
 	done
-	relax_mysql "$ns" || {
+	if relax_mysql "$ns"; then
+		echo "::warning::MySQL TLS relaxed by the rollback: redeploy release N to restore it (alert MySQLSecureTransportOff)"
+	else
 		echo "::error::Could not lift the MySQL TLS requirement: pods of the previous release cannot connect"
 		failed=1
-	}
+	fi
 	while read -r dep rev; do
 		target="$dep"
 		[[ $dep == */* ]] || target="deployment/$dep"

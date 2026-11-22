@@ -13,7 +13,7 @@ Checking the 13.09 audit finding on ADR/runtime drift (2026-10-28) showed that t
 **ADR-0004 (MySQL)** says: MySQL 8, Group Replication in **multi-primary** mode, "automatic failover with multi-primary writes". The manifests say:
 
 - `group_replication_single_primary_mode=on` (`deploy/k8s/infra/mysql.yaml`): single primary, not multi-primary.
-- `group_replication_start_on_boot=off`, and the `mysql-cluster-init` Job bootstraps the group on `mysql-0` **only**. Nothing runs `START GROUP_REPLICATION` on `mysql-1` and `mysql-2`: in production (3 replicas, until issue #814) they were standalone servers that received no data. The group has one member.
+- `group_replication_start_on_boot=off`, and the `mysql-cluster-init` Job bootstraps the group on `mysql-0` **only**. Nothing runs `START GROUP_REPLICATION` on `mysql-1` and `mysql-2`: in production (3 replicas, until issue #814) they were standalone servers that received no data. The group had one member.
 - Every client (financial-scraper, SPIRE server, migration Jobs) connects through the `mysql-primary` Service, whose selector is pinned to the pod `mysql-0`. Even with a healthy group, a primary election would not move the Service.
 - Staging and the kind smoke test run 1 replica; compose runs one MySQL without Group Replication.
 
@@ -71,5 +71,5 @@ Real HA is a separate decision, not taken here. The options are known: either fi
 
 ### Follow-up
 
-- Decide MySQL HA (one of the two options above) in a new ADR, with a kind failover test.
+- Decide MySQL HA (one of the two options above) in a new ADR, with a kind failover test. *Done by [ADR-0085](./0085-single-mysql-and-spire-server-pods-accepted.md): option A has no failover and no failover test; one MySQL pod accepted with the RTO of `BACKUP_DR.md`, to revisit when production has at least 2 nodes.*
 - An automated check of this topology (e.g. a render test over the production overlay) would let this ADR point to a test instead of a manual review.

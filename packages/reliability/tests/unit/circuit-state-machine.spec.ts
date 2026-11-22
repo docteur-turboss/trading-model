@@ -88,32 +88,37 @@ describe("CircuitStateMachine", () => {
 		expect(csm.getState(future)).toBe(CircuitState.CLOSED);
 	});
 
-	it("should reset on clear", () => {
+	it("lets one half-open probe through until its result", () => {
+		jest.useFakeTimers();
 		const csm = new CircuitStateMachine({
 			failureThreshold: 1,
-			cooldownMs: 60000 as never,
+			cooldownMs: 1000 as never,
+			halfOpenMaxAttempts: 1,
 		});
 		csm.recordFailure();
-		csm.clear();
-		expect(csm.getState()).toBe(CircuitState.CLOSED);
-		expect(csm.failures).toBe(0);
+		jest.advanceTimersByTime(1001);
+		expect(csm.check()).toBe(CircuitState.HALF_OPEN);
+		expect(csm.check()).toBe(CircuitState.OPEN);
+		csm.recordFailure();
+		expect(csm.check()).toBe(CircuitState.OPEN);
+		jest.advanceTimersByTime(1001);
+		expect(csm.check()).toBe(CircuitState.HALF_OPEN);
+		csm.recordSuccess();
+		expect(csm.check()).toBe(CircuitState.CLOSED);
+		jest.useRealTimers();
 	});
 
-	it("should snapshot and restore state", () => {
+	it("frees the probe slot after the cooldown if no result arrives", () => {
+		jest.useFakeTimers();
 		const csm = new CircuitStateMachine({
-			failureThreshold: 5,
-			cooldownMs: 60000 as never,
+			failureThreshold: 1,
+			cooldownMs: 1000 as never,
 		});
 		csm.recordFailure();
-		csm.recordFailure();
-		const snapshot = csm.snapshot();
-		expect(snapshot.failures).toBe(2);
-
-		const csm2 = new CircuitStateMachine({
-			failureThreshold: 5,
-			cooldownMs: 60000 as never,
-		});
-		csm2.restore(snapshot);
-		expect(csm2.failures).toBe(2);
+		jest.advanceTimersByTime(1001);
+		expect(csm.check()).toBe(CircuitState.HALF_OPEN);
+		jest.advanceTimersByTime(1001);
+		expect(csm.check()).toBe(CircuitState.HALF_OPEN);
+		jest.useRealTimers();
 	});
 });

@@ -1,0 +1,63 @@
+{
+  "title": "Risk Execution",
+  "uid": "trading-risk-execution",
+  "panels": [
+    {
+      "title": "Kill Switch",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [{ "expr": "max by (mode, scope) (risk_kill_switch)", "legendFormat": "{{mode}} {{scope}}" }],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "value": "0", "text": "OFF" },
+            { "type": "value", "value": "1", "text": "ENGAGED" }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
+          }
+        }
+      }
+    },
+    {
+      "title": "Exposure (limit 0.3)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 9, "x": 6, "y": 0 },
+      "targets": [{ "expr": "max by (mode) (risk_exposure_ratio)", "legendFormat": "{{mode}}" }],
+      "fieldConfig": {
+        "defaults": {
+          "max": 0.35,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0.3 }]
+          },
+          "custom": { "thresholdsStyle": { "mode": "line" } }
+        }
+      }
+    },
+    {
+      "title": "Daily Loss",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 9, "x": 15, "y": 0 },
+      "targets": [{ "expr": "max by (mode) (risk_daily_loss)", "legendFormat": "{{mode}}" }]
+    },
+    {
+      "title": "Open Orders",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 4 },
+      "targets": [{ "expr": "max by (mode) (risk_open_orders)", "legendFormat": "{{mode}}" }]
+    },
+    {
+      "title": "Rejects by Reason",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(risk_orders_total{outcome=~\"rejected:.*\"}[15m]))",
+          "legendFormat": "{{outcome}}"
+        }
+      ]
+    }
+  ]
+}

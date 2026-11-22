@@ -34,7 +34,6 @@
     "@trading-model/http": "*",
     "@trading-model/persistence": "*",
     "@trading-model/reliability": "*",
-    "@trading-model/validation": "*",
     "express": "^5.3.0",
     "express-rate-limit": "^8.7.4",
     "ioredis": "^6.0.0",

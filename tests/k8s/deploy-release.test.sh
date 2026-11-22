@@ -13,7 +13,7 @@ FAILED=0
 ok() { echo "  ✓ $*"; }
 ko() { echo "  ✗ $*"; FAILED=1; }
 
-IMAGES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator spire-tools backup-tools"
+IMAGES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator risk-execution spire-tools backup-tools"
 for img in $IMAGES; do
 	echo "$img sha256:$(printf '%s' "$img" | sha256sum | cut -d' ' -f1)"
 done >"$WORK/digests"
@@ -77,8 +77,8 @@ export PATH="$WORK/bin:$PATH" STUB_LOG="$WORK/log" STUB_APPLIED="$WORK/applied"
 STUB_REVS="discovery-server=4 api-gateway=7" bash "$SCRIPT" record ns "$WORK/revs" >/dev/null
 grep -qx "discovery-server 4" "$WORK/revs" && grep -qx "api-gateway 7" "$WORK/revs" &&
 	grep -qx "edge-proxy none" "$WORK/revs" && grep -qx "statefulset/redis 3" "$WORK/revs" && grep -qx "statefulset/redis-sentinel none" "$WORK/revs" &&
-	[ "$(wc -l <"$WORK/revs")" -eq 12 ] &&
-	ok "record writes the Redis StatefulSets and the 10 Deployments, none when missing" || ko "record: $(cat "$WORK/revs")"
+	[ "$(wc -l <"$WORK/revs")" -eq 13 ] &&
+	ok "record writes the Redis StatefulSets and the 11 Deployments, none when missing" || ko "record: $(cat "$WORK/revs")"
 
 printf 'discovery-server 4\napi-gateway 7\n' >"$WORK/revs"
 : >"$WORK/log"
@@ -88,6 +88,10 @@ STUB_UNDO_FAILS="" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 
 printf '#!/bin/sh\necho "sleep $*" >>"$STUB_LOG"\n' >"$WORK/bin/sleep"
 chmod +x "$WORK/bin/sleep"
+
+out="$(bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
+	[[ $out == *"::warning::MySQL TLS relaxed by the rollback: redeploy release N to restore it"* ]] &&
+	ok "rollback warns that MySQL TLS stays relaxed" || ko "rollback TLS warning: $out"
 echo 2 >"$WORK/api-down"
 : >"$WORK/log"
 STUB_API_DOWN="$WORK/api-down" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null 2>&1 &&
@@ -176,6 +180,23 @@ sts_names() { awk '/^---/ { k = "" } /^kind:/ { k = $2 } k == "StatefulSet" && /
 	ko "redis last: $(cat "$WORK/log")"
 STUB_NO_REDIS=1 bash "$SCRIPT" without-redis ns <"$WORK/app.yaml" | cmp -s - "$WORK/app.yaml" &&
 	ok "without-redis keeps the Redis StatefulSets on a first deploy" || ko "without-redis dropped documents on a first deploy"
+
+# Token expiry check of the "Configure kubeconfigs" step of deploy.yml (issue #1978): fake kubeconfigs holding only a JWT.
+jwt() { printf '{"exp":%s}' "$1" | base64 -w0 | tr '+/' '-_' | tr -d '='; }
+mkdir -p "$WORK/kube" "$WORK/bin"
+printf '#!/bin/sh
+cat "$KUBECONFIG"
+' >"$WORK/bin/kubectl"
+chmod +x "$WORK/bin/kubectl"
+sed -n '/# token-expiry:begin/,/# token-expiry:end/p' "$ROOT/.github/workflows/deploy.yml" | sed 's/^ *//' >"$WORK/expiry.sh"
+expiry() { # $1 exp of the app token, cluster token always valid
+	echo "h.$(jwt "$1").s" >"$WORK/kube/config"; echo "h.$(jwt $(($(date +%s) + 999999))).s" >"$WORK/kube/cluster"
+	RUNNER_TEMP="$WORK" upper=STAGING PATH="$WORK/bin:$PATH" bash "$WORK/expiry.sh" 2>&1
+}
+out="$(expiry 1700000000)" && ko "expired token accepted" ||
+	{ [[ "$out" == *"::error::KUBECONFIG_STAGING_APP token expired on 2023-11-14 22:13 UTC"*"deploy-identity.sh app"* ]] && ok "expired token: error with date and regeneration command" || ko "expired: $out"; }
+out="$(expiry $(($(date +%s) + 3600)))" && [[ "$out" == *"::warning::KUBECONFIG_STAGING_APP token expires on"* ]] && ok "token expiring in 1 h: warning" || ko "soon: $out"
+out="$(expiry $(($(date +%s) + 999999)))" && [ -z "$out" ] && ok "valid token: silent" || ko "valid: $out"
 
 bash "$SCRIPT" bogus >/dev/null 2>&1 && ko "unknown command accepted" || ok "unknown command refused"
 

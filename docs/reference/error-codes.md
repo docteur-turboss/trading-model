@@ -6,17 +6,11 @@ The HTTP status is the `httpStatus` set by the factory in `errors/*.ts`. `500` i
 
 | Code | HTTP | Cause | Expected action (caller) |
 | ---- | ---- | ----- | ------------------------ |
-| `ServiceNotFoundError` | 404 | Discovery has no instance registered under the requested service name. | Check the service name and that the service is running and registered; retry after it registers. |
-| `ServiceUnreachableError` | 410 | Service is known to discovery but no instance answered (circuit open, DNS or TLS failure). | Retry with backoff; check the target's health and `docker compose logs <service>`. |
 | `AuthenticationError` | 498 | Signed request or token rejected (bad signature, expired timestamp, unknown caller). | Do not retry as is; fix the credentials, SVID or clock, then resend. |
 | `AddressManagerError` | 503 | Address manager failed to register, heartbeat or resolve an address. | Retry; check discovery-server and Redis availability. |
 | `MessageManagerError` | 503 | Message-manager call failed (publish, subscribe, unavailable). | Retry with backoff; check message-manager health. |
-| `MetadataBuilderError` | 500 | Reserved for message metadata construction failures; no factory throws it today. | Treat as a bug; report with the log context. |
-| `TimeoutError` | 503 | An operation exceeded its time limit. | Retry with backoff; raise the timeout only if the target is known slow. |
-| `NackError` | 500 | A consumer rejected a message (negative acknowledgement). | The broker redelivers, then dead-letters; inspect the reason in the DLQ. |
-| `DeadLetterError` | 503 | Sending a message to the dead-letter queue failed. | Retry; check dlq-service and MongoDB. |
+| `DeadLetterError` | 503 | A message must be dead-lettered at once: payload rejected by the subscriber (`Invalid payload format`) or callback refused with a rejecting status. The bus copies it to a dead stream. | Do not retry the message; read it with `audit-dlq list`, fix the cause, then `replay` (runbook-dlq-backlog). |
 | `AgentError` | 503 | A trading agent (training or inference) failed. | Check trainer logs; retry the run. |
-| `BackpressureError` | 503 | A queue or buffer is full and refuses new work. | Slow down and retry later; check the consumer's lag. |
 | `ConfigurationError` | 500 | Missing or invalid configuration (env var, file). | Fix the configuration (see `docs/deployment/ENV.md`) and restart; retrying does not help. |
 | `DlqCapacityError` | 500 | The DLQ reached its capacity limit. | Replay or purge entries in dlq-service, then resume. |
 | `AppErrorError` | 500 | Default code of `createAppError` when the caller gave none. | Treat as unclassified; read the message and `cause`; give it a specific code if recurring. |

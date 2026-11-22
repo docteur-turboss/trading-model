@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { withTimeout } from "@trading-model/common/utils/retry";
 import { isExpectedPublisher } from "@trading-model/contracts/event-routes";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { Message } from "@trading-model/contracts/message-types";
@@ -8,7 +9,11 @@ import type {
 	Topic,
 } from "@trading-model/primitives/primitives";
 import { runInMessageTraceContext } from "../shared/trace-context";
-import { DELIVERY_ATTEMPT_TIMEOUT_MS, retryDueMs } from "./backoff";
+import {
+	DELIVERY_ATTEMPT_TIMEOUT_MS,
+	HANDLER_TIMEOUT_MS,
+	retryDueMs,
+} from "./backoff";
 import type { DeadStreams } from "./dead-streams";
 import {
 	classifyDeliveryError,
@@ -102,14 +107,12 @@ export class BusConsumer {
 		JOURNAL_OLDEST_PENDING_AGE_SECONDS.reset();
 		try {
 			for (const lag of await journal.lag(service)) {
-				if (lag.service === service) {
-					const labels = { topic: lag.topic, service };
-					JOURNAL_PENDING_ENTRIES.set(labels, lag.pending);
-					JOURNAL_OLDEST_PENDING_AGE_SECONDS.set(
-						labels,
-						lag.oldestPendingAgeMs / 1000
-					);
-				}
+				const labels = { topic: lag.topic, service };
+				JOURNAL_PENDING_ENTRIES.set(labels, lag.pending);
+				JOURNAL_OLDEST_PENDING_AGE_SECONDS.set(
+					labels,
+					lag.oldestPendingAgeMs / 1000
+				);
 			}
 			for (const topic of topics) {
 				BUS_DEAD_LETTERS.set({ topic }, await deadStreams.length(topic));
@@ -194,7 +197,21 @@ export class BusConsumer {
 			entryId: entry.id,
 		};
 		try {
-			const publisher = entry.message.metadata.publisher.serviceName;
+			const publisher = entry.message?.metadata?.publisher?.serviceName;
+			if (typeof publisher !== "string") {
+				const reason =
+					"invalid envelope: metadata.publisher.serviceName missing";
+				const id = await deadStreams.deadLetter(
+					group,
+					entry.id,
+					entry.message,
+					reason,
+					entry.deliveries
+				);
+				MESSAGES_DLQ_TOTAL.inc({ topic: group.topic, reason });
+				onDeadLetter?.(group, entry.message, reason, id);
+				return;
+			}
 			if (!isExpectedPublisher(group.topic, publisher)) {
 				PUBLISHER_REJECTED_TOTAL.inc({ topic: group.topic, publisher });
 				getLogger().error(
@@ -207,8 +224,13 @@ export class BusConsumer {
 				return;
 			}
 			try {
-				await runInMessageTraceContext(entry.message.metadata, () =>
-					handle(entry.message)
+				// The handler cannot be cancelled, but its late ack can no longer overlap another replica's claim.
+				await withTimeout(
+					runInMessageTraceContext(entry.message.metadata, () =>
+						handle(entry.message)
+					),
+					HANDLER_TIMEOUT_MS,
+					"Bus handler timed out"
 				);
 				MESSAGES_DELIVERED_TOTAL.inc({ topic: group.topic, status: "success" });
 			} catch (err) {

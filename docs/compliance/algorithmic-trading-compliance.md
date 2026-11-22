@@ -18,7 +18,7 @@ The trading-model platform trains autonomous trading agents using Genetic Algori
 |---|---|---|
 | **Art. 1(1)** — Clearly describe system design and operation | Architecture documented in `docs/architecture/`, ADRs in `docs/adr/`, agent topology defined in `services/trader-trainer/src/domain/neural-network/` | ✅ Documented |
 | **Art. 1(2)** — Identify trading algorithms, logic, constraints | GA population evolution + DQN policy network. Constraints: position sizing, market data window (500 candles default), train/validation split (80/20) | ✅ Implemented |
-| **Art. 1(3)** — Risk management controls pre-deployment | Circuit breakers on service-to-service calls (`packages/reliability/src/circuit-breaker.ts`), exposure cap `maxExposureFraction` (1.0 in training). No order frequency limit, no kill switch | 🟡 Partial |
+| **Art. 1(3)** — Risk management controls pre-deployment | Circuit breakers on service-to-service calls (`packages/reliability/src/circuit-breaker.ts`), exposure cap `maxExposureFraction` (0.3 in training). No order frequency limit, no kill switch | 🟡 Partial |
 | **Art. 1(4)** — Business continuity arrangements | Docker Compose health checks, K8s HPA + PDB, database failover runbooks (`docs/operations/runbooks/runbook-database-failover.md`) | ✅ Documented |
 
 ## 3. Governance & Testing Requirements (RTS 6 Art. 3-5)
@@ -30,9 +30,9 @@ The platform must demonstrate that algorithmic trading systems conform to specif
 | Test | Implementation | Evidence |
 |---|---|---|
 | **Market data integrity** — input validation and sanitisation | Zod schemas validate all incoming market data (`services/financial-scraper/src/adapters/outbound/binance/`) | Integration tests |
-| **Agent behaviour bounds** — max exposure only | `maxExposureFraction` (1.0, set explicitly by `rl-backend.ts`, recorded in the model manifest as `riskLimits`) rejects a buy that would take the position value above that fraction of the initial cash (`packages/model-runtime/src/env/trade-executor.ts`, validated in `wallet-validation.ts`). No order frequency limit exists | Unit tests |
+| **Agent behaviour bounds** — max exposure only | `maxExposureFraction` (0.3, set explicitly by `rl-backend.ts`, recorded in the model manifest as `riskLimits`) rejects a buy that would take the position value above that fraction of the initial cash (`packages/model-runtime/src/env/trade-executor.ts`, validated in `wallet-validation.ts`). No order frequency limit exists | Unit tests |
 | **Order generation validation** — no erroneous orders | Training operates in simulation mode only; no real order execution | N/A (simulation only) |
-| **Kill functionality** — ability to halt trading | Not implemented, see [Loss Limits and Kill Switch Policy](risk-limits-policy.md) §8 (Status) | ❌ Not implemented |
+| **Kill functionality** — ability to halt trading | Implemented in `risk-execution`, paper only, see [Loss Limits and Kill Switch Policy](risk-limits-policy.md) §8 (Status) | ⚠️ Paper only, no live adapter |
 
 ### 3.2 Stress Testing (Art. 5)
 
@@ -40,7 +40,7 @@ The platform must demonstrate that algorithmic trading systems conform to specif
 |---|---|
 | **Market data feed loss** — Binance API unavailable or geo-blocked ([ADR-0026](../adr/0026-binance-public-market-data-kept.md)) | No circuit breaker on the Binance client: 5xx, 429, 408 and network errors are retried with exponential backoff (5 attempts); 403 (WAF), 418 (IP ban) and 451 (restricted location) are not. A failed cycle persists and publishes nothing, so no message reaches `dlq-service`. Detected by `BinanceRestrictedLocation` (451), `ScrapeCyclesFailing` and `MarketDataStale`; fallbacks in [runbook-market-data-stale](../operations/runbooks/runbook-market-data-stale.md). The trainer stops training a symbol whose newest candle is older than `TRAINER_MAX_DATA_AGE_MS` (15 min) and resumes when fresh data arrives |
 | **Extreme volatility** — rapid price movements | Agent uses normalised feature vectors; outlier detection in `feature-builder.ts`. No live execution risk in simulation |
-| **High message volume** — HTTP broker with a durable Redis journal ([ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md)) | Per-subscriber circuit breaker, exponential backoff (10 attempts), dead letters counted and alerted (`MessagesDeadLettered`), audit-logger with back-pressure management via job queue. Accepted messages are journaled in Redis (AOF + replication): a broker restart loses none |
+| **High message volume** — HTTP broker with a durable Redis journal ([ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md)) | Per-subscriber circuit breaker, exponential backoff (10 attempts), dead letters counted and alerted (`BusDeadLetters`), audit-logger with back-pressure management via job queue. Accepted messages are journaled in Redis (AOF + replication): a broker restart loses none |
 
 ### 3.3 Annual Self-Assessment (Art. 6)
 
@@ -57,10 +57,10 @@ The platform should undergo an annual review covering:
 
 | Control | Implementation |
 |---|---|
-| **Max order volume/ value** | Partial: exposure cap `maxExposureFraction` only (`packages/model-runtime/src/env/trade-executor.ts`): position value ≤ 1.0 × initial cash in training, no leverage. No per-order value limit |
-| **Max order frequency** | Not implemented. No limit on orders per episode or per time unit; simulation only |
+| **Max order volume/ value** | Partial: exposure cap `maxExposureFraction` only (`packages/model-runtime/src/env/trade-executor.ts`): position value ≤ 0.3 × initial cash in training, no leverage. No per-order value limit |
+| **Max order frequency** | Implemented in `risk-execution` (orders per minute per symbol and global, ADR-0064 §2), paper only; the trainer simulation keeps no limit |
 | **Dual-channel price validation** | Not implemented — simulation only. For production: requires independent price feed comparison |
-| **Pre-trade risk checks** | Not implemented — simulation only. Required before any order flow, paper or live: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) (Accepted, option A) |
+| **Pre-trade risk checks** | Implemented in `risk-execution` (paper only, simulated broker), required before any order flow: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) (Accepted, option A) |
 
 ### 4.2 Market Making Obligations (RTS 6 Art. 17-18)
 
@@ -81,7 +81,7 @@ Not applicable — the platform does not implement market making strategies.
 | Risk | Mitigation |
 |---|---|
 | **Spoofing / Layering** — placing orders with intent to cancel | Simulation-only; no real orders placed. Production: order-to-trade ratio monitoring required |
-| **Quote stuffing** — high-frequency order submission | Not implemented: no cadence limit on agent actions. Simulation-only; no real orders placed |
+| **Quote stuffing** — high-frequency order submission | Order rate caps in `risk-execution` (ADR-0064 §2); the trainer simulation keeps no cadence limit. No real orders placed |
 | **Marking the close** — manipulating closing prices | Agent does not prioritise end-of-day positioning. No real execution |
 
 ## 6. Deployment Checklist for Regulated Production
@@ -93,7 +93,7 @@ When transitioning from research/simulation to production algorithmic trading, t
 | 1 | Register with competent authority as algorithmic trading firm | N/A — infrastructure provider responsibility |
 | 2 | Implement pre-trade risk controls (Art. 12-15) | In a Risk/Execution service separate from the model and the decision consumer, never in the api-gateway (the order path does not cross it): [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §2 (Accepted, option A) |
 | 3 | Deploy market-making obligations if applicable (Art. 17-18) | Not planned |
-| 4 | Implement kill switch functionality | Not implemented, see [Loss Limits and Kill Switch Policy](risk-limits-policy.md) §8 (Status); architecture in [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §5 (Accepted, option A) |
+| 4 | Implement kill switch functionality | Implemented in `risk-execution` (paper), drill passed 2026-11-20 ([risk-drill-log](risk-drill-log.md)); policy [Loss Limits and Kill Switch Policy](risk-limits-policy.md) §8 (Status); architecture in [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §5 (Accepted, option A) |
 | 5 | Annual RTS 6 conformance testing | Schedule via CI/CD pipeline |
 | 6 | MAR suspicious transaction reporting | Integrate audit-logger with regulatory reporting |
 | 7 | Maintain algorithmic trading register | See [data-processing-register.md](data-processing-register.md) |

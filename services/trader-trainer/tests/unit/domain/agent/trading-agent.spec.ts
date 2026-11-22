@@ -193,7 +193,7 @@ describe("TradingAgent", () => {
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
 			const buyer = new TradingAgent(makeConfig());
 			jest
-				.spyOn((buyer as any)._agent.nn, "forward")
+				.spyOn((buyer as any)._nn, "forward")
 				.mockReturnValue({ output: new Float32Array([0, 0, 1]) });
 
 			const first = buyer.step(input, Price.of(100));
@@ -209,7 +209,7 @@ describe("TradingAgent", () => {
 		it("fills the decision at fillPrice, marked at price", () => {
 			const buyer = new TradingAgent(makeConfig());
 			jest
-				.spyOn((buyer as any)._agent.nn, "forward")
+				.spyOn((buyer as any)._nn, "forward")
 				.mockReturnValue({ output: new Float32Array([0, 0, 1]) });
 
 			buyer.step(
@@ -323,7 +323,7 @@ describe("TradingAgent", () => {
 		function trader(output: number[]) {
 			const agent = new TradingAgent(makeConfig({ tradeFraction: 0.1 }));
 			jest
-				.spyOn((agent as any)._agent.nn, "forward")
+				.spyOn((agent as any)._nn, "forward")
 				.mockReturnValue({ output: new Float32Array(output) });
 			return agent;
 		}
@@ -337,11 +337,27 @@ describe("TradingAgent", () => {
 			expect(Number(agent.wallet.getPosition())).toBeCloseTo(100 / 77_000, 8);
 		});
 
+		it("sizes a partial buy on the marked close, whatever the fill price", () => {
+			const quantities = [90, 99].map((open) => {
+				const agent = trader([0, 0, 1]);
+				jest.spyOn((agent as any)._actionMapper, "map").mockReturnValue({
+					action: "buy",
+					amount: 0,
+					share: 1,
+					outputIndex: 2,
+				});
+				agent.step(input, Price.of(100), Price.of(open));
+				return Number(agent.wallet.getPosition());
+			});
+
+			expect(quantities[0]).toBe(quantities[1]);
+		});
+
 		it("never sells more than the position", () => {
 			const agent = trader([0, 0, 1]);
 			agent.step(input, Price.of(100));
 			jest
-				.spyOn((agent as any)._agent.nn, "forward")
+				.spyOn((agent as any)._nn, "forward")
 				.mockReturnValue({ output: new Float32Array([1, 0, 0]) });
 
 			// one unit was bought at 100; at 50 a tenth of the cash is 2 units
@@ -357,7 +373,7 @@ describe("TradingAgent", () => {
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
 			const buyer = new TradingAgent(makeConfig());
 			jest
-				.spyOn((buyer as any)._agent.nn, "forward")
+				.spyOn((buyer as any)._nn, "forward")
 				.mockReturnValue({ output: new Float32Array([0, 0, 1]) });
 
 			const flat = buyer.step(input, Price.of(100));
@@ -373,7 +389,7 @@ describe("TradingAgent", () => {
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
 			const buyer = new TradingAgent(makeConfig({ observePosition: false }));
 			jest
-				.spyOn((buyer as any)._agent.nn, "forward")
+				.spyOn((buyer as any)._nn, "forward")
 				.mockReturnValue({ output: new Float32Array([0, 0, 1]) });
 
 			buyer.step(input, Price.of(100));

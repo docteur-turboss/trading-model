@@ -8,7 +8,10 @@ import {
 } from "@trading-model/reliability/leadership";
 import { z } from "zod";
 import { SignalCronScheduler } from "../adapters/inbound/cron/signal.cron";
-import { insertCandles } from "../adapters/outbound/persistence/schema/candles.schema";
+import {
+	insertCandles,
+	lastCandleOpenTime,
+} from "../adapters/outbound/persistence/schema/candles.schema";
 import { insertOrderBook } from "../adapters/outbound/persistence/schema/order-book.schema";
 import { insertTicker } from "../adapters/outbound/persistence/schema/ticker24h.schema";
 import { insertTrades } from "../adapters/outbound/persistence/schema/trades.schema";
@@ -36,25 +39,17 @@ export const MarketDataController = createMarketDataController({
 });
 
 /**
- * Wires the scrape cycle: market data source, broker publisher, persistence
- * and the publish backlog (both MySQL).
- * Lazy: the source and the broker client are only needed on the collector.
+ * Wires the scrape cycle: market data source and MySQL persistence.
+ * Lazy: the source is only needed on the collector.
  */
 async function createWorkerOrchestratorDeps(): Promise<WorkerOrchestratorDeps> {
-	const [
-		{ BinanceMarketDataSource },
-		{ BrokerMarketDataPublisher },
-		{ MySqlCandlePublishBacklog },
-	] = await Promise.all([
-		import("../adapters/outbound/binance/binance-market-data-source.js"),
-		import("../adapters/outbound/broker/broker-market-data.publisher.js"),
-		import("../adapters/outbound/persistence/candle-publish-backlog.js"),
-	]);
+	const { BinanceMarketDataSource } = await import(
+		"../adapters/outbound/binance/binance-market-data-source.js"
+	);
 	return {
 		source: new BinanceMarketDataSource(),
-		publisher: new BrokerMarketDataPublisher(),
 		persist: (snapshot) => MarketDataController.persist(snapshot),
-		backlog: MySqlCandlePublishBacklog,
+		lastCandleOpenTime,
 	};
 }
 
@@ -232,26 +227,22 @@ export async function createCollector(
 			await Promise.all(schedulers.map((scheduler) => scheduler.stop()));
 		},
 	};
-	if (!settings.COLLECTOR_LEASE_NAME) {
-		return new Leadership(
-			SOLE_INSTANCE_LEASE,
-			collection,
-			(leader) => COLLECTOR_LEADER.set(leader),
-			"Collector"
+	let lease: ConstructorParameters<typeof Leadership>[0] = SOLE_INSTANCE_LEASE;
+	if (settings.COLLECTOR_LEASE_NAME) {
+		logger.info("Collector leader election enabled", {
+			lease: settings.COLLECTOR_LEASE_NAME,
+			identity: settings.INSTANCE_ID,
+		});
+		const { KubernetesLease, kubernetesLeaseApi } = await import(
+			"@trading-model/reliability/kubernetes-lease"
 		);
-	}
-	logger.info("Collector leader election enabled", {
-		lease: settings.COLLECTOR_LEASE_NAME,
-		identity: settings.INSTANCE_ID,
-	});
-	const { KubernetesLease, kubernetesLeaseApi } = await import(
-		"@trading-model/reliability/kubernetes-lease"
-	);
-	return new Leadership(
-		new KubernetesLease(
+		lease = new KubernetesLease(
 			settings.INSTANCE_ID,
 			kubernetesLeaseApi(settings.COLLECTOR_LEASE_NAME)
-		),
+		);
+	}
+	return new Leadership(
+		lease,
 		collection,
 		(leader) => COLLECTOR_LEADER.set(leader),
 		"Collector"

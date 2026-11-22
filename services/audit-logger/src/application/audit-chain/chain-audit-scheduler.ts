@@ -2,7 +2,6 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { DurationMs } from "@trading-model/primitives/primitives";
-import type { ChainAudit } from "./chain-audit";
 
 /** First cycle shortly after start: a restarted pod reports at once. */
 const FIRST_CYCLE_DELAY_MS = DurationMs.of(5000);
@@ -18,7 +17,7 @@ export class ChainAuditScheduler {
 	private _running: Promise<void> | null = null;
 
 	constructor(
-		private readonly _audit: ChainAudit,
+		private readonly _audit: { runCycle(): Promise<unknown> },
 		private readonly _intervalMs: DurationMs
 	) {}
 

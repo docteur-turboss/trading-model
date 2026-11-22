@@ -1,12 +1,6 @@
-import { normalizeError } from "@trading-model/common/utils/errors";
-import { mongoAuthFromEnv } from "@trading-model/persistence/mongo-utils";
-import {
-	chainAuditSettingsFromEnv,
-	createChainAudit,
-	createRepositories,
-} from "../config/container";
-import { ENV } from "../infrastructure/config/env";
+import { openChainCli } from "../config/chain-cli";
 import type { ChainAudit } from "./audit-chain/chain-audit";
+import { runCli } from "./run-cli";
 
 const USAGE = `Audit chain tools (ADR-0027), run inside an audit-logger pod:
   node services/audit-logger/dist/application/chain-cli.js report
@@ -58,24 +52,11 @@ export async function runChainCli(
 }
 
 if (require.main === module) {
-	runChainCli(process.argv.slice(2), {
-		open: async () => {
-			const { mongoManager, db } = await createRepositories(
-				ENV.MONGODB_URI,
-				mongoAuthFromEnv(ENV)
-			);
-			return {
-				audit: createChainAudit(db, chainAuditSettingsFromEnv()),
-				close: () => mongoManager.close(),
-			};
-		},
-		out: (text) => console.log(text),
-		err: (text) => console.error(text),
-	}).then(
-		(code) => process.exit(code),
-		(err: unknown) => {
-			console.error(normalizeError(err).message ?? err);
-			process.exit(1);
-		}
+	runCli(() =>
+		runChainCli(process.argv.slice(2), {
+			open: openChainCli,
+			out: (text) => console.log(text),
+			err: (text) => console.error(text),
+		})
 	);
 }

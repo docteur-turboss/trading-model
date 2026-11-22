@@ -25,10 +25,4 @@ export class TimerHandle {
 			this._handle = null;
 		}
 	}
-
-	unref(): void {
-		if (this._handle !== null) {
-			this._handle.unref();
-		}
-	}
 }

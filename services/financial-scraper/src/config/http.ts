@@ -1,9 +1,5 @@
 import { computeExponentialBackoffWithJitter } from "@trading-model/common/utils/backoff-config";
-import { sleep } from "@trading-model/common/utils/sleep";
-import {
-	isRetryableStatusPermissive,
-	RETRY_JITTER_MS,
-} from "@trading-model/http/http-retry";
+import { isRetryableStatusPermissive } from "@trading-model/http/http-retry";
 import { DataSource, DurationMs } from "@trading-model/primitives/primitives";
 import axios, {
 	type AxiosError,
@@ -24,28 +20,34 @@ const RETRY_CONFIG = {
 	retries: 5,
 	baseDelayMs: DurationMs.of(300),
 	maxDelayMs: DurationMs.of(10000),
-	jitterMs: RETRY_JITTER_MS,
 };
-
-/** Longest Retry-After honoured (also cut by the retry deadline). Beyond it the error surfaces and the next cycle resumes. */
-const RETRY_AFTER_MAX_MS = 60_000;
 
 /** Total time one request may spend retrying, below the 60 s scrape cycle so a slow cycle never makes the next tick skip. */
 const RETRY_DEADLINE_MS = 45_000;
-
-/** Retry-After of a 429, in ms. shortcut: seconds form only (the one Binance sends), HTTP dates are ignored. */
-function _retryAfterMs(error: AxiosError): number {
-	if (error.response?.status !== 429) {
-		return 0;
-	}
-	const seconds = Number(error.response.headers?.["retry-after"]);
-	return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 0;
-}
 
 type RetryConfig = AxiosRequestConfig & {
 	retryCount?: number;
 	deadline?: number;
 };
+
+/** Backoff wait that ends early when `signal` fires. */
+function _sleepUnlessAborted(
+	ms: number,
+	signal?: AxiosRequestConfig["signal"]
+): Promise<void> {
+	return new Promise((resolve) => {
+		const timer = setTimeout(resolve, ms);
+		timer.unref();
+		signal?.addEventListener?.(
+			"abort",
+			() => {
+				clearTimeout(timer);
+				resolve();
+			},
+			{ once: true }
+		);
+	});
+}
 
 function _attachRetryInterceptor(instance: AxiosInstance): void {
 	instance.interceptors.request.use((config) => {
@@ -57,20 +59,21 @@ function _attachRetryInterceptor(instance: AxiosInstance): void {
 		if (!config) {
 			throw error;
 		}
-		config.retryCount = config.retryCount ?? 0;
-		const retryable =
-			!error.response || isRetryableStatusPermissive(error.response.status);
-		const retryAfterMs = _retryAfterMs(error);
-		if (
-			config.retryCount >= RETRY_CONFIG.retries ||
-			!retryable ||
-			retryAfterMs > RETRY_AFTER_MAX_MS
-		) {
+		if (config.signal?.aborted) {
 			throw error;
 		}
-		const delay = Math.max(
-			computeExponentialBackoffWithJitter(config.retryCount + 1, RETRY_CONFIG),
-			retryAfterMs
+		config.retryCount = config.retryCount ?? 0;
+		// A 429 is not retried here: the Binance source quarantine pauses every call until Retry-After.
+		const retryable =
+			!error.response ||
+			(error.response.status !== 429 &&
+				isRetryableStatusPermissive(error.response.status));
+		if (config.retryCount >= RETRY_CONFIG.retries || !retryable) {
+			throw error;
+		}
+		const delay = computeExponentialBackoffWithJitter(
+			config.retryCount + 1,
+			RETRY_CONFIG
 		);
 		// the next attempt may run a full timeout: it must end before the deadline
 		if (
@@ -80,7 +83,12 @@ function _attachRetryInterceptor(instance: AxiosInstance): void {
 			throw error;
 		}
 		config.retryCount++;
-		return sleep(delay).then(() => instance(config));
+		return _sleepUnlessAborted(delay, config.signal).then(() => {
+			if (config.signal?.aborted) {
+				throw error;
+			}
+			return instance(config);
+		});
 	});
 }
 
