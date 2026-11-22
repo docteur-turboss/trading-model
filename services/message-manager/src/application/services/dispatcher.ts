@@ -90,7 +90,7 @@ export class Dispatcher {
 		return this._deps.registry.subscribe(params);
 	}
 
-	unsubscribe(params: TopicSubscription): Promise<void> {
-		return this._deps.registry.unsubscribe(params);
+	unsubscribe(params: TopicSubscription, caller: string): Promise<boolean> {
+		return this._deps.registry.unsubscribe(params, caller);
 	}
 }

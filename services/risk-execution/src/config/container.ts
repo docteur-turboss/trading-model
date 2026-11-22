@@ -22,7 +22,7 @@ import {
 	ADDRESS_MANAGER_ROUTES,
 	REGISTRATION_READINESS,
 } from "./address-manager";
-import { publishRiskEvent } from "./audit";
+import { initRiskOutbox, publishRiskEvent, replayRiskEvents } from "./audit";
 import {
 	metricsHandler,
 	RISK_DAILY_LOSS,
@@ -61,6 +61,9 @@ export async function createRiskExecutionApp() {
 	});
 	const mode = ENV.EXECUTION_MODE;
 	const tls = buildTlsFromEnv(ENV);
+	await initRiskOutbox(
+		new JsonFile(join(ENV.RISK_STATE_DIR, "risk-event-outbox.json"))
+	);
 	const risk = new RiskExecution({
 		limits,
 		mode,
@@ -98,6 +101,7 @@ export async function createRiskExecutionApp() {
 	};
 	publish();
 	const timer = setInterval(() => {
+		void replayRiskEvents();
 		// biome-ignore lint/plugin: logged by onError, inside the job context
 		runJob(
 			"risk-execution.tick",

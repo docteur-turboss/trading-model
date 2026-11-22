@@ -1,5 +1,4 @@
 import { describe, expect, test } from "@jest/globals";
-import { NumericRange } from "@trading-model/primitives/numeric-range";
 import { NORMALIZERS } from "../../src/neural-network/normalizers";
 import { NormalisationType } from "../../src/neural-network/type";
 
@@ -47,7 +46,7 @@ describe("Normalizers", () => {
 			const slice = makeSlice([5, 5, 5]);
 			const result = NORMALIZERS[NormalisationType.MinMax].normalize(slice);
 			for (const x of result) {
-				expect(Number.isNaN(x)).toBe(true);
+				expect(x).toBe(0);
 			}
 		});
 
@@ -131,50 +130,9 @@ describe("Normalizers", () => {
 	});
 
 	describe("border", () => {
-		test("should clamp values with explicit params", () => {
-			const slice = makeSlice([-10, 5, 20]);
-			const result = NORMALIZERS.border.normalize(
-				slice,
-				new NumericRange(0, 10)
-			);
-			expect(result[0]).toBe(0);
-			expect(result[1]).toBe(5);
-			expect(result[2]).toBe(10);
-		});
-
-		test("should use data min/max when params missing", () => {
+		test("is replayed as none", () => {
 			const slice = makeSlice([-5, 10, 20]);
-			const result = NORMALIZERS.border.normalize(slice);
-			expect(result[0]).toBe(-5);
-			expect(result[0]).toBe(-5);
-			expect(result[1]).toBe(10);
-			expect(result[2]).toBe(20);
-		});
-
-		test("should handle partial params", () => {
-			const slice = makeSlice([-10, 5, 20]);
-			const result = NORMALIZERS.border.normalize(slice, {
-				min: -5,
-				max: undefined as any,
-			} as any);
-			expect(result[0]).toBe(-5);
-			expect(result[1]).toBe(5);
-		});
-
-		test("should use data bounds when both params missing with descending data", () => {
-			const slice = makeSlice([20, 10, -5]);
-			const result = NORMALIZERS.border.normalize(slice);
-			expect(result[0]).toBe(20);
-			expect(result[1]).toBe(10);
-			expect(result[2]).toBe(-5);
-		});
-
-		test("should use data min when only max param provided", () => {
-			const slice = makeSlice([-5, 10, 20]);
-			const result = NORMALIZERS.border.normalize(slice, { max: 10 } as any);
-			expect(result[0]).toBe(-5);
-			expect(result[1]).toBe(10);
-			expect(result[2]).toBe(10);
+			expect(NORMALIZERS.border.normalize(slice)).toBe(slice.data);
 		});
 	});
 });

@@ -1,4 +1,4 @@
-import { sleep } from "@trading-model/common/utils/sleep";
+import { setTimeout as sleep } from "node:timers/promises";
 
 interface RateLimitBucket {
 	capacity: number;
@@ -35,21 +35,40 @@ function _refillBucket(bucket: RateLimitBucket): void {
 
 const QUEUE_TAILS: Record<string, Promise<void>> = {};
 
-async function _take(baseURL: string, weight: number): Promise<void> {
+async function _take(
+	baseURL: string,
+	weight: number,
+	signal?: AbortSignal
+): Promise<void> {
+	signal?.throwIfAborted();
 	const bucket = _getBucket(baseURL);
 	_refillBucket(bucket);
 	while (bucket.tokens < weight) {
-		await sleep(((weight - bucket.tokens) / bucket.refillRate) * 1000);
+		await sleep(
+			((weight - bucket.tokens) / bucket.refillRate) * 1000,
+			undefined,
+			{
+				signal,
+			}
+		);
 		_refillBucket(bucket);
 	}
 	bucket.tokens -= weight;
 }
 
-/** Serves requests of one base URL in arrival order: a heavy one is never overtaken. */
-export function acquireToken(baseURL: string, weight: number): Promise<void> {
+/**
+ * Serves requests of one base URL in arrival order: a heavy one is never
+ * overtaken. Rejects when `signal` aborts, so a stopped cycle sends nothing.
+ */
+export function acquireToken(
+	baseURL: string,
+	weight: number,
+	signal?: AbortSignal
+): Promise<void> {
 	const turn = (QUEUE_TAILS[baseURL] ?? Promise.resolve()).then(() =>
-		_take(baseURL, weight)
+		_take(baseURL, weight, signal)
 	);
-	QUEUE_TAILS[baseURL] = turn;
+	// biome-ignore lint/plugin: the caller of this turn receives the rejection; the queue behind it must not
+	QUEUE_TAILS[baseURL] = turn.catch(() => undefined);
 	return turn;
 }

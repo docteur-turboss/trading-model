@@ -18,7 +18,7 @@ import type {
 	StatePort,
 } from "../../src/domain/ports";
 import { type Intent, preTradeReject } from "../../src/domain/pre-trade";
-import { newState, type RiskState } from "../../src/domain/state";
+import { equity, newState, type RiskState } from "../../src/domain/state";
 
 const T0 = Date.parse("2026-11-20T10:00:00Z");
 const CAPITAL = 100_000;
@@ -549,6 +549,44 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 		);
 	});
 
+	it("restart: the broker is reconciled before an accepted order is sent", async () => {
+		const a = build();
+		await a.svc.start();
+		const calls: string[] = [];
+		const broker: BrokerPort = {
+			submit: (o) => {
+				calls.push("submit");
+				return a.broker.submit(o);
+			},
+			query: (id) => a.broker.query(id),
+			cancel: (id) => a.broker.cancel(id),
+			account: () => {
+				calls.push("account");
+				return a.broker.account();
+			},
+			haltedSymbols: async () => [],
+		};
+		const state = a.store.value as RiskState;
+		state.orders = {
+			acc: {
+				clientOrderId: "acc",
+				decisionId: "acc",
+				symbol: "BTCUSDT",
+				side: "buy",
+				quantity: 0.05,
+				referencePrice: 60_000,
+				status: "accepted",
+				filledQty: 0,
+				quoteQty: 0,
+				fee: 0,
+				createdAt: clock,
+				mode: "paper",
+			},
+		};
+		await build({ store: a.store, broker }).svc.start();
+		expect(calls.slice(0, 2)).toEqual(["account", "submit"]);
+	});
+
 	it("restart: an accepted order too old or under a switch expires unsent", async () => {
 		const a = build();
 		await a.svc.start();
@@ -748,6 +786,32 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		expect(ctx.svc.status().killSwitch.global).toBeNull();
 	});
 
+	it("drawdown stop engages by itself, cancels open orders, and the owner's re-arm restarts from current equity", async () => {
+		const emitted: Record<string, unknown>[] = [];
+		const ctx = build({
+			limits: RiskLimits.parse({ ...LIMITS, drawdownPct: 0.005 }),
+			emit: (e, f) => e === "kill_switch.rearmed" && emitted.push(f),
+		});
+		await ctx.svc.start();
+		await ctx.svc.submitIntent(intent()); // 0.05 BTC, 3 000 notional
+		const resting = await ctx.svc.submitIntent(
+			intent({ limitPrice: 59_500, quantity: 0.0001 })
+		);
+		market.BTCUSDT = 48_000; // -600: past 0.5 %, under the 2 % daily and 1 % symbol limits
+		await ctx.svc.tick();
+		expect(ctx.svc.status().killSwitch.global).toBe("drawdown");
+		expect(
+			(ctx.store.value as RiskState).orders[resting.clientOrderId].status
+		).toBe("cancelled");
+		await ctx.svc.rearm("global", "strategy reviewed", "owner");
+		const state = ctx.store.value as RiskState;
+		expect(state.hwm).toBe(equity(state));
+		expect(emitted[0]).toMatchObject({ hwm: state.hwm });
+		expect(emitted[0].previousHwm).toBeGreaterThan(state.hwm);
+		await ctx.svc.tick();
+		expect(ctx.svc.status().killSwitch.global).toBeNull();
+	});
+
 	it("an unreadable state counts as on and cannot be re-armed", async () => {
 		const ctx = build();
 		ctx.store.unreadable = true;
@@ -760,6 +824,64 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		await expect(ctx.svc.rearm("global", "x", "owner")).rejects.toThrow(
 			/unreadable/
 		);
+	});
+
+	it("engages at once while an admission hangs, and the pending intent is then refused", async () => {
+		let release: (ok: boolean) => void = () => undefined;
+		const ctx = build({
+			admission: {
+				isAdmissible: () =>
+					new Promise<boolean>((resolve) => {
+						release = resolve;
+					}),
+			},
+		});
+		await ctx.svc.start();
+		const pending = ctx.svc.submitIntent(intent());
+		await ctx.svc.engage("global", "operator", "ops");
+		expect(ctx.svc.status().killSwitch.global).toBe("operator");
+		release(true);
+		expect(await pending).toMatchObject({ reason: "kill_switch" });
+	});
+
+	it("a rearm queued before an engage does not clear it", async () => {
+		const ctx = build();
+		await ctx.svc.start();
+		const rearmed = ctx.svc.rearm("global", "ok", "ops");
+		await ctx.svc.engage("global", "panic", "ops");
+		await rearmed;
+		expect(ctx.svc.status().killSwitch.global).toBe("panic");
+		expect((ctx.store.value as RiskState).killSwitch.global).toBe("panic");
+	});
+
+	it("a broker call that hangs times out instead of holding the queue", async () => {
+		const inner = new PaperBroker(new MemoryStore<never>(), CAPITAL);
+		const hang = () => new Promise<never>(() => undefined);
+		const broker: BrokerPort = {
+			submit: (o) => inner.submit(o),
+			query: (id) => inner.query(id),
+			cancel: (id) => inner.cancel(id),
+			account: () => inner.account(),
+			haltedSymbols: hang,
+		};
+		const ctx = build({
+			broker,
+			limits: RiskLimits.parse({ ...LIMITS, submitTimeoutMs: 20 }),
+		});
+		await ctx.svc.start();
+		expect(await ctx.svc.submitIntent(intent())).toMatchObject({
+			reason: "instrument_halted",
+		});
+		broker.account = hang;
+		clock += 300_000; // reconciliation due: account() times out
+		await ctx.svc.tick();
+		expect(ctx.events).toContain("reconciliation.error:");
+	});
+
+	it("a tick still running absorbs the next timer tick", async () => {
+		const ctx = build();
+		await ctx.svc.start();
+		expect(ctx.svc.tick()).toBe(ctx.svc.tick());
 	});
 
 	it("cancellation still works while the switch is on", async () => {

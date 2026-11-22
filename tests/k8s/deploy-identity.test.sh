@@ -98,6 +98,10 @@ printf 'rules:
     verbs: [get, create]
 ' >"$WORK/bad-role.yaml"
 [ "$(rbac_escalation "$WORK/bad-role.yaml" | wc -l)" = 2 ] && pass "escalation check catches bind and a binding create" || failed "escalation check misses: $(rbac_escalation "$WORK/bad-role.yaml")"
+# What deploy-cluster must never write (issue #2179): the Pod Security labels of a namespace, a DaemonSet in the privileged node namespace.
+grep -A1 -F 'resources: [namespaces]' "$ROOT/deploy/k8s/deploy-identity/cluster-role.yaml" | grep -qF 'verbs: [get, list, watch]' && pass "namespaces read-only" || failed "deploy-cluster can write namespaces"
+grep -A3 -F 'resources: [daemonsets]' "$ROOT/deploy/k8s/deploy-identity/node-role.yaml" | grep -E 'verbs:.*(create|delete)' && failed "deploy-cluster can create or delete DaemonSets" || pass "DaemonSets: no create/delete"
+grep -q 'kind == "Namespace"' "$ROOT/scripts/deploy-identity.sh" && grep -q 'kind == "DaemonSet"' "$ROOT/scripts/deploy-identity.sh" && pass "admin applies Namespaces and DaemonSets" || failed "admin does not apply Namespaces and DaemonSets"
 run cluster --environment staging
 grep -q "kustomize .*overlays/staging\$" "$STUB_LOG" && grep -q "kustomize .*overlays/staging/node-agents" "$STUB_LOG" && pass "--environment selects the overlays" || failed "--environment ignored"
 
