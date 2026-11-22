@@ -85,6 +85,25 @@ describe("ResponseProtocol", () => {
 		expect(res.json).toHaveBeenCalledWith({ error: "Internal server error" });
 	});
 
+	it.each([
+		[400, "Invalid request body"],
+		[413, "Request body too large"],
+	])(
+		"should answer %i for a body-parser error without a Server error log",
+		(status, error) => {
+			const spy = jest.spyOn(logger, "error").mockImplementation(() => {});
+			const err = Object.assign(new Error("Unexpected token { in JSON"), {
+				status,
+				expose: true,
+			});
+			ResponseProtocol(err, req, res, next);
+			expect(res.status).toHaveBeenCalledWith(status);
+			expect(res.json).toHaveBeenCalledWith({ error });
+			expect(spy).not.toHaveBeenCalled();
+			spy.mockRestore();
+		}
+	);
+
 	it("should send the message of an anticipated error as an ErrorResponse", () => {
 		ResponseProtocol(serviceNotFoundError("Service not found"), req, res, next);
 		expect(res.json).toHaveBeenCalledWith({ error: "Service not found" });
