@@ -17,6 +17,7 @@
     "@trading-model/broker-message": "*",
     "@trading-model/common": "*",
     "@trading-model/contracts": "*",
+    "@trading-model/model-runtime": "*",
     "@trading-model/http": "*",
     "@trading-model/primitives": "*",
     "express": "^5.3.0",
