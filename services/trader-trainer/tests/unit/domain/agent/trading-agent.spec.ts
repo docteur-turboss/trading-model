@@ -337,6 +337,22 @@ describe("TradingAgent", () => {
 			expect(Number(agent.wallet.getPosition())).toBeCloseTo(100 / 77_000, 8);
 		});
 
+		it("sizes a partial buy on the marked close, whatever the fill price", () => {
+			const quantities = [90, 99].map((open) => {
+				const agent = trader([0, 0, 1]);
+				jest.spyOn((agent as any)._actionMapper, "map").mockReturnValue({
+					action: "buy",
+					amount: 0,
+					share: 1,
+					outputIndex: 2,
+				});
+				agent.step(input, Price.of(100), Price.of(open));
+				return Number(agent.wallet.getPosition());
+			});
+
+			expect(quantities[0]).toBe(quantities[1]);
+		});
+
 		it("never sells more than the position", () => {
 			const agent = trader([0, 0, 1]);
 			agent.step(input, Price.of(100));

@@ -851,7 +851,7 @@ verify_traces() {
 				http://localhost:18451/v1/trader-trainer/training-status
 		done | sort | uniq -c | tr '\n' ' ')"
 	fi
-	# Batch exporter (5 s) then collector batch (1 s): a few polls at most.
+	# Batch exporter (5 s), tail_sampling decision_wait (10 s) then collector batch (1 s): a few polls at most.
 	if [ "$result" = 0 ] && wait_for 120 traces_span_services; then
 		log "  $(traces_span_services 2>&1)"
 	else

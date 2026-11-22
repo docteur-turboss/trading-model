@@ -18,6 +18,7 @@ import {
 } from "../domain/pre-trade";
 import {
 	equity,
+	exposure,
 	isOpen,
 	newState,
 	type RiskState,
@@ -73,6 +74,8 @@ export class RiskExecution {
 	private _state!: RiskState;
 	private _ready = false;
 	private _broken = false;
+	/** True when the last reconciliation found differences (not when the broker was unreachable). */
+	private _mismatch = false;
 	private _lastReconcile = 0;
 	private _tail: Promise<unknown> = Promise.resolve();
 	private _failures: { at: number; symbol: string }[] = [];
@@ -141,8 +144,10 @@ export class RiskExecution {
 		return {
 			mode: this._d.mode,
 			ready: this.isReady(),
+			mismatch: this._mismatch,
 			killSwitch: state.killSwitch,
 			equity: equity(state),
+			exposureRatio: exposure(state) / this._d.limits.allocatedCapital,
 			dailyLoss: dailyLoss(state),
 			openOrders: Object.values(state.orders).filter(isOpen).length,
 			positions: state.positions,
@@ -615,7 +620,8 @@ export class RiskExecution {
 		) {
 			diffs.push("balance");
 		}
-		this._ready = diffs.length === 0;
+		this._mismatch = diffs.length > 0;
+		this._ready = !this._mismatch;
 		if (diffs.length) {
 			// The store is never "fixed" to match the broker: the operator decides.
 			this._emit("reconciliation.mismatch", { diffs });

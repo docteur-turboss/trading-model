@@ -85,6 +85,19 @@ describe("signal inputs (ADR-0081)", () => {
 		expect(raw[30][0]).toBe(99);
 	});
 
+	it("takes the last listed of equal observedAt, whatever the input order", () => {
+		const at = closeOf(30);
+		const raw = inputs(
+			bufferWith(
+				[KEY],
+				[signal(at, 5), signal(at + 1, 99), signal(at - 5, 1), signal(at, 6)]
+			)
+		);
+
+		expect(raw[29][0]).toBe(6); // tie at `at`: the later listed wins, not 99 (future)
+		expect(raw[30][0]).toBe(99);
+	});
+
 	it("computes the normalization from the training segment only", () => {
 		const signals = Array.from({ length: CANDLES }, (_u, idx) =>
 			signal(closeOf(idx), idx < CANDLES - 5 ? 10 : 1_000_000)

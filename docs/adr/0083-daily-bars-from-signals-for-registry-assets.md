@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0036](./0036-multi-dimension-signals-mvp.md) (signals), [ADR-0039](./0039-configuration-feature-flags.md) (defaults keep today's behaviour), [ADR-0066](./0066-simulated-fills-at-next-bar-open-with-execution-costs.md) (execution costs), [ADR-0069](./0069-model-admission-verdict-on-the-test-segment.md) (admission), [ADR-0080](./0080-daily-prices-from-twelve-data-free-tier.md) (daily prices)
-**Verified by:** `services/trader-trainer/tests/unit/adapters/outbound/signal-bar-history.spec.ts`, `services/trader-trainer/tests/unit/adapters/inbound/scheduler/training-loop.spec.ts`, `bun run config:check`
+**Verified by:** `packages/http/tests/unit/signals/signal-bar-history.spec.ts`, `services/trader-trainer/tests/unit/adapters/inbound/scheduler/training-loop.spec.ts`, `bun run config:check`
 
 ## Context
 
