@@ -2,6 +2,7 @@ import { AddressManagerEnvSchema } from "@trading-model/address-manager/config/a
 import { BaseEnvSchema } from "@trading-model/http/config/env";
 import { validateEnv } from "@trading-model/http/config/validate-env";
 import { RedisEnvSchema } from "@trading-model/persistence/redis-env";
+import cron from "node-cron";
 import { z } from "zod";
 
 const SYMBOL_PATTERN = /^[A-Z0-9]+$/;
@@ -55,7 +56,13 @@ const FINANCIAL_SCRAPER_ENV_SCHEMA = BaseEnvSchema.extend(
 				}
 				return result;
 			}),
-		SCRAPE_INTERVAL: z.string().default("*/1 * * * *"),
+		SCRAPE_INTERVAL: z
+			.string()
+			.default("*/1 * * * *")
+			.refine(
+				(value) => cron.validate(value),
+				"SCRAPE_INTERVAL is not a valid cron expression"
+			),
 		/** Runs the scrape cron in this instance; false on HTTP-only replicas. */
 		SCRAPE_SCHEDULER_ENABLED: z
 			.string()
