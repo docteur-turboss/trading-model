@@ -221,7 +221,8 @@ spec:
               until $M --eval 'db.hello().ok' >/dev/null 2>&1; do sleep 2; done
               SET="${HOSTNAME%-*}"
               export SELF="$HOSTNAME.$SET-headless:27017"
-              if [ "${HOSTNAME##*-}" = 0 ]; then
+              # Pod 0 joins too when pod 1 already holds the set (pod 0 rebuilt): never a second set.
+              if [ "${HOSTNAME##*-}" = 0 ] && ! mongosh --quiet "mongodb://$SET-1.$SET-headless:27017/?directConnection=true&serverSelectionTimeoutMS=3000" --eval 'db.hello().setName' 2>/dev/null | grep -q .; then
                 $M --eval 'if (!db.hello().setName) rs.initiate({ _id: process.env.REPLICA_SET, members: [{ _id: 0, host: process.env.SELF }] })' || exit 1
                 until $M --eval 'db.hello().isWritablePrimary' | grep -qx true; do sleep 2; done
                 # The localhost exception allows createUser and nothing else (reading
