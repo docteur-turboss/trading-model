@@ -23,7 +23,7 @@ Replace the in-house CA and the shared static certificate bundle with a **SPIRE*
 ### Identity scheme
 
 - Trust domain: `spiffe://trading-model.local`
-- SVID SPIFFE ID shape: `spiffe://trading-model.local/ns/<namespace>/sa/<service>` where `<service>` is the **canonical service name** and the last path segment (already what `extractServiceName` reads).
+- SVID SPIFFE ID shape: `spiffe://trading-model.local/ns/<namespace>/sa/<service>` where `<service>` is the **canonical service name** and the last path segment.
 - The canonical service name list in `packages/common/src/config/workload-identity.ts` becomes the single source of truth for service identities (K8s SA names, SPIFFE entries, ACL, discovery registration), superseding the diverging `ServiceInstanceName` / `KnownService` / compose `SERVICE_NAME` vocabularies (migration keeps a temporary alias map).
 
 ### SVID consumption

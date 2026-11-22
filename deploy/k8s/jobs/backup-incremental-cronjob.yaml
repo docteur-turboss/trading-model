@@ -37,6 +37,11 @@ spec:
       activeDeadlineSeconds: 3000
       ttlSecondsAfterFinished: 21600
       template:
+        metadata:
+          # Selected by the egress NetworkPolicy apiserver-egress.
+          labels:
+            app.kubernetes.io/component: backup
+            app.kubernetes.io/part-of: trading-model
         spec:
           serviceAccountName: backup-runner
           restartPolicy: Never

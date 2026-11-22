@@ -1,7 +1,9 @@
 import { join } from "node:path";
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { mountRoute } from "@trading-model/http/api-route/mount-route";
+import { runJob } from "@trading-model/http/correlation-id";
 import { createServiceServer } from "@trading-model/http/service-server-factory";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import { Router } from "express";
@@ -96,13 +98,20 @@ export async function createRiskExecutionApp() {
 	publish();
 	RISK_TICK_FAILURES.inc({ mode }, 0);
 	const timer = setInterval(() => {
+		// biome-ignore lint/plugin: failure logged and counted by runJob's onError, inside the job context
 		void runTick(
-			() => risk.tick(),
+			() =>
+				runJob(
+					"risk-execution.tick",
+					() => risk.tick(),
+					(error) => {
+						const { message, stack } = normalizeError(error);
+						getLogger().error("risk tick failed", { error: message, stack });
+						RISK_TICK_FAILURES.inc({ mode });
+					}
+				),
 			publish,
-			(error) => {
-				getLogger().error("risk tick failed", { error: String(error) });
-				RISK_TICK_FAILURES.inc({ mode });
-			}
+			() => undefined
 		);
 	}, ENV.RISK_TICK_MS);
 	timer.unref();
