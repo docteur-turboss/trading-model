@@ -163,7 +163,7 @@ check_manifest() {
   local line comp pair name want got compared=0
   while IFS= read -r line; do
     comp="$(json_field "$line" component)" || continue
-    for pair in $(printf '%s' "$line" | sed -n 's/.*"rows":{\([^}]*\)}.*//p' | tr -d '"' | tr ',' ' '); do
+    for pair in $(printf '%s' "$line" | sed -n 's/.*"rows":{\([^}]*\)}.*/\1/p' | tr -d '"' | tr ',' ' '); do
       name="${pair%%:*}"; want="${pair#*:}"
       if [ "$comp" = mysql ]; then
         got="$(mysql_q "SELECT COUNT(*) FROM ${name}" 2>/dev/null || true)"

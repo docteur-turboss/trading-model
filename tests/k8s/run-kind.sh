@@ -1611,10 +1611,35 @@ verify_backup() {
 
 	# Operator command (issue #322): same checks a real restore gets, read-only.
 	log "restore drill: scripts/verify-restore-k8s.sh on the restored data"
-	K8S_NAMESPACE="$NS" bash "$ROOT/scripts/verify-restore-k8s.sh" || {
-		log "verify-restore-k8s.sh failed on a correctly restored cluster"
+	# The run manifest, decrypted in the runner, gives it the row counts of the dump.
+	local mdir verify_out comp
+	mdir="$(mktemp -d)"
+	mkdir "$mdir/manifests"
+	echo "$key" | $K -n "$NS" exec -i restore-runner -- sh -c \
+		"umask 077 && cat > /tmp/identity && age -d -i /tmp/identity /restore/manifests/manifest_*.json.age; rc=\$?; rm -f /tmp/identity; exit \$rc" \
+		>"$mdir/manifests/manifest_drill.json"
+	for comp in mysql mongodb-audit mongodb; do
+		grep "\"component\":\"$comp\"" "$mdir/manifests/manifest_drill.json" | grep -q '"rows":{' || {
+			log "the run manifest has no rows for $comp: the row count at the dump failed silently"
+			return 1
+		}
+	done
+	verify_out="$(BACKUP_DIR="$mdir" K8S_NAMESPACE="$NS" bash "$ROOT/scripts/verify-restore-k8s.sh" 2>&1)" || {
+		log "verify-restore-k8s.sh failed on a correctly restored cluster: $verify_out"
 		return 1
 	}
+	echo "$verify_out" | grep -q "rows (manifest" || {
+		log "verify-restore-k8s.sh compared no row counts: $verify_out"
+		return 1
+	}
+	# Negative test: a manifest counting more rows than restored (partial restore) must fail.
+	sed -i 's/"audit.audit_events":[0-9]*/"audit.audit_events":999999999/' "$mdir/manifests/manifest_drill.json"
+	if BACKUP_DIR="$mdir" K8S_NAMESPACE="$NS" bash "$ROOT/scripts/verify-restore-k8s.sh" >/dev/null 2>&1; then
+		log "verify-restore-k8s.sh accepted a table with fewer rows than the manifest"
+		return 1
+	fi
+	rm -rf "$mdir"
+	log "  row counts of the manifest compared; a table below the manifest fails"
 	# Negative test: one altered audit event must make it fail (then put back).
 	local audit_hash
 	audit_hash="$(mongo_eval mongodb-audit "const e = db.getSiblingDB('audit').audit_events.find().sort({chainSequence: -1}).limit(1).next(); print(e.dataHash)" | tail -1)"
