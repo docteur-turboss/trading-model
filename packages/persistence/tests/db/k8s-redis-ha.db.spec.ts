@@ -571,8 +571,13 @@ describe("K8s Redis HA start script — cold start", () => {
 
 		await eventually(async () => (await role(pods[1])) === "master", 90_000);
 		await eventually(async () => (await role(pods[0])) === "slave", 90_000);
-		await expect(
-			asService(pods[0], "discovery", "GET", `${DISCOVERY_KEY}:cold`)
-		).resolves.toEqual(["1"]);
+		// A replica is empty while its full resync from the new master loads.
+		await eventually(
+			async () =>
+				(
+					await asService(pods[0], "discovery", "GET", `${DISCOVERY_KEY}:cold`)
+				)[0] === "1",
+			60_000
+		);
 	}, 240_000);
 });
