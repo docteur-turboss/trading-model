@@ -1,4 +1,5 @@
 ﻿import type { SymbolInterval } from "@trading-model/contracts/candlestick-query";
+import { logger } from "@trading-model/http/logger";
 import {
 	NonNegativeInt,
 	Price,
@@ -13,7 +14,29 @@ export function normalizeCandles(
 	query: SymbolInterval,
 	payload: BinanceCandlestickDataResponse
 ): CandleData[] {
-	return payload.map((candle) => ({
+	const valid = payload.filter((candle) => {
+		const [open, high, low, close] = [
+			candle.open,
+			candle.high,
+			candle.low,
+			candle.close,
+		].map((price) => (price === "" ? Number.NaN : Number(price)));
+		return (
+			low > 0 && low <= open && low <= close && high >= open && high >= close
+		);
+	});
+	if (valid.length < payload.length) {
+		logger.warn(
+			"Binance candles dropped: empty prices or low/high not bounding open/close",
+			{
+				context: {
+					symbol: query.symbol,
+					dropped: payload.length - valid.length,
+				},
+			}
+		);
+	}
+	return valid.map((candle) => ({
 		symbol: query.symbol,
 		interval: query.interval,
 		open: Price.of(Number(candle.open)),
