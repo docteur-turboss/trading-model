@@ -36,6 +36,12 @@ export const SNAPSHOT_PARTS_FAILED_TOTAL = new promClient.Counter({
 	labelNames: ["part"] as const,
 });
 
+export const CANDLES_REJECTED_TOTAL = new promClient.Counter({
+	name: "fs_candles_rejected_total",
+	help: "Candles dropped at ingestion before persistence, per reason (price_jump: close far outside the rest of the series)",
+	labelNames: ["reason"] as const,
+});
+
 export const BINANCE_REQUESTS_TOTAL = new promClient.Counter({
 	name: "fs_binance_requests_total",
 	help: "Total Binance API requests",

@@ -86,3 +86,23 @@ spec:
         - name: sink
           configMap:
             name: alert-sink
+---
+# Alertmanager posts its test alerts here.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: alert-sink-network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: alert-sink
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: alertmanager
+      ports:
+        - port: 8080
+          protocol: TCP

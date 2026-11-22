@@ -78,6 +78,22 @@ describe("env", () => {
 		consoleSpy.mockRestore();
 	});
 
+	it("should throw naming SCRAPE_INTERVAL when it is not a cron expression", () => {
+		const consoleSpy = jest
+			.spyOn(console, "error")
+			.mockImplementation(() => {});
+
+		setRequiredVars();
+		process.env.SCRAPE_INTERVAL = "bad";
+
+		expect(() =>
+			require("../../../../src/infrastructure/config/env")
+		).toThrow();
+		expect(consoleSpy.mock.calls.flat().join(" ")).toContain("SCRAPE_INTERVAL");
+
+		consoleSpy.mockRestore();
+	});
+
 	it("should set default values for scraper-specific env vars", () => {
 		setRequiredVars();
 
@@ -165,6 +181,31 @@ describe("env", () => {
 		expect(() =>
 			require("../../../../src/infrastructure/config/env")
 		).toThrow();
+
+		consoleSpy.mockRestore();
+	});
+
+	it("should refuse binance.vision in production only (ADR-0077)", () => {
+		const consoleSpy = jest
+			.spyOn(console, "error")
+			.mockImplementation(() => {});
+		setRequiredVars();
+		process.env.BINANCE_BASE_URL = "https://data-api.binance.vision";
+		expect(
+			require("../../../../src/infrastructure/config/env").ENV.BINANCE_BASE_URL
+		).toBe("https://data-api.binance.vision");
+
+		jest.resetModules();
+		process.env.NODE_ENV = "production";
+		expect(() =>
+			require("../../../../src/infrastructure/config/env")
+		).toThrow();
+
+		jest.resetModules();
+		process.env.BINANCE_BASE_URL = "https://api.binance.com";
+		expect(
+			require("../../../../src/infrastructure/config/env").ENV.BINANCE_BASE_URL
+		).toBe("https://api.binance.com");
 
 		consoleSpy.mockRestore();
 	});

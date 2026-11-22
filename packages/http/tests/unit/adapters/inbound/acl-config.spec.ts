@@ -17,12 +17,12 @@ describe("DEFAULT_ACL", () => {
 		expect(DEFAULT_ACL[ServiceInstanceName.DlqService]).toBeDefined();
 	});
 
-	it("should let message-manager deliver to every message subscriber", () => {
-		for (const subscriber of [
+	it("should not let message-manager call the scraper or trainer (no subscription)", () => {
+		for (const target of [
 			ServiceInstanceName.FinancialScraperService,
 			ServiceInstanceName.TraderTrainerService,
 		]) {
-			expect(DEFAULT_ACL[subscriber]).toContain("message-manager");
+			expect(DEFAULT_ACL[target]).not.toContain("message-manager");
 		}
 	});
 
