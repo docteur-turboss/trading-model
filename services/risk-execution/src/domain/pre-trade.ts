@@ -46,6 +46,9 @@ export function preTradeReject(ctx: PreTradeContext): string | null {
 const orderPrice = (intent: Intent): number =>
 	intent.limitPrice ?? intent.referencePrice;
 
+/** Clock skew accepted on a timestamp pushed by a caller. */
+export const CLOCK_SKEW_MS = 5000;
+
 function gateReject(ctx: PreTradeContext): string | null {
 	const { intent, limits, state, now } = ctx;
 	const instrument = limits.instruments[intent.symbol];
@@ -54,6 +57,9 @@ function gateReject(ctx: PreTradeContext): string | null {
 	}
 	if (!ctx.reconciled) {
 		return "not_reconciled";
+	}
+	if (intent.model.symbol !== intent.symbol) {
+		return "model_symbol_mismatch";
 	}
 	if (!ctx.admissible) {
 		return "model_not_admitted";
@@ -64,7 +70,10 @@ function gateReject(ctx: PreTradeContext): string | null {
 	if (ctx.halted.includes(intent.symbol)) {
 		return "instrument_halted";
 	}
-	if (now - intent.referenceAt > limits.maxIntentAgeMs) {
+	if (
+		intent.referenceAt > now + CLOCK_SKEW_MS ||
+		now - intent.referenceAt > limits.maxIntentAgeMs
+	) {
 		return "stale_intent";
 	}
 	if (intent.quantity > instrument.maxQuantity) {

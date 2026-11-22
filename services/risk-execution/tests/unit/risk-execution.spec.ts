@@ -160,7 +160,11 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 	};
 
 	it.each<[string, Partial<Intent>, string]>([
-		["unlisted symbol", { symbol: "DOGEUSDT" }, "instrument_not_allowed"],
+		[
+			"unlisted symbol",
+			{ symbol: "DOGEUSDT", model: { symbol: "DOGEUSDT", version: "v1" } },
+			"instrument_not_allowed",
+		],
 		[
 			"quantity cap + 1",
 			{ quantity: 0.1001, referencePrice: 100 },
@@ -170,6 +174,12 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		["price outside the band", { limitPrice: 63_000 }, "price_band"],
 		["stale intent (> 1 min)", { referenceAt: T0 - 61_000 }, "stale_intent"],
 		["short selling", { side: "sell" }, "short_selling"],
+		[
+			"model admitted on another symbol",
+			{ model: { symbol: "ETHUSDT", version: "v1" } },
+			"model_symbol_mismatch",
+		],
+		["future intent", { referenceAt: T0 + 6000 }, "stale_intent"],
 	])("rejects %s", async (_n, i, expected) => {
 		expect(await reject(i)).toBe(expected);
 	});
@@ -183,6 +193,13 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 	it("rejects a model that is not admitted", async () => {
 		admissible = false;
 		expect(await reject({})).toBe("model_not_admitted");
+	});
+
+	it("ignores a price pushed from the future", async () => {
+		const r = await reject({}, (c) =>
+			c.svc.observePrice("BTCUSDT", 61_500, clock + 6000)
+		);
+		expect(r).toBe("accepted");
 	});
 
 	it("rejects a gap between the intent and the service's own price", async () => {
