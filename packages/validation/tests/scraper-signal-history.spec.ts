@@ -1,11 +1,9 @@
-import { describe, expect, it, jest } from "@jest/globals";
-
-const get = jest.fn<(...args: any[]) => any>();
+const get = jest.fn<any, any[]>();
 jest.mock("@trading-model/http/http-client", () => ({
 	HttpClient: { createWithTls: () => ({ get }) },
 }));
 
-import { ScraperSignalHistory } from "../../../../src/adapters/outbound/scraper-signal-history";
+import { ScraperSignalHistory } from "../src/signals/scraper-signal-history";
 
 const AT = Date.parse("2026-01-01T01:00:00.000Z");
 const signal = (id: string, observedAt: string) => ({ id, observedAt });

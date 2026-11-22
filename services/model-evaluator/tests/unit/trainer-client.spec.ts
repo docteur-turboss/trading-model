@@ -127,7 +127,12 @@ describe("ScraperClient", () => {
 				nextCursor: "c1",
 			})
 			.mockResolvedValueOnce({ rows: [row(1)], nextCursor: null });
-		const candles = await new ScraperClient(TLS).candles("BTCUSDT", 0, 119_999);
+		const candles = await new ScraperClient(TLS).candles(
+			"BTCUSDT",
+			0,
+			119_999,
+			60_000
+		);
 
 		expect(candles.map((c) => c.timestamp)).toEqual([0, 60_000]);
 		expect(String(manifestGet.mock.calls[0][0])).toBe(

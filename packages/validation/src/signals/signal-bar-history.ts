@@ -7,14 +7,14 @@ import {
 } from "@trading-model/contracts/market-data.types";
 import {
 	Price,
+	type TradingSymbol,
 	UnixTimestamp,
 	Volume,
 } from "@trading-model/primitives/primitives";
-import type { AssetType, Signal } from "@trading-model/validation/wire/signals";
-import { DAILY_BAR_ISSUES_TOTAL } from "../../config/metrics";
-import { DAY_MS, type TradingSymbol } from "../../domain/market-data-types";
-import type { CandleHistoryPort } from "../../domain/ports/candle-history.port";
-import type { SignalHistoryPort } from "../../domain/ports/signal-history.port";
+import type { AssetType, Signal } from "../wire/signals";
+import type { SignalHistoryPort } from "./scraper-signal-history";
+
+const DAY_MS = 86_400_000;
 
 /** Calendar days read per bar asked: weekends and holidays leave about 5 bars in 7 days. */
 const CALENDAR_DAYS_PER_BAR = 1.5;
@@ -40,10 +40,13 @@ const FIELDS = ["open", "high", "low", "close", "volume"] as const;
  * a day has an `adjusted_close`, the day's prices are scaled to it; a jump
  * that looks like a split is counted and logged, never corrected.
  */
-export class SignalBarHistory implements CandleHistoryPort {
+export class SignalBarHistory {
+	/** `onIssue` counts a dropped or suspect day (`incomplete_day`, `split_suspect`). */
 	constructor(
 		private readonly _signals: SignalHistoryPort,
-		private readonly _assets: ReadonlyMap<TradingSymbol, AssetType>
+		private readonly _assets: ReadonlyMap<TradingSymbol, AssetType>,
+		private readonly _onIssue: (symbol: string, issue: string) => void = () =>
+			undefined
 	) {}
 
 	/** Issues already counted: a day is counted once, not at every cycle that reads it. */
@@ -111,7 +114,7 @@ export class SignalBarHistory implements CandleHistoryPort {
 			return false;
 		}
 		this._counted.add(key);
-		DAILY_BAR_ISSUES_TOTAL.inc({ symbol, issue });
+		this._onIssue(symbol, issue);
 		return true;
 	}
 }

@@ -4,8 +4,8 @@ import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated
 import { createBootstrap } from "@trading-model/http/bootstrap";
 import { shutdownTelemetry } from "@trading-model/http/telemetry";
 import type { Leadership } from "@trading-model/reliability/leadership";
+import { ScraperSignalHistory } from "@trading-model/validation/signals/scraper-signal-history";
 import { ScraperCandleHistory } from "../adapters/outbound/scraper-candle-history";
-import { ScraperSignalHistory } from "../adapters/outbound/scraper-signal-history";
 import {
 	BOOTSTRAP_ADDRESS_MANAGER,
 	FIND_A_SERVICE,

@@ -1,8 +1,6 @@
-import { describe, expect, it } from "@jest/globals";
 import { toSymbol } from "@trading-model/primitives/primitives";
-import type { Signal } from "@trading-model/validation/wire/signals";
-import { SignalBarHistory } from "../../../../src/adapters/outbound/signal-bar-history";
-import { DAILY_BAR_ISSUES_TOTAL } from "../../../../src/config/metrics";
+import { SignalBarHistory } from "../src/signals/signal-bar-history";
+import type { Signal } from "../src/wire/signals";
 
 const AT = Date.parse("2026-03-20T00:00:00Z");
 
@@ -33,13 +31,16 @@ function day(date: string, close: number, skip: string[] = []): Signal[] {
 		.map(([metric, value]) => signal(date, metric, value));
 }
 
+const issues: string[] = [];
+
 function history(signals: Signal[]): SignalBarHistory {
 	return new SignalBarHistory(
 		{
 			loadWindow: async (_asset, _from, to) =>
 				signals.filter((s) => Date.parse(s.observedAt) <= to),
 		},
-		new Map([[toSymbol("AAPL"), "equity"]])
+		new Map([[toSymbol("AAPL"), "equity"]]),
+		(symbol, issue) => issues.push(`${symbol}:${issue}`)
 	);
 }
 
@@ -73,15 +74,7 @@ describe("SignalBarHistory", () => {
 	});
 
 	it("counts a split-like jump and an incomplete day once per day, however often they are read", async () => {
-		const issues = async (issue: string) =>
-			(await DAILY_BAR_ISSUES_TOTAL.get()).values.find(
-				(value) =>
-					value.labels.issue === issue && value.labels.symbol === "AAPL"
-			)?.value ?? 0;
-		const before = [
-			await issues("split_suspect"),
-			await issues("incomplete_day"),
-		];
+		issues.length = 0;
 		const source = history([
 			...day("2026-03-16", 400),
 			...day("2026-03-17", 100),
@@ -91,7 +84,6 @@ describe("SignalBarHistory", () => {
 			const bars = await source.loadWindow(aapl, AT, 10);
 			expect(bars.map((bar) => bar.close)).toEqual([400, 100]);
 		}
-		expect(await issues("split_suspect")).toBe(before[0] + 1);
-		expect(await issues("incomplete_day")).toBe(before[1] + 1);
+		expect(issues).toEqual(["AAPL:split_suspect", "AAPL:incomplete_day"]);
 	});
 });
