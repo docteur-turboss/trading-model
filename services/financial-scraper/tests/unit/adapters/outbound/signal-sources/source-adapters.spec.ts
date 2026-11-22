@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
 import { PAYLOADS } from "@trading-model/contracts/wire/signals";
+import { z } from "zod";
 import {
 	CFTC_COT_LEGACY,
 	newYorkLocalToUtc,
@@ -1047,7 +1048,7 @@ describe("twelvedata-daily-prices", () => {
 		);
 		expect(() =>
 			TWELVEDATA_DAILY_PRICES.normalize({ ...body, code: 400 }, NO_PARAMS)
-		).not.toThrow(expect.objectContaining({ name: "HttpStatusError" }));
+		).toThrow(z.ZodError);
 	});
 
 	it("gives nothing for a day without quotation (no value)", () => {

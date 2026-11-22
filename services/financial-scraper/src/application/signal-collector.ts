@@ -290,7 +290,7 @@ export class SignalCollector {
 			});
 		} catch (err) {
 			if (err instanceof HttpStatusError) {
-				// An adapter may report an HTTP-level failure found in a 200 body.
+				// `result` is already "invalid_payload" here: without this, an HTTP failure an adapter finds in a 200 body would skip `_track` and never quarantine.
 				result = "fetch_error";
 			}
 			if (err instanceof InvalidPayloadError) {
