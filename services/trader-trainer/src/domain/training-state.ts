@@ -1,17 +1,12 @@
 import {
 	type Fitness,
 	NonNegativeInt,
-	type Percentage,
-	type PositiveInt,
-	type Probability,
 	type SharpeRatio,
 } from "@trading-model/primitives/primitives";
 import type {
 	ActivationType,
-	FitnessType,
 	GenomeFitnessMeta,
 	LamarckGenome,
-	SelectionType,
 } from "./genetic-algorithm/genome";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import { buildSummary } from "./genome-summary-builder";
@@ -29,26 +24,26 @@ export interface BestAgentSummary {
 	/** Largest fall of the cumulative evaluation PnL (`EpisodeScores.maxDrawdown`). */
 	maxDrawdown: number;
 	gaControl: {
-		populationSize: PositiveInt;
-		elitismFraction: Probability;
-		survivorFraction: Probability;
-		episodesPerIndividual: PositiveInt;
-		selectionType: SelectionType;
-		fitnessType: FitnessType;
+		populationSize: number;
+		elitismFraction: number;
+		survivorFraction: number;
+		episodesPerIndividual: number;
+		selectionType: string;
+		fitnessType: string;
 	};
 	network: {
-		inputDim: PositiveInt;
-		outputDim: PositiveInt;
+		inputDim: number;
+		outputDim: number;
 		/** Ordered action names, output `i` = `actions[i]`; absent: sell, hold, buy. */
 		actions?: string[];
-		hiddenLayers: { neurons: PositiveInt; activation: ActivationType }[];
+		hiddenLayers: { neurons: number; activation: ActivationType }[];
 	};
 	rl: {
-		gamma: Probability;
-		learningRate: Percentage;
-		epsilonStart: Probability;
-		epsilonMin: Probability;
-		epsilonDecay: Probability;
+		gamma: number;
+		learningRate: number;
+		epsilonStart: number;
+		epsilonMin: number;
+		epsilonDecay: number;
 	};
 }
 
