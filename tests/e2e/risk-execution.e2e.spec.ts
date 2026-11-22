@@ -47,6 +47,11 @@ describe("risk-execution E2E", () => {
 	});
 
 	it("keeps an engaged kill switch across a restart, then re-arms", async () => {
+		// A fresh volume starts engaged as state_missing: clear it so the engage below sets "e2e".
+		meshRequest(RISK, `${URL}/admin/kill-switch/rearm`, {
+			method: "POST",
+			body: SCOPE,
+		});
 		const engaged = meshRequest(RISK, `${URL}/admin/kill-switch`, {
 			method: "POST",
 			body: SCOPE,
