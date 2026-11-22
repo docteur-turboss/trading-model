@@ -9,7 +9,7 @@ import {
 	responseIssues,
 } from "@trading-model/http/api-route/api-route";
 import { mountRoute } from "@trading-model/http/api-route/mount-route";
-import { sendResponse } from "@trading-model/http/response-exception/send-response";
+import { sendResponse } from "@trading-model/http/response-exception";
 import express, {
 	type NextFunction,
 	type Request,
