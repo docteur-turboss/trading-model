@@ -60,6 +60,7 @@ export class SymbolStateManager {
 			state,
 			maxSize,
 		});
+		// Normes cumulées sur toutes les bougies ajoutées, sans décrément à l'éviction (maxSize).
 		if (isNew) {
 			this._normManager.updateNorms(state, candle);
 		}
