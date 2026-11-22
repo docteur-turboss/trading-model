@@ -10,6 +10,7 @@ import type {
 	StatePort,
 } from "../domain/ports";
 import {
+	CLOCK_SKEW_MS,
 	dailyLoss,
 	type Intent,
 	preTradeReject,
@@ -17,9 +18,11 @@ import {
 } from "../domain/pre-trade";
 import {
 	equity,
+	exposure,
 	isOpen,
 	newState,
 	type RiskState,
+	SEEN_HORIZON_MS,
 	utcDate,
 } from "../domain/state";
 
@@ -52,11 +55,27 @@ const WIRED_STATES: Order["status"][] = [
 	"cancel_requested",
 ];
 
+function targetStatus(order: Order, view: BrokerOrderView): Order["status"] {
+	return view.status === "filled"
+		? "filled"
+		: view.status === "rejected"
+			? "broker_rejected"
+			: view.status === "cancelled"
+				? "cancelled"
+				: view.filledQty > 0
+					? "partially_filled"
+					: order.status === "cancel_requested"
+						? order.status // still open at the broker: no way back to acknowledged (ADR-0064 §3)
+						: "acknowledged";
+}
+
 /** The Risk/Execution context of ADR-0064: the only owner of the order flow. */
 export class RiskExecution {
 	private _state!: RiskState;
 	private _ready = false;
 	private _broken = false;
+	/** True when the last reconciliation found differences (not when the broker was unreachable). */
+	private _mismatch = false;
 	private _lastReconcile = 0;
 	private _tail: Promise<unknown> = Promise.resolve();
 	private _failures: { at: number; symbol: string }[] = [];
@@ -125,8 +144,10 @@ export class RiskExecution {
 		return {
 			mode: this._d.mode,
 			ready: this.isReady(),
+			mismatch: this._mismatch,
 			killSwitch: state.killSwitch,
 			equity: equity(state),
+			exposureRatio: exposure(state) / this._d.limits.allocatedCapital,
 			dailyLoss: dailyLoss(state),
 			openOrders: Object.values(state.orders).filter(isOpen).length,
 			positions: state.positions,
@@ -145,7 +166,10 @@ export class RiskExecution {
 			this._rollDay(now);
 			const clientOrderId = `rx-${intent.decisionId}`;
 			// First: an existing idempotency key is never rewritten (ADR-0064 §3).
-			if (this._state.orders[clientOrderId]) {
+			if (
+				this._state.orders[clientOrderId] ||
+				this._state.seen?.[clientOrderId] !== undefined
+			) {
 				return {
 					status: "rejected",
 					reason: "duplicate_client_order_id",
@@ -209,6 +233,10 @@ export class RiskExecution {
 	/** shortcut: prices are pushed by the decision consumer, read the scraper when that consumer exists. */
 	observePrice(symbol: string, price: number, at: number): Promise<void> {
 		return this._run(async () => {
+			if (at > this._now() + CLOCK_SKEW_MS) {
+				this._emit("price.future_ignored", { symbol, at });
+				return;
+			}
 			this._state.marks[symbol] = { price, at };
 			await this._checkLimits();
 			await this._save();
@@ -273,12 +301,26 @@ export class RiskExecution {
 			if (current === "drawdown" && actor !== this._d.ownerActor) {
 				throw new Error("Only the owner re-arms after the drawdown stop");
 			}
+			// Without this the drawdown (hwm - equity) is still over the limit and the switch re-engages at the next tick.
+			const previousHwm = this._state.hwm;
+			if (current === "drawdown") {
+				this._state.hwm = equity(this._state);
+			}
 			if (scope === "global") {
 				ks.global = null;
 			} else {
 				delete ks.symbols[symbol ?? ""];
 			}
-			this._emit("kill_switch.rearmed", { scope, symbol, reason, actor });
+			this._emit("kill_switch.rearmed", {
+				scope,
+				symbol,
+				reason,
+				actor,
+				...(current === "drawdown" && {
+					previousHwm,
+					hwm: this._state.hwm,
+				}),
+			});
 			await this._save();
 		});
 	}
@@ -326,9 +368,17 @@ export class RiskExecution {
 			// Final orders older than the longest window read by the pre-trade checks (rate: 60 s, duplicates).
 			const keepMs = Math.max(60_000, this._d.limits.duplicateWindowMs);
 			const cutoff = this._now() - keepMs;
+			const seen = this._state.seen ?? {};
+			this._state.seen = seen;
 			for (const [id, order] of Object.entries(this._state.orders)) {
 				if (FINAL.has(order.status) && order.createdAt < cutoff) {
+					seen[id] = order.createdAt;
 					delete this._state.orders[id];
+				}
+			}
+			for (const [id, at] of Object.entries(seen)) {
+				if (at < this._now() - SEEN_HORIZON_MS) {
+					delete seen[id];
 				}
 			}
 			await this._d.store.save(this._state);
@@ -405,16 +455,7 @@ export class RiskExecution {
 				fee: view.fee,
 			});
 		}
-		const target: Order["status"] =
-			view.status === "filled"
-				? "filled"
-				: view.status === "rejected"
-					? "broker_rejected"
-					: view.status === "cancelled"
-						? "cancelled"
-						: view.filledQty > 0
-							? "partially_filled"
-							: "acknowledged";
+		const target = targetStatus(order, view);
 		if (
 			order.status !== target ||
 			(target === "partially_filled" && dQty > 0)
@@ -593,7 +634,8 @@ export class RiskExecution {
 		) {
 			diffs.push("balance");
 		}
-		this._ready = diffs.length === 0;
+		this._mismatch = diffs.length > 0;
+		this._ready = !this._mismatch;
 		if (diffs.length) {
 			// The store is never "fixed" to match the broker: the operator decides.
 			this._emit("reconciliation.mismatch", { diffs });

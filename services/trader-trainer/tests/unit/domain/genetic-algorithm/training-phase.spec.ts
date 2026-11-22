@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
+import { makePRNG } from "@trading-model/crypto/prng";
 import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
 import { Cash, Price } from "@trading-model/primitives/primitives";
 import { createDefaultGenome } from "../../../../src/domain/genetic-algorithm/factory";
@@ -126,5 +127,32 @@ describe("trainPhase", () => {
 
 		expect(replays).toHaveLength(stored.length);
 		expect(replays[0]).toEqual([genome.rl.replayBuffer.batchSize, 0.25]);
+	});
+
+	it("starts each episode at a seeded offset so successive episodes cover the whole segment", () => {
+		const long = Array.from({ length: 2000 }, (_u, idx) => ({
+			features: FeatureVector.fromFloat32Array(new Float32Array([idx])),
+			price: Price.of(100),
+		}));
+		const base = genomeWith({});
+		const genome = {
+			...base,
+			rl: {
+				...base.rl,
+				horizon: { ...base.rl.horizon, maxEpisodeLength: 500 },
+			},
+		} as unknown as DeepReadonly<LamarckGenome>;
+		const rng = makePRNG(7);
+		const seen = new Set<number>();
+		for (let episode = 0; episode < 20; episode++) {
+			const { backend, stored } = recordingBackend([]);
+			trainPhase({ backend, trainData: long, genome, rng });
+			for (const t of stored) {
+				seen.add(bar(t));
+			}
+		}
+
+		expect(Math.max(...seen)).toBeGreaterThanOrEqual(500);
+		expect(Math.max(...seen)).toBeLessThan(2000);
 	});
 });

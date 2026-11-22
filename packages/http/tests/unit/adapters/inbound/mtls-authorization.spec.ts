@@ -9,7 +9,7 @@ describe("MTLSAuthorizationMiddleware", () => {
 			ServiceId.of("audit-logger")
 		);
 		const req = {
-			clientIdentity: "spiffe://cluster.local/ns/default/sa/any-service",
+			clientIdentity: "spiffe://trading-model.local/ns/default/sa/any-service",
 		} as unknown as Request;
 		const res = {} as unknown as Response;
 		const next = jest.fn<(...args: any[]) => any>() as NextFunction;
@@ -21,7 +21,8 @@ describe("MTLSAuthorizationMiddleware", () => {
 	it("should call next with error for unauthorized caller", () => {
 		const middleware = MTLSAuthorizationMiddleware(ServiceId.of("api-gateway"));
 		const req = {
-			clientIdentity: "spiffe://cluster.local/ns/default/sa/unknown-service",
+			clientIdentity:
+				"spiffe://trading-model.local/ns/default/sa/unknown-service",
 		} as unknown as Request;
 		const res = {} as unknown as Response;
 		const next = jest.fn<(...args: any[]) => any>() as NextFunction;

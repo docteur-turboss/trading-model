@@ -66,10 +66,36 @@ jobs:
 
   ci:
     uses: ./.github/workflows/ci.yml
-    secrets: inherit
+
+  # No `environment:` here, on purpose: it would create the environment
+  # unprotected. Reading the settings needs ENVIRONMENT_READ_TOKEN
+  # (fine-grained PAT, "Administration: read"); without it the check fails.
+  check-environment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check the environment protection
+        env:
+          GH_TOKEN: ${{ secrets.ENVIRONMENT_READ_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Secret ENVIRONMENT_READ_TOKEN is not set: the protection of environment release cannot be checked, no image is published. See docs/deployment/DEPLOY.md (Protect the production environment)."
+            exit 1
+          fi
+          node scripts/check-environment-protection.mjs release "$GITHUB_REPOSITORY"
+
+  # The only approval point of a release: publication and signature depend on it (ADR-0038).
+  approve:
+    needs: [version, ci, check-environment]
+    runs-on: ubuntu-latest
+    timeout-minutes: 1440
+    environment: release
+    steps:
+      - run: echo "Release ${{ needs.version.outputs.tag }} approved"
 
   build-and-push:
-    needs: [version, ci]
+    needs: [version, approve]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -124,8 +150,8 @@ jobs:
             GIT_SHA=${{ github.sha }}
           load: true
           tags: ${{ needs.version.outputs.registry }}/${{ matrix.service }}:${{ needs.version.outputs.tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # No GHA cache: a push to main could have planted layers in its scope (ADR-0038).
+          # The push step reuses this build's layers from the builder, so it ships what was scanned.
 
       - name: Scan image (Trivy)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -151,8 +177,6 @@ jobs:
           provenance: mode=max
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   # spire-tools (deploy/spire): spire-server binary + registration scripts (the
   # official SPIRE images have no shell), used by the spire-entries sidecar.
@@ -160,7 +184,7 @@ jobs:
   # and db-backup-incremental CronJobs and restore-k8s.sh.
   # db-migrate (deploy/migrate): migrate.mjs + migrations + locked mysql2 for the db-migrate Jobs.
   build-tools:
-    needs: [version, ci]
+    needs: [version, approve]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -241,7 +265,7 @@ jobs:
   # Keyless signature of every pushed digest (ADR-0038). id-token lives here
   # only; deploy.yml verifies the identity of this workflow.
   sign:
-    needs: [version, build-and-push, build-tools]
+    needs: [version, approve, build-and-push, build-tools]
     runs-on: ubuntu-latest
     permissions:
       contents: read

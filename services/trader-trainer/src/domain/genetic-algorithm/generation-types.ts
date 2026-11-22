@@ -10,6 +10,8 @@ import type { DeepReadonly } from "./shared-types";
 
 export interface WindowSet {
 	id: string;
+	/** FEATURE_SHARED_TRUNK: the symbol of this window; its head is swapped in around the window. */
+	symbol?: string;
 	train: MarketStep[];
 	validation: MarketStep[];
 	/**
@@ -33,6 +35,8 @@ export interface GARunnerConfig {
 	eventDriven?: boolean;
 	/** FEATURE_INPUT_MASK_GENE: names of the input groups the genome masks; absent: no mask gene. */
 	inputGroups?: string[];
+	/** FEATURE_SHARED_TRUNK: symbols each generation trains and evaluates on (rotating); absent: all. */
+	symbolsPerGeneration?: number;
 	/** The candle group stays active in every mask. */
 	protectCandleGroup?: boolean;
 }

@@ -326,6 +326,7 @@ describe("SignalCollector", () => {
 		expect(save.mock.calls[0][0]).toMatchObject([
 			{ observedAt: "2026-11-04T12:03:00.000Z" },
 		]);
+		expect((await SIGNAL_NEWEST_OBSERVED.get()).values).toEqual([]);
 	});
 
 	it.each([
@@ -427,6 +428,15 @@ describe("SignalCollector", () => {
 		await collector().collect(ONE_REQUEST);
 		expect(await gauge(SIGNAL_LAST_SUCCESS)).toEqual([NOW / 1000]);
 		expect(await gauge(SIGNAL_NEWEST_OBSERVED)).toEqual([OBSERVED_AT / 1000]);
+	});
+
+	it("keeps the observed gauge on replayed data, whatever the collection time", async () => {
+		await collector().collect(ONE_REQUEST);
+		clock += 3_600_000;
+		await collector().collect(ONE_REQUEST);
+		expect(
+			(await SIGNAL_NEWEST_OBSERVED.get()).values.map((v) => v.value)
+		).toEqual([OBSERVED_AT / 1000]);
 	});
 
 	it("restores the gauges from the store, the threshold from the cron", async () => {

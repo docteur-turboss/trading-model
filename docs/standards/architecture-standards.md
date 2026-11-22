@@ -17,8 +17,6 @@ trading-model/
 │   ├── common/              # @trading-model/common
 │   ├── persistence/         # @trading-model/persistence
 │   ├── http/                # @trading-model/http
-│   ├── validation/          # @trading-model/validation
-│   ├── server-utils/        # @trading-model/server-utils
 │   ├── crypto/              # @trading-model/crypto
 │   ├── address-manager/     # @trading-model/address-manager
 │   └── broker-message/      # @trading-model/broker-message
@@ -69,27 +67,11 @@ All developers contributing to the codebase. Every architectural decision aims t
 | Formatting   | Biome                                                |
 | Linting      | Biome                                                |
 
-Layer boundaries (`application/` never imports `adapters/` or `infrastructure/`, except `index.ts`, `server.ts`, `telemetry.ts`) and the absence of runtime import cycles are enforced by `bun run arch:check`, ratcheted on `scripts/architecture-baseline.json` ([ADR-0015](../adr/0015-hexagonal-layering-completion.md)).
+Layer boundaries (`application/` never imports `adapters/` or `infrastructure/`, except `index.ts`, `server.ts`, `telemetry.ts`; `domain/` imports neither `adapters/`, `infrastructure/`, `application/`, `config/` nor `express`, `ioredis`, `mongodb`, `mysql2`, `prom-client`: metrics reach `domain/` through an injected port, while a direct `config/metrics` import stays tolerated in `application/`) and the absence of runtime import cycles are enforced by `bun run arch:check`, ratcheted on `scripts/architecture-baseline.json` ([ADR-0015](../adr/0015-hexagonal-layering-completion.md)).
 
 ## Dependency Graph
 
-Shared packages (base → derived):
-
-```
-@trading-model/primitives       (branded types, pagination, identities — zero deps)
-@trading-model/contracts        (events, market-data, http constants, LoggerPort registry) → primitives
-@trading-model/reliability      (circuit breaker, heartbeats, leader lease) → primitives, contracts
-@trading-model/model-runtime    (forward pass, features, agent, wallet simulator, replay) → primitives, contracts, common
-@trading-model/common           (residual config, utils, shared schemas, AppError) → primitives, contracts
-@trading-model/persistence      (Redis/Mongo connection managers, store adapters) → common, primitives, contracts
-@trading-model/http             (HTTP middleware, http client, logging) → primitives, contracts, common, reliability
-@trading-model/validation       (Zod schemas, DTOs, shared type contracts) → primitives, contracts, common, http
-@trading-model/server-utils     (secure HTTPS server factory, TLS watcher, bootstrap) → primitives, contracts, common, http
-@trading-model/crypto           (hashing, signatures, crypto primitives) → primitives, contracts, common, validation
-
-@trading-model/address-manager  (service discovery client, health, token rotation) → primitives, contracts, common, persistence, http, reliability, validation
-@trading-model/broker-message   (inter-service messaging SDK) → primitives, contracts, address-manager, common, http, validation
-```
+The graph is not kept by hand: each `package.json` is the source. `bun run deps:check` verifies that `@trading-model/*` imports match the manifests (ADR-0016), `bun run arch:check` rejects runtime import cycles and layer violations, and the build order is in [AGENTS.md](../../AGENTS.md#build-order-dependency-chain).
 
 > **Dependency direction:** `@trading-model/primitives` and `@trading-model/contracts` are the foundation layers and depend on nothing higher in the chain — they must never import `http` or any upper-layer package. `@trading-model/common` sits just above them and has **no** dependency on `@trading-model/http`. The concrete logger lives in `@trading-model/http`; `@trading-model/contracts` exposes a `LoggerPort` registry (`@trading-model/contracts/logger-registry`) that http populates at import time — breaking what was previously a real `common ↔ http` cycle.
 
@@ -97,34 +79,17 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 
 | Service | Dependencies |
 | --- | --- |
-| api-gateway | common, contracts, http, primitives, validation |
-| audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives, validation |
-| discovery-server | common, contracts, crypto, http, persistence, primitives, validation |
-| dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, validation |
-| model-evaluator | address-manager, broker-message, common, contracts, http, model-runtime, primitives, validation |
-| risk-execution | address-manager, broker-message, common, contracts, http, primitives, validation |
-| financial-scraper | address-manager, common, contracts, crypto, http, primitives, reliability, validation |
-| message-manager | address-manager, broker-message, common, contracts, http, persistence, primitives, reliability, validation |
-| trader-trainer | address-manager, broker-message, common, contracts, crypto, http, model-runtime, primitives, reliability, validation |
+| api-gateway | common, contracts, http, primitives |
+| audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives |
+| discovery-server | common, contracts, crypto, http, persistence, primitives |
+| dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability |
+| model-evaluator | address-manager, broker-message, common, contracts, http, model-runtime, persistence, primitives |
+| risk-execution | address-manager, broker-message, common, contracts, http, model-runtime, primitives |
+| financial-scraper | address-manager, common, contracts, crypto, http, persistence, primitives, reliability |
+| message-manager | address-manager, broker-message, common, contracts, http, persistence, primitives, reliability |
+| trader-trainer | address-manager, broker-message, common, contracts, crypto, http, model-runtime, persistence, primitives, reliability |
 
 There is no frontend workspace: `admin-interface` was removed until a new one is specified ([ADR-0018](../adr/0018-temporary-frontend-removal.md)). A future frontend talks to the backend only through the **api-gateway**.
-
-### Package Dependency Details
-
-| Package                          | Purpose                                                                                                                                                 | Dependencies               |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| `@trading-model/primitives`      | Pure domain primitives: branded types, pagination, circuit-state, service-identity, retry-policy, topic-binding. Zero dependencies.                       | —                          |
-| `@trading-model/contracts`       | Shared contracts: event/market-data types, `http-status`, `http-headers`, `LoggerPort` registry (setLogger/getLogger)                                     | primitives                 |
-| `@trading-model/reliability`     | Circuit-breaker, circuit-state-machine, heartbeat interfaces                                                                            | primitives, contracts      |
-| `@trading-model/model-runtime`    | Network forward pass, features, trading agent, portfolio simulator (ADR-0066), replay (ADR-0079) shared by trader-trainer and model-evaluator | primitives, contracts, common |
-| `@trading-model/common`          | Residual shared infra: `AppError`/`ErrorCodes`, retry/backoff, SPIFFE identity, TLS path config, cache abstractions, log sanitization, shared Zod schemas  | primitives, contracts      |
-| `@trading-model/persistence`     | Redis/Mongo connection managers, store adapters, key builders (absorbed `redis-config`)                                                                   | common, primitives, contracts |
-| `@trading-model/http`            | HTTP middleware (MTLSAuthMiddleware, ResponseProtocol, error tracking), HTTP client, concrete logging pipeline                                              | primitives, contracts, common, reliability |
-| `@trading-model/validation`      | Zod schemas, DTOs, event types, shared type contracts, admin contracts                                                                                  | primitives, contracts, common, http |
-| `@trading-model/server-utils`    | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry                                                         | primitives, contracts, common, http |
-| `@trading-model/crypto`          | Hashing, request signing, token generation, secure randomness                                                                                           | primitives, contracts, common, validation |
-| `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing                                              | primitives, contracts, common, persistence, http, reliability, validation |
-| `@trading-model/broker-message`  | Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas                                        | primitives, contracts, address-manager, common, http, validation |
 
 ## Workload Identity & Security Model
 
@@ -201,7 +166,7 @@ Rules:
 ### Entry Point (`src/application/index.ts`)
 
 ```typescript
-import { createBootstrap } from '@trading-model/server-utils/bootstrap';
+import { createBootstrap } from '@trading-model/http/bootstrap';
 import { createDiscoveryApp } from '../config/container';
 import { ENV } from '../infrastructure/config/env';
 import { createServer } from './server';
@@ -226,7 +191,7 @@ createBootstrap({
 
 ```typescript
 import { ServiceId } from '@trading-model/primitives/primitives';
-import { createServiceServer } from '@trading-model/server-utils/service-server-factory';
+import { createServiceServer } from '@trading-model/http/service-server-factory';
 import { heartbeatRoutes } from '../adapters/inbound/heartbeat.routes';
 import { registryRoutes } from '../adapters/inbound/register.routes';
 import { env } from '../config/env';
@@ -262,9 +227,9 @@ Each package declares its exports via the `exports` field in `package.json`. Ent
 }
 ```
 
-> Post-split (2026-10), `common` no longer exports `middleware/`, `worker/`, `recovery/`, `reliability/`, `domain/`, `crl/`, `persistence/`, `http-headers`, `http-status` or `contracts/`. Those live in `@trading-model/primitives`, `@trading-model/contracts`, `@trading-model/reliability`, `@trading-model/persistence`, `@trading-model/http` and `@trading-model/server-utils` respectively (`worker/` and `recovery/` went to `@trading-model/jobs`, removed by ADR-0029). See the [package map](../services/common.md#package-map-post-split).
+> Post-split (2026-10), `common` no longer exports `middleware/`, `worker/`, `recovery/`, `reliability/`, `domain/`, `crl/`, `persistence/`, `http-headers`, `http-status` or `contracts/`. Those live in `@trading-model/primitives`, `@trading-model/contracts`, `@trading-model/reliability`, `@trading-model/persistence` and `@trading-model/http` respectively (`worker/` and `recovery/` went to `@trading-model/jobs`, removed by ADR-0029). See the [package map](../services/common.md#package-map-post-split).
 
-**@trading-model/validation**, **@trading-model/server-utils**, **@trading-model/crypto**, **@trading-model/address-manager** and **@trading-model/broker-message** (simplified exports):
+**@trading-model/crypto**, **@trading-model/address-manager** and **@trading-model/broker-message** (simplified exports):
 
 ```json
 {

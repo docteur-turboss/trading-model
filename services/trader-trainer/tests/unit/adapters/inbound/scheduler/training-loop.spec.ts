@@ -109,6 +109,43 @@ describe("TrainingLoop", () => {
 		expect(train).toHaveBeenCalledTimes(2);
 	});
 
+	it("FEATURE_SHARED_TRUNK trains the fresh symbols of the group in one session", async () => {
+		lastClose.set(BTC, NOW - MINUTE);
+		lastClose.set(ETH, NOW - MINUTE);
+		const trainGroup = jest.fn(async (..._args: any[]) => ({ success: true }));
+		const trainer = {
+			train,
+			trainGroup,
+			isTraining: () => false,
+			republishPending: async () => undefined,
+			stopTraining,
+		} as unknown as Trainer;
+		const buffer = {
+			getMaxSize: () => 1000,
+			replaceCandles,
+			getCandleCount: () => candleCount,
+			getLastCandleCloseTime: (symbol: TradingSymbol) => lastClose.get(symbol),
+		} as unknown as MarketDataBuffer;
+		loop = new TrainingLoop(
+			trainer,
+			buffer,
+			history,
+			WINDOWING,
+			undefined,
+			new Set(),
+			[BTC, ETH]
+		);
+		loop.start({
+			symbols: [BTC, ETH],
+			intervalMs: MINUTE,
+			maxDataAgeMs: MAX_AGE,
+		});
+		await new Promise((resolve) => setImmediate(resolve));
+		expect(trainGroup).toHaveBeenCalledWith([BTC, ETH]);
+		expect(train).not.toHaveBeenCalled();
+		await loop.stop();
+	});
+
 	it("should read signals only for a mapped symbol and train without them when the read fails", async () => {
 		lastClose.set(BTC, NOW - MINUTE);
 		const signalHistory = {

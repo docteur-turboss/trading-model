@@ -88,6 +88,10 @@ STUB_UNDO_FAILS="" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 
 printf '#!/bin/sh\necho "sleep $*" >>"$STUB_LOG"\n' >"$WORK/bin/sleep"
 chmod +x "$WORK/bin/sleep"
+
+out="$(bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
+	[[ $out == *"::warning::MySQL TLS relaxed by the rollback: redeploy release N to restore it"* ]] &&
+	ok "rollback warns that MySQL TLS stays relaxed" || ko "rollback TLS warning: $out"
 echo 2 >"$WORK/api-down"
 : >"$WORK/log"
 STUB_API_DOWN="$WORK/api-down" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null 2>&1 &&
@@ -176,6 +180,23 @@ sts_names() { awk '/^---/ { k = "" } /^kind:/ { k = $2 } k == "StatefulSet" && /
 	ko "redis last: $(cat "$WORK/log")"
 STUB_NO_REDIS=1 bash "$SCRIPT" without-redis ns <"$WORK/app.yaml" | cmp -s - "$WORK/app.yaml" &&
 	ok "without-redis keeps the Redis StatefulSets on a first deploy" || ko "without-redis dropped documents on a first deploy"
+
+# Token expiry check of the "Configure kubeconfigs" step of deploy.yml (issue #1978): fake kubeconfigs holding only a JWT.
+jwt() { printf '{"exp":%s}' "$1" | base64 -w0 | tr '+/' '-_' | tr -d '='; }
+mkdir -p "$WORK/kube" "$WORK/bin"
+printf '#!/bin/sh
+cat "$KUBECONFIG"
+' >"$WORK/bin/kubectl"
+chmod +x "$WORK/bin/kubectl"
+sed -n '/# token-expiry:begin/,/# token-expiry:end/p' "$ROOT/.github/workflows/deploy.yml" | sed 's/^ *//' >"$WORK/expiry.sh"
+expiry() { # $1 exp of the app token, cluster token always valid
+	echo "h.$(jwt "$1").s" >"$WORK/kube/config"; echo "h.$(jwt $(($(date +%s) + 999999))).s" >"$WORK/kube/cluster"
+	RUNNER_TEMP="$WORK" upper=STAGING PATH="$WORK/bin:$PATH" bash "$WORK/expiry.sh" 2>&1
+}
+out="$(expiry 1700000000)" && ko "expired token accepted" ||
+	{ [[ "$out" == *"::error::KUBECONFIG_STAGING_APP token expired on 2023-11-14 22:13 UTC"*"deploy-identity.sh app"* ]] && ok "expired token: error with date and regeneration command" || ko "expired: $out"; }
+out="$(expiry $(($(date +%s) + 3600)))" && [[ "$out" == *"::warning::KUBECONFIG_STAGING_APP token expires on"* ]] && ok "token expiring in 1 h: warning" || ko "soon: $out"
+out="$(expiry $(($(date +%s) + 999999)))" && [ -z "$out" ] && ok "valid token: silent" || ko "valid: $out"
 
 bash "$SCRIPT" bogus >/dev/null 2>&1 && ko "unknown command accepted" || ok "unknown command refused"
 

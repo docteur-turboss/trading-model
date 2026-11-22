@@ -208,11 +208,11 @@ Run `deploy.yml`. `deploy-k8s.sh apply <service-name>` exists for local developm
 
 ```bash
 # Rollback to previous version
-./deploy/k8s/scripts/deploy-k8s.sh rollback <service-name>
+kubectl rollout undo -n trading-model deployment/<service-name>
 
 # Rollback to specific revision
 kubectl rollout history -n trading-model deployment/<service-name>
-./deploy/k8s/scripts/deploy-k8s.sh rollback <service-name> <revision>
+kubectl rollout undo -n trading-model deployment/<service-name> --to-revision=<revision>
 ```
 
 Several services or the schema: runbook
@@ -381,11 +381,10 @@ All services have NetworkPolicies that restrict ingress/egress:
   in other namespaces such as `trading-model-staging` work), except api-gateway
   (ingress controller) and edge-proxy (any namespace, port 8080). edge-proxy may
   only egress to the api-gateway
-- Egress: only to required infrastructure ports, plus the shared
-  `allow-dns-and-telemetry-egress` policy (cluster DNS, OTLP to the collector)
-  for the components with an egress policy. It lists them explicitly: a
-  policy selecting a pod for Egress isolates its egress, so selecting every
-  pod would cut the others (Redis, Mongo, Grafana...) down to DNS + OTLP
+- Default deny: `default-deny-all` (`deploy/k8s/base/network-policies.yaml`)
+  isolates every pod for Ingress and Egress. `allow-dns-and-telemetry-egress`
+  gives every pod cluster DNS and OTLP to the collector; each component's
+  policy adds its own ports (a workload without one reaches nothing)
 - External egress: only for financial-scraper (Binance API)
 
 ### Encryption at Rest

@@ -16,8 +16,8 @@ failed `DLQ_RETRY_MAX_ATTEMPTS` replays is abandoned (kept, no longer retried).
 - `dlq_entries_replay_failed_total`, `dlq_collection_size`: failed replays,
   entries currently stored.
 
-Dead-lettering itself is `MessagesDeadLettered`, and the path from message-manager
-to the dead streams is covered by `BusDeadLetters`
+Dead-lettering itself and the path from message-manager
+to the dead streams are covered by `BusDeadLetters`
 ([runbook-message-bus-outage](runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost)).
 
 ## Symptom

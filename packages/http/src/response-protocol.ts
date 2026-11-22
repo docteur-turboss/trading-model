@@ -13,10 +13,30 @@ type ErrorInput = Error | ResponseObject;
 /** Body of an error nobody anticipated: its message stays in the logs. */
 const UNEXPECTED_ERROR = "Internal server error";
 
+/** body-parser (http-errors) flags a client mistake with `expose` and a 4xx `status`. */
+function isClientBodyError(err: Error): err is Error & { status: number } {
+	const { status, expose } = err as { status?: unknown; expose?: unknown };
+	return (
+		expose === true &&
+		typeof status === "number" &&
+		status >= 400 &&
+		status < 500
+	);
+}
+
 function mapErrorToResponse(err: Error): ResponseObject {
-	return isAppError(err)
-		? { status: err.httpStatus as HttpStatusCode, data: err.message }
-		: { status: HTTP_STATUS.INTERNAL_SERVER_ERROR, data: UNEXPECTED_ERROR };
+	if (isAppError(err)) {
+		return { status: err.httpStatus as HttpStatusCode, data: err.message };
+	}
+	if (isClientBodyError(err)) {
+		// generic text: the parser message can echo part of the body
+		return {
+			status: err.status as HttpStatusCode,
+			data:
+				err.status === 413 ? "Request body too large" : "Invalid request body",
+		};
+	}
+	return { status: HTTP_STATUS.INTERNAL_SERVER_ERROR, data: UNEXPECTED_ERROR };
 }
 
 /**

@@ -131,7 +131,7 @@ export class TradingAgent {
 		);
 		const executed = ACTION_EXECUTORS[action](
 			this.wallet,
-			this._tradeSize(action, amount, share, fillPrice),
+			this._tradeSize(action, amount, share),
 			fillPrice
 		);
 		this._pnlBeforeLastTrade = markedPnl;
@@ -148,11 +148,10 @@ export class TradingAgent {
 	private _tradeSize(
 		action: TradeAction,
 		mapped: Volume,
-		share?: number,
-		fillPrice?: Price
+		share?: number
 	): Volume {
 		if (share !== undefined) {
-			return this._partialSize(action, share, fillPrice);
+			return this._partialSize(action, share);
 		}
 		if (this._tradeCash === undefined || action === TradeAction.Hold) {
 			return mapped;
@@ -164,19 +163,14 @@ export class TradingAgent {
 		return Volume.of(Math.floor(units * VolumeDecimals) / VolumeDecimals);
 	}
 
-	private _partialSize(
-		action: TradeAction,
-		share: number,
-		fillPrice?: Price
-	): Volume {
+	private _partialSize(action: TradeAction, share: number): Volume {
 		const position = Number(this.wallet.getPosition());
 		const base =
 			action === TradeAction.Sell
 				? position
 				: Math.max(
 						0,
-						this._exposureCash / Number(fillPrice ?? this.wallet.getPrice()) -
-							position
+						this._exposureCash / Number(this.wallet.getPrice()) - position
 					);
 		return Volume.of(
 			Math.floor(base * share * VolumeDecimals) / VolumeDecimals
