@@ -4,7 +4,6 @@ import {
 	isConsistentCandle,
 	updateCandleNorms,
 } from "@trading-model/model-runtime/features/feature-builder";
-import { DAILY_BAR_ISSUES_TOTAL } from "../../config/metrics";
 import type { DataHandler } from "./data-handler";
 import { isAfterLast, pushWithMaxSize } from "./data-handler-utils";
 import { DataType } from "./data-types";
@@ -26,9 +25,8 @@ export const candleHandler: DataHandler<CandleData> = {
 			isAfterLast(state.candles, candle, "timestamp")
 		);
 	},
-	mutateState({ symbol, data, state, maxSize }) {
+	mutateState({ data, state, maxSize }) {
 		if (!isConsistentCandle(data)) {
-			DAILY_BAR_ISSUES_TOTAL.inc({ symbol, issue: "ohlc_inconsistent" });
 			return;
 		}
 		// The scraper re-sends candles it already published (overlapping fetch
