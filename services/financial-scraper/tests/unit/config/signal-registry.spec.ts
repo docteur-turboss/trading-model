@@ -84,6 +84,14 @@ describe("signal registry — the shipped file", () => {
 		expect(SIGNAL_REGISTRY.assets.get("XLE")?.sector).toBe("energy");
 	});
 
+	it("freezes no calendar year in a request URL: {year} or a relative window", () => {
+		const urls = SIGNAL_REGISTRY.sources.flatMap((s) =>
+			s.requests.map((r) => r.url)
+		);
+
+		expect(urls.filter((url) => /(?<!\d)20\d\d(?!\d)/.test(url))).toEqual([]);
+	});
+
 	it("only holds free sources, Twelve Data alone is non-commercial", () => {
 		const policies = SIGNAL_REGISTRY.sources.map((s) => s.accessPolicy);
 
