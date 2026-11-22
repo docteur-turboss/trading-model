@@ -78,6 +78,7 @@ export class RiskExecution {
 	private _mismatch = false;
 	private _lastReconcile = 0;
 	private _tail: Promise<unknown> = Promise.resolve();
+	private _ticking?: Promise<void>;
 	private _failures: { at: number; symbol: string }[] = [];
 	private readonly _now: () => number;
 
@@ -91,6 +92,19 @@ export class RiskExecution {
 		// biome-ignore lint/plugin: the error reaches the caller through `result`; the chain only keeps going
 		this._tail = result.catch(() => undefined);
 		return result;
+	}
+
+	/** Every call out of the service has a deadline: none holds the queue without bound. */
+	private _bounded<Result>(
+		call: Promise<Result>,
+		what: string
+	): Promise<Result> {
+		const ms = this._d.limits.submitTimeoutMs;
+		return withTimeout(
+			call,
+			DurationMs.of(ms),
+			`${what} timeout after ${ms} ms`
+		);
 	}
 
 	/** Loads the state (unreadable: global switch on, fail closed), finishes interrupted orders, then reconciles. */
@@ -112,24 +126,29 @@ export class RiskExecution {
 				});
 				return;
 			}
-			const ks = this._state.killSwitch;
-			for (const order of Object.values(this._state.orders)) {
-				if (order.status === "accepted") {
-					// Its pre-trade checks are stale or a switch is on: never sent late (ADR-0064 §7).
-					if (
-						now - order.createdAt > this._d.limits.maxIntentAgeMs ||
-						ks.global ||
-						ks.symbols[order.symbol]
-					) {
-						this._move(order, "expired");
-					} else {
-						await this._submit(order);
-					}
-				} else if (order.status === "submitted" || order.status === "unknown") {
+			const orders = Object.values(this._state.orders);
+			for (const order of orders) {
+				if (order.status === "submitted" || order.status === "unknown") {
 					await this._resolve(order);
 				}
 			}
 			await this._reconcile();
+			const ks = this._state.killSwitch;
+			for (const order of orders.filter(
+				(order) => order.status === "accepted"
+			)) {
+				// Its pre-trade checks are stale, the broker is not reconciled or a switch is on: never sent late (ADR-0064 §7).
+				if (
+					now - order.createdAt > this._d.limits.maxIntentAgeMs ||
+					!this._ready ||
+					ks.global ||
+					ks.symbols[order.symbol]
+				) {
+					this._move(order, "expired");
+				} else {
+					await this._submit(order);
+				}
+			}
 			await this._save();
 		});
 	}
@@ -160,7 +179,15 @@ export class RiskExecution {
 		};
 	}
 
-	submitIntent(intent: Intent): Promise<IntentResult> {
+	async submitIntent(intent: Intent): Promise<IntentResult> {
+		// Network call outside the queue: a slow trainer never delays an engage, a cancel or a tick.
+		const admissible = await this._bounded(
+			this._d.admission.isAdmissible(intent.model.symbol, intent.model.version),
+			"admission"
+		).catch((error) => {
+			this._emit("admission.error", { error: String(error) });
+			return false; // fail closed
+		});
 		return this._run(async () => {
 			const now = this._now();
 			this._rollDay(now);
@@ -176,18 +203,13 @@ export class RiskExecution {
 					clientOrderId,
 				};
 			}
-			const [admissible, halted] = await Promise.all([
-				this._d.admission
-					.isAdmissible(intent.model.symbol, intent.model.version)
-					.catch((error) => {
-						this._emit("admission.error", { error: String(error) });
-						return false;
-					}),
-				this._d.broker.haltedSymbols().catch((error) => {
-					this._emit("broker.error", { error: String(error) });
-					return [intent.symbol]; // status unknown: fail closed
-				}),
-			]);
+			const halted = await this._bounded(
+				this._d.broker.haltedSymbols(),
+				"broker"
+			).catch((error) => {
+				this._emit("broker.error", { error: String(error) });
+				return [intent.symbol]; // status unknown: fail closed
+			});
 			const reason = preTradeReject({
 				intent,
 				limits: this._d.limits,
@@ -245,27 +267,30 @@ export class RiskExecution {
 
 	/** Expiry, unknown orders, stale data, loss limits, reconciliation: called on a timer. */
 	tick(): Promise<void> {
-		return this._run(async () => {
-			const now = this._now();
-			this._rollDay(now);
-			for (const order of Object.values(this._state.orders).filter(isOpen)) {
-				if (order.status !== "accepted") {
-					await this._resolve(order);
-				}
-				if (
-					isOpen(order) &&
-					now - order.createdAt > this._d.limits.orderTtlMs
-				) {
-					await this._expire(order);
-				}
-			}
-			await this._checkStale(now);
-			await this._checkLimits();
-			if (now - this._lastReconcile >= RECONCILE_EVERY_MS) {
-				await this._reconcile();
-			}
-			await this._save();
+		// One tick at a time: the timer never stacks entries behind a slow one.
+		this._ticking ??= this._run(() => this._tick()).finally(() => {
+			this._ticking = undefined;
 		});
+		return this._ticking;
+	}
+
+	private async _tick(): Promise<void> {
+		const now = this._now();
+		this._rollDay(now);
+		for (const order of Object.values(this._state.orders).filter(isOpen)) {
+			if (order.status !== "accepted") {
+				await this._resolve(order);
+			}
+			if (isOpen(order) && now - order.createdAt > this._d.limits.orderTtlMs) {
+				await this._expire(order);
+			}
+		}
+		await this._checkStale(now);
+		await this._checkLimits();
+		if (now - this._lastReconcile >= RECONCILE_EVERY_MS) {
+			await this._reconcile();
+		}
+		await this._save();
 	}
 
 	engage(
@@ -274,12 +299,16 @@ export class RiskExecution {
 		actor: string,
 		symbol?: string
 	): Promise<void> {
+		const target = scope === "global" ? null : (symbol ?? "");
+		// The flag is set now, whatever the queue holds; cancels and persistence follow in it.
+		const flagged =
+			this._state !== undefined && this._flag(target, reason, actor);
 		return this._run(async () => {
-			await this._engage(
-				scope === "global" ? null : (symbol ?? ""),
-				reason,
-				actor
-			);
+			if (flagged) {
+				await this._cancelOpen(target);
+			} else {
+				await this._engage(target, reason, actor);
+			}
 			await this._save();
 		});
 	}
@@ -375,7 +404,7 @@ export class RiskExecution {
 		this._move(order, "submitted");
 		await this._save();
 		try {
-			const view = await withTimeout(
+			const view = await this._bounded(
 				this._d.broker.submit({
 					clientOrderId: order.clientOrderId,
 					symbol: order.symbol,
@@ -384,8 +413,7 @@ export class RiskExecution {
 					limitPrice: order.limitPrice,
 					referencePrice: order.referencePrice,
 				}),
-				DurationMs.of(this._d.limits.submitTimeoutMs),
-				`broker timeout after ${this._d.limits.submitTimeoutMs} ms`
+				"broker"
 			);
 			await this._apply(order, view);
 		} catch (error) {
@@ -401,7 +429,10 @@ export class RiskExecution {
 
 	private async _resolve(order: Order): Promise<void> {
 		try {
-			const view = await this._d.broker.query(order.clientOrderId);
+			const view = await this._bounded(
+				this._d.broker.query(order.clientOrderId),
+				"broker"
+			);
 			if (view) {
 				await this._apply(order, view);
 			} else if (order.status === "submitted") {
@@ -467,7 +498,10 @@ export class RiskExecution {
 			this._move(order, "cancel_requested");
 		}
 		try {
-			const view = await this._d.broker.cancel(order.clientOrderId);
+			const view = await this._bounded(
+				this._d.broker.cancel(order.clientOrderId),
+				"broker"
+			);
 			if (view) {
 				await this._apply(order, view);
 			}
@@ -481,7 +515,10 @@ export class RiskExecution {
 			return this._move(order, "expired");
 		}
 		try {
-			const view = await this._d.broker.cancel(order.clientOrderId);
+			const view = await this._bounded(
+				this._d.broker.cancel(order.clientOrderId),
+				"broker"
+			);
 			if (view && view.filledQty > order.filledQty) {
 				await this._apply(order, view);
 			}
@@ -498,9 +535,16 @@ export class RiskExecution {
 		reason: string,
 		actor = "system"
 	): Promise<void> {
+		if (this._flag(symbol, reason, actor)) {
+			await this._cancelOpen(symbol);
+		}
+	}
+
+	/** Sets the switch in memory; false when it was already on. */
+	private _flag(symbol: string | null, reason: string, actor: string): boolean {
 		const ks = this._state.killSwitch;
 		if (symbol === null ? ks.global : ks.symbols[symbol]) {
-			return;
+			return false;
 		}
 		if (symbol === null) {
 			ks.global = reason;
@@ -513,6 +557,10 @@ export class RiskExecution {
 			reason,
 			actor,
 		});
+		return true;
+	}
+
+	private async _cancelOpen(symbol: string | null): Promise<void> {
 		for (const order of Object.values(this._state.orders).filter(
 			(candidate) =>
 				isOpen(candidate) && (symbol === null || candidate.symbol === symbol)
@@ -583,7 +631,7 @@ export class RiskExecution {
 		const state = this._state;
 		let acct: BrokerAccount;
 		try {
-			acct = await this._d.broker.account();
+			acct = await this._bounded(this._d.broker.account(), "broker");
 		} catch (error) {
 			// Not ready, no new intent, retried at the next tick (ADR-0064 §7, broker unreachable).
 			this._ready = false;
