@@ -580,4 +580,31 @@ describe("K8s Redis HA start script — cold start", () => {
 			60_000
 		);
 	}, 240_000);
+
+	it("should fall back to redis-0 after the grace when no node carries the marker", async () => {
+		const pod = await new GenericContainer(composeImage("redis"))
+			.withHostname("redis-0")
+			.withEnvironment({ ...HA_ENV, COLD_START_GRACE_SECONDS: "3" })
+			.withCopyFilesToContainer([
+				{ source: HA_SCRIPT, target: "/scripts/redis-ha.sh" },
+			])
+			.withCommand([
+				"sh",
+				"/scripts/redis-ha.sh",
+				"server",
+				"--appendonly",
+				"yes",
+			])
+			.withWaitStrategy(Wait.forLogMessage("Ready to accept connections"))
+			.withStartupTimeout(120_000)
+			.start();
+		pods.push(pod);
+		await asService(pod, "discovery", "SET", `${DISCOVERY_KEY}:nomarker`, "1");
+		await pod.exec(["rm", "-f", "/data/was-master"]);
+		await pod.restart();
+		await eventually(async () => (await role(pod)) === "master", 60_000);
+		expect(
+			(await asService(pod, "discovery", "GET", `${DISCOVERY_KEY}:nomarker`))[0]
+		).toBe("1");
+	}, 180_000);
 });

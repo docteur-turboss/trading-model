@@ -153,6 +153,11 @@ release_replicas() {
 	# run again from the overlay.
 	# shellcheck disable=SC2086
 	kubectl delete job $INIT_JOBS -n "$ns" --ignore-not-found
+	# podManagementPolicy is immutable (issue #2202, now Parallel): drop the old
+	# StatefulSet without its pods or PVCs; the apply recreates it and adopts them.
+	if [ "$(kubectl get statefulset redis -n "$ns" -o jsonpath='{.spec.podManagementPolicy}' --ignore-not-found)" = OrderedReady ]; then
+		kubectl delete statefulset redis -n "$ns" --cascade=orphan
+	fi
 	for dep in $(kubectl get hpa -n "$ns" \
 		-o jsonpath='{range .items[?(@.spec.scaleTargetRef.kind=="Deployment")]}{.spec.scaleTargetRef.name}{"\n"}{end}'); do
 		last=$(kubectl get deployment "$dep" -n "$ns" -o json | jq -r --arg a "$ann" '.metadata.annotations[$a] // empty')

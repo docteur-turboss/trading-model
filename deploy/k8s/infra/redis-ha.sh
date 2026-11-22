@@ -255,9 +255,14 @@ ACL
 		# bootstraps; redis-0 only does so if no marked peer showed up within
 		# COLD_START_GRACE_SECONDS (or when its volume holds no data yet), so a promoted
 		# replica's writes are never overwritten. A pod without marker (release N-1,
-		# lost volume) falls back to redis-0.
+		# lost volume) falls back to redis-0. The StatefulSet is Parallel so every peer
+		# is up during the grace (OrderedReady would start redis-0 alone). Known limit:
+		# two nodes marked together (old master back in the same outage as the promoted
+		# one, or the 2 s before the marker follows a promotion) both bootstrap and
+		# Sentinel picks one; nodes that are not running yet share no channel to break
+		# the tie, and it takes a double fault.
 		elif [ -e "$MASTER_MARKER" ] || { [ "${SELF_NAME##*-}" = "0" ] &&
-			{ [ ! -d "$DATA_DIR/appendonlydir" ] || [ "$waited" -ge "$COLD_START_GRACE_SECONDS" ]; }; }; then
+			{ { [ ! -d "$DATA_DIR/appendonlydir" ] && [ ! -e "$DATA_DIR/dump.rdb" ]; } || [ "$waited" -ge "$COLD_START_GRACE_SECONDS" ]; }; }; then
 			log "no master anywhere: bootstrapping the group as master"
 			exec redis-server "$@"
 		fi
