@@ -669,6 +669,17 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		expect(ctx.svc.status().killSwitch.global).toBeNull();
 	});
 
+	it("drawdown replaces an earlier reason: only the owner re-arms", async () => {
+		const ctx = build();
+		await ctx.svc.start();
+		await ctx.svc.engage("global", "daily_loss", "system");
+		await ctx.svc.engage("global", "drawdown", "system");
+		expect(ctx.svc.status().killSwitch.global).toBe("drawdown");
+		await expect(ctx.svc.rearm("global", "x", "ops")).rejects.toThrow(/owner/);
+		await ctx.svc.rearm("global", "reviewed", "owner");
+		expect(ctx.svc.status().killSwitch.global).toBeNull();
+	});
+
 	it("an unreadable state counts as on and cannot be re-armed", async () => {
 		const ctx = build();
 		ctx.store.unreadable = true;

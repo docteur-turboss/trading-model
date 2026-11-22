@@ -494,7 +494,14 @@ export class RiskExecution {
 		actor = "system"
 	): Promise<void> {
 		const ks = this._state.killSwitch;
-		if (symbol === null ? ks.global : ks.symbols[symbol]) {
+		const current = symbol === null ? ks.global : ks.symbols[symbol];
+		// drawdown overrides any other reason: it keeps re-arm owner-only (policy §4.4)
+		if (
+			current &&
+			(reason !== "drawdown" ||
+				current === "drawdown" ||
+				current === "state_unreadable")
+		) {
 			return;
 		}
 		if (symbol === null) {
