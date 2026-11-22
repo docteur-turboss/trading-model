@@ -214,7 +214,10 @@ describe("SignalCollector", () => {
 		await collector().collect(SOURCE);
 
 		expect(worker).toHaveBeenCalledWith(SOURCE.requests[0], "none", SOURCE);
-		expect(normalize).toHaveBeenCalledWith({ payload: true }, { params: {} });
+		expect(normalize).toHaveBeenCalledWith(
+			{ payload: true },
+			{ params: {}, ingestedAt: NOW }
+		);
 		expect(save).toHaveBeenNthCalledWith(1, [
 			{
 				id: signalId(
