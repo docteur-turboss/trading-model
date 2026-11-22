@@ -31,7 +31,7 @@ export function mountRoute<Route extends ApiRoute>(
 ): void {
 	const unversioned = route.path.replace(/^\/v\d+(?=\/)/, "");
 	router[route.method.toLowerCase() as Lowercase<typeof route.method>](
-		// shortcut: N-1 gateways still forward without /v<major> while N+1 services roll out first; removed in N+2 (ADR-0072).
+		// shortcut: N-1 gateways still forward without /v<major> while N+1 services roll out first; removed in N+2 (issue #2048, ADR-0072).
 		unversioned === route.path ? route.path : [route.path, unversioned],
 		...(options.middlewares ?? []),
 		catchSync((req) => {
