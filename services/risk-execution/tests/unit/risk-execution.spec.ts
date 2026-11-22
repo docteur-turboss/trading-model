@@ -320,18 +320,28 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		expect((await ctx.broker.account()).positions.BTCUSDT).toBeCloseTo(0.05);
 	});
 
-	it("purges final orders past the longest window on save, after which the same intent is accepted", async () => {
+	it("purges final orders past the longest window on save, yet a late replay of the same decisionId is still a duplicate and not counted twice", async () => {
 		const ctx = build();
 		await ctx.svc.start();
-		const first = await ctx.svc.submitIntent(intent({ allowRepeat: false }));
+		const original = intent({ allowRepeat: false });
+		const first = await ctx.svc.submitIntent(original);
 		clock += 61_000;
 		const again = await ctx.svc.submitIntent(
 			intent({ allowRepeat: false, referenceAt: clock })
 		);
 		expect(again.status).not.toBe("rejected");
-		const orders = (ctx.store.value as RiskState).orders;
-		expect(orders[first.clientOrderId]).toBeUndefined();
-		expect(orders[again.clientOrderId]).toBeDefined();
+		const replay = await ctx.svc.submitIntent({
+			...original,
+			referenceAt: clock,
+		});
+		expect(replay).toMatchObject({ reason: "duplicate_client_order_id" });
+		const state = ctx.store.value as RiskState;
+		expect(state.orders[first.clientOrderId]).toBeUndefined();
+		expect(state.seen?.[first.clientOrderId]).toBeDefined();
+		expect(state.orders[again.clientOrderId]).toBeDefined();
+		expect(state.positions.BTCUSDT).toBeCloseTo(
+			(await ctx.broker.account()).positions.BTCUSDT
+		);
 	});
 
 	it("a replay under the kill switch never rewrites the existing order", async () => {

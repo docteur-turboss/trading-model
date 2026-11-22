@@ -178,7 +178,7 @@ describe("BinanceMarketDataSource", () => {
 			const eth = await cycle.fetchSnapshot({ symbol: ETH });
 
 			expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledTimes(1);
-			expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith([BTC, ETH]);
+			expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith([BTC, ETH], undefined);
 			expect(MOCK_SYMBOL_PRICE_TICKER).toHaveBeenCalledTimes(1);
 			expect(MOCK_ORDER_BOOK_TICKER).toHaveBeenCalledTimes(1);
 			expect(eth.ticker24h).toBeUndefined();
@@ -189,29 +189,38 @@ describe("BinanceMarketDataSource", () => {
 		const many = Array.from({ length: 101 }, (_, i) => `S${i}USDT`) as any[];
 		new BinanceMarketDataSource().beginCycle(many);
 
-		expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith(undefined);
+		expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith(undefined, undefined);
 	});
 
 	describe("fetchSnapshot", () => {
 		it("should call all 6 Binance client functions in parallel", async () => {
 			await source.fetchSnapshot(request);
 
-			expect(MOCK_GET_ORDER_BOOK).toHaveBeenCalledWith({
-				symbol: BTC,
-				limit: LIMIT_10,
-			});
-			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith({
-				symbol: BTC,
-				limit: LIMIT_50,
-			});
-			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith({
-				symbol: BTC,
-				limit: LIMIT_50,
-				interval: CandleInterval.Min1,
-			});
-			expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith([BTC]);
-			expect(MOCK_SYMBOL_PRICE_TICKER).toHaveBeenCalledWith([BTC]);
-			expect(MOCK_ORDER_BOOK_TICKER).toHaveBeenCalledWith([BTC]);
+			expect(MOCK_GET_ORDER_BOOK).toHaveBeenCalledWith(
+				{
+					symbol: BTC,
+					limit: LIMIT_10,
+				},
+				undefined
+			);
+			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith(
+				{
+					symbol: BTC,
+					limit: LIMIT_50,
+				},
+				undefined
+			);
+			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith(
+				{
+					symbol: BTC,
+					limit: LIMIT_50,
+					interval: CandleInterval.Min1,
+				},
+				undefined
+			);
+			expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith([BTC], undefined);
+			expect(MOCK_SYMBOL_PRICE_TICKER).toHaveBeenCalledWith([BTC], undefined);
+			expect(MOCK_ORDER_BOOK_TICKER).toHaveBeenCalledWith([BTC], undefined);
 		});
 
 		it("should fetch candles from the given start time", async () => {
@@ -223,7 +232,8 @@ describe("BinanceMarketDataSource", () => {
 			});
 
 			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith(
-				expect.objectContaining({ startTime })
+				expect.objectContaining({ startTime }),
+				undefined
 			);
 		});
 
@@ -277,7 +287,7 @@ describe("BinanceMarketDataSource", () => {
 			]);
 		});
 
-		describe("418/451 quarantine", () => {
+		describe("429/418/451 quarantine", () => {
 			const ban = (status: number, retryAfter?: string) =>
 				Object.assign(new Error(String(status)), {
 					response: { status, headers: { "retry-after": retryAfter } },
@@ -302,7 +312,7 @@ describe("BinanceMarketDataSource", () => {
 				jest.useRealTimers();
 			});
 
-			it.each([418, 451])(
+			it.each([429, 418, 451])(
 				"makes no call after a %i until the backoff ends, then probes",
 				async (status) => {
 					const banned = new BinanceMarketDataSource();
@@ -373,15 +383,21 @@ describe("BinanceMarketDataSource", () => {
 		it("should use default options when not provided", async () => {
 			await source.fetchSnapshot({ symbol: ETH });
 
-			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith({
-				symbol: ETH,
-				limit: LIMIT_100,
-			});
-			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith({
-				symbol: ETH,
-				limit: LIMIT_100,
-				interval: CandleInterval.Min1,
-			});
+			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith(
+				{
+					symbol: ETH,
+					limit: LIMIT_100,
+				},
+				undefined
+			);
+			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith(
+				{
+					symbol: ETH,
+					limit: LIMIT_100,
+					interval: CandleInterval.Min1,
+				},
+				undefined
+			);
 		});
 	});
 });

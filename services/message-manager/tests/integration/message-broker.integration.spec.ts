@@ -152,7 +152,7 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 		await runWorker(worker);
 		expect(httpClient.post).toHaveBeenCalledTimes(1);
 
-		now += 60_000;
+		now += 120_000;
 		await runWorker(worker);
 		expect(httpClient.post).toHaveBeenCalledTimes(2);
 
@@ -177,7 +177,7 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 		await runWorker(newWorker());
 		expect(httpClient.post).not.toHaveBeenCalled();
 
-		now += 60_000;
+		now += 120_000;
 		await runWorker(newWorker());
 
 		expect(httpClient.post).toHaveBeenCalledTimes(1);
