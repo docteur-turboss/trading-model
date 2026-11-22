@@ -97,6 +97,8 @@ class ApplicationContainer {
 			maxMemoryBytes: 512 * 1024 * 1024,
 			evictionPolicy: EvictionPolicy.Lru,
 			signalKeys: config.signalKeys,
+			onInconsistentCandle: (symbol) =>
+				DAILY_BAR_ISSUES_TOTAL.inc({ symbol, issue: "ohlc_inconsistent" }),
 			onDataAdded: (symbol, candleCount, symbolCount) => {
 				MARKET_DATA_BUFFER_SIZE.set({ symbol: String(symbol) }, candleCount);
 				MARKET_DATA_SYMBOLS.set(symbolCount);
