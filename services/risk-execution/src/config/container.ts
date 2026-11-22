@@ -19,7 +19,7 @@ import {
 	ADDRESS_MANAGER_ROUTES,
 	REGISTRATION_READINESS,
 } from "./address-manager";
-import { publishRiskEvent } from "./audit";
+import { initRiskOutbox, publishRiskEvent, replayRiskEvents } from "./audit";
 import {
 	metricsHandler,
 	RISK_DAILY_LOSS,
@@ -57,6 +57,9 @@ export async function createRiskExecutionApp() {
 		instruments: JSON.parse(ENV.RISK_INSTRUMENTS),
 	});
 	const mode = ENV.EXECUTION_MODE;
+	await initRiskOutbox(
+		new JsonFile(join(ENV.RISK_STATE_DIR, "risk-event-outbox.json"))
+	);
 	const risk = new RiskExecution({
 		limits,
 		mode,
@@ -93,6 +96,7 @@ export async function createRiskExecutionApp() {
 	};
 	publish();
 	const timer = setInterval(() => {
+		void replayRiskEvents();
 		risk
 			.tick()
 			.then(publish, (error) =>
