@@ -543,7 +543,13 @@ describe("K8s Redis HA start script — cold start", () => {
 					.withCopyFilesToContainer([
 						{ source: HA_SCRIPT, target: "/scripts/redis-ha.sh" },
 					])
-					.withCommand(["sh", "/scripts/redis-ha.sh", "server", "--appendonly", "yes"])
+					.withCommand([
+						"sh",
+						"/scripts/redis-ha.sh",
+						"server",
+						"--appendonly",
+						"yes",
+					])
 					.withWaitStrategy(Wait.forLogMessage("Ready to accept connections"))
 					.withStartupTimeout(120_000)
 					.start()
@@ -557,7 +563,9 @@ describe("K8s Redis HA start script — cold start", () => {
 		await asService(pods[1], "discovery", "SET", `${DISCOVERY_KEY}:cold`, "1");
 		const marked = async (pod: StartedTestContainer) =>
 			(await pod.exec(["test", "-e", "/data/was-master"])).exitCode === 0;
-		await eventually(async () => (await marked(pods[1])) && !(await marked(pods[0])));
+		await eventually(
+			async () => (await marked(pods[1])) && !(await marked(pods[0]))
+		);
 
 		await Promise.all(pods.map((pod) => pod.restart()));
 
