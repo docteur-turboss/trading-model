@@ -19,6 +19,7 @@ import type {
 } from "../../src/domain/ports";
 import { type Intent, preTradeReject } from "../../src/domain/pre-trade";
 import { newState, type RiskState } from "../../src/domain/state";
+import { RestingBroker } from "../resting-broker";
 
 const T0 = Date.parse("2026-11-20T10:00:00Z");
 const CAPITAL = 100_000;
@@ -63,7 +64,8 @@ function build(
 ) {
 	const ledger = new MemoryStore<never>();
 	const store = new MemoryStore<RiskState>();
-	const broker = over.broker ?? new PaperBroker(ledger, CAPITAL);
+	const broker =
+		over.broker ?? new RestingBroker(new PaperBroker(ledger, CAPITAL));
 	const events: string[] = [];
 	const svc = new RiskExecution({
 		limits: LIMITS,
@@ -598,6 +600,39 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 		expect(ctx.svc.status().positions.BTCUSDT).toBeCloseTo(0.05);
 	});
 
+	it("the paper broker cancels a non-marketable limit at once, without a rejection", async () => {
+		const ctx = build({
+			broker: new PaperBroker(new MemoryStore<never>(), CAPITAL),
+		});
+		await ctx.svc.start();
+		const r = await ctx.svc.submitIntent(intent({ limitPrice: 59_500 }));
+		expect(await ctx.broker.query(r.clientOrderId)).toMatchObject({
+			status: "cancelled",
+		});
+		expect((await ctx.broker.account()).openOrders).toEqual([]);
+		expect(ctx.events.some((e) => e.includes("rejected"))).toBe(false);
+	});
+
+	it("the balance check reserves the simulated slippage", () => {
+		const state = newState(CAPITAL, T0);
+		state.cash = 1_000; // 999 + 10 bps fee fits; the 5 bps of slippage does not
+		expect(
+			preTradeReject({
+				intent: intent({
+					quantity: 0.01665,
+					referencePrice: 60_000,
+					allowRepeat: false,
+				}),
+				limits: LIMITS,
+				state,
+				now: T0,
+				admissible: true,
+				reconciled: true,
+				halted: [],
+			})
+		).toBe("insufficient_balance");
+	});
+
 	it("a resting order expires and a broker rejection is final", async () => {
 		const ctx = build();
 		await ctx.svc.start();
@@ -697,7 +732,9 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 	});
 
 	it("a failed cancel leaves the order cancel_requested and the ticks keep the limits", async () => {
-		const inner = new PaperBroker(new MemoryStore<never>(), CAPITAL);
+		const inner = new RestingBroker(
+			new PaperBroker(new MemoryStore<never>(), CAPITAL)
+		);
 		let cancelFails = true;
 		const broker: BrokerPort = {
 			submit: (o) => inner.submit(o),
