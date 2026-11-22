@@ -742,6 +742,7 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 				admissible: true,
 				reconciled: true,
 				halted: [],
+				price: { price: 60_000, at: T0 },
 			})
 		).toBe("insufficient_balance");
 	});
