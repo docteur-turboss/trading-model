@@ -139,6 +139,10 @@ data:
         endpoint: jaeger:4317
         tls:
           insecure: true
+        # Jaeger is Recreate + Badger start (startupProbe up to 5 min): the
+        # default 5 min retry dropped spans on every rollout (#2326).
+        retry_on_failure:
+          max_elapsed_time: 15m
 
     extensions:
       health_check:
