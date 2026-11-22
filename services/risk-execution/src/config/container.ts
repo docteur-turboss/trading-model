@@ -22,8 +22,11 @@ import {
 import { publishRiskEvent } from "./audit";
 import {
 	metricsHandler,
+	RISK_DAILY_LOSS,
+	RISK_EXPOSURE_RATIO,
 	RISK_KILL_SWITCH,
 	RISK_MARKET_DATA_AGE_SECONDS,
+	RISK_OPEN_ORDERS,
 	RISK_ORDERS_TOTAL,
 	RISK_RECONCILIATION_MISMATCH,
 } from "./metrics";
@@ -82,7 +85,10 @@ export async function createRiskExecutionApp() {
 			{ mode, scope: "symbol" },
 			Object.keys(snapshot.killSwitch.symbols).length > 0 ? 1 : 0
 		);
-		RISK_RECONCILIATION_MISMATCH.set({ mode }, snapshot.ready ? 0 : 1);
+		RISK_RECONCILIATION_MISMATCH.set({ mode }, snapshot.mismatch ? 1 : 0);
+		RISK_EXPOSURE_RATIO.set({ mode }, snapshot.exposureRatio);
+		RISK_DAILY_LOSS.set({ mode }, snapshot.dailyLoss);
+		RISK_OPEN_ORDERS.set({ mode }, snapshot.openOrders);
 		RISK_MARKET_DATA_AGE_SECONDS.set({ mode }, snapshot.oldestPriceAgeSeconds);
 	};
 	publish();
