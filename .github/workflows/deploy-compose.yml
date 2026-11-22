@@ -53,8 +53,6 @@ jobs:
       - name: Resolve image digests
         shell: bash
         run: |
-          # spire-agent is not released (only SPIRE binaries on alpine): built from the tag.
-          docker build -q -t "trading-model/spire-agent:${TAG#v}" --target agent deploy/spire
           map="discovery-server:discovery-server message-manager:message-manager financial-scraper:financial-scraper
             trader-trainer:trader-trainer api-gateway:api-gateway audit-logger:audit-logger dlq-service:dlq-service
             model-evaluator:model-evaluator risk-execution:risk-execution spire-bootstrap:spire-tools migrate:db-migrate"
@@ -71,6 +69,8 @@ jobs:
           done
           printf '  spire-agent:\n    image: trading-model/spire-agent:%s\n' "${TAG#v}" >> "$RUNNER_TEMP/next.yml"
           [ -z "$missing" ] || { echo "::error::No ${REGISTRY,,} image tagged ${TAG#v} for:$missing (was the release published?)"; exit 1; }
+          # spire-agent is not released (only SPIRE binaries on alpine): built from the tag, after the checks above.
+          docker build -q -t "trading-model/spire-agent:${TAG#v}" --target agent deploy/spire
 
       - name: Unpack the release and remember the running one
         shell: bash
@@ -78,11 +78,17 @@ jobs:
           dir="$RELEASES/$TAG"; mkdir -p "$dir"
           git archive HEAD | tar -x -C "$dir"
           echo "DIR=$dir" >> "$GITHUB_ENV"
-          # Image ids and project directory of the stack as it runs now, for the rollback.
-          { echo "services:"; docker ps -a --filter label=com.docker.compose.project=trading-model --format '{{.Names}}' | while read -r c; do
-              svc=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.service"}}' "$c")
-              grep -q "^  $svc:" "$RUNNER_TEMP/next.yml" && printf '  %s:\n    image: %s\n' "$svc" "$(docker inspect -f '{{.Image}}' "$c")"
-            done; } > "$RUNNER_TEMP/prev.yml"
+          # Running images, pinned under a local tag so the rollback needs no pull (an image id is not a valid compose reference).
+          echo "services:" > "$RUNNER_TEMP/prev.yml"
+          for c in $(docker ps -a --filter label=com.docker.compose.project=trading-model --format '{{.Names}}'); do
+            svc=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.service"}}' "$c")
+            if grep -q "^  $svc:" "$RUNNER_TEMP/next.yml"; then
+              docker tag "$(docker inspect -f '{{.Image}}' "$c")" "trading-model-rollback/$svc:prev"
+              printf '  %s:
+    image: trading-model-rollback/%s:prev
+' "$svc" "$svc" >> "$RUNNER_TEMP/prev.yml"
+            fi
+          done
           docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' trading-discovery > "$RUNNER_TEMP/prev.dir" || true
 
       - name: Deploy
@@ -96,14 +102,15 @@ jobs:
           c up --no-deps --force-recreate --exit-code-from migrate migrate
           c up -d --wait --wait-timeout 900
 
-      # Services are mTLS-only: the edge-proxy is the way in. 401 without a key = edge -> gateway works.
+      # Services are mTLS-only: the edge-proxy is the way in. An authenticated GET of a PUBLIC_ROUTES route must answer 200 (edge -> gateway -> trainer).
       - name: Smoke test
         shell: bash
         run: |
           bad=$(docker ps -a --filter label=com.docker.compose.project=trading-model --format '{{.Names}} {{.Status}}' | grep -E 'unhealthy|starting)|Restarting|Exited ([1-9]' || true)
           [ -z "$bad" ] || { echo "::error::Not healthy:"; echo "$bad"; exit 1; }
-          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8449/v1/trader-trainer/training-status)
-          [ "$code" = 401 ] || { echo "::error::edge-proxy -> gateway answered $code, expected 401"; exit 1; }
+          key=$(sed -n 's/^GATEWAY_AUTH_TOKENS=//p' "$ENV_FILE" | cut -d, -f1 | awk -F: '{print $NF}')
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H "x-api-key: $key" http://127.0.0.1:8449/v1/trader-trainer/training-status)
+          [ "$code" = 200 ] || { echo "::error::edge-proxy -> gateway answered $code, expected 200"; exit 1; }
 
       # Migrations stay compatible with N-1 (ADR-0040): the previous images run on the migrated schema.
       - name: Roll back to the previous images
@@ -112,4 +119,7 @@ jobs:
         run: |
           prev=$(cat "$RUNNER_TEMP/prev.dir" 2>/dev/null || true)
           [ -n "$prev" ] && [ "$(grep -c image: "$RUNNER_TEMP/prev.yml")" -gt 0 ] || { echo "::warning::No previous stack recorded: nothing to roll back"; exit 0; }
-          docker compose --project-directory "$prev" --env-file "$ENV_FILE" -f "$prev/docker-compose.yml" -f "$RUNNER_TEMP/prev.yml" up -d --wait --no-build
+          c() { docker compose --project-directory "$prev" --env-file "$ENV_FILE" -f "$prev/docker-compose.yml" -f "$RUNNER_TEMP/prev.yml" "$@"; }
+          # Token of 1 h (#1903): the restored agent needs a fresh one too.
+          c up --no-deps --force-recreate --exit-code-from spire-bootstrap spire-bootstrap
+          c up -d --wait --no-build
