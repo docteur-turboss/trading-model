@@ -18,11 +18,7 @@ import type {
 	PricePort,
 	StatePort,
 } from "../domain/ports";
-import {
-	dailyLoss,
-	type Intent,
-	preTradeReject,
-} from "../domain/pre-trade";
+import { dailyLoss, type Intent, preTradeReject } from "../domain/pre-trade";
 import {
 	equity,
 	exposure,
