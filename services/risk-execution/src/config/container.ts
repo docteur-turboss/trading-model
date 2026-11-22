@@ -9,6 +9,7 @@ import { RISK_API } from "../adapters/inbound/api-routes";
 import { createHandlers } from "../adapters/inbound/handlers";
 import { JsonFile } from "../adapters/outbound/json-file";
 import { PaperBroker } from "../adapters/outbound/paper-broker";
+import { ScraperPrices } from "../adapters/outbound/scraper-prices";
 import { TrainerAdmission } from "../adapters/outbound/trainer-admission";
 import { RiskExecution } from "../application/risk-execution";
 import { assertExecutionLock } from "../domain/execution-mode";
@@ -57,6 +58,7 @@ export async function createRiskExecutionApp() {
 		instruments: JSON.parse(ENV.RISK_INSTRUMENTS),
 	});
 	const mode = ENV.EXECUTION_MODE;
+	const tls = buildTlsFromEnv(ENV);
 	const risk = new RiskExecution({
 		limits,
 		mode,
@@ -67,7 +69,8 @@ export async function createRiskExecutionApp() {
 			limits.feeBps
 		),
 		store: new JsonFile<RiskState>(join(ENV.RISK_STATE_DIR, "state.json")),
-		admission: new TrainerAdmission(buildTlsFromEnv(ENV)),
+		admission: new TrainerAdmission(tls),
+		prices: new ScraperPrices(tls),
 		emit: (event, fields) => {
 			getLogger().info(event, fields);
 			publishRiskEvent(event, fields);
@@ -110,7 +113,6 @@ export async function createRiskExecutionApp() {
 		routes: (app) => {
 			const router = Router();
 			mountRoute(router, RISK_API.intent, handlers.intent);
-			mountRoute(router, RISK_API.price, handlers.price);
 			mountRoute(router, RISK_API.cancel, handlers.cancel);
 			mountRoute(router, RISK_API.adminStatus, handlers.adminStatus);
 			mountRoute(router, RISK_API.adminEngage, handlers.adminEngage);

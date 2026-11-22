@@ -42,21 +42,6 @@ export const RISK_API = {
 		}),
 		responses: { 200: Result, 400: ErrorResponse, 403: ErrorResponse },
 	}),
-	price: defineRoute({
-		method: "POST",
-		path: "/prices",
-		summary: "Push the latest reference price of an instrument",
-		body: z.object({
-			symbol: z.string().min(1),
-			price: z.number().positive(),
-			at: z.number().int().positive(),
-		}),
-		responses: {
-			200: z.object({ status: z.literal("recorded") }),
-			400: ErrorResponse,
-			403: ErrorResponse,
-		},
-	}),
 	cancel: defineRoute({
 		method: "POST",
 		path: "/orders/:clientOrderId/cancel",

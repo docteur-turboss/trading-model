@@ -7,10 +7,11 @@ import type {
 	BrokerAccount,
 	BrokerOrderView,
 	BrokerPort,
+	MarketPrice,
+	PricePort,
 	StatePort,
 } from "../domain/ports";
 import {
-	CLOCK_SKEW_MS,
 	dailyLoss,
 	type Intent,
 	preTradeReject,
@@ -31,6 +32,8 @@ export interface RiskExecutionDeps {
 	broker: BrokerPort;
 	store: StatePort<RiskState>;
 	admission: AdmissionPort;
+	/** The only source of the marks, the price age and the price checks (ADR-0064 §7). */
+	prices: PricePort;
 	mode: "paper" | "live";
 	/** Only this actor re-arms after the drawdown stop (policy §4.4). */
 	ownerActor: string;
@@ -176,7 +179,7 @@ export class RiskExecution {
 					clientOrderId,
 				};
 			}
-			const [admissible, halted] = await Promise.all([
+			const [admissible, halted, read] = await Promise.all([
 				this._d.admission
 					.isAdmissible(intent.model.symbol, intent.model.version)
 					.catch((error) => {
@@ -187,7 +190,9 @@ export class RiskExecution {
 					this._emit("broker.error", { error: String(error) });
 					return [intent.symbol]; // status unknown: fail closed
 				}),
+				this._readPrices([intent.symbol]),
 			]);
+			const price = read?.[intent.symbol];
 			const reason = preTradeReject({
 				intent,
 				limits: this._d.limits,
@@ -196,6 +201,7 @@ export class RiskExecution {
 				admissible,
 				reconciled: this._ready,
 				halted,
+				price,
 			});
 			const order: Order = {
 				clientOrderId,
@@ -204,7 +210,8 @@ export class RiskExecution {
 				side: intent.side,
 				quantity: intent.quantity,
 				limitPrice: intent.limitPrice,
-				referencePrice: intent.referencePrice,
+				// The price read by the service: the paper broker fills at it, never at the intent's.
+				referencePrice: price?.price ?? 0,
 				status: "received",
 				filledQty: 0,
 				quoteQty: 0,
@@ -219,10 +226,6 @@ export class RiskExecution {
 				await this._save();
 				return { status: "rejected", reason, clientOrderId };
 			}
-			this._state.marks[intent.symbol] = {
-				price: intent.referencePrice,
-				at: intent.referenceAt,
-			};
 			this._move(order, "accepted");
 			await this._save(); // the idempotency key is durable before the broker sees it
 			await this._submit(order);
@@ -230,24 +233,12 @@ export class RiskExecution {
 		});
 	}
 
-	/** shortcut: prices are pushed by the decision consumer, read the scraper when that consumer exists. */
-	observePrice(symbol: string, price: number, at: number): Promise<void> {
-		return this._run(async () => {
-			if (at > this._now() + CLOCK_SKEW_MS) {
-				this._emit("price.future_ignored", { symbol, at });
-				return;
-			}
-			this._state.marks[symbol] = { price, at };
-			await this._checkLimits();
-			await this._save();
-		});
-	}
-
-	/** Expiry, unknown orders, stale data, loss limits, reconciliation: called on a timer. */
+	/** Prices, expiry, unknown orders, stale data, loss limits, reconciliation: called on a timer. */
 	tick(): Promise<void> {
 		return this._run(async () => {
 			const now = this._now();
 			this._rollDay(now);
+			await this._readPrices(Object.keys(this._d.limits.instruments));
 			for (const order of Object.values(this._state.orders).filter(isOpen)) {
 				if (order.status !== "accepted") {
 					await this._resolve(order);
@@ -434,7 +425,6 @@ export class RiskExecution {
 			state.cash += -sign * dQuote - dFee;
 			state.positions[order.symbol] =
 				(state.positions[order.symbol] ?? 0) + sign * dQty;
-			state.marks[order.symbol] = { price: dQuote / dQty, at: this._now() };
 			Object.assign(order, {
 				filledQty: view.filledQty,
 				quoteQty: view.quoteQty,
@@ -542,7 +532,7 @@ export class RiskExecution {
 		}
 	}
 
-	/** Allowed instruments that ever had a price: no feed yet (no decision consumer) is not stale data. */
+	/** Allowed instruments that ever had a price: a symbol never read is not stale data. */
 	private _pricedSymbols(): string[] {
 		return Object.keys(this._d.limits.instruments).filter(
 			(sym) => this._state.marks[sym]
@@ -559,6 +549,28 @@ export class RiskExecution {
 		}
 		if (stale.length && stale.length === priced.length) {
 			await this._engage(null, "stale_data");
+		}
+	}
+
+	/** Marks the symbols at the prices read (never older than the mark); null when the read failed. */
+	private async _readPrices(
+		symbols: string[]
+	): Promise<Record<string, MarketPrice> | null> {
+		try {
+			const read = await withTimeout(
+				this._d.prices.latest(symbols),
+				DurationMs.of(this._d.limits.submitTimeoutMs),
+				`price read timeout after ${this._d.limits.submitTimeoutMs} ms`
+			);
+			for (const [symbol, mark] of Object.entries(read)) {
+				if (mark.at >= (this._state.marks[symbol]?.at ?? 0)) {
+					this._state.marks[symbol] = mark;
+				}
+			}
+			return read;
+		} catch (error) {
+			this._emit("prices.error", { error: String(error) });
+			return null;
 		}
 	}
 

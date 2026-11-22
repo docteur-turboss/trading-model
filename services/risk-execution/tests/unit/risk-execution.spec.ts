@@ -45,6 +45,10 @@ class MemoryStore<T> implements StatePort<T> {
 
 let clock = T0;
 let admissible = true;
+/** The market the service reads: price per symbol, observed now unless `marketAt` freezes the feed. */
+let market: Record<string, number> = {};
+let marketAt: number | null = null;
+let feedDown = false;
 let seq = 0;
 const intent = (over: Partial<Intent> = {}): Intent => ({
 	decisionId: `d${++seq}`,
@@ -70,6 +74,18 @@ function build(
 		broker,
 		store,
 		admission: { isAdmissible: async () => admissible },
+		prices: {
+			latest: async (symbols) => {
+				if (feedDown) {
+					throw new Error("ECONNREFUSED");
+				}
+				return Object.fromEntries(
+					symbols
+						.filter((sym) => market[sym])
+						.map((sym) => [sym, { price: market[sym], at: marketAt ?? clock }])
+				);
+			},
+		},
 		mode: "paper",
 		ownerActor: "owner",
 		now: () => clock,
@@ -83,6 +99,9 @@ beforeEach(() => {
 	clock = T0;
 	admissible = true;
 	seq = 0;
+	market = { BTCUSDT: 60_000, ETHUSDT: 3_000 };
+	marketAt = null;
+	feedDown = false;
 });
 
 describe("preTradeReject on crafted states", () => {
@@ -97,6 +116,7 @@ describe("preTradeReject on crafted states", () => {
 			admissible: true,
 			reconciled: true,
 			halted: [],
+			price: { price: 60_000, at: T0 },
 		});
 	};
 
@@ -195,18 +215,54 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		expect(await reject({})).toBe("model_not_admitted");
 	});
 
-	it("ignores a price pushed from the future", async () => {
-		const r = await reject({}, (c) =>
-			c.svc.observePrice("BTCUSDT", 61_500, clock + 6000)
-		);
-		expect(r).toBe("accepted");
+	it("rejects a gap between the intent and the price the service reads", async () => {
+		market.BTCUSDT = 61_500;
+		expect(await reject({ referencePrice: 60_000 })).toBe("price_gap");
 	});
 
-	it("rejects a gap between the intent and the service's own price", async () => {
-		const r = await reject({ referencePrice: 60_000 }, (c) =>
-			c.svc.observePrice("BTCUSDT", 61_500, clock)
+	it("fails closed when the price read fails, finds none or finds it too old", async () => {
+		feedDown = true;
+		expect(await reject({})).toBe("stale_price");
+		feedDown = false;
+		delete market.BTCUSDT;
+		expect(await reject({})).toBe("stale_price");
+		market.BTCUSDT = 60_000;
+		marketAt = clock - LIMITS.haltAgeMs - 1;
+		expect(await reject({})).toBe("stale_price");
+	});
+
+	it("values the order at the price read, not at the intent's, and fills there", async () => {
+		market.BTCUSDT = 100_000;
+		// Notional at the read price (6 000 > 5 % of 100 000): at the intent's it would fit, then fail the gap.
+		expect(await reject({ quantity: 0.06, referencePrice: 50_000 })).toBe(
+			"max_notional"
 		);
-		expect(r).toBe("price_gap");
+		// Marked and filled (slippage 5 bps, fee 10 bps) at the read price, not at the intent's.
+		const ctx = build();
+		await ctx.svc.start();
+		await ctx.svc.submitIntent(
+			intent({ quantity: 0.04, referencePrice: 99_500 })
+		);
+		expect(ctx.svc.status().exposureRatio).toBeCloseTo(0.04, 6);
+		expect(CAPITAL - (await ctx.broker.account()).cash).toBeCloseTo(
+			0.04 * 100_000 * 1.0005 * 1.001
+		);
+		// Worst-case loss at the read price: 0.01 x 60 500 x 1 % = 6.05 tips the daily loss past 2 000, 6.00 would not.
+		const state = newState(CAPITAL, T0);
+		state.day.startEquity = CAPITAL + 1_993.98;
+		const lossCheck = (price: number) =>
+			preTradeReject({
+				intent: intent({ quantity: 0.01, allowRepeat: false }),
+				limits: LIMITS,
+				state,
+				now: T0,
+				admissible: true,
+				reconciled: true,
+				halted: [],
+				price: { price, at: T0 },
+			});
+		expect(lossCheck(60_000)).toBeNull();
+		expect(lossCheck(60_500)).toBe("loss_limit_daily");
 	});
 
 	it("caps the exposure per instrument counting open orders as filled", async () => {
@@ -255,6 +311,7 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 				admissible: true,
 				reconciled: true,
 				halted: [],
+				price: { price: 60_000, at: T0 },
 			})
 		).toBe("instrument_exposure");
 	});
@@ -620,7 +677,8 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		const resting = await ctx.svc.submitIntent(
 			intent({ limitPrice: 59_500, quantity: 0.0001 })
 		);
-		await ctx.svc.observePrice("BTCUSDT", 30_000, clock); // -2 400 on 0.08 BTC: past 2 % of 100 000
+		market.BTCUSDT = 30_000; // -2 400 on 0.08 BTC: past 2 % of 100 000
+		await ctx.svc.tick();
 		expect(ctx.svc.status().killSwitch.global).toBe("daily_loss");
 		expect(
 			(ctx.store.value as RiskState).orders[resting.clientOrderId].status
@@ -727,7 +785,7 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		expect(ctx.events.filter((e) => e.startsWith("broker.error"))).toHaveLength(
 			1
 		); // the failed cancel only, no illegal transition at each tick
-		await ctx.svc.observePrice("BTCUSDT", 30_000, clock);
+		market.BTCUSDT = 30_000;
 		await ctx.svc.tick();
 		expect(ctx.svc.status().killSwitch.global).toBe("daily_loss");
 		expect(orders()[resting.clientOrderId].status).toBe("cancelled");
@@ -797,24 +855,40 @@ describe("reconciliation (ADR-0064 §4)", () => {
 describe("stale data (ADR-0064 §7)", () => {
 	it("halts a symbol after 15 min, and every symbol stale engages the global switch", async () => {
 		const ctx = build();
+		market = {}; // never read: not stale
 		await ctx.svc.start();
-		clock += 16 * 60_000; // no price ever received: nothing is stale
+		clock += 16 * 60_000;
 		await ctx.svc.tick();
 		expect(ctx.svc.status()).toMatchObject({
 			killSwitch: { global: null, symbols: {} },
 			oldestPriceAgeSeconds: 0,
 		});
-		await ctx.svc.observePrice("BTCUSDT", 60_000, clock);
-		await ctx.svc.observePrice("ETHUSDT", 3_000, clock);
-		clock += 14 * 60_000;
-		await ctx.svc.observePrice("ETHUSDT", 3_000, clock);
-		clock += 2 * 60_000;
+		market = { BTCUSDT: 60_000, ETHUSDT: 3_000 };
+		await ctx.svc.tick();
+		delete market.BTCUSDT; // the BTCUSDT feed stops, ETHUSDT keeps coming
+		clock += 16 * 60_000;
 		await ctx.svc.tick();
 		expect(ctx.svc.status().killSwitch.symbols.BTCUSDT).toBe("stale_data");
 		expect(ctx.svc.status().killSwitch.global).toBeNull();
+		marketAt = clock; // every feed frozen
 		clock += 16 * 60_000;
 		await ctx.svc.tick();
 		expect(ctx.svc.status().killSwitch.global).toBe("stale_data");
+	});
+
+	it("a frozen price read engages the halt even when every intent carries a fresh referenceAt", async () => {
+		const ctx = build();
+		await ctx.svc.start();
+		marketAt = clock;
+		for (let n = 0; n < 4; n++) {
+			clock += 5 * 60_000;
+			await ctx.svc.submitIntent(
+				intent({ quantity: 0.001, referenceAt: clock })
+			);
+			await ctx.svc.tick();
+		}
+		expect(ctx.svc.status().killSwitch.global).toBe("stale_data");
+		expect(ctx.svc.status().oldestPriceAgeSeconds).toBe(1_200);
 	});
 });
 

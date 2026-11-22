@@ -66,7 +66,7 @@ Closing positions is a separate, explicit operator action, never automatic: a fo
 |---|---|---|
 | Daily loss, drawdown stop | §3 | Global |
 | Daily loss per symbol | §3 | Symbol |
-| Stale market data | Reference price of a symbol older than 15 min (the trainer's `TRAINER_MAX_DATA_AGE_MS` default); every symbol stale at once engages the global switch | Symbol, or global |
+| Stale market data | Reference price of a symbol (last closed candle the service reads from financial-scraper, never the caller's price) older than 15 min (the trainer's `TRAINER_MAX_DATA_AGE_MS` default); every symbol stale at once engages the global switch | Symbol, or global |
 | Reconciliation mismatch | Any position or open order difference with the broker, or a balance difference above 0.1 % of allocated capital (rounding and fees), found by a reconciliation run every 5 min, at startup and after any order in state `unknown` (ADR-0064 §4) | Global |
 | Reject rate | 5 broker rejections or errors within 10 min on one symbol engage that symbol; 10 within 10 min across symbols engage the global switch | Symbol, or global |
 | Unreadable switch state | The service cannot read its stored state: it counts as on (fail closed, ADR-0064 §5) | Global |
