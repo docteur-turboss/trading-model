@@ -81,7 +81,7 @@ const MIN_MAX: Normalizer = {
 	normalize(slice: DataSlice): Float32Array {
 		const { data, len } = slice;
 		const { lo: min, hi: max } = _findMinMax(data);
-		const range = 1 / (max - min) || 1;
+		const range = 1 / (max - min || 1);
 		for (let i = 0; i < len; i++) {
 			data[i] = (data[i] - min) * range;
 		}
@@ -131,28 +131,6 @@ const NONE_NORMALIZER: Normalizer = {
 	},
 };
 
-const BORDER: Normalizer = {
-	normalize(slice: DataSlice, params?: NormalizeParams): Float32Array {
-		const { data, len } = slice;
-		const par = params as { min?: number; max?: number } | undefined;
-		let lo = params?.lo ?? par?.min;
-		let hi = params?.hi ?? par?.max;
-
-		if (lo === undefined || hi === undefined) {
-			const range = _findMinMax(data);
-			lo ??= range.lo;
-			hi ??= range.hi;
-		}
-
-		for (let i = 0; i < len; i++) {
-			const value = data[i];
-			data[i] = Math.min(Math.max(value, lo), hi);
-		}
-
-		return data;
-	},
-};
-
 export const NORMALIZERS: Record<NormalisationType, Normalizer> = {
 	[NormalisationType.DecimalScaling]: DECIMAL_SCALING,
 	[NormalisationType.LogarithmicNormalization]: LOGARITHMIC,
@@ -160,5 +138,6 @@ export const NORMALIZERS: Record<NormalisationType, Normalizer> = {
 	[NormalisationType.RobustScaling]: ROBUST_SCALING,
 	[NormalisationType.ZScore]: Z_SCORE,
 	[NormalisationType.None]: NONE_NORMALIZER,
-	[NormalisationType.Border]: BORDER,
+	// Border selected nothing: kept for published genomes, replayed as None.
+	[NormalisationType.Border]: NONE_NORMALIZER,
 };
