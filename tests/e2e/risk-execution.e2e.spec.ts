@@ -10,7 +10,7 @@ import { CALLER, containerHealth, eventually, meshRequest } from "./helpers";
  */
 
 const RISK = "trading-risk-execution";
-const URL = "https://localhost:3000";
+const URL = "https://risk-execution:3000";
 const RESTART_TIMEOUT_MS = 90_000;
 const SCOPE = { scope: "global", reason: "e2e", actor: "e2e" };
 
@@ -90,7 +90,7 @@ describe("risk-execution E2E", () => {
 		const before = status();
 		const res = meshRequest(
 			CALLER.trainer,
-			`https://risk-execution:3000${path}`,
+			`${URL}${path}`,
 			{
 				method: "POST",
 				body,
