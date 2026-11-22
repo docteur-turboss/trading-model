@@ -7,7 +7,7 @@ export interface RiskState {
 		symbols: Record<string, string>;
 	};
 	orders: Record<string, Order>;
-	/** clientOrderId -> createdAt of purged final orders, kept SEEN_HORIZON_MS so a late replay stays a duplicate (ADR-0064 ง3). */
+	/** clientOrderId -> createdAt of purged final orders, kept SEEN_HORIZON_MS so a late replay stays a duplicate (ADR-0064 ยง3). */
 	seen?: Record<string, number>;
 	cash: number;
 	positions: Record<string, number>;
