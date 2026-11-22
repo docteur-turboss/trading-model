@@ -3,7 +3,11 @@ import { AGENT_STATE_DIM } from "@trading-model/model-runtime/agent/agent-state"
 import { evaluateFitness } from "./evaluation-pipeline";
 import { createDefaultGenome } from "./factory";
 import { type GaTelemetry, NoopGaTelemetry } from "./ga-telemetry";
-import type { GARunnerConfig, GenerationContext } from "./generation-types";
+import type {
+	GARunnerConfig,
+	GenerationContext,
+	WindowSet,
+} from "./generation-types";
 import type { GAControlGenome, LamarckGenome, PopMember } from "./genome";
 import { adaptGAControl } from "./genome-control";
 import { selectElites } from "./offspring-factory";
@@ -15,6 +19,7 @@ import {
 	buildNextPopulation,
 	createInitialPopulation,
 } from "./population-builder";
+import { rotatingWindowSets } from "./shared-trunk";
 import { type DeepReadonly, deepFreeze } from "./shared-types";
 import { StagnationTracker, type TrackResult } from "./stagnation-tracker";
 
@@ -75,7 +80,12 @@ export class GenerationProcessor {
 		const { ctrl, rng } = this._initRunParams();
 		const evalResult = await evaluateFitness({
 			population: this._population,
-			windowSets: this._cfg.windowSets,
+			windowSets: rotatingWindowSets(
+				this._cfg.windowSets,
+				this._cfg.symbolsPerGeneration,
+				this._cfg.initialControl?.seeding?.networkSeed ?? 0,
+				this._generation
+			) as WindowSet[],
 			backendFactory: this._cfg.backendFactory,
 			telemetry: this._telemetry,
 		});

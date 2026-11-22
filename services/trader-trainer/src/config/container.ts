@@ -36,6 +36,7 @@ import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-stor
 import type { SignalHistoryPort } from "../domain/ports/signal-history.port";
 import {
 	effectiveFitnessType,
+	symbolsPerGeneration,
 	type TrainingSettings,
 } from "../domain/training-settings";
 import { MessageManager } from "./message-manager";
@@ -158,6 +159,7 @@ interface TraderTrainerSettings {
 	FEATURE_EVENT_DRIVEN_DECISIONS?: boolean;
 	FEATURE_INPUT_MASK_GENE?: boolean;
 	FEATURE_SHARED_TRUNK?: boolean;
+	TRAINER_SHARED_TRUNK_SYMBOLS_PER_GENERATION?: number;
 	TRAINER_INPUT_MASK_PROTECT_CANDLE?: boolean;
 	TRAINER_OBSERVE_POSITION?: boolean;
 	TRAINER_SEED_OFFSET?: number;
@@ -192,16 +194,17 @@ export function createTraderTrainerContainer(
 	const signalKeys = settings.FEATURE_SIGNAL_INPUTS
 		? parseCommaSeparated(settings.TRAINER_SIGNAL_FEATURES ?? "")
 		: [];
+	const symbols = [
+		...new Set([
+			...parseCommaSeparated(settings.TRAINER_SYMBOLS).map((symbol) =>
+				toSymbol(symbol)
+			),
+			...dailyCosts.keys(),
+		]),
+	];
 	return new ApplicationContainer({
 		bufferSize: settings.TRAINER_DATA_WINDOW,
-		symbols: [
-			...new Set([
-				...parseCommaSeparated(settings.TRAINER_SYMBOLS).map((symbol) =>
-					toSymbol(symbol)
-				),
-				...dailyCosts.keys(),
-			]),
-		],
+		symbols,
 		dailyCosts,
 		settings: {
 			validationSplit: settings.TRAINER_VALIDATION_SPLIT,
@@ -220,6 +223,12 @@ export function createTraderTrainerContainer(
 				? inputGroupNames(signalKeys)
 				: undefined,
 			protectCandleGroup: settings.TRAINER_INPUT_MASK_PROTECT_CANDLE,
+			symbolsPerGeneration: settings.FEATURE_SHARED_TRUNK
+				? symbolsPerGeneration(
+						settings.TRAINER_SHARED_TRUNK_SYMBOLS_PER_GENERATION,
+						symbols.length
+					)
+				: undefined,
 		},
 		signalKeys,
 		modelDir: settings.TRAINER_MODEL_DIR,

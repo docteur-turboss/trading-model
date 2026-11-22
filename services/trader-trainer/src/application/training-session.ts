@@ -201,6 +201,7 @@ class TrainingSession {
 			eventDriven: this._settings.eventDriven,
 			inputGroups: this._settings.inputGroups,
 			protectCandleGroup: this._settings.protectCandleGroup,
+			symbolsPerGeneration: this._settings.symbolsPerGeneration,
 		});
 	}
 }
