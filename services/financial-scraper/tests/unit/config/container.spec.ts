@@ -65,6 +65,7 @@ jest.mock("@trading-model/reliability/kubernetes-lease", () => ({
 		api,
 	})),
 	kubernetesLeaseApi: MOCK_LEASE_API,
+	leaseAnnotation: jest.fn(() => ({ get: jest.fn(), set: jest.fn() })),
 }));
 
 import { Leadership } from "@trading-model/reliability/leadership";

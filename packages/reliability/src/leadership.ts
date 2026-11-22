@@ -18,6 +18,12 @@ export interface LeadershipTiming {
 	renewDeadlineMs: number;
 }
 
+/**
+ * Longest a lost leader's job may take to stop. Below the 5 s between the
+ * 10 s renew deadline and the 15 s lease, so it ends before a successor starts.
+ */
+export const JOB_STOP_DEADLINE_MS = 4000;
+
 /** client-go's defaults, with LEASE_DURATION_SECONDS = 15. */
 export const DEFAULT_LEADERSHIP_TIMING: LeadershipTiming = {
 	retryMs: 2000,
@@ -140,14 +146,23 @@ export class Leadership {
 		this._leading = false;
 		this._onLeaderChange(0);
 		getLogger().warn(`${this._label} stops its job`, { reason });
-		this._draining = this._job
-			.stop()
+		let timer: NodeJS.Timeout | undefined;
+		const late = new Promise<void>((resolve) => {
+			timer = setTimeout(() => {
+				getLogger().error(
+					`${this._label} job still running ${JOB_STOP_DEADLINE_MS} ms after the lease was lost`
+				);
+				resolve();
+			}, JOB_STOP_DEADLINE_MS);
+		});
+		this._draining = Promise.race([this._job.stop(), late])
 			.catch((err: unknown) => {
 				getLogger().error(`${this._label} stop failed after losing the lease`, {
 					error: err,
 				});
 			})
 			.finally(() => {
+				clearTimeout(timer);
 				this._draining = undefined;
 			});
 		return this._draining;
