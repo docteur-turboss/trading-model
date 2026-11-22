@@ -104,7 +104,7 @@ The final file must list ALL keys. `run-migrations.sh` refuses to apply a file t
 A quarterly reminder issue (workflow `Secret Rotation Reminder`) points here.
 
 ```bash
-bash scripts/rotate-secrets.sh --component signing|tokens|dlq|all
+bash scripts/rotate-secrets.sh --component signing|tokens|dlq|mysql|all
 DRY_RUN=true bash scripts/rotate-secrets.sh --component dlq   # no merge, apply or restart
 ```
 Before `kubectl apply` the script compares the live Secret keys with the file: a live key missing from `SEALED_SECRETS_FILE` stops it (the controller would erase that key). The merged file stays on disk; add the key with `kubeseal --merge-into`, then rerun.
@@ -123,11 +123,16 @@ For `tokens`, the new key is written to a `0600` temporary file whose path is lo
 
 ### Rotate a database password
 
-`rotate-secrets.sh` refuses `MYSQL_*`, `MONGO_ROOT_PASSWORD` and `REDIS_*_PASSWORD`: the password must change in the database first, then in the Secret, then in the pods.
+No downtime: the old password stays valid until every consumer restarted on the new one.
 
-1. Change it in the database (`ALTER USER ... IDENTIFIED BY` for MySQL; `ACL SETUSER <user> >new <-old` on every Redis node, or edit `redis-ha.sh` and rerun it; for Mongo `root`, `db.getSiblingDB("admin").changeUserPassword("root", <new>)` after `auth` with the old one; the other Mongo users are applied by the `mongo-*-users` Jobs on release).
-2. Merge the new value (`kubeseal --merge-into`, see above) and apply the file.
-3. Restart every consumer of the key (`kubectl rollout restart`), then the database pods for the exporter keys.
+```bash
+bash scripts/rotate-secrets.sh --component mysql                       # MYSQL_PASSWORD (user scraper)
+bash scripts/rotate-secrets.sh --component redis --user dlq-service    # discovery|message-manager|audit-logger|trader-trainer|model-evaluator|dlq-service
+```
+
+MySQL: `ALTER USER ... RETAIN CURRENT PASSWORD` on `mysql-primary`, Secret, restart, `DISCARD OLD PASSWORD`. Redis: `ACL SETUSER <user> >new` on every data node (as `ha`, which needs the `+acl|setuser` of `redis-ha.sh`: roll the StatefulSet once first), Secret, restart, `ACL SETUSER <user> resetpass >new`. Passwords travel on stdin, never argv. If the script fails before the restart, check the live Secret before rerunning.
+
+Still manual (the script refuses them): `MYSQL_ROOT_PASSWORD`; `MYSQL_MIGRATE_PASSWORD` and `MYSQL_RETENTION_PASSWORD` (merge, apply, rerun Job `db-migrate-user`); the exporter keys (merge, apply, restart the database pods, rerun `db-migrate-user`); `REDIS_INTERNAL_PASSWORD` (`ha`: ordered restart of the StatefulSets); Mongo `root` (`db.getSiblingDB("admin").changeUserPassword("root", <new>)`; the other Mongo users come from the `mongo-*-users` Jobs on release).
 
 ### 3. Apply
 

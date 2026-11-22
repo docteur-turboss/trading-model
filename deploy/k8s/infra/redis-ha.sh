@@ -150,7 +150,7 @@ acl_args() {
 	[ -n "${REDIS_INTERNAL_PASSWORD:-}" ] || return 0
 	print_args --user default off
 	print_args --masteruser ha --masterauth "$REDIS_INTERNAL_PASSWORD"
-	print_args --user ha on ">$REDIS_INTERNAL_PASSWORD" allchannels -@all +psync +replconf +ping
+	print_args --user ha on ">$REDIS_INTERNAL_PASSWORD" allchannels -@all +psync +replconf +ping "+acl|setuser"
 	print_args +role +info +multi +exec +slaveof +replicaof +subscribe +publish
 	print_args "+config|rewrite" "+client|setname" "+client|kill" "+script|kill"
 	service_user discovery "${REDIS_DISCOVERY_PASSWORD:-}" "trading-model:discovery:*" +get +set +del +mget +sadd +srem +smembers +sismember +scard +eval +evalsha "+script|load"
