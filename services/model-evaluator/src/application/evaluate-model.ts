@@ -70,6 +70,8 @@ async function replay(
 		intervalMs,
 		signal
 	);
+	// A late answer must not be replayed once the delivery was abandoned.
+	signal.throwIfAborted();
 	return replayOutcome(
 		window,
 		manifest.genome,
@@ -126,6 +128,7 @@ export function createEvaluateModel(deps: {
 				outcome.metrics.sharpe - published
 			);
 		}
+		signal.throwIfAborted();
 		return (await deps.store.create(toRecord(manifest, now(), outcome)))
 			? "recorded"
 			: "duplicate";

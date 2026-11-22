@@ -69,6 +69,8 @@ export class ScraperClient {
 				to,
 				Math.ceil((to - from) / DAY_MS) + 1
 			);
+			// shortcut: SignalBarHistory takes no signal, so a slow read is only caught after it returns.
+			signal?.throwIfAborted();
 			return bars.filter((bar) => bar.timestamp >= from);
 		}
 		const target = await FIND_A_SERVICE(

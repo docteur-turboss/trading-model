@@ -148,6 +148,36 @@ describe("evaluate a published model", () => {
 		expect(seen.every((s) => s?.aborted)).toBe(true);
 	});
 
+	it("fails at the global budget on a scraper that never answers, recording nothing", async () => {
+		const timeout = jest
+			.spyOn(AbortSignal, "timeout")
+			.mockImplementation(() => {
+				const budget = new AbortController();
+				setTimeout(() => budget.abort(new Error("budget")), 20);
+				return budget.signal;
+			});
+		const store = new FileEvaluationStore(dir);
+		const create = jest.spyOn(store, "create");
+		const evaluate = createEvaluateModel({
+			store,
+			scraper: {
+				candles: (_s, _f, _t, _i, signal) =>
+					new Promise((_, reject) =>
+						signal?.addEventListener("abort", () => reject(signal.reason))
+					),
+			},
+			trainer: {
+				manifest: async () =>
+					({ ...MANIFEST, replay: WINDOW }) as ModelManifest,
+				weights: async () => ({ bytes: BYTES, sha256: SHA }),
+			},
+		});
+
+		await expect(evaluate(EVENT as PublishedModel)).rejects.toThrow("budget");
+		timeout.mockRestore();
+		expect(create).not.toHaveBeenCalled();
+	});
+
 	it("reads a manifest from before and one from after the signal inputs (ADR-0081)", () => {
 		const base = { ...MANIFEST, features: { dim: 19, fields: ["Bias"] } };
 		const withSignals = {
