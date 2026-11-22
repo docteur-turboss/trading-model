@@ -1053,13 +1053,9 @@ mongo_tool() {
 		return
 	fi
 	kubectl_exec ${flags[@]+"${flags[@]}"} "${pod}" -c mongodb -- sh -c \
-<<<<<<< HEAD
-		'u=$1; v=$2; shift 2; exec "$@" --tls --tlsCAFile /keyfile/ca.crt --username "$u" --password "$(printenv "$v")" --authenticationDatabase admin' sh "$user" "$var" "$@"
-=======
 		"PWD_VAR=\$2; $MONGO_PWD_CFG"'
 u=$1; shift 2
-"$@" --config "$d/c.yml" --username "$u" --authenticationDatabase admin' sh "$user" "$var" "$@"
->>>>>>> origin/development
+"$@" --tls --tlsCAFile /keyfile/ca.crt --config "$d/c.yml" --username "$u" --authenticationDatabase admin' sh "$user" "$var" "$@"
 }
 
 # Oplog point (`seconds.increment`) of the newest (`-1`) or oldest (`1`)

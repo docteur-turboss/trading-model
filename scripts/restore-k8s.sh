@@ -185,12 +185,8 @@ replay_oplog() {
   for archive in "$@"; do
     open_backup "$archive" | gunzip || return 1
   done | kubectl exec -i -n "${K8S_NAMESPACE}" "${primary}" -- sh -c \
-<<<<<<< HEAD
-    'd=$(mktemp -d) && chmod 700 "$d" && cat > "$d/oplog.bson" && mongorestore --tls --tlsCAFile /keyfile/ca.crt --oplogReplay --oplogLimit "$1:0" --username root --password "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin "$d"; rc=$?; rm -rf "$d"; exit $rc' \
-=======
     "PWD_VAR=MONGO_ROOT_PASSWORD; ${MONGO_PWD_CFG}"'
-o=$(mktemp -d) && chmod 700 "$o" && cat > "$o/oplog.bson" && mongorestore --oplogReplay --oplogLimit "$1:0" --config "$d/c.yml" --username root --authenticationDatabase admin "$o"; rc=$?; rm -rf "$o"; exit $rc' \
->>>>>>> origin/development
+o=$(mktemp -d) && chmod 700 "$o" && cat > "$o/oplog.bson" && mongorestore --tls --tlsCAFile /keyfile/ca.crt --oplogReplay --oplogLimit "$1:0" --config "$d/c.yml" --username root --authenticationDatabase admin "$o"; rc=$?; rm -rf "$o"; exit $rc' \
     sh "$UNTIL_EPOCH"
 }
 
@@ -205,15 +201,9 @@ save_mongo_users() {
 # save_mongo_users. The restored root has the password of the dump's day, so
 # the keyFile's internal user (`__system`) signs in instead.
 put_back_mongo_users() {
-<<<<<<< HEAD
-  printf '%s' "$2" | kubectl_exec -i "$1" -c mongodb -- sh -c \
-    'exec mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt --username __system --password "$(cat /keyfile/keyfile)" --authenticationDatabase local --eval "$1"' sh \
-    "const s = EJSON.parse(require('fs').readFileSync(0, 'utf8')); const a = db.getSiblingDB('admin');
-=======
-  printf '%s' "$2" | kubectl_exec -i "$1" -c mongodb -- mongosh --quiet --eval \
+  printf '%s' "$2" | kubectl_exec -i "$1" -c mongodb -- mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt --eval \
     "db.getSiblingDB('local').auth('__system', require('fs').readFileSync('/keyfile/keyfile', 'utf8').trim());
 const s = EJSON.parse(require('fs').readFileSync(0, 'utf8')); const a = db.getSiblingDB('admin');
->>>>>>> origin/development
 for (const [c, docs] of [['system.users', s.u], ['system.roles', s.r]]) { a.getCollection(c).deleteMany({}); if (docs.length) a.getCollection(c).insertMany(docs); }"
 }
 
