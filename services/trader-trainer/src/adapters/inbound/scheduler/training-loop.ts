@@ -2,6 +2,7 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { Dimension } from "@trading-model/contracts/wire/signals";
+import { runJob } from "@trading-model/http/correlation-id";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import type { Trainer } from "../../../application/trainer";
 import {
@@ -62,7 +63,9 @@ export class TrainingLoop {
 	start(config: TrainingLoopConfig): void {
 		const { symbols, intervalMs, maxDataAgeMs } = config;
 		const runTraining = (): void => {
-			this._runTrainingForSymbols(symbols, maxDataAgeMs).catch((err) => {
+			runJob("trader-trainer.training-cycle", () =>
+				this._runTrainingForSymbols(symbols, maxDataAgeMs)
+			).catch((err) => {
 				getLogger().error("Training cycle failed", {
 					error: normalizeError(err).message,
 				});
