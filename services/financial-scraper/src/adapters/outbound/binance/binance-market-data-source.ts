@@ -32,10 +32,10 @@ export class BinanceMarketDataSource implements MarketDataSourcePort {
 		private readonly _quarantine = new SourceQuarantine(BAN_BACKOFF_BASE_MS, 1)
 	) {}
 
-	beginCycle(symbols: TradingSymbol[]): void {
+	beginCycle(symbols: TradingSymbol[], signal?: AbortSignal): void {
 		this._tickers = this._quarantine.isOpen(this.id)
 			? undefined
-			: fetchTickerBatch(symbols);
+			: fetchTickerBatch(symbols, signal);
 	}
 
 	async fetchSnapshot(request: SnapshotRequest): Promise<MarketDataSnapshot> {

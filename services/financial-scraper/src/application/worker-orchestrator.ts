@@ -77,7 +77,7 @@ export class WorkerOrchestrator {
 	 * the requests already in flight finish.
 	 */
 	async executeAll(signal?: AbortSignal): Promise<void> {
-		this._deps.source.beginCycle?.(this._symbols);
+		this._deps.source.beginCycle?.(this._symbols, signal);
 		const limiter = await _createLimiter(this._maxConcurrency);
 
 		const settled = await Promise.allSettled(
@@ -153,6 +153,7 @@ export class WorkerOrchestrator {
 			symbol,
 			interval: this._candleInterval,
 			candleStartTime: state.cursor,
+			signal,
 		});
 
 		signal?.throwIfAborted();

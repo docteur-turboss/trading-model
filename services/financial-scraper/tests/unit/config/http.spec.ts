@@ -91,6 +91,28 @@ describe("createHttpClient", () => {
 		jest.useRealTimers();
 	});
 
+	it("sends no retry once the signal fires, even during the backoff", async () => {
+		createHttpClient("https://api.example.com");
+		const axiosMock = jest.requireMock("axios") as {
+			create: jest.Mock<(...args: any[]) => any>;
+		};
+		const instance = axiosMock.create.mock.results.at(-1)?.value as jest.Mock<
+			(...args: any[]) => any
+		>;
+		instance.mockClear();
+		const abort = new AbortController();
+		const error = {
+			config: { retryCount: 2, signal: abort.signal },
+			response: { status: 500 },
+		};
+		const promise = mockResponseRejectedHandler!(error);
+		abort.abort();
+		await expect(promise).rejects.toBe(error);
+		expect(instance).not.toHaveBeenCalled();
+		expect(() => mockResponseRejectedHandler!(error)).toThrow();
+		expect(instance).not.toHaveBeenCalled();
+	});
+
 	it("records request count and duration per endpoint outside tests", async () => {
 		const axiosMock = jest.requireMock("axios") as {
 			create: jest.Mock<(...args: any[]) => any>;

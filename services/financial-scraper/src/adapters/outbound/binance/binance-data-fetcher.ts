@@ -62,12 +62,15 @@ export interface TickerBatch {
 }
 
 /** Starts the three ticker requests of a cycle; over 100 symbols asks for all (Binance caps `symbols` at 100). */
-export function fetchTickerBatch(symbols: TradingSymbol[]): TickerBatch {
+export function fetchTickerBatch(
+	symbols: TradingSymbol[],
+	signal?: AbortSignal
+): TickerBatch {
 	const list = symbols.length > 100 ? undefined : symbols;
 	const batch = {
-		ticker24hRaw: get24hrTickerStats(list),
-		priceTickerRaw: getSymbolPriceTicker(list),
-		bookTickerRaw: getOrderBookTicker(list),
+		ticker24hRaw: get24hrTickerStats(list, signal),
+		priceTickerRaw: getSymbolPriceTicker(list, signal),
+		bookTickerRaw: getOrderBookTicker(list, signal),
 	};
 	// Each symbol reports the failure; none stays unhandled when no symbol reads it.
 	void Promise.allSettled(Object.values(batch));
@@ -109,37 +112,47 @@ export async function fetchAllRawData(
 ): Promise<RawBinanceData> {
 	const { symbol, candleLimit, candleStartTime, tradeLimit, orderBookLimit } =
 		opts;
+	const { signal } = opts;
 	const interval = opts.interval ?? CandleInterval.Min1;
 	const requests: Record<RawKey, () => Promise<unknown>> = {
 		orderBookRaw: () =>
-			getOrderBook({
-				symbol,
-				limit: orderBookLimit ?? PositiveInt.of(100),
-			}),
+			getOrderBook(
+				{
+					symbol,
+					limit: orderBookLimit ?? PositiveInt.of(100),
+				},
+				signal
+			),
 		tradesRaw: () =>
-			getRecentTrades({
-				symbol,
-				limit: tradeLimit ?? PositiveInt.of(100),
-			}),
+			getRecentTrades(
+				{
+					symbol,
+					limit: tradeLimit ?? PositiveInt.of(100),
+				},
+				signal
+			),
 		candlesRaw: () =>
-			getCandlestickData({
-				symbol,
-				limit: candleLimit ?? (100 as Limit),
-				interval,
-				startTime: candleStartTime,
-			}),
+			getCandlestickData(
+				{
+					symbol,
+					limit: candleLimit ?? (100 as Limit),
+					interval,
+					startTime: candleStartTime,
+				},
+				signal
+			),
 		ticker24hRaw: () =>
 			tickers
 				? rowsOf(tickers.ticker24hRaw, symbol)
-				: get24hrTickerStats([symbol]),
+				: get24hrTickerStats([symbol], signal),
 		priceTickerRaw: () =>
 			tickers
 				? rowsOf(tickers.priceTickerRaw, symbol)
-				: getSymbolPriceTicker([symbol]),
+				: getSymbolPriceTicker([symbol], signal),
 		bookTickerRaw: () =>
 			tickers
 				? rowsOf(tickers.bookTickerRaw, symbol)
-				: getOrderBookTicker([symbol]),
+				: getOrderBookTicker([symbol], signal),
 	};
 
 	const keys = Object.keys(requests) as RawKey[];
@@ -154,6 +167,9 @@ export async function fetchAllRawData(
 			return;
 		}
 		errors.push(outcome.reason);
+		if (signal?.aborted) {
+			return; // cancelled by the stop, not a failed part
+		}
 		SNAPSHOT_PARTS_FAILED_TOTAL.inc({ part: PART_OF[key] });
 		logger.warn("Market data part fetch failed", {
 			context: { symbol, part: PART_OF[key] },
