@@ -41,6 +41,9 @@ RCLONE_S3_ENV_AUTH=true rclone lsd :s3: >/dev/null 2>&1 || {
 	echo "rclone serve s3 did not start"
 	exit 1
 }
+# rclone ignores AWS_REGION (serve s3 accepts any region, a real store does not).
+[ "$(AWS_REGION=eu-west-3 offsite_remote s3://b/p)" = ":s3,region=eu-west-3:b/p" ] &&
+	pass "the remote carries AWS_REGION" || failed "offsite_remote drops AWS_REGION: $(AWS_REGION=eu-west-3 offsite_remote s3://b/p)"
 
 # --- Backup runs, uploaded with upload_offsite -------------------------------
 age-keygen -o "$WORK/key.txt" 2>/dev/null
