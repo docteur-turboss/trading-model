@@ -1309,7 +1309,7 @@ tests:
       - eval_time: 27h
         alertname: BackupComponentMissing
         exp_alerts:
-          - exp_labels: {severity: critical, component: risk}
+          - exp_labels: {severity: warning, component: risk}
             exp_annotations:
               summary: 'A database is no longer backed up: risk'
               description: 'The last backup runs reported nothing for risk (component removed from the job, or skipped).'
