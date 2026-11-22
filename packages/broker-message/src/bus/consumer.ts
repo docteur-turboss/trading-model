@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { withTimeout } from "@trading-model/common/utils/retry";
 import { isExpectedPublisher } from "@trading-model/contracts/event-routes";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { Message } from "@trading-model/contracts/message-types";
@@ -8,7 +9,11 @@ import type {
 	Topic,
 } from "@trading-model/primitives/primitives";
 import { runInMessageTraceContext } from "../shared/trace-context";
-import { DELIVERY_ATTEMPT_TIMEOUT_MS, retryDueMs } from "./backoff";
+import {
+	DELIVERY_ATTEMPT_TIMEOUT_MS,
+	HANDLER_TIMEOUT_MS,
+	retryDueMs,
+} from "./backoff";
 import type { DeadStreams } from "./dead-streams";
 import {
 	classifyDeliveryError,
@@ -219,8 +224,13 @@ export class BusConsumer {
 				return;
 			}
 			try {
-				await runInMessageTraceContext(entry.message.metadata, () =>
-					handle(entry.message)
+				// The handler cannot be cancelled, but its late ack can no longer overlap another replica's claim.
+				await withTimeout(
+					runInMessageTraceContext(entry.message.metadata, () =>
+						handle(entry.message)
+					),
+					HANDLER_TIMEOUT_MS,
+					"Bus handler timed out"
 				);
 				MESSAGES_DELIVERED_TOTAL.inc({ topic: group.topic, status: "success" });
 			} catch (err) {
