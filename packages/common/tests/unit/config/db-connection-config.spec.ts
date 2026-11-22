@@ -27,7 +27,7 @@ describe("createDbConfigFromEnv", () => {
 		process.env.DB_PASSWORD = "pass";
 		const config = createDbConfigFromEnv();
 		expect(config.host).toBe("127.0.0.1");
-		expect(config.port).toBe(3307);
+		expect(config.port).toBe(3306);
 		expect(config.user).toBe("root");
 		expect(config.password).toBe("pass");
 		expect(config.database).toBe("financial_scraper");
