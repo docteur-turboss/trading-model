@@ -8,12 +8,16 @@ import {
 	type TradingSymbol,
 } from "@trading-model/primitives/primitives";
 import type { AxiosError } from "axios";
-import { SNAPSHOT_PARTS_FAILED_TOTAL } from "../../../config/metrics";
+import {
+	CANDLES_REJECTED_TOTAL,
+	SNAPSHOT_PARTS_FAILED_TOTAL,
+} from "../../../config/metrics";
 import type {
 	MarketDataSnapshot,
 	SnapshotPart,
 	SnapshotRequest,
 } from "../../../domain/market-data-snapshot";
+import { dropPriceJumps } from "../../../domain/price-jump";
 import {
 	get24hrTickerStats,
 	getCandlestickData,
@@ -233,11 +237,23 @@ export function buildResponse(
 		// partial candle that the next cycle overwrites with other values.
 		candles:
 			candlesRaw &&
-			normalizePart(query, "candles", () =>
-				normalizeCandles(query, candlesRaw).filter(
-					(candle) => candle.closeTimestamp + CLOSE_MARGIN_MS < fetchedAt
-				)
-			),
+			normalizePart(query, "candles", () => {
+				const { kept, dropped } = dropPriceJumps(
+					normalizeCandles(query, candlesRaw).filter(
+						(candle) => candle.closeTimestamp + CLOSE_MARGIN_MS < fetchedAt
+					)
+				);
+				if (dropped.length > 0) {
+					CANDLES_REJECTED_TOTAL.inc({ reason: "price_jump" }, dropped.length);
+					logger.warn("Candles with a price jump dropped", {
+						context: {
+							symbol: query.symbol,
+							openTimes: dropped.map((candle) => candle.timestamp),
+						},
+					});
+				}
+				return kept;
+			}),
 		ticker24h:
 			ticker24hRaw &&
 			normalizePart(query, "ticker24h", () => normalizeTicker24h(ticker24hRaw)),

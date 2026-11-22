@@ -1,4 +1,5 @@
 import type { CandleData } from "@trading-model/contracts/market-data.types";
+import { DAY_MS } from "@trading-model/model-runtime/features/feature-builder";
 import { MODEL_REPLAY_SHARPE_GAP } from "../config/metrics";
 import {
 	type EvaluationRecord,
@@ -24,9 +25,16 @@ interface Trainer {
 }
 
 interface Scraper {
-	/** Candles of `symbol` opened in [from, to), oldest first. */
-	candles(symbol: string, from: number, to: number): Promise<CandleData[]>;
+	/** Bars of `symbol` (one minute or one day long, `intervalMs`) opened in [from, to), oldest first. */
+	candles(
+		symbol: string,
+		from: number,
+		to: number,
+		intervalMs: number
+	): Promise<CandleData[]>;
 }
+
+const MINUTE_MS = 60_000;
 
 /** Reads the window of the manifest, never later than `to`, and replays the model on it. */
 async function replay(
@@ -38,11 +46,19 @@ async function replay(
 	if (!window) {
 		return { replay: "failed", reason: "no-window" };
 	}
+	const intervalMs = window.intervalMs;
+	if (intervalMs !== MINUTE_MS && intervalMs !== DAY_MS) {
+		return {
+			replay: "failed",
+			reason: `unsupported-interval: ${intervalMs} ms`,
+		};
+	}
 	// A read error propagates: the delivery fails and the bus retries it (ADR-0019).
 	const candles = await scraper.candles(
 		manifest.symbol,
 		window.from,
-		window.to
+		window.to,
+		intervalMs
 	);
 	return replayOutcome(
 		window,

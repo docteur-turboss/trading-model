@@ -563,6 +563,23 @@ describe("MarketDataBuffer — observability hook", () => {
 	});
 });
 
+describe("MarketDataBuffer — inconsistent candle hook", () => {
+	it("reports a candle whose high is below its close and does not store it", () => {
+		const onInconsistentCandle = jest.fn<(...args: any[]) => any>();
+		const buffer = new MarketDataBuffer({ onInconsistentCandle });
+		const sym = TradingSymbol.of("BTCUSDT");
+
+		buffer.addData(
+			DataType.Candle,
+			sym,
+			makeCandle({ symbol: sym, high: Price.of(1), close: Price.of(100) })
+		);
+
+		expect(onInconsistentCandle).toHaveBeenCalledWith(sym);
+		expect(buffer.getCandleCount(sym)).toBe(0);
+	});
+});
+
 describe("MarketDataBuffer.replaceCandles", () => {
 	it("gives a buffer with a longer history the same window as a new one", () => {
 		const sym = TradingSymbol.of("BTCUSDT");

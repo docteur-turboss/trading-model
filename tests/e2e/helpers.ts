@@ -18,7 +18,7 @@ export const e2eTestTimeout = 30000;
 /** Containers whose SVID identifies the in-mesh caller (see DEFAULT_ACL). */
 export const CALLER = {
 	scraper: "trading-scraper",
-	message: "trading-message",
+	risk: "trading-risk-execution",
 	trainer: "trading-trainer",
 	gateway: "trading-gateway",
 } as const;
@@ -228,6 +228,6 @@ export function persistedCandles(symbol: string): number {
 
 /** First capture of `pattern` in the metrics at `url` (read by the scraper), 0 if absent. */
 export function metric(url: string, pattern: RegExp): number {
-	const match = meshRequest(CALLER.scraper, url).body.match(pattern);
+	const match = meshRequest(CALLER.gateway, url).body.match(pattern);
 	return match ? Number(match[1]) : 0;
 }

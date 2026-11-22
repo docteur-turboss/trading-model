@@ -18,6 +18,7 @@ import {
 	jest,
 } from "@jest/globals";
 import type { CandleData } from "@trading-model/contracts/market-data.types";
+import { DAY_MS } from "@trading-model/model-runtime/features/feature-builder";
 import { replayModel } from "@trading-model/model-runtime/replay";
 import { FileEvaluationStore } from "../../src/adapters/outbound/file-evaluation-store";
 import { createEvaluateModel } from "../../src/application/evaluate-model";
@@ -30,12 +31,43 @@ import {
 const WEIGHTS = new Float32Array([0.5, -1, 2]);
 const BYTES = Buffer.from(WEIGHTS.buffer);
 const SHA = createHash("sha256").update(BYTES).digest("hex");
+const GENOME = {
+	id: "g-1",
+	gaControl: {
+		population: { size: 10, elitismFraction: 0.1, survivorFraction: 0.5 },
+		evaluation: { episodesPerIndividual: 1 },
+		selectionType: "tournament",
+		fitnessType: "sharpe",
+	},
+	network: {
+		inputDim: 4,
+		outputDim: 3,
+		hiddenLayers: [{ neurons: 8, activation: "relu" }],
+		normalization: "min-max",
+	},
+	rl: {
+		gamma: 0.9,
+		learningRate: 0.001,
+		discretePolicy: { epsilonStart: 1, epsilonMin: 0.05, epsilonDecay: 0.99 },
+		horizon: { frameSkip: 1 },
+	},
+};
 const MANIFEST = {
 	symbol: "BTCUSDT",
 	version: "20261114T000000Z-abcdef012345",
-	weights: { length: 3, sha256: SHA },
-	genome: {},
-	admission: { admissible: true },
+	weights: {
+		file: "weights.f32",
+		dtype: "float32-le",
+		length: 3,
+		sha256: SHA,
+	},
+	genome: GENOME,
+	admission: {
+		admissible: true,
+		evaluatedOn: "test",
+		criteria: { sharpe: 1, sortino: 1, calmar: 1, buyAndHoldSharpe: 0 },
+		thresholds: { minSharpe: 0, minSortino: 0, minCalmar: 0 },
+	},
 } as ModelManifest;
 const NO_CANDLES = { candles: async () => [] };
 /** Two one-minute candles, the second one the test segment. */
@@ -152,12 +184,14 @@ describe("evaluate a published model", () => {
 				timestamp: minute * 60_000,
 				closeTimestamp: minute * 60_000 + 59_999,
 			}) as CandleData;
-		const manifest = {
-			...MANIFEST,
-			admission: { admissible: true, criteria: { sharpe: 1 } },
-			replay: WINDOW,
-		} as ModelManifest;
-		const record = async (candles: () => Promise<CandleData[]>) => {
+		const record = async (
+			candles: () => Promise<CandleData[]>,
+			replay: object = WINDOW
+		) => {
+			const manifest = {
+				...MANIFEST,
+				replay,
+			} as ModelManifest;
 			await createEvaluateModel({
 				store: new FileEvaluationStore(dir),
 				scraper: { candles },
@@ -180,7 +214,7 @@ describe("evaluate a published model", () => {
 				replay: "done",
 				metrics: { policy: "greedy", sharpe: 3, sortino: 4 },
 			});
-			expect(read).toHaveBeenCalledWith("BTCUSDT", 0, 119_999);
+			expect(read).toHaveBeenCalledWith("BTCUSDT", 0, 119_999, 60_000);
 			expect(jest.mocked(replayModel).mock.calls[0][0]).toMatchObject({
 				candles: [candle(0), candle(1)],
 				testFrom: 60_000,
@@ -203,6 +237,24 @@ describe("evaluate a published model", () => {
 			expect(await record(async () => [0, 1].map(candle))).toMatchObject({
 				replay: "failed",
 				reason: "replay-error: Expected input size 19, got 22",
+			});
+		});
+
+		it("replays a daily model on the daily bars of its interval, and refuses an unknown interval with its reason", async () => {
+			const day = (index: number) =>
+				({
+					timestamp: index * DAY_MS,
+					closeTimestamp: (index + 1) * DAY_MS - 1,
+				}) as CandleData;
+			const read = jest.fn(async (..._args: unknown[]) => [0, 1].map(day));
+			const daily = { ...WINDOW, to: 2 * DAY_MS - 1, intervalMs: DAY_MS };
+			expect(await record(read, daily)).toMatchObject({ replay: "done" });
+			expect(read).toHaveBeenCalledWith("BTCUSDT", 0, 2 * DAY_MS - 1, DAY_MS);
+			expect(
+				await record(read, { ...WINDOW, intervalMs: 3_600_000 })
+			).toMatchObject({
+				replay: "failed",
+				reason: "unsupported-interval: 3600000 ms",
 			});
 		});
 
@@ -230,6 +282,12 @@ describe("evaluate a published model", () => {
 		await expect(readdir(dir)).resolves.toEqual([]);
 	});
 
+	it("rejects a manifest whose genome cannot be replayed", () => {
+		expect(ModelManifest.safeParse(MANIFEST).success).toBe(true);
+		const bad = { ...MANIFEST, genome: { ...GENOME, network: {} } };
+		expect(ModelManifest.safeParse(bad).success).toBe(false);
+	});
+
 	it("refuses a manifest of another version or a wrong weights length", async () => {
 		const other = createEvaluateModel({
 			store: new FileEvaluationStore(dir),
@@ -246,7 +304,7 @@ describe("evaluate a published model", () => {
 			trainer: {
 				manifest: async () => ({
 					...MANIFEST,
-					weights: { length: 4, sha256: SHA },
+					weights: { ...MANIFEST.weights, length: 4 },
 				}),
 				weights: async () => ({ bytes: BYTES, sha256: SHA }),
 			},

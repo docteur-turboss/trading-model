@@ -18,6 +18,7 @@ export const REDIS_COMMAND_TIMEOUT_MS = 2000;
 export const BASE_REDIS_OPTIONS: Partial<RedisOptions> = {
 	lazyConnect: true,
 	retryStrategy: BASE_RETRY_STRATEGY,
+	connectTimeout: REDIS_COMMAND_TIMEOUT_MS,
 	commandTimeout: REDIS_COMMAND_TIMEOUT_MS,
 	maxRetriesPerRequest: 5,
 };

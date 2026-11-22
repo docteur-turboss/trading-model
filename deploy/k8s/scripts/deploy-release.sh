@@ -146,6 +146,8 @@ release_replicas() {
 	# Deployment. trader-trainer is a singleton (ADR-0044, issue #501);
 	# audit-logger runs 2 fixed pods (one lease holder writes, issue #1395).
 	kubectl delete hpa/trader-trainer-hpa hpa/audit-logger-hpa -n "$ns" --ignore-not-found
+	# Retired redis-cert-cache (unused, unauthenticated; issue #1993).
+	kubectl delete deployment/redis-cert-cache service/redis-cert -n "$ns" --ignore-not-found
 	# A Job's pod template is immutable: apply fails on a finished init Job
 	# whose template changed (labels, issues #727 and #771). All are idempotent and
 	# run again from the overlay.

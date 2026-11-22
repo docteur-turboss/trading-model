@@ -18,7 +18,7 @@ import type {
 	StatePort,
 } from "../../src/domain/ports";
 import { type Intent, preTradeReject } from "../../src/domain/pre-trade";
-import { newState, type RiskState } from "../../src/domain/state";
+import { equity, newState, type RiskState } from "../../src/domain/state";
 
 const T0 = Date.parse("2026-11-20T10:00:00Z");
 const CAPITAL = 100_000;
@@ -524,6 +524,8 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 		down = true;
 		expect((await ctx.svc.submitIntent(intent())).status).toBe("unknown");
 		expect(ctx.svc.isReady()).toBe(false);
+		await ctx.svc.tick();
+		expect(ctx.svc.status().mismatch).toBe(false); // unreachable is not a mismatch
 		down = false;
 		expect(await ctx.svc.submitIntent(intent())).toMatchObject({
 			reason: "not_reconciled",
@@ -584,6 +586,7 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 		await ctx.svc.start();
 		await ctx.svc.submitIntent(intent());
 		expect(ctx.svc.status().positions.BTCUSDT).toBeCloseTo(0.02);
+		expect(ctx.svc.status().exposureRatio).toBeGreaterThan(0);
 		view = {
 			...view,
 			status: "filled",
@@ -677,6 +680,32 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		expect(ctx.svc.status().killSwitch.global).toBe("drawdown");
 		await expect(ctx.svc.rearm("global", "x", "ops")).rejects.toThrow(/owner/);
 		await ctx.svc.rearm("global", "reviewed", "owner");
+		expect(ctx.svc.status().killSwitch.global).toBeNull();
+	});
+
+	it("drawdown stop engages by itself, cancels open orders, and the owner's re-arm restarts from current equity", async () => {
+		const emitted: Record<string, unknown>[] = [];
+		const ctx = build({
+			limits: RiskLimits.parse({ ...LIMITS, drawdownPct: 0.005 }),
+			emit: (e, f) => e === "kill_switch.rearmed" && emitted.push(f),
+		});
+		await ctx.svc.start();
+		await ctx.svc.submitIntent(intent()); // 0.05 BTC, 3 000 notional
+		const resting = await ctx.svc.submitIntent(
+			intent({ limitPrice: 59_500, quantity: 0.0001 })
+		);
+		await ctx.svc.observePrice("BTCUSDT", 48_000, clock); // -600: past 0.5 %, under the 2 % daily and 1 % symbol limits
+		await ctx.svc.tick();
+		expect(ctx.svc.status().killSwitch.global).toBe("drawdown");
+		expect(
+			(ctx.store.value as RiskState).orders[resting.clientOrderId].status
+		).toBe("cancelled");
+		await ctx.svc.rearm("global", "strategy reviewed", "owner");
+		const state = ctx.store.value as RiskState;
+		expect(state.hwm).toBe(equity(state));
+		expect(emitted[0]).toMatchObject({ hwm: state.hwm });
+		expect(emitted[0].previousHwm).toBeGreaterThan(state.hwm);
+		await ctx.svc.tick();
 		expect(ctx.svc.status().killSwitch.global).toBeNull();
 	});
 
@@ -795,6 +824,7 @@ describe("reconciliation (ADR-0064 §4)", () => {
 		await ctx.svc.tick();
 		expect(ctx.svc.status().killSwitch.global).toBe("reconciliation");
 		expect(ctx.svc.isReady()).toBe(false);
+		expect(ctx.svc.status().mismatch).toBe(true);
 		expect(
 			ctx.events.some((e) => e.startsWith("reconciliation.mismatch"))
 		).toBe(true);

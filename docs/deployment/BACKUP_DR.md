@@ -563,7 +563,6 @@ and Prometheus scrapes them (job `backup-metrics`).
 | Alert                     | Fires when                                                                   |
 | ------------------------- | ---------------------------------------------------------------------------- |
 | `BackupFailed`            | a component's last success is older than 25 h                                |
-| `BackupNotRunning`        | a component never succeeded                                                  |
 | `BackupComponentMissing`  | a component (mongodb, mongodb-audit, mysql, spire, checkpoints) reports nothing |
 | `BackupJobStale`          | the job has not run for 26 h                                                 |
 | `BackupIncrementalStale`  | a binlog / oplog archive last succeeded more than 2 h ago (2 × the interval) |
