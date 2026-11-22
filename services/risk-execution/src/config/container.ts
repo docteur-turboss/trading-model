@@ -29,7 +29,9 @@ import {
 	RISK_OPEN_ORDERS,
 	RISK_ORDERS_TOTAL,
 	RISK_RECONCILIATION_MISMATCH,
+	RISK_TICK_FAILURES,
 } from "./metrics";
+import { runTick } from "./run-tick";
 
 export type RiskExecutionApp = Awaited<
 	ReturnType<typeof createRiskExecutionApp>
@@ -92,12 +94,16 @@ export async function createRiskExecutionApp() {
 		RISK_MARKET_DATA_AGE_SECONDS.set({ mode }, snapshot.oldestPriceAgeSeconds);
 	};
 	publish();
+	RISK_TICK_FAILURES.inc({ mode }, 0);
 	const timer = setInterval(() => {
-		risk
-			.tick()
-			.then(publish, (error) =>
-				getLogger().error("risk tick failed", { error: String(error) })
-			);
+		void runTick(
+			() => risk.tick(),
+			publish,
+			(error) => {
+				getLogger().error("risk tick failed", { error: String(error) });
+				RISK_TICK_FAILURES.inc({ mode });
+			}
+		);
 	}, ENV.RISK_TICK_MS);
 	timer.unref();
 
