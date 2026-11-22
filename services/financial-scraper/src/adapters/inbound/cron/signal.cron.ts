@@ -23,6 +23,7 @@ export class SignalCronScheduler {
 		for (const source of this._sources) {
 			this._tasks.push(
 				scheduleNoOverlap(
+					"financial-scraper.signals",
 					source.schedule,
 					() => this._collector.collect(source),
 					() =>
