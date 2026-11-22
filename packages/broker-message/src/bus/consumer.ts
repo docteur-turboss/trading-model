@@ -192,7 +192,21 @@ export class BusConsumer {
 			entryId: entry.id,
 		};
 		try {
-			const publisher = entry.message.metadata.publisher.serviceName;
+			const publisher = entry.message?.metadata?.publisher?.serviceName;
+			if (typeof publisher !== "string") {
+				const reason =
+					"invalid envelope: metadata.publisher.serviceName missing";
+				const id = await deadStreams.deadLetter(
+					group,
+					entry.id,
+					entry.message,
+					reason,
+					entry.deliveries
+				);
+				MESSAGES_DLQ_TOTAL.inc({ topic: group.topic, reason });
+				onDeadLetter?.(group, entry.message, reason, id);
+				return;
+			}
 			if (!isExpectedPublisher(group.topic, publisher)) {
 				PUBLISHER_REJECTED_TOTAL.inc({ topic: group.topic, publisher });
 				getLogger().error(

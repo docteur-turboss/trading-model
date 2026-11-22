@@ -105,6 +105,10 @@ export const MySqlSignalStore: SignalStorePort = {
 		to,
 		limit,
 	}) {
+		// `IN ()` is a syntax error: no applicable dimension means no signal.
+		if (dimensions.length === 0) {
+			return [];
+		}
 		const [rows] = await DATABASE.promise().query<SignalRow[]>(
 			SELECT_FOR_ASSET_SQL,
 			// `IN ()` is a syntax error: an asset without areas matches none.
