@@ -10,6 +10,7 @@ import type {
 	StatePort,
 } from "../domain/ports";
 import {
+	CLOCK_SKEW_MS,
 	dailyLoss,
 	type Intent,
 	preTradeReject,
@@ -223,6 +224,10 @@ export class RiskExecution {
 	/** shortcut: prices are pushed by the decision consumer, read the scraper when that consumer exists. */
 	observePrice(symbol: string, price: number, at: number): Promise<void> {
 		return this._run(async () => {
+			if (at > this._now() + CLOCK_SKEW_MS) {
+				this._emit("price.future_ignored", { symbol, at });
+				return;
+			}
 			this._state.marks[symbol] = { price, at };
 			await this._checkLimits();
 			await this._save();

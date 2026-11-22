@@ -15,6 +15,8 @@
 //   - drops every internet egress rule (`ipBlock` 0.0.0.0/0) of the
 //     NetworkPolicies: fail closed, a new outside call is refused in CI
 //     instead of reaching the real service
+//   - keeps 100 % of the traces: verify_traces needs the api-gateway and
+//     trader-trainer spans of one request, the 20 % sampler makes it random
 //   - suspends the CronJobs: a cluster kept after the test must not run the
 //     nightly backup on the host disk (the drill starts its job by hand)
 // Usage: kubectl kustomize ... | node tests/k8s/ci-render.mjs > out.yaml
@@ -102,6 +104,7 @@ function adapt(manifest) {
 			/SIGNAL_COLLECTION_ENABLED: "?true"?/g,
 			'SIGNAL_COLLECTION_ENABLED: "false"'
 		)
+		.replace(/sampling_percentage: 20$/gm, "sampling_percentage: 100")
 		// An egress item: "  - " then its lines indented by 4 or more (kustomize layout).
 		.replace(/^ {2}- .*\n(?: {4}.*\n)*/gm, (item) =>
 			item.includes("cidr: 0.0.0.0/0") ? "" : item
