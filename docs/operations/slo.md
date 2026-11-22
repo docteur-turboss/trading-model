@@ -68,7 +68,7 @@ rate(tt_training_sessions_total[12h])`.
 
 The Message Delivery and Training SLOs have no slow-burn alert: their
 traffic is low and bursty, so a 1h ratio flaps on a handful of events. A
-dead-lettered message already raises `MessagesDeadLettered`, and the existing
+dead-lettered message already raises `BusDeadLetters`, and the existing
 alert on each SLI catches sustained loss. Adding them needs a minimum-volume
 guard first.
 
