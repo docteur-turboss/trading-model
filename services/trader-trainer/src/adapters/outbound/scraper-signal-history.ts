@@ -1,12 +1,12 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
-import { HttpClient } from "@trading-model/http/http-client";
-import { ServiceId, URLString } from "@trading-model/primitives/primitives";
-import { HostPort } from "@trading-model/primitives/service-identity";
 import {
 	AssetSignalsResponse,
 	type Signal,
-} from "@trading-model/validation/wire/signals";
+} from "@trading-model/contracts/wire/signals";
+import { HttpClient } from "@trading-model/http/http-client";
+import { ServiceId, URLString } from "@trading-model/primitives/primitives";
+import { HostPort } from "@trading-model/primitives/service-identity";
 import type { SignalHistoryPort } from "../../domain/ports/signal-history.port";
 
 /**

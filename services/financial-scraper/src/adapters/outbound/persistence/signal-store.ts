@@ -1,4 +1,4 @@
-import type { Signal } from "@trading-model/validation/wire/signals";
+import type { Signal } from "@trading-model/contracts/wire/signals";
 import type { RowDataPacket } from "mysql2";
 import { DATABASE } from "../../../config/db";
 import type { SignalStorePort } from "../../../domain/ports/signal-store.port";

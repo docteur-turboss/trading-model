@@ -24,7 +24,7 @@ Target map (who consumes what):
 
 `common` and `reliability` are spread over these packages; `validation` shrinks to `validate-env` then disappears. Each env schema moves to the package or service that reads it. No catch-all package is created.
 
-Order, one PR each: (1) `server-utils` into `http` (done with this ADR), (2) `validation` dispersal and `redis-env`, (3) logger and rename to `runtime-http`, (4) `reliability`/`common` placement, (5) `messaging-client`. Each PR cleans every `dist/`, regenerates `bun.lock`, and updates AGENTS.md (list and build order), root `build`, `knip.json`, Dockerfiles and `scripts/jest-workspace-mapper.cjs` when needed.
+Order, one PR each: (1) `server-utils` into `http` (done with this ADR), (2) `validation` dispersal and `redis-env` (done: `validate-env` and the base env schema moved to `http`, the wire DTOs and `brand` to `contracts`), (3) logger and rename to `runtime-http`, (4) `reliability`/`common` placement, (5) `messaging-client`. Each PR cleans every `dist/`, regenerates `bun.lock`, and updates AGENTS.md (list and build order), root `build`, `knip.json`, Dockerfiles and `scripts/jest-workspace-mapper.cjs` when needed.
 
 ## Consequences
 

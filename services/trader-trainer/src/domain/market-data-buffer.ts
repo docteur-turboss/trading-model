@@ -1,5 +1,5 @@
 import type { CandleData } from "@trading-model/contracts/market-data.types";
-import type { Signal } from "@trading-model/validation/wire/signals";
+import type { Signal } from "@trading-model/contracts/wire/signals";
 import type { DataType } from "./data-handlers/data-types";
 import { EvictionPolicy } from "./eviction-policy";
 import type { WindowSet } from "./genetic-algorithm/generation-types";

@@ -18,13 +18,20 @@
     "./market-data.types": "./dist/market-data.types.js",
     "./message-types": "./dist/message-types.js",
     "./publish-timeout": "./dist/publish-timeout.js",
+    "./risk-events": "./dist/risk-events.js",
     "./service-registry-types": "./dist/service-registry-types.js",
     "./signed-request": "./dist/signed-request.js",
-    "./risk-events": "./dist/risk-events.js",
-    "./training-events": "./dist/training-events.js"
+    "./training-events": "./dist/training-events.js",
+    "./wire/brand": "./dist/wire/brand.js",
+    "./wire/contract-shape": "./dist/wire/contract-shape.js",
+    "./wire/primitives": "./dist/wire/primitives.js",
+    "./wire/service-instance": "./dist/wire/service-instance.js",
+    "./wire/service-resolver.types": "./dist/wire/service-resolver.types.js",
+    "./wire/signals": "./dist/wire/signals.js"
   },
   "dependencies": {
-    "@trading-model/primitives": "*"
+    "@trading-model/primitives": "*",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@jest/globals": "^30.5.2",

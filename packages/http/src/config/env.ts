@@ -1,7 +1,7 @@
 import { TlsEnvVarsSchema } from "@trading-model/common/config/tls-paths";
-import { LogLevel } from "@trading-model/http/log-types";
-import { NODE_ENVS } from "@trading-model/http/shared/node-env";
 import { z } from "zod";
+import { LogLevel } from "../log-types";
+import { NODE_ENVS } from "../shared/node-env";
 
 /** Zod schema for base environment variables shared across all services. */
 export const BaseEnvSchema = z.object({

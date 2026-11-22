@@ -1,4 +1,5 @@
-import { isNonEmptyString, isObject } from "../src/wire/primitives";
+import { describe, expect, it } from "@jest/globals";
+import { isNonEmptyString, isObject } from "../../../src/wire/primitives";
 
 describe("isNonEmptyString", () => {
 	it.each([

@@ -1,4 +1,5 @@
-import { weakSecretReason } from "../src/config/secret-strength";
+import { describe, expect, it } from "@jest/globals";
+import { weakSecretReason } from "../../../src/config/secret-strength";
 
 describe("weakSecretReason", () => {
 	it("accepts a long random secret", () => {

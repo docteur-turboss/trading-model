@@ -1,5 +1,5 @@
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
-import type { ResolvedEndpoint } from "@trading-model/validation/wire/service-resolver.types";
+import type { ResolvedEndpoint } from "@trading-model/contracts/wire/service-resolver.types";
 import type { Request } from "express";
 
 /** Forwards a request to a resolved service and returns its raw answer. */

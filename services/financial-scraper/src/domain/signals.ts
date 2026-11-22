@@ -5,7 +5,7 @@ import {
 	Dimension,
 	SectorId,
 	SourceId,
-} from "@trading-model/validation/wire/signals";
+} from "@trading-model/contracts/wire/signals";
 import { z } from "zod";
 import { _field } from "./cron-period";
 

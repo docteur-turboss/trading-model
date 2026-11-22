@@ -1,6 +1,6 @@
 import { configurationError } from "@trading-model/common/utils/errors";
-import { logger } from "@trading-model/http/logger";
 import type { z } from "zod";
+import { logger } from "../logger";
 
 /**
  * Validates environment variables against a Zod schema.

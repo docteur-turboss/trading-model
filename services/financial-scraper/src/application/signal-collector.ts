@@ -1,10 +1,10 @@
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import { sha256Hex } from "@trading-model/crypto/node-crypto";
 import {
 	SIGNAL_SCHEMA_VERSION,
 	Signal,
-} from "@trading-model/validation/wire/signals";
+} from "@trading-model/contracts/wire/signals";
+import { sha256Hex } from "@trading-model/crypto/node-crypto";
 import {
 	SIGNAL_COLLECTIONS_TOTAL,
 	SIGNAL_LAST_SUCCESS,

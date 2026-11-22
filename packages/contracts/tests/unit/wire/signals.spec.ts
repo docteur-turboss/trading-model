@@ -1,4 +1,9 @@
-import { AssetSignalsResponse, PAYLOADS, Signal } from "../../src/wire/signals";
+import { describe, expect, it } from "@jest/globals";
+import {
+	AssetSignalsResponse,
+	PAYLOADS,
+	Signal,
+} from "../../../src/wire/signals";
 
 const MEASURE = { metric: "close", value: 1.5, unit: "USD" };
 const PERIOD = { start: "2026-01-01", end: "2026-03-31" };

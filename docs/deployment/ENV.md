@@ -20,7 +20,7 @@ Service abbreviation legend:
 
 ## Common — all services
 
-Defined in `@trading-model/validation` (`config/env` — `BaseEnvSchema`), validated at startup via `application/services/validate-env`.
+Defined in `@trading-model/http` (`config/env` — `BaseEnvSchema`), validated at startup via `application/services/validate-env`.
 
 | Variable        | Type                                           | Default                 | Required | Description                   | Services |
 | --------------- | ---------------------------------------------- | ----------------------- | -------- | ----------------------------- | -------- |
@@ -40,7 +40,7 @@ Defined in `@trading-model/validation` (`config/env` — `BaseEnvSchema`), valid
 
 Used by services that register with the discovery-server.
 
-Defined in `@trading-model/validation` (`config/address-manager-env` — `AddressManagerEnvSchema`), validated at startup via `application/services/validate-env`.
+Defined in `@trading-model/address-manager` (`config/address-manager-env` — `AddressManagerEnvSchema`), validated at startup via `application/services/validate-env`.
 
 | Variable                          | Type   | Default                         | Required | Description                                      | Services       |
 | --------------------------------- | ------ | ------------------------------- | -------- | ------------------------------------------------ | -------------- |
@@ -61,7 +61,7 @@ Defined in `@trading-model/validation` (`config/address-manager-env` — `Addres
 
 ## Redis — shared connection
 
-Defined in `@trading-model/validation` (`config/redis-env` — `RedisEnvSchema`), turned into a connection by `redisConnectionFromEnv` (`@trading-model/persistence/redis-env`). With `REDIS_SENTINELS` set the service goes through the sentinels (K8s HA); otherwise it falls back to `REDIS_URL` (compose, dev).
+Defined in `@trading-model/persistence/redis-env` (`RedisEnvSchema`) and turned into a connection by `redisConnectionFromEnv`. With `REDIS_SENTINELS` set the service goes through the sentinels (K8s HA); otherwise it falls back to `REDIS_URL` (compose, dev).
 
 | Variable                     | Type   | Default    | Required | Description                                                               | Services                |
 | ---------------------------- | ------ | ---------- | -------- | ------------------------------------------------------------------------- | ----------------------- |

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import {
 	Asset,
 	SIGNAL_SCHEMA_VERSION,
-} from "@trading-model/validation/wire/signals";
+} from "@trading-model/contracts/wire/signals";
 import cron from "node-cron";
 import { z } from "zod";
 import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adapters";

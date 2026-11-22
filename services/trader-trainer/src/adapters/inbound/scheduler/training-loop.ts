@@ -1,8 +1,8 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { getLogger } from "@trading-model/contracts/logger-registry";
+import { Dimension } from "@trading-model/contracts/wire/signals";
 import { DurationMs } from "@trading-model/primitives/primitives";
-import { Dimension } from "@trading-model/validation/wire/signals";
 import type { Trainer } from "../../../application/trainer";
 import {
 	LAST_CANDLE_AGE_SECONDS,
