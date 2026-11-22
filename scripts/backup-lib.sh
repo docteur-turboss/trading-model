@@ -971,7 +971,7 @@ component_pods() {
 mongo_primary() {
 	local pod
 	for pod in $(component_pods "$1"); do
-		if [ "$(kubectl_exec_probe "${pod}" -- mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]; then
+		if [ "$(kubectl_exec_probe "${pod}" -- mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt --eval 'db.hello().isWritablePrimary')" = "true" ]; then
 			echo "${pod}"
 			return 0
 		fi
@@ -991,7 +991,7 @@ mongo_tool() {
 	local flags=()
 	[ "${MONGO_TOOL_STDIN:-false}" = true ] && flags+=(-i)
 	kubectl_exec ${flags[@]+"${flags[@]}"} "${pod}" -c mongodb -- sh -c \
-		'u=$1; v=$2; shift 2; exec "$@" --username "$u" --password "$(printenv "$v")" --authenticationDatabase admin' sh "$user" "$var" "$@"
+		'u=$1; v=$2; shift 2; exec "$@" --tls --tlsCAFile /keyfile/ca.crt --username "$u" --password "$(printenv "$v")" --authenticationDatabase admin' sh "$user" "$var" "$@"
 }
 
 # Oplog point (`seconds.increment`) of the newest (`-1`) or oldest (`1`)

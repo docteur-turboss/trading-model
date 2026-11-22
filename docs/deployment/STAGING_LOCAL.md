@@ -217,8 +217,7 @@ the same two deploys: a deploy between them brings the outage back.
    `mysql-group-replication-config.yaml` (issue #1456): the next deploy must
    not bring them back.
 2. Restart `mongo-dlq`, then `mongo-audit`, then `mysql` with the loop above.
-   MongoDB then takes `--keyFile` and still accepts clear text (`preferTLS`,
-   `--transitionToAuth`); the users exist (the `mongo-*-users` Jobs created
+   MongoDB then takes `--keyFile` and `requireTLS`; the users exist (the `mongo-*-users` Jobs created
    them). MySQL requires TLS: financial-scraper is refused until step 3.
 3. Point financial-scraper at the cert-manager CA and bind the MySQL users:
 

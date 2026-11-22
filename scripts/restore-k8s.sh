@@ -181,7 +181,7 @@ replay_oplog() {
   for archive in "$@"; do
     open_backup "$archive" | gunzip || return 1
   done | kubectl exec -i -n "${K8S_NAMESPACE}" "${primary}" -- sh -c \
-    'd=$(mktemp -d) && chmod 700 "$d" && cat > "$d/oplog.bson" && mongorestore --oplogReplay --oplogLimit "$1:0" --username root --password "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin "$d"; rc=$?; rm -rf "$d"; exit $rc' \
+    'd=$(mktemp -d) && chmod 700 "$d" && cat > "$d/oplog.bson" && mongorestore --tls --tlsCAFile /keyfile/ca.crt --oplogReplay --oplogLimit "$1:0" --username root --password "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin "$d"; rc=$?; rm -rf "$d"; exit $rc' \
     sh "$UNTIL_EPOCH"
 }
 
@@ -197,7 +197,7 @@ save_mongo_users() {
 # the keyFile's internal user (`__system`) signs in instead.
 put_back_mongo_users() {
   printf '%s' "$2" | kubectl_exec -i "$1" -c mongodb -- sh -c \
-    'exec mongosh --quiet --username __system --password "$(cat /keyfile/keyfile)" --authenticationDatabase local --eval "$1"' sh \
+    'exec mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt --username __system --password "$(cat /keyfile/keyfile)" --authenticationDatabase local --eval "$1"' sh \
     "const s = EJSON.parse(require('fs').readFileSync(0, 'utf8')); const a = db.getSiblingDB('admin');
 for (const [c, docs] of [['system.users', s.u], ['system.roles', s.r]]) { a.getCollection(c).deleteMany({}); if (docs.length) a.getCollection(c).insertMany(docs); }"
 }
