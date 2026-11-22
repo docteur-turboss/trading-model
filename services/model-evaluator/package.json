@@ -1,6 +1,6 @@
 {
   "name": "model-evaluator",
-  "version": "3.1.0-rc.4",
+  "version": "3.1.0",
   "description": "Offline evaluation consumer of trained models: verifies and replays each published model and records one evaluation per (symbol, version)",
   "license": "ISC",
   "type": "commonjs",
