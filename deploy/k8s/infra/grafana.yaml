@@ -213,6 +213,9 @@ spec:
     - Ingress
   ingress:
     - from:
+        # Any namespace: the ingress controller's namespace depends on the
+        # cluster (the Ingress is out of this policy's scope), and Grafana
+        # authenticates through OIDC.
         - namespaceSelector: {}
       ports:
         - port: 3000
