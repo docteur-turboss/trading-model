@@ -18,8 +18,8 @@ import type {
 	StatePort,
 } from "../../src/domain/ports";
 import { type Intent, preTradeReject } from "../../src/domain/pre-trade";
-import { RestingBroker } from "../resting-broker";
 import { equity, newState, type RiskState } from "../../src/domain/state";
+import { RestingBroker } from "../resting-broker";
 
 const T0 = Date.parse("2026-11-20T10:00:00Z");
 const CAPITAL = 100_000;
