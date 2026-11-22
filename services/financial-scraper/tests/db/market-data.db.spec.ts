@@ -205,9 +205,10 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
 		await expect(tables()).resolves.toEqual(ALL_TABLES);
 
-		migrate("down", "2");
+		// 010 (index), 009 (signals.area), 008 (market_order_books).
+		migrate("down", "3");
 		await expect(appliedMigrations()).resolves.toEqual(
-			MIGRATION_IDS.slice(0, -2)
+			MIGRATION_IDS.slice(0, -3)
 		);
 		await expect(tables()).resolves.toEqual(
 			ALL_TABLES.filter((table) => table !== "market_order_books")

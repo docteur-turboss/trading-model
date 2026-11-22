@@ -5,7 +5,7 @@
  * same window of `window` candles; every model is scored on the next `test`
  * candles, which no training saw (ADR-0068). Seeds and data are paired.
  *
- *   bun scripts/shared-trunk-bench.ts --data a.json,b.json,... --out seed0.json [--seed 0]
+ *   bun scripts/shared-trunk-bench.ts --data a.json,b.json,... --out seed0.json [--seed 0] [--k <symbols per generation, default all>]
  *     [--window 500] [--test 100] [--population 20] [--generations 30]
  *   bun scripts/shared-trunk-bench.ts --merge seed0.json,seed1.json,seed2.json
  */
@@ -111,7 +111,7 @@ async function measure(seed: number): Promise<SeedResult> {
 	t0 = Date.now();
 	const { bestGenome } = await runInProcess(
 		sets.map(({ test: _t, ...ws }) => ws),
-		settings
+		{ ...settings, symbolsPerGeneration: Number(arg("k", String(sets.length))) }
 	);
 	const groupSeconds = (Date.now() - t0) / 1000;
 	const group = sets.map((ws) =>

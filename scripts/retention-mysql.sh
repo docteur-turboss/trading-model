@@ -54,13 +54,10 @@ TARGETS=(
   "signals observed_at ${RETENTION_SIGNALS_DAYS}"
 )
 
-# Prints the rows deleted by one batch. The session turns invisible indexes on:
-# the `timestamp` indexes were INVISIBLE until migration 007; kept so a database
-# not yet migrated (or rolled back) still purges by index, not by full scan.
+# Prints the rows deleted by one batch.
 purge_batch() { # <table> <column> <days>
   mysql -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" -N -B "$MYSQL_DATABASE" -e \
-    "SET SESSION optimizer_switch='use_invisible_indexes=on';
-     DELETE FROM \`$1\` WHERE \`$2\` < UTC_TIMESTAMP(3) - INTERVAL $3 DAY LIMIT ${RETENTION_BATCH_SIZE};
+    "DELETE FROM \`$1\` WHERE \`$2\` < UTC_TIMESTAMP(3) - INTERVAL $3 DAY LIMIT ${RETENTION_BATCH_SIZE};
      SELECT ROW_COUNT();"
 }
 

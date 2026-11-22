@@ -54,6 +54,7 @@ spec:
     - Egress
   ingress:
     - from:
+        # Any namespace: the ingress controller's depends on the cluster.
         - namespaceSelector: {}
       ports:
         - port: 8080
