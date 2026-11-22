@@ -7,6 +7,8 @@ import {
 	trace,
 } from "@opentelemetry/api";
 import type { Message } from "@trading-model/contracts/message-types";
+import { DurationMs } from "@trading-model/primitives/primitives";
+import * as backoff from "../../../src/bus/backoff";
 import { BusConsumer } from "../../../src/bus/consumer";
 import { DeadStreams } from "../../../src/bus/dead-streams";
 import {
@@ -291,6 +293,26 @@ describe("BusConsumer", () => {
 
 		expect(pendingOf(redis)).toBe(1);
 		expect(await streams.length(TOPIC)).toBe(0);
+	});
+
+	it("should abandon a handler that never ends and leave its entry pending", async () => {
+		jest.replaceProperty(backoff, "HANDLER_TIMEOUT_MS", DurationMs.of(50));
+		const {
+			consumer: c,
+			journal,
+			redis,
+		} = consumer(() => new Promise(() => {}));
+		await c.start([TOPIC]);
+		await publishToBus(journal, "a", METADATA);
+		await new Promise((resolve) => setTimeout(resolve, 300));
+		await c.stop();
+
+		expect(pendingOf(redis)).toBe(1);
+		expect(
+			(await MESSAGES_DELIVERED_TOTAL.get()).values.some(
+				(v) => v.labels.status === "failed" && v.value >= 1
+			)
+		).toBe(true);
 	});
 
 	it("should dead-letter a rejected message and report it", async () => {
