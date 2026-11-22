@@ -115,6 +115,7 @@ build_images() {
 	# shellcheck disable=SC2086
 	local f="-f $root/docker-compose.yml"
 	[ ! -f "$root/docker-compose.build.yml" ] || f="$f -f $root/docker-compose.build.yml"
+	export IMAGE_TAG="$tag"
 	retry 3 docker compose $f build $have spire-bootstrap
 	# shellcheck disable=SC2086
 	[ -z "$missing" ] || retry 3 docker compose -f "$ROOT/docker-compose.yml" -f "$ROOT/docker-compose.build.yml" build $missing
@@ -123,9 +124,11 @@ build_images() {
 	local mroot="$root"
 	[ -f "$root/deploy/migrate/Dockerfile" ] || mroot="$ROOT"
 	retry 3 docker build -q -t "ghcr.io/trading-model/db-migrate:$tag" -f "$mroot/deploy/migrate/Dockerfile" "$mroot"
-	docker tag "${COMPOSE_PROJECT_NAME}-spire-bootstrap" "ghcr.io/trading-model/spire-tools:$tag"
+	# N-1 (no `image:` in compose) builds as <project>-<svc>; N builds straight to ghcr.io/trading-model/<svc>:$tag.
+	tag_built() { ! docker image inspect "$1" >/dev/null 2>&1 || docker tag "$1" "$2"; }
+	tag_built "${COMPOSE_PROJECT_NAME}-spire-bootstrap" "ghcr.io/trading-model/spire-tools:$tag"
 	for svc in $SERVICES; do
-		docker tag "${COMPOSE_PROJECT_NAME}-${svc}" "ghcr.io/trading-model/${svc}:$tag"
+		tag_built "${COMPOSE_PROJECT_NAME}-${svc}" "ghcr.io/trading-model/${svc}:$tag"
 	done
 }
 
