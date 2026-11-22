@@ -562,7 +562,14 @@ export class RiskExecution {
 	/** Sets the switch in memory; false when it was already on. */
 	private _flag(symbol: string | null, reason: string, actor: string): boolean {
 		const ks = this._state.killSwitch;
-		if (symbol === null ? ks.global : ks.symbols[symbol]) {
+		const current = symbol === null ? ks.global : ks.symbols[symbol];
+		// drawdown overrides any other reason: it keeps re-arm owner-only (policy §4.4)
+		if (
+			current &&
+			(reason !== "drawdown" ||
+				current === "drawdown" ||
+				current === "state_unreadable")
+		) {
 			return false;
 		}
 		if (symbol === null) {

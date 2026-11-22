@@ -36,14 +36,7 @@ function _sanitizeError(err: Error): JsonObject {
 	};
 }
 
-function _sanitizeObject(value: JsonObject): JsonObject {
-	const obj: JsonObject = {};
-	for (const [key, val] of Object.entries(value)) {
-		obj[key] = sanitizeForLog(val);
-	}
-	return obj;
-}
-
+/** Masks PEM in strings and flattens Errors; other values are returned as is (JSON.stringify recurses into them). */
 export function sanitizeForLog(value: unknown): unknown {
 	if (typeof value === "object" && value !== null) {
 		if (Visited.has(value)) {
@@ -51,13 +44,7 @@ export function sanitizeForLog(value: unknown): unknown {
 		}
 		Visited.add(value);
 		try {
-			if (value instanceof Error) {
-				return _sanitizeError(value);
-			}
-			if (Array.isArray(value)) {
-				return value.map((item) => sanitizeForLog(item));
-			}
-			return _sanitizeObject(value as JsonObject);
+			return value instanceof Error ? _sanitizeError(value) : value;
 		} finally {
 			Visited.delete(value);
 		}
