@@ -1,4 +1,5 @@
 import type { Order } from "./order";
+import type { MarketPrice } from "./ports";
 
 export interface RiskState {
 	killSwitch: {
@@ -11,7 +12,7 @@ export interface RiskState {
 	seen?: Record<string, number>;
 	cash: number;
 	positions: Record<string, number>;
-	marks: Record<string, { price: number; at: number }>;
+	marks: Record<string, MarketPrice>;
 	hwm: number;
 	day: {
 		date: string;

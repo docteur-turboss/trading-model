@@ -61,7 +61,7 @@ const orderPrice = ({ intent, market }: PricedContext): number =>
 	intent.limitPrice ?? market;
 
 /** Clock skew accepted on a timestamp pushed by a caller. */
-export const CLOCK_SKEW_MS = 5000;
+const CLOCK_SKEW_MS = 5000;
 
 function gateReject(ctx: PreTradeContext): string | null {
 	const { intent, limits, state, now } = ctx;

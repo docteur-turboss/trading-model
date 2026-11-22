@@ -192,7 +192,7 @@ export class RiskExecution {
 				}),
 				this._readPrices([intent.symbol]),
 			]);
-			const price = read?.[intent.symbol];
+			const price = read[intent.symbol];
 			const reason = preTradeReject({
 				intent,
 				limits: this._d.limits,
@@ -552,10 +552,10 @@ export class RiskExecution {
 		}
 	}
 
-	/** Marks the symbols at the prices read (never older than the mark); null when the read failed. */
+	/** Marks the symbols at the prices read (never older than the mark); none when the read failed. */
 	private async _readPrices(
 		symbols: string[]
-	): Promise<Record<string, MarketPrice> | null> {
+	): Promise<Record<string, MarketPrice>> {
 		try {
 			const read = await withTimeout(
 				this._d.prices.latest(symbols),
@@ -570,7 +570,7 @@ export class RiskExecution {
 			return read;
 		} catch (error) {
 			this._emit("prices.error", { error: String(error) });
-			return null;
+			return {};
 		}
 	}
 

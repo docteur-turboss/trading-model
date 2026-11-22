@@ -19,7 +19,7 @@ const Scope = z.object({
 
 /**
  * Service-to-service API of risk-execution, never in PUBLIC_ROUTES (ADR-0064 §1).
- * `intents`, `prices` and `cancel`: the decision consumer only; `admin*`: the operator, from the pod.
+ * `intents` and `cancel`: the decision consumer only; `admin*`: the operator, from the pod.
  */
 export const RISK_API = {
 	intent: defineRoute({
