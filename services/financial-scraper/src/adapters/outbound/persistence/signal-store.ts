@@ -36,10 +36,10 @@ const SELECT_FOR_ASSET_SQL = `SELECT ${COLUMNS} FROM signals
 interface NewestRow extends RowDataPacket {
 	source_id: string;
 	ingested: Date;
-	observed: Date;
+	observed: Date | null;
 }
 
-const NEWEST_SQL = `SELECT source_id, MAX(ingested_at) AS ingested, MAX(observed_at) AS observed
+const NEWEST_SQL = `SELECT source_id, MAX(ingested_at) AS ingested, MAX(CASE WHEN observed_at <> ingested_at THEN observed_at END) AS observed
 	FROM signals GROUP BY source_id`;
 
 /** Rows were written from checked signals: the payload matches its dimension. */
@@ -88,7 +88,7 @@ export const MySqlSignalStore: SignalStorePort = {
 				row.source_id,
 				{
 					ingestedAt: row.ingested.getTime(),
-					observedAt: row.observed.getTime(),
+					observedAt: row.observed?.getTime() ?? null,
 				},
 			])
 		);
