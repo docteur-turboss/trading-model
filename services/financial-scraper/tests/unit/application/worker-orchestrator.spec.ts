@@ -151,6 +151,15 @@ describe("WorkerOrchestrator", () => {
 		expect(persist).toHaveBeenCalledWith(snapshot);
 	});
 
+	it("should start no step once the cycle is aborted", async () => {
+		const controller = new AbortController();
+		controller.abort();
+
+		await orchestrator.executeAll(controller.signal);
+
+		expect(steps).toEqual([]);
+	});
+
 	it("should not persist when the source fails", async () => {
 		fetchSnapshot.mockRejectedValueOnce(new Error("451"));
 

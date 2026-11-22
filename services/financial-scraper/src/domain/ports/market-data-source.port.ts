@@ -14,6 +14,6 @@ import type {
 export interface MarketDataSourcePort {
 	readonly id: DataSource;
 	/** Called once per cycle before its snapshots: lets a source fetch in one request what every symbol shares. */
-	beginCycle?(symbols: TradingSymbol[]): void;
+	beginCycle?(symbols: TradingSymbol[], signal?: AbortSignal): void;
 	fetchSnapshot(request: SnapshotRequest): Promise<MarketDataSnapshot>;
 }

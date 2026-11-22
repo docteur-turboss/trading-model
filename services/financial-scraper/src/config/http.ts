@@ -1,5 +1,4 @@
 import { computeExponentialBackoffWithJitter } from "@trading-model/common/utils/backoff-config";
-import { sleep } from "@trading-model/common/utils/sleep";
 import { isRetryableStatusPermissive } from "@trading-model/http/http-retry";
 import { DataSource, DurationMs } from "@trading-model/primitives/primitives";
 import axios, {
@@ -42,6 +41,25 @@ type RetryConfig = AxiosRequestConfig & {
 	deadline?: number;
 };
 
+/** Backoff wait that ends early when `signal` fires. */
+function _sleepUnlessAborted(
+	ms: number,
+	signal?: AxiosRequestConfig["signal"]
+): Promise<void> {
+	return new Promise((resolve) => {
+		const timer = setTimeout(resolve, ms);
+		timer.unref();
+		signal?.addEventListener?.(
+			"abort",
+			() => {
+				clearTimeout(timer);
+				resolve();
+			},
+			{ once: true }
+		);
+	});
+}
+
 function _attachRetryInterceptor(instance: AxiosInstance): void {
 	instance.interceptors.request.use((config) => {
 		(config as RetryConfig).deadline ??= Date.now() + RETRY_DEADLINE_MS;
@@ -50,6 +68,9 @@ function _attachRetryInterceptor(instance: AxiosInstance): void {
 	instance.interceptors.response.use(undefined, (error: AxiosError) => {
 		const config = error.config as RetryConfig | undefined;
 		if (!config) {
+			throw error;
+		}
+		if (config.signal?.aborted) {
 			throw error;
 		}
 		config.retryCount = config.retryCount ?? 0;
@@ -75,7 +96,12 @@ function _attachRetryInterceptor(instance: AxiosInstance): void {
 			throw error;
 		}
 		config.retryCount++;
-		return sleep(delay).then(() => instance(config));
+		return _sleepUnlessAborted(delay, config.signal).then(() => {
+			if (config.signal?.aborted) {
+				throw error;
+			}
+			return instance(config);
+		});
 	});
 }
 
