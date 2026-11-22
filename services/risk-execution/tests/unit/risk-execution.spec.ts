@@ -514,6 +514,8 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 		down = true;
 		expect((await ctx.svc.submitIntent(intent())).status).toBe("unknown");
 		expect(ctx.svc.isReady()).toBe(false);
+		await ctx.svc.tick();
+		expect(ctx.svc.status().mismatch).toBe(false); // unreachable is not a mismatch
 		down = false;
 		expect(await ctx.svc.submitIntent(intent())).toMatchObject({
 			reason: "not_reconciled",
@@ -574,6 +576,7 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 		await ctx.svc.start();
 		await ctx.svc.submitIntent(intent());
 		expect(ctx.svc.status().positions.BTCUSDT).toBeCloseTo(0.02);
+		expect(ctx.svc.status().exposureRatio).toBeGreaterThan(0);
 		view = {
 			...view,
 			status: "filled",
@@ -774,6 +777,7 @@ describe("reconciliation (ADR-0064 §4)", () => {
 		await ctx.svc.tick();
 		expect(ctx.svc.status().killSwitch.global).toBe("reconciliation");
 		expect(ctx.svc.isReady()).toBe(false);
+		expect(ctx.svc.status().mismatch).toBe(true);
 		expect(
 			ctx.events.some((e) => e.startsWith("reconciliation.mismatch"))
 		).toBe(true);

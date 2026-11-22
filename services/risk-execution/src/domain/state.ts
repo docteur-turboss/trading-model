@@ -45,12 +45,17 @@ const OPEN_STATUSES = new Set([
 export const isOpen = (order: Order): boolean =>
 	OPEN_STATUSES.has(order.status);
 
-export function equity(state: RiskState): number {
-	let total = state.cash;
+/** Market value of the positions at their last marks (the global exposure of ADR-0064). */
+export function exposure(state: RiskState): number {
+	let total = 0;
 	for (const [symbol, qty] of Object.entries(state.positions)) {
 		total += qty * (state.marks[symbol]?.price ?? 0);
 	}
 	return total;
+}
+
+export function equity(state: RiskState): number {
+	return state.cash + exposure(state);
 }
 
 /**
