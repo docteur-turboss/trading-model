@@ -18,7 +18,6 @@ import {
 	UpstreamResponseTooLargeError,
 	UpstreamTimeoutError,
 } from "../domain/ports/gateway.port";
-import { PROXY_REQUEST_DURATION_SECONDS } from "../infrastructure/config/metrics";
 
 interface ProxyContext {
 	serviceName: ServiceId;
@@ -31,7 +30,7 @@ export async function proxyAndCache(
 	req: Request,
 	target: ResolvedEndpoint,
 	ctx: ProxyContext,
-	{ forward, cache }: ProxyDeps
+	{ forward, cache, observeDuration }: ProxyDeps
 ): Promise<ResponseObject> {
 	const start = performance.now();
 	let status: number = HTTP_STATUS.SERVICE_UNAVAILABLE;
@@ -66,7 +65,7 @@ export async function proxyAndCache(
 		}
 		return buildProxyErrorResponse(err, ctx, target);
 	} finally {
-		PROXY_REQUEST_DURATION_SECONDS.observe(
+		observeDuration(
 			{ service: ctx.serviceName, status: String(status) },
 			(performance.now() - start) / 1000
 		);
