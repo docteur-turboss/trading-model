@@ -284,7 +284,7 @@ canary_start() {
       log "Pinned ${service} canary image to digest ${digest}"
     else
       image_ref="${repo}:${image_tag}"
-      log "WARNING: could not resolve a digest for ${service}:${image_tag} — falling back to tag"
+      log "WARNING: could not resolve a digest for ${service}:${image_tag} â€” falling back to tag"
     fi
   fi
 
