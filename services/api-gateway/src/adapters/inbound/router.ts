@@ -1,6 +1,7 @@
 import { lookup } from "node:dns/promises";
 import { normalizeServiceName } from "@trading-model/common/utils/spiffe";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
+import type { ResolvedEndpoint } from "@trading-model/contracts/wire/service-resolver.types";
 import { catchSync } from "@trading-model/http/catch-error";
 import { logger } from "@trading-model/http/logger";
 import { sendResponse } from "@trading-model/http/response-exception";
@@ -12,7 +13,6 @@ import {
 	parseCIDRList,
 	type ServiceId,
 } from "@trading-model/primitives/primitives";
-import type { ResolvedEndpoint } from "@trading-model/validation/wire/service-resolver.types";
 import type { Request } from "express";
 import { Router } from "express";
 import {

@@ -5,7 +5,7 @@ jest.mock("../../../../../src/config/db", () => ({
 	DATABASE: { promise: () => ({ query: MOCK_QUERY }) },
 }));
 
-import type { Signal } from "@trading-model/validation/wire/signals";
+import type { Signal } from "@trading-model/contracts/wire/signals";
 import { MySqlSignalStore } from "../../../../../src/adapters/outbound/persistence/signal-store";
 
 const PAYLOAD = {

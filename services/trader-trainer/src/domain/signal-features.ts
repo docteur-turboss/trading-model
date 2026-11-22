@@ -1,5 +1,5 @@
+import type { Signal } from "@trading-model/contracts/wire/signals";
 import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
-import type { Signal } from "@trading-model/validation/wire/signals";
 import type { MarketStep } from "./genetic-algorithm/genome";
 
 /** Inputs per metric: value, age, confidence (ADR-0081). */

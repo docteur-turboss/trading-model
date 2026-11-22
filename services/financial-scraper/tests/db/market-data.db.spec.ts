@@ -14,6 +14,7 @@ import {
 	SourceType,
 	TradeSide,
 } from "@trading-model/contracts/market-data.types";
+import type { Signal } from "@trading-model/contracts/wire/signals";
 import {
 	DataSource,
 	NonNegativeInt,
@@ -22,7 +23,6 @@ import {
 	UnixTimestamp,
 	Volume,
 } from "@trading-model/primitives/primitives";
-import type { Signal } from "@trading-model/validation/wire/signals";
 import { createConnection } from "mysql2/promise";
 import {
 	insertCandles,

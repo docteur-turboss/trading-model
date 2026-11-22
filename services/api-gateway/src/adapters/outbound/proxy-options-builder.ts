@@ -3,9 +3,9 @@ import {
 	buildTlsFromEnv,
 	type TlsEnvVars,
 } from "@trading-model/common/config/tls-paths";
+import type { ResolvedEndpoint } from "@trading-model/contracts/wire/service-resolver.types";
 import { buildHttpsAgentOptions } from "@trading-model/http/http-tls-loader";
 import { HostPort } from "@trading-model/primitives/service-identity";
-import type { ResolvedEndpoint } from "@trading-model/validation/wire/service-resolver.types";
 import type { Request } from "express";
 import type { Env } from "../../infrastructure/config/env";
 import { safeHeaders } from "../../shared/proxy-header-sanitizer";

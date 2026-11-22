@@ -1,4 +1,4 @@
-import type { Dimension } from "@trading-model/validation/wire/signals";
+import type { Dimension } from "@trading-model/contracts/wire/signals";
 import type { z } from "zod";
 import type { Source, SourceRequest } from "../signals";
 

@@ -1,10 +1,10 @@
+import { AddressManagerEnvSchema } from "@trading-model/address-manager/config/address-manager-env";
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
-import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
-import { BaseEnvSchema } from "@trading-model/validation/config/env";
-import { featureFlag } from "@trading-model/validation/config/feature-flags";
-import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
-import { validateEnv } from "@trading-model/validation/config/validate-env";
-import { AssetType } from "@trading-model/validation/wire/signals";
+import { AssetType } from "@trading-model/contracts/wire/signals";
+import { BaseEnvSchema } from "@trading-model/http/config/env";
+import { featureFlag } from "@trading-model/http/config/feature-flags";
+import { validateEnv } from "@trading-model/http/config/validate-env";
+import { RedisEnvSchema } from "@trading-model/persistence/redis-env";
 import { z } from "zod";
 import { FitnessType } from "../../domain/genetic-algorithm/genome-control";
 import { SIGNAL_KEY_PATTERN } from "../../domain/signal-features";

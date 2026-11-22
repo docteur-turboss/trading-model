@@ -1,4 +1,5 @@
-import { ServiceInstanceWire } from "../../src/wire/service-instance";
+import { describe, expect, it } from "@jest/globals";
+import { ServiceInstanceWire } from "../../../src/wire/service-instance";
 
 /** What discovery-server answers on `GET /services/:serviceName`. */
 const FROM_DISCOVERY = {

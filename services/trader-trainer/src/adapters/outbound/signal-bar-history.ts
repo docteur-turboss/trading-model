@@ -5,12 +5,12 @@ import {
 	MarketType,
 	type SourceType,
 } from "@trading-model/contracts/market-data.types";
+import type { AssetType, Signal } from "@trading-model/contracts/wire/signals";
 import {
 	Price,
 	UnixTimestamp,
 	Volume,
 } from "@trading-model/primitives/primitives";
-import type { AssetType, Signal } from "@trading-model/validation/wire/signals";
 import { DAILY_BAR_ISSUES_TOTAL } from "../../config/metrics";
 import { DAY_MS, type TradingSymbol } from "../../domain/market-data-types";
 import type { CandleHistoryPort } from "../../domain/ports/candle-history.port";

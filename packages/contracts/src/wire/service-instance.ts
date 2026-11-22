@@ -1,9 +1,4 @@
 import {
-	Protocol,
-	type ServiceInstance,
-} from "@trading-model/contracts/service-registry-types";
-import { brand } from "@trading-model/http/api-route/api-route";
-import {
 	DurationMs,
 	IPAddress,
 	Port,
@@ -15,6 +10,8 @@ import {
 	Version,
 } from "@trading-model/primitives/primitives";
 import { z } from "zod";
+import { Protocol, type ServiceInstance } from "../service-registry-types";
+import { brand } from "./brand";
 import type { AcceptsContract, Assert, YieldsContract } from "./contract-shape";
 
 /**
