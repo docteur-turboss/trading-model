@@ -35,6 +35,8 @@ import { SIGNAL_REGISTRY } from "./signal-registry";
 /** Annotation of the collector Lease holding the Binance ban deadline. */
 const QUARANTINE_ANNOTATION = "trading-model/source-quarantine";
 
+const QUARANTINE_RESTORE_RETRY_MS = 2000;
+
 /** Market data persistence use case backed by the MySQL repository. */
 export const MarketDataController = createMarketDataController({
 	insertCandles,
@@ -106,14 +108,33 @@ export async function createScrapeScheduler(
 	if (!store) {
 		return cron;
 	}
+	// The cron starts only once the ban deadline is read back: a cycle before
+	// that would call Binance during a ban. A failed read is retried, never skipped.
+	let stopped = false;
 	return {
 		start: () => {
-			deps.source.restore().catch((error: unknown) => {
-				logger.error("Binance quarantine not restored", { error });
-			});
-			cron.start();
+			stopped = false;
+			void (async () => {
+				while (!stopped) {
+					try {
+						await deps.source.restore();
+						break;
+					} catch (error) {
+						logger.error("Binance quarantine not restored, retrying", {
+							error,
+						});
+						await sleep(QUARANTINE_RESTORE_RETRY_MS);
+					}
+				}
+				if (!stopped) {
+					cron.start();
+				}
+			})();
 		},
-		stop: () => cron.stop(),
+		stop: () => {
+			stopped = true;
+			return cron.stop();
+		},
 	};
 }
 
