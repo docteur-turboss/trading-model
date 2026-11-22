@@ -42,7 +42,7 @@ Services with additional health endpoints:
 
 ## Implementation
 
-Services use `createSecureServer` from `@trading-model/http` (`adapters/inbound/create-secure-server`) which automatically mounts `GET /ping` (path constant `PING_PATH` in `packages/http/src/shared/constants.ts`).
+Services use `createServiceServer` from `@trading-model/http/service-server-factory` which automatically mounts `GET /ping` (path constant `PING_PATH` in `packages/http/src/shared/constants.ts`).
 
 For custom health endpoints, mount additional routes:
 
