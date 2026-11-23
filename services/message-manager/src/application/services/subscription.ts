@@ -105,7 +105,7 @@ export class Subscription {
 		const outcome = await this._attempt(message, deliveries, entryId);
 		if (outcome === "delivered") {
 			count("success");
-			circuitBreaker.clear();
+			circuitBreaker.recordSuccess();
 			CIRCUIT_BREAKER_STATE.set(
 				{ subscriber },
 				circuitStateIndex(CircuitState.CLOSED)

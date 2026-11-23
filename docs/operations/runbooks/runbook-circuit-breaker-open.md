@@ -9,7 +9,7 @@ instance to pick or skip.
 
 ## Symptom
 
-The shared HTTP client has its own breaker (per hostname and per service). Each
+The shared HTTP client has one breaker per target (its service name, or its hostname when the call names no service). Each
 call it refuses increments `http_circuit_breaker_rejections_total{target,kind}`;
 a sustained rate fires `HttpCircuitBreakerRejecting` (warning). The caller
 (`job`) fails its calls to `target` fast instead of waiting on a failing
