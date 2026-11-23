@@ -12,7 +12,6 @@ import {
 	NETWORK_INPUT_LAYOUT,
 	networkInputLayout,
 } from "../../../src/domain/agent/agent-state";
-import { DataType } from "../../../src/domain/data-handlers/data-types";
 import { createDefaultGenome } from "../../../src/domain/genetic-algorithm/factory";
 import { GenerationProcessor } from "../../../src/domain/genetic-algorithm/generation-processor";
 import { createGAControlGenome } from "../../../src/domain/genetic-algorithm/genome-control";
@@ -44,8 +43,7 @@ function bufferWith(signalKeys: string[], signals: Signal[]): MarketDataBuffer {
 	const buffer = new MarketDataBuffer({ signalKeys });
 	for (let idx = 0; idx < CANDLES; idx++) {
 		const price = 100 + 10 * Math.sin(idx) + idx;
-		buffer.addData(
-			DataType.Candle,
+		buffer.addCandle(
 			SYMBOL,
 			makeCandle({
 				symbol: SYMBOL,

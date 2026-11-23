@@ -7,6 +7,6 @@ export const createReq = (overrides: Record<string, unknown> = {}): any => ({
 	...overrides,
 });
 
-export const createRes = (): any => ({});
+export const createRes = (): any => ({ setHeader: () => undefined });
 
 export const createNext = () => undefined;

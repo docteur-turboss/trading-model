@@ -4,6 +4,7 @@ import { AGENT_STATE_DIM } from "../src/agent/agent-state";
 import { FEATURE_DIM } from "../src/feature-vector-codec";
 import { ActivationType, NormalisationType } from "../src/neural-network/type";
 import {
+	decideOnLastBar,
 	type PolicyGenome,
 	policyAgentConfig,
 	replayModel,
@@ -126,5 +127,44 @@ describe("replayModel (ADR-0079 §3)", () => {
 		expect(
 			replay([early, ...candles.slice(0, 51), broken, ...candles.slice(51)])
 		).toEqual(replay(candles));
+	});
+});
+
+describe("decideOnLastBar (ADR-0087)", () => {
+	it.each(["every-bar", "on-event"] as const)(
+		"decides on the last bar of the window, the same way twice (%s)",
+		(variant) => {
+			const { genome: g, weights } = genome(variant);
+			const decide = (length: number) =>
+				decideOnLastBar({
+					genome: g,
+					weights,
+					simulator: SIMULATOR,
+					candles: candles.slice(0, length),
+				});
+			const answers = Array.from({ length: 60 }, (_, idx) => decide(61 + idx));
+			for (const [idx, answer] of answers.entries()) {
+				expect(answer?.barTimestamp).toBe(candles[60 + idx].timestamp);
+			}
+			expect(answers.map((answer) => answer?.order)).toEqual(
+				Array.from({ length: 60 }, (_, idx) => decide(61 + idx)?.order)
+			);
+			const orders = answers.flatMap((answer) => answer?.order ?? []);
+			// The every-bar weights only hold on these last bars.
+			expect(orders.length > 0).toBe(variant === "on-event");
+			expect(orders.every((order) => order.quantity > 0)).toBe(true);
+		}
+	);
+
+	it("has no decision for a window without a step", () => {
+		const { genome: g, weights } = genome("every-bar");
+		expect(
+			decideOnLastBar({
+				genome: g,
+				weights,
+				simulator: SIMULATOR,
+				candles: candles.slice(0, 1),
+			})
+		).toBeUndefined();
 	});
 });

@@ -10,7 +10,7 @@ export const MODEL_VERSION_PATTERN = /^\d{8}T\d{6}Z-[0-9a-f]{12}$/;
 export const MODEL_SYMBOL_PATTERN = /^[A-Za-z0-9._-]+$/;
 
 /**
- * Bytes of one artifact file of the store the trainer writes (ADR-0022, ADR-0087).
+ * Bytes of one artifact file of the store the trainer writes (ADR-0022, ADR-0089).
  * `undefined` when the file is absent or the names are not valid path segments;
  * any other error is rethrown.
  */

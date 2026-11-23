@@ -60,7 +60,7 @@ export function authOf(req: Request): AuthenticatedRequest {
 export type AuthSettings = Pick<Env, "AUTH_TOKENS" | "AUTH_TOKEN_HEADER">;
 
 export const createAuthMiddleware = (env: AuthSettings): RequestHandler =>
-	catchSync((req, _res, next) => {
+	catchSync((req, res, next) => {
 		const tokenHeader = env.AUTH_TOKEN_HEADER.toLowerCase();
 		const raw = req.headers[tokenHeader] ?? req.headers.authorization;
 		// Accept both `<token>` and `Bearer <token>` (scheme is case-insensitive).
@@ -98,6 +98,8 @@ export const createAuthMiddleware = (env: AuthSettings): RequestHandler =>
 			`client:${digest.toString("hex").slice(0, 32)}`
 		);
 		auth.apiKeyName = key.name;
+		// Read by the edge-proxy for its access log, then hidden from the client.
+		res.setHeader("x-actor", key.name);
 		auth.apiKeyScopes = key.scopes;
 		next();
 	});

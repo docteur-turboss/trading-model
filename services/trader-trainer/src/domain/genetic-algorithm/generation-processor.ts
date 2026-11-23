@@ -125,6 +125,8 @@ export class GenerationProcessor {
 			backendFactory: this._cfg.backendFactory,
 			telemetry: this._telemetry,
 			rng,
+			shouldStop: () =>
+				Date.now() - (startTime ?? Date.now()) >= ctrl.termination.timeBudgetMs,
 		});
 		const paretoResult = buildParetoFronts(
 			evalResult.updatedPop,
