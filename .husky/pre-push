@@ -9,6 +9,7 @@ bun run compliance:check
 bun run compose-ports:check
 bun scripts/observability-gate.mjs
 bun run build
+bun run contracts:check
 bun run typecheck:tests
 bun run test
 bun run test:contract
