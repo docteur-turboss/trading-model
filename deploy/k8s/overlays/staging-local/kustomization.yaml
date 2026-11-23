@@ -76,10 +76,12 @@ patches:
         value: 2400
 
   # One pod per data or observability StatefulSet: a release must not restart it (issue #700).
+  # Not prometheus nor alertmanager: they must load each release's rules and scrape jobs
+  # (issue #2323); their restart leaves a short supervision gap, no service outage.
   # Planned restart for a new template: docs/deployment/STAGING_LOCAL.md.
   - target:
       kind: StatefulSet
-      name: ^(mysql|redis|redis-sentinel|mongo-dlq|mongo-audit|alertmanager|grafana|loki|prometheus)$
+      name: ^(mysql|redis|redis-sentinel|mongo-dlq|mongo-audit|grafana|loki)$
     patch: |-
       - op: add
         path: /spec/updateStrategy
