@@ -116,6 +116,7 @@ jobs:
           - dlq-service
           - model-evaluator
           - risk-execution
+          - decision-consumer
 
     steps:
       - name: Checkout repository
