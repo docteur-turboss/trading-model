@@ -127,12 +127,14 @@ function buildProxyErrorResponse(
 export function tryServeFromCache(
 	method: string,
 	cacheKey: string,
-	cache: ResponseCachePort
+	cache: ResponseCachePort,
+	countLookup: (result: "hit" | "miss") => void
 ): ResponseObject | null {
 	if (method !== "GET") {
 		return null;
 	}
 	const cached = cache.get(cacheKey);
+	countLookup(cached ? "hit" : "miss");
 	if (!cached) {
 		return null;
 	}
