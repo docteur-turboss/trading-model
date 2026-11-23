@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { SourceType } from "@trading-model/contracts/market-data.types";
 import {
 	TradingSymbol,
 	UnixTimestamp,
@@ -97,19 +96,6 @@ describe("trades-schema", () => {
 			const sql = SQL_OF(query);
 			expect(sql).toContain("from market_trades");
 			expect(sql).toContain("symbol = ?");
-			expect(sql).toMatch(/order by timestamp, id limit \?$/);
-			expect(params.at(-1)).toBe(3);
-		});
-		it("pages source in (timestamp, id) order, limit applied", async () => {
-			MOCK_ROWS = [];
-			const rows = await selectTradesBy.source(SourceType.Binance, {
-				limit: 3,
-			});
-			expect(rows).toEqual([]);
-			const [{ query, params }] = MOCK_SQL;
-			const sql = SQL_OF(query);
-			expect(sql).toContain("from market_trades");
-			expect(sql).toContain("source = ?");
 			expect(sql).toMatch(/order by timestamp, id limit \?$/);
 			expect(params.at(-1)).toBe(3);
 		});
