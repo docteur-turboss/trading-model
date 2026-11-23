@@ -2,13 +2,13 @@ import {
 	TrainingEvent,
 	type TrainingModelPublishedPayload,
 } from "@trading-model/contracts/training-events";
-import { toSymbol } from "@trading-model/primitives/primitives";
+import { TradingSymbol } from "@trading-model/primitives/primitives";
 import { z } from "zod";
 
 /** Validators of the training event payloads, by event type. */
 export const TRAINING_EVENT_VALIDATORS = {
 	[TrainingEvent.ModelPublished]: z.object({
-		symbol: z.string().min(1).transform(toSymbol),
+		symbol: z.string().min(1).transform(TradingSymbol.of),
 		generation: z.number(),
 		fitness: z.number(),
 		sharpe: z.number(),

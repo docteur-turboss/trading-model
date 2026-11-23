@@ -7,7 +7,7 @@ import {
 } from "@trading-model/contracts/market-data.types";
 import {
 	Price,
-	toSymbol,
+	TradingSymbol,
 	UnixTimestamp,
 	Volume,
 } from "@trading-model/primitives/primitives";
@@ -17,7 +17,7 @@ import { NormalizationStats } from "../../src/features/normalization-stats";
 
 function baseCandle(overrides?: Partial<CandleData>): CandleData {
 	return {
-		symbol: toSymbol("BTCUSDT"),
+		symbol: TradingSymbol.of("BTCUSDT"),
 		source: SourceType.Binance,
 		timestamp: UnixTimestamp.of(2000),
 		market: MarketType.Crypto,

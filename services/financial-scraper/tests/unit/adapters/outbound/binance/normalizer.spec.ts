@@ -3,7 +3,10 @@ import {
 	CandleInterval,
 	TradeSide,
 } from "@trading-model/contracts/market-data.types";
-import { toSymbol, UnixTimestamp } from "@trading-model/primitives/primitives";
+import {
+	TradingSymbol,
+	UnixTimestamp,
+} from "@trading-model/primitives/primitives";
 import { normalizeCandles } from "../../../../../src/adapters/outbound/binance/normalizers/candles";
 import { normalizeOrderBook } from "../../../../../src/adapters/outbound/binance/normalizers/order-book";
 import { normalizeTicker24h } from "../../../../../src/adapters/outbound/binance/normalizers/ticker";
@@ -16,7 +19,7 @@ import {
 	mockTradeResponse,
 } from "../../../../fixtures/binance.fixture";
 
-const SYMBOL = toSymbol("BTCUSDT");
+const SYMBOL = TradingSymbol.of("BTCUSDT");
 
 const SYMBOL_QUERY = { symbol: SYMBOL };
 
