@@ -25,11 +25,17 @@ JOBS="$(dirname "${BASH_SOURCE[0]}")/../jobs"
 # The Job's activeDeadlineSeconds is multiplied by DEPLOY_TIMEOUT_FACTOR like the
 # wait-job.sh timeout: otherwise a slow cluster has the Job killed at its base
 # deadline while still waited for (issue #760).
-run_job() { # <job> <manifest>
+# `nowait` (db-index-build, ADR-0088): apply and go on, the build outlasts the deploy; a build still running is left alone.
+run_job() { # <job> <manifest> [nowait]
+  if [ "${3:-}" = nowait ] && [ -n "$(kubectl get job "$1" -n "$NS" -o jsonpath='{.status.active}' --ignore-not-found)" ]; then
+    echo "$1 is still running: left alone"
+    return 0
+  fi
   kubectl delete job "$1" -n "$NS" --ignore-not-found
   sed "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" "$2" |
     awk -v f="${DEPLOY_TIMEOUT_FACTOR:-1}" '/^ *activeDeadlineSeconds: *[0-9]+ *$/ { sub(/[0-9]+ *$/, $2 * f) } 1' |
     kubectl apply -n "$NS" -f -
+  [ "${3:-}" = nowait ] && return 0
   bash "$(dirname "${BASH_SOURCE[0]}")/wait-job.sh" "$NS" "$1" "$(awk '$1 == "activeDeadlineSeconds:" { print $2; exit }' "$2")"
 }
 
@@ -131,3 +137,5 @@ run_job db-migrate "$JOBS/migration-job.yaml"
 # Again once the tables exist: the `retention` user is granted per table (ADR-0051),
 # and on a new database the first run came before the migrations created them.
 run_job db-migrate-user "$JOBS/migration-user-job.yaml"
+# Last: the indexes are not needed to serve (reads are slower until they exist), so no deploy waits for them.
+run_job db-index-build "$JOBS/index-build-job.yaml" nowait

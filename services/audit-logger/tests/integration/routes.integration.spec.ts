@@ -40,12 +40,8 @@ jest.mock("../../src/config/address-manager", () => ({
 	AddressManager: { getAddress: (): null => null },
 }));
 
-import { healthRoutes } from "../../src/adapters/inbound/http/health.routes";
-
 function createApp() {
-	const app = configureApp();
-	app.use("/", healthRoutes());
-	return app;
+	return configureApp();
 }
 
 function fetchJson(
@@ -100,14 +96,11 @@ describe("Audit Logger — Routes Integration", () => {
 		expect(result.body).toHaveProperty("status", "ok");
 	});
 
-	it("GET /health should return health information", async () => {
+	it("GET /health is gone", async () => {
 		const app = createApp();
 		await new Promise<void>((resolve) => {
 			server = app.listen(0, () => resolve());
 		});
-		const result = await fetchJson(server, "/health");
-		expect(result.status).toBe(200);
-		expect(result.body).toHaveProperty("status", "ok");
-		expect(result.body).toHaveProperty("timestamp");
+		expect((await fetchJson(server, "/health")).status).toBe(404);
 	});
 });

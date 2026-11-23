@@ -1,5 +1,9 @@
 ## [3.1.0] - 2026-11-22
 
+### Upgrade notes
+
+- **Redis 7.4 → 8.10 (issue #2407):** Redis 8.10.3 crash-loops (`listpack.c:1788 'lpValidateNext(lp, &p, lpbytes)' is not true`) while it replays an AOF increment written by 7.4.11 (3.0.x). Before the first start on 3.1.x, rewrite the AOF of every Redis node offline under 7.4 with `scripts/redis-aof-rewrite.sh`, on a Docker or Kubernetes volume, never on a Windows bind mount: [DEPLOY.md, "Upgrading from 3.0.x"](docs/deployment/DEPLOY.md#upgrading-from-30x-rewrite-the-redis-aof-first). Once 8.10 has rewritten the AOF, 7.4 cannot read it: a rollback of `redis` to 3.0.x crash-loops.
+
 ### @trading-model/broker-message (1.2.0 → 1.3.0)
 
 #### Feat
