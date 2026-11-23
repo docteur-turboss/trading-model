@@ -561,7 +561,14 @@ describe("K8s Redis HA start script — cold start", () => {
 		await cli(pods[1], "REPLICAOF", "NO", "ONE");
 		await cli(pods[0], "REPLICAOF", "redis-1", String(REDIS_PORT));
 		await eventually(async () => (await role(pods[0])) === "slave");
-		await asService(pods[1], "message-manager", "SET", `${SPEC_KEY}:cold`, "1");
+		await asService(
+			pods[1],
+			"message-manager",
+			"HSET",
+			`${SPEC_KEY}:cold`,
+			"v",
+			"1"
+		);
 		const marked = async (pod: StartedTestContainer) =>
 			(await pod.exec(["test", "-e", "/data/was-master"])).exitCode === 0;
 		await eventually(
@@ -576,8 +583,13 @@ describe("K8s Redis HA start script — cold start", () => {
 		await eventually(
 			async () =>
 				(
-					await asService(pods[0], "message-manager", "GET", `${SPEC_KEY}:cold`)
-				)[0] === "1",
+					await asService(
+						pods[0],
+						"message-manager",
+						"HGETALL",
+						`${SPEC_KEY}:cold`
+					)
+				)[1] === "1",
 			60_000
 		);
 	}, 240_000);
@@ -600,14 +612,26 @@ describe("K8s Redis HA start script — cold start", () => {
 			.withStartupTimeout(120_000)
 			.start();
 		pods.push(pod);
-		await asService(pod, "message-manager", "SET", `${SPEC_KEY}:nomarker`, "1");
+		await asService(
+			pod,
+			"message-manager",
+			"HSET",
+			`${SPEC_KEY}:nomarker`,
+			"v",
+			"1"
+		);
 		await pod.exec(["rm", "-f", "/data/was-master"]);
 		await pod.restart();
 		await eventually(async () => (await role(pod)) === "master", 60_000);
 		expect(
 			(
-				await asService(pod, "message-manager", "GET", `${SPEC_KEY}:nomarker`)
-			)[0]
+				await asService(
+					pod,
+					"message-manager",
+					"HGETALL",
+					`${SPEC_KEY}:nomarker`
+				)
+			)[1]
 		).toBe("1");
 	}, 180_000);
 });
