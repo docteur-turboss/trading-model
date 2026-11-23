@@ -287,7 +287,7 @@ While it is down:
   (every 15 min, ADR-0027) do not run. No alert fires either, since Prometheus
   and Alertmanager are down.
 - No PITR gap for a stop of hours or days: MySQL is down too, so nothing purges
-  its binlogs (kept 30 days), and the first hourly run archives the closed ones.
+  its binlogs (kept 4 days), and the first hourly run archives the closed ones.
   `BackupPitrGap` fires only if the stop outlasts that, or the MongoDB oplog
   window ("hours to days", `BACKUP_DR.md`, "Point-in-time archives") and overwrites
   entries before they are archived.
