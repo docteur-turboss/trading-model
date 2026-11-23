@@ -98,10 +98,12 @@ describe("AUTH_MIDDLEWARE", () => {
 		mockEnvTokens("ops-alice:read:alice-secret");
 		const req: any = createReq({ headers: { "x-api-key": "alice-secret" } });
 
-		await AUTH_MIDDLEWARE(req, createRes(), createNext);
+		const res = { setHeader: jest.fn() };
+		await AUTH_MIDDLEWARE(req, res as any, createNext);
 
 		expect(req.apiKeyName).toBe("ops-alice");
 		expect(req.apiKeyScopes).toEqual(["read"]);
+		expect(res.setHeader).toHaveBeenCalledWith("x-actor", "ops-alice");
 	});
 
 	it("ignores a bare-secret entry: its secret authenticates nobody", async () => {

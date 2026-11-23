@@ -69,13 +69,13 @@ describe("publishJournalLag", () => {
 			.fn<() => Promise<JournalGroupLag[]>>()
 			.mockResolvedValueOnce([
 				{
-					topic: "t" as never,
+					topic: "training.model.published" as never,
 					service: "a",
 					pending: 4,
 					oldestPendingAgeMs: 90_000,
 				},
 				{
-					topic: "t" as never,
+					topic: "training.model.published" as never,
 					service: "b",
 					pending: 1,
 					oldestPendingAgeMs: 0,
@@ -83,7 +83,7 @@ describe("publishJournalLag", () => {
 			])
 			.mockResolvedValueOnce([
 				{
-					topic: "t" as never,
+					topic: "training.model.published" as never,
 					service: "a",
 					pending: 0,
 					oldestPendingAgeMs: 0,
@@ -98,7 +98,31 @@ describe("publishJournalLag", () => {
 		expect(first.values.find((v) => v.labels.service === "a")?.value).toBe(90);
 		const pending = (await JOURNAL_PENDING_ENTRIES.get()).values;
 		expect(pending).toHaveLength(1);
-		expect(pending[0]?.labels).toEqual({ topic: "t", service: "a" });
+		expect(pending[0]?.labels).toEqual({
+			topic: "training.model.published",
+			service: "a",
+		});
+	});
+
+	it("should leave out a group of a topic no longer in the contracts: its backlog never drains (issue #2479)", async () => {
+		const lag = {
+			service: "trader-trainer",
+			pending: 2,
+			oldestPendingAgeMs: 1e8,
+		};
+		const journal = {
+			lag: jest.fn<() => Promise<JournalGroupLag[]>>().mockResolvedValue([
+				{ topic: "training.model.published" as never, ...lag },
+				{ topic: "market.candlestick.series.fetch" as never, ...lag },
+			]),
+		} as unknown as MessageJournalPort;
+
+		await publishJournalLag(journal);
+
+		const series = (await JOURNAL_OLDEST_PENDING_AGE_SECONDS.get()).values;
+		expect(series.map((value) => value.labels.topic)).toEqual([
+			"training.model.published",
+		]);
 	});
 
 	it("should clear the gauges when the read fails", async () => {

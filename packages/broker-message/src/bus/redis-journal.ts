@@ -107,6 +107,11 @@ function toRecord(flat: unknown[]): Record<string, unknown> {
 
 type StreamReply = [id: string, fields: string[] | null][] | null;
 
+/** True when `err` is a Redis error whose message contains `code` (e.g. "NOGROUP"). */
+export function isRedisError(err: unknown, code: string): boolean {
+	return err instanceof Error && err.message.includes(code);
+}
+
 /**
  * Journal in Redis Streams (ADR-0048): one stream per topic, one consumer
  * group per subscriber service. The pending list of each group carries the
@@ -213,7 +218,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 					)) as unknown[]
 				).length > 0;
 		} catch (err) {
-			if (!(err instanceof Error && err.message.includes("no such key"))) {
+			if (!isRedisError(err, "no such key")) {
 				throw err;
 			}
 			value = false;
@@ -347,7 +352,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 				}
 			} catch (err) {
 				// The stream is gone (Redis restart without AOF): nothing is pending on it.
-				if (!(err instanceof Error && err.message.includes("no such key"))) {
+				if (!isRedisError(err, "no such key")) {
 					throw err;
 				}
 			}
@@ -380,7 +385,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 					)) as [string, unknown][];
 				} catch (err) {
 					// The group vanished since XINFO: skip it, keep the others.
-					if (err instanceof Error && err.message.includes("NOGROUP")) {
+					if (isRedisError(err, "NOGROUP")) {
 						return undefined;
 					}
 					throw err;
@@ -470,7 +475,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 		err: unknown,
 		group: JournalGroup
 	): Promise<void> {
-		if (!(err instanceof Error && err.message.includes("NOGROUP"))) {
+		if (!isRedisError(err, "NOGROUP")) {
 			throw err;
 		}
 		await this.register(group);
@@ -522,7 +527,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 				"MKSTREAM"
 			);
 		} catch (err) {
-			if (!(err instanceof Error && err.message.includes("BUSYGROUP"))) {
+			if (!isRedisError(err, "BUSYGROUP")) {
 				throw err;
 			}
 		}
