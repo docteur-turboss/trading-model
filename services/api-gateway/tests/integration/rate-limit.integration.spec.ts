@@ -55,7 +55,8 @@ function createApp(): express.Application {
 function request(
 	server: http.Server,
 	path: string,
-	apiKey = "test-token"
+	apiKey = "test-token",
+	forwardedFor = "203.0.113.0"
 ): Promise<{ status: number; body: unknown }> {
 	return new Promise((resolve, reject) => {
 		const addr = server.address();
@@ -70,6 +71,7 @@ function request(
 				path,
 				headers: {
 					[HTTP_HEADERS.X_API_KEY]: apiKey,
+					"X-Forwarded-For": forwardedFor,
 					Connection: "close",
 				},
 			},
@@ -137,5 +139,20 @@ describe("API Gateway — Rate Limiting Integration", () => {
 		expect((await request(server, path)).status).toBe(429);
 
 		expect((await request(server, path, "other-token")).status).toBe(200);
+	});
+
+	it("should answer 429 to invalid keys over the limit without blocking a valid client", async () => {
+		const app = createApp();
+		await new Promise<void>((resolve) => {
+			server = app.listen(0, () => resolve());
+		});
+		const path = "/v1/audit-logger/events";
+
+		expect((await request(server, path, "bad")).status).toBe(401);
+		expect((await request(server, path, "bad")).status).toBe(401);
+		expect((await request(server, path, "bad")).status).toBe(429);
+		expect(
+			(await request(server, path, "test-token", "198.51.100.0")).status
+		).toBe(200);
 	});
 });

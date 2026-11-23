@@ -2,12 +2,13 @@
 
 **Status:** Accepted
 **Date:** 2026-11
+**Amended by:** [ADR-0088](./0088-paged-read-indexes-built-outside-the-migration-job.md) (the 3 `sources/:source` routes removed, the `(symbol, timestamp, id)` indexes)
 **Related:** [ADR-0053](./0053-order-books-persisted-not-served.md) (order book routes removed, so only 9 routes are paged), [ADR-0021](./0021-http-api-schemas-and-generated-openapi.md) (Zod schemas, generated OpenAPI), [ADR-0036](./0036-multi-dimension-signals-mvp.md) (the `signals` route: window, `truncated`), [ADR-0013](./0013-config-gated-dead-code-removal.md) (a new env var, `config:check`)
 **Verified by:** `services/financial-scraper/tests/unit/adapters/inbound/http/api-routes.spec.ts`, `services/financial-scraper/tests/unit/adapters/outbound/persistence/schema/trades.schema.spec.ts`, `services/financial-scraper/tests/unit/adapters/outbound/persistence/schema/ticker24h.schema.spec.ts`, `services/financial-scraper/tests/unit/adapters/outbound/persistence/schema/candles.schema.spec.ts`, `services/financial-scraper/tests/db/market-data.db.spec.ts`, `services/api-gateway/tests/unit/proxy-handler.spec.ts`, `services/api-gateway/tests/unit/proxy-dispatcher.spec.ts`, `bun run api:check`, `bun run config:check`
 
 ## Context
 
-The 9 public reads of financial-scraper (`trade`, `ticker`, `candles` × `sources/:source`, `symbols/:symbol`, `timestamp/:timestamp`, all in `PUBLIC_ROUTES`) ran a `SELECT` with neither `LIMIT` nor `ORDER BY` and answered the whole result as one JSON array. The tables only grow (about 288 000 trades a day, kept 1 827 days): one authenticated request under the rate limit could exhaust the scraper (512 Mi) and then the gateway (256 Mi), which buffers, parses and re-serializes every upstream answer (issue #552). Only `signals` was bounded (`MAX_SIGNALS_PER_ANSWER`). No internal service reads these routes. The owner chose options A3 + B1 of the issue.
+The 9 public reads of financial-scraper (`trade`, `ticker`, `candles` × `sources/:source`, `symbols/:symbol`, `timestamp/:timestamp`, all in `PUBLIC_ROUTES`; the `sources/:source` ones were removed by ADR-0088) ran a `SELECT` with neither `LIMIT` nor `ORDER BY` and answered the whole result as one JSON array. The tables only grow (about 288 000 trades a day, kept 1 827 days): one authenticated request under the rate limit could exhaust the scraper (512 Mi) and then the gateway (256 Mi), which buffers, parses and re-serializes every upstream answer (issue #552). Only `signals` was bounded (`MAX_SIGNALS_PER_ANSWER`). No internal service reads these routes. The owner chose options A3 + B1 of the issue.
 
 ## Decision
 
@@ -18,7 +19,7 @@ The 9 public reads of financial-scraper (`trade`, `ticker`, `candles` × `source
 ## Consequences
 
 - Breaking change of the public contract: the 9 routes answer an object instead of an array, and a client that read "everything" now reads 500 rows unless it follows `nextCursor`. The OpenAPI (`docs/services/openapi/api-gateway.yaml`) is regenerated from the schemas.
-- Migration 007 (issue #555) made the single-column `timestamp` indexes visible, so `ORDER BY timestamp, id` and the window/cursor predicates can use them. No index covers `(symbol, timestamp)`: a symbol or source filter still scans the matching rows. Memory and answer size are bounded either way. A composite index is a separate change.
-- Keyset limit: a row inserted during a pagination with a `timestamp` earlier than the cursor is skipped (for example `trade/sources/:source`, which mixes symbols collected one after the other). "No gap, no duplicate" holds on a stable snapshot only.
+- Migration 007 (issue #555) made the single-column `timestamp` indexes visible, so `ORDER BY timestamp, id` and the window/cursor predicates can use them. ADR-0088 adds `(symbol, timestamp, id)` so a symbol page reads `limit` rows without filesort; the `timestamp` routes still scan their range.
+- Keyset limit: a row inserted during a pagination with a `timestamp` earlier than the cursor is skipped (for example a symbol read while its candles are backfilled). "No gap, no duplicate" holds on a stable snapshot only.
 - An upstream answer larger than the cap is lost for the client (502); raising `PROXY_MAX_RESPONSE_BYTES` costs gateway memory (several times the answer size).
 - A new paged public read follows this convention (`limit` / `after` / `nextCursor` / `truncated`).

@@ -32,7 +32,7 @@ import { parseRequestPath } from "../../shared/path-parser";
 import { matchPublicRoute } from "../../shared/public-routes";
 import { forwardRequest } from "../outbound/proxy-handler";
 import { authOf, createAuthMiddleware } from "./auth";
-import { createRateLimiter } from "./rate-limiter";
+import { createAuthFailureLimiter, createRateLimiter } from "./rate-limiter";
 
 /** Every service listens on HTTPS port 3000 behind its DNS name. */
 const SERVICE_PORT = Port.of(3000);
@@ -186,6 +186,7 @@ const createCatchAllRoute = (env: Env) => {
 export function createRouter(env: Env): Router {
 	const router = Router();
 	router.get("/metrics", metricsHandler);
+	router.use(createAuthFailureLimiter(env));
 	router.use(createAuthMiddleware(env));
 	router.use(createRateLimiter(env));
 	router.use(createCatchAllRoute(env));
