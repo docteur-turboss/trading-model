@@ -11,7 +11,6 @@ const MOCK_SERVER = {
 };
 
 const MOCK_MESSAGE_HANDLER = jest.fn<(...args: any[]) => any>();
-const MOCK_HEALTH_ROUTES = jest.fn<(...args: any[]) => any>();
 const MOCK_EVENTS_ROUTES = jest.fn<(...args: any[]) => any>();
 jest.mock("@trading-model/http/service-server-factory", () => ({
 	createServiceServer: jest.fn((..._args: any[]) =>
@@ -33,10 +32,6 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 	},
 }));
 
-jest.mock("../../../src/adapters/inbound/http/health.routes", () => ({
-	healthRoutes: jest.fn((..._args: any[]) => MOCK_HEALTH_ROUTES),
-}));
-
 jest.mock("../../../src/adapters/inbound/http/events.routes", () => ({
 	eventsRoutes: jest.fn((..._args: any[]) => MOCK_EVENTS_ROUTES),
 }));
@@ -54,7 +49,6 @@ jest.mock(
 
 import { createServiceServer } from "@trading-model/http/service-server-factory";
 import { eventsRoutes } from "../../../src/adapters/inbound/http/events.routes";
-import { healthRoutes } from "../../../src/adapters/inbound/http/health.routes";
 import { createServer } from "../../../src/application/server";
 
 describe("createServer", () => {
@@ -99,10 +93,8 @@ describe("createServer", () => {
 		ready = true;
 		expect(await mongoCheck.check()).toBe(true);
 
-		expect(healthRoutes).toHaveBeenCalledWith();
 		expect(eventsRoutes).toHaveBeenCalledWith(auditRepo);
 
-		expect(MOCK_APP.use).toHaveBeenCalledWith("/", MOCK_HEALTH_ROUTES);
 		expect(MOCK_APP.use).toHaveBeenCalledWith("/", MOCK_EVENTS_ROUTES);
 		// POST /message is mounted from AUDIT_API.receive on its own router.
 		const brokerRouter = MOCK_APP.use.mock.calls
