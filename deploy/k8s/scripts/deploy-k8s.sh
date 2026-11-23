@@ -559,10 +559,10 @@ release_checks_once() {
     err "  ✗ no gateway API key in Secret trading-model-secrets (AUTH_TOKENS)"
     return 1
   fi
-  # The key goes through stdin (curl -H @-), never on a command line or in a log.
+  # The key goes through stdin, never on a command line or in a log.
   local path="/v1/trader-trainer/training-status"
-  code="$(printf 'x-api-key: %s\n' "$key" | kubectl exec -i -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
-    curl -s -o /dev/null -w '%{http_code}' -H @- "http://edge-proxy:8080${path}")" || code="000"
+  code="$(printf '%s' "$key" | kubectl exec -i -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
+    node -e 'let k="";process.stdin.on("data",d=>k+=d).on("end",()=>require("http").get(process.argv[1],{headers:{"x-api-key":k}},r=>{console.log(r.statusCode);r.resume()}).on("error",()=>console.log("000")))' "http://edge-proxy:8080${path}")" || code="000"
   if [[ "$code" != "200" ]]; then
     err "  ✗ GET ${path} through edge-proxy answered ${code}, expected 200"
     return 1

@@ -797,9 +797,11 @@ verify_network() {
 	log "  training status: $(curl -s -H "x-api-key: $API_KEY" "$url")"
 
 	# Release N only (ADR-0072): N-1 gateways still read the registry. Removed in N+1.
-	local registry="node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://discovery-server:3000/services"
-	wait_for 120 "$K -n $NS exec deployment/financial-scraper -c financial-scraper -- $registry | grep -q financial-scraper"
-	log "  registered: $($K -n "$NS" exec deployment/financial-scraper -c financial-scraper -- $registry)"
+	registry() {
+		$K -n "$NS" exec deployment/financial-scraper -c financial-scraper -- node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://discovery-server:3000/services
+	}
+	wait_for 120 "registry | grep -q financial-scraper"
+	log "  registered: $(registry)"
 }
 
 verify_observability() {
@@ -1260,7 +1262,7 @@ inspector() {
 # risk-execution admin route `$1` (POST body `$2` when given), from its own pod
 # (docs/operations/runbooks/runbook-risk-execution.md).
 risk_admin() {
-	$K -n "$NS" exec -i deployment/risk-execution -c risk-execution -- node -e 'const f=require("fs"),d="/run/spire/svid/",[m,u]=process.argv.slice(1);const q=require("https").request(u,{method:m,headers:{"content-type":"application/json"},cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>r.pipe(process.stdout));q.on("error",()=>process.exit(1));process.stdin.pipe(q)' "$([ -n "${2:-}" ] && echo POST || echo GET)" "https://localhost:3000/admin/$1" <<<"$2"
+	$K -n "$NS" exec -i deployment/risk-execution -c risk-execution -- node -e 'const f=require("fs"),d="/run/spire/svid/",[m,u]=process.argv.slice(1);const q=require("https").request(u,{method:m,headers:{"content-type":"application/json"},cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>r.pipe(process.stdout));q.on("error",()=>process.exit(1));process.stdin.pipe(q)' "$([ -n "${2:-}" ] && echo POST || echo GET)" "https://localhost:3000/admin/$1" <<<"${2:-}"
 }
 
 # The real audit trail: tests/backup/audit-chain.js on the `audit` database
