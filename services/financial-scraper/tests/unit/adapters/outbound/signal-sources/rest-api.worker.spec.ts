@@ -170,6 +170,26 @@ describe("rest_api worker", () => {
 		expect(last?.headers["if-none-match"]).toBeUndefined();
 	});
 
+	it("keeps validators of the last 64 URLs only", async () => {
+		const worker = createRestApiWorker("ua");
+		serverTag = '"v1"';
+		const run = async (i: number) => {
+			const url = `${base}/etag?d=${i}`;
+			await worker(
+				{ subject: { assetId: "BTC" }, dimension: "market", url, params: {} },
+				"none"
+			);
+			return url;
+		};
+		for (let i = 0; i < 65; i++) {
+			worker.confirm?.(await run(i));
+		}
+		await run(0);
+		expect(last?.headers["if-none-match"]).toBeUndefined();
+		await run(64);
+		expect(last?.headers["if-none-match"]).toBe('"v1"');
+	});
+
 	describe("API key", () => {
 		beforeAll(() => {
 			process.env.SIGNAL_KEY_TEST = KEY;
