@@ -14,6 +14,7 @@
 # minimal) nor alpine (MariaDB's client cannot read MySQL 8.4 binlogs). It
 # comes from the official MySQL repository, at the version of the server
 # (deploy/k8s/infra/mysql.yaml), checked with the key the mysql image ships.
+# The repository drops a client when Oracle reissues it (8.4.13 -> 8.4.13.1).
 # age and rclone come from Oracle's EPEL mirror.
 # `microdnf upgrade` pulls the OS security fixes published after the base
 # digest: the release Trivy gate refuses fixed HIGH CVEs (v3.1.0-rc.3 failed on
@@ -31,7 +32,7 @@ RUN printf '%s\n' '[mysql-8.4-community]' 'name=MySQL 8.4 Community' \
 	&& microdnf -y upgrade \
 	&& microdnf -y install oracle-epel-release-el10 \
 	&& microdnf --setopt=install_weak_deps=0 -y install \
-		mysql-community-client-8.4.13 age rclone \
+		mysql-community-client-8.4.13.1 age rclone \
 		bash coreutils-single findutils gawk grep gzip sed tar diffutils \
 	&& microdnf clean all \
 	&& mysqlbinlog --version && age --version && rclone version >/dev/null
