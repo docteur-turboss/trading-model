@@ -1,13 +1,11 @@
 import https from "node:https";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
-import { HttpClient } from "@trading-model/http/http-client";
-import { buildHttpsAgentOptions } from "@trading-model/http/http-tls-loader";
 import { ServiceId, URLString } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import { z } from "zod";
-import { FIND_A_SERVICE } from "../../config/address-manager";
-import { ModelManifest } from "../../domain/model-evaluation";
+import { HttpClient } from "../http-client";
+import { buildHttpsAgentOptions } from "../http-tls-loader";
 
 /** Total deadline of a weights download (an upstream that trickles bytes must not hold it open). */
 const WEIGHTS_TIMEOUT_MS = 60_000;
@@ -17,17 +15,20 @@ const WEIGHTS_MAX_BYTES = 256 * 1024 * 1024;
 /** Reads the trainer's versioned model API (ADR-0022): manifest, then weights. */
 const TRAINER = ServiceId.of("trader-trainer");
 
-export class TrainerClient {
+export class TrainerClient<Manifest> {
 	private readonly _http: HttpClient;
 
-	constructor(private readonly _tls: TlsPaths) {
+	/** `manifest` is the part of the trainer manifest the caller relies on. */
+	constructor(
+		private readonly _tls: TlsPaths,
+		private readonly _find: (name: ServiceInstanceName) => Promise<HostPort>,
+		private readonly _manifest: z.ZodType<Manifest>
+	) {
 		this._http = HttpClient.createWithTls(_tls);
 	}
 
 	private async _base(): Promise<string> {
-		const target = await FIND_A_SERVICE(
-			ServiceInstanceName.TraderTrainerService
-		);
+		const target = await this._find(ServiceInstanceName.TraderTrainerService);
 		return `https://${HostPort.toAddress(target)}`;
 	}
 
@@ -35,14 +36,14 @@ export class TrainerClient {
 		symbol: string,
 		version: string,
 		signal?: AbortSignal
-	): Promise<ModelManifest> {
+	): Promise<Manifest> {
 		const url = URLString.of(
 			`${await this._base()}/v1/models/${symbol}/${version}`
 		);
 		const body = await this._http.get(
 			url,
 			{ serviceName: TRAINER, signal },
-			z.object({ data: ModelManifest })
+			z.object({ data: this._manifest })
 		);
 		if (!body) {
 			throw new Error(`Empty manifest answer for ${symbol}/${version}`);

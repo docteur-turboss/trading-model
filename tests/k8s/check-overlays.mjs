@@ -59,8 +59,8 @@ const DATA_STATEFULSETS = [...DATABASES, "grafana", "loki"];
 // Bus ACL users (redis-ha.sh) a partitioned redis-0 learns only when restarted (issue #1931).
 const BUS_USERS = ["audit-logger", "trader-trainer", "model-evaluator", "risk-execution"];
 // Bus users allowed on the sentinels in staging-local: those redis-0 knows after the
-// planned switch of docs/deployment/STAGING_LOCAL.md, "Bus switch".
-const BUS_ON_PARTITIONED_REDIS = new Set([]);
+// data tier switch of docs/deployment/STAGING_LOCAL.md (done 2026-11-23, issue #1982).
+const BUS_ON_PARTITIONED_REDIS = new Set(["audit-logger", "trader-trainer", "model-evaluator"]);
 // Bare names a database may mount: also applied by name outside kustomize (run-migrations.sh), read by the exporter sidecar only.
 const BARE_CONFIGMAPS = new Set(["mysql-client-tls"]);
 const IMAGE = /image: ghcr\.io\/trading-model\/([a-z0-9-]+)/g;
@@ -405,6 +405,15 @@ for (const env of OVERLAYS) {
 		}
 		if (env !== "staging-local" && partition > 0) {
 			errors.push(`${env}: StatefulSet ${name} must not set a partition: its pods would keep the old template`);
+		}
+	}
+
+	// Issue #2378: default-deny-all cuts the local MinIO; only staging-local opens it, for backup and audit-logger.
+	for (const component of ["backup", "audit-logger"]) {
+		const opened = docs.some((doc) => doc.kind === "NetworkPolicy" && doc.text.includes(`app.kubernetes.io/component: ${component}
+  policyTypes`) && doc.text.includes("cidr: 172.18.0.200/32"));
+		if (opened !== (env === "staging-local")) {
+			errors.push(`${env}: ${component} pods ${env === "staging-local" ? "need" : "must not have"} a NetworkPolicy egress to the local MinIO 172.18.0.200/32:9000 (issue #2378)`);
 		}
 	}
 

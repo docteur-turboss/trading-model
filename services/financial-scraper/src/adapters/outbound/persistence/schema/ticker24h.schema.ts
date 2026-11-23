@@ -1,4 +1,3 @@
-import type { SourceType } from "@trading-model/contracts/market-data.types";
 import type {
 	TradingSymbol,
 	UnixTimestamp,
@@ -81,7 +80,7 @@ export const insertTicker = defineUpsert<TickerData>({
 	],
 });
 
-/** Query helpers for the market_tickers table, indexed by symbol, timestamp, and source. */
+/** Query helpers for the market_tickers table; index `(symbol, timestamp, id)` serves the paged symbol read (migrate.mjs `index-build`). */
 export const selectTickerBy = {
 	symbol: (symbol: TradingSymbol, page: MarketDataPage) =>
 		pagedSelect(
@@ -95,13 +94,6 @@ export const selectTickerBy = {
 			T_MARKET_TICKER,
 			SELECT,
 			T_MARKET_TICKER.timestamp.equals(new Date(timestamp)),
-			page
-		),
-	source: (source: SourceType, page: MarketDataPage) =>
-		pagedSelect(
-			T_MARKET_TICKER,
-			SELECT,
-			T_MARKET_TICKER.source.equals(source),
 			page
 		),
 };

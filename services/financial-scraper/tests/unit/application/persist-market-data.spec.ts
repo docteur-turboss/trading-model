@@ -30,7 +30,7 @@ import { insertCandles } from "../../../src/adapters/outbound/persistence/schema
 import { insertOrderBook } from "../../../src/adapters/outbound/persistence/schema/order-book.schema";
 import { insertTicker } from "../../../src/adapters/outbound/persistence/schema/ticker24h.schema";
 import { insertTrades } from "../../../src/adapters/outbound/persistence/schema/trades.schema";
-import { MarketDataController } from "../../../src/config/container";
+import { MarketDataPersister } from "../../../src/config/container";
 import { CANDLES_PERSISTED_TOTAL } from "../../../src/config/metrics";
 
 const MOCK_MODEL = {
@@ -40,7 +40,7 @@ const MOCK_MODEL = {
 	insertTicker: jest.mocked(insertTicker),
 };
 
-describe("MarketDataController", () => {
+describe("MarketDataPersister", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 		CANDLES_PERSISTED_TOTAL.reset();
@@ -57,7 +57,7 @@ describe("MarketDataController", () => {
 			fetchedAt: Date.now(),
 		};
 
-		await MarketDataController.persist(payload);
+		await MarketDataPersister.persist(payload);
 
 		const values = (await CANDLES_PERSISTED_TOTAL.get()).values;
 		const count = (symbol: string) =>
@@ -73,7 +73,9 @@ describe("MarketDataController", () => {
 			fetchedAt: Date.now(),
 		};
 
-		await expect(MarketDataController.persist(payload)).rejects.toThrow();
+		await expect(MarketDataPersister.persist(payload)).rejects.toMatchObject({
+			cause: [expect.objectContaining({ message: "MySQL down" })],
+		});
 
 		expect((await CANDLES_PERSISTED_TOTAL.get()).values).toEqual([]);
 	});
@@ -87,7 +89,7 @@ describe("MarketDataController", () => {
 			fetchedAt: Date.now(),
 		};
 
-		await MarketDataController.persist(payload);
+		await MarketDataPersister.persist(payload);
 
 		expect(MOCK_MODEL.insertCandles).toHaveBeenCalledTimes(1);
 		expect(MOCK_MODEL.insertTrades).not.toHaveBeenCalled();
@@ -104,7 +106,7 @@ describe("MarketDataController", () => {
 			fetchedAt: Date.now(),
 		};
 
-		await MarketDataController.persist(payload);
+		await MarketDataPersister.persist(payload);
 
 		expect(MOCK_MODEL.insertTrades).toHaveBeenCalledTimes(1);
 		expect(MOCK_MODEL.insertCandles).not.toHaveBeenCalled();
@@ -121,7 +123,7 @@ describe("MarketDataController", () => {
 			fetchedAt: Date.now(),
 		};
 
-		await MarketDataController.persist(payload);
+		await MarketDataPersister.persist(payload);
 
 		expect(MOCK_MODEL.insertOrderBook).toHaveBeenCalledTimes(1);
 		expect(MOCK_MODEL.insertCandles).not.toHaveBeenCalled();
@@ -138,7 +140,7 @@ describe("MarketDataController", () => {
 			fetchedAt: Date.now(),
 		};
 
-		await MarketDataController.persist(payload);
+		await MarketDataPersister.persist(payload);
 
 		expect(MOCK_MODEL.insertTicker).toHaveBeenCalledTimes(1);
 		expect(MOCK_MODEL.insertCandles).not.toHaveBeenCalled();
@@ -155,7 +157,7 @@ describe("MarketDataController", () => {
 			fetchedAt: Date.now(),
 		};
 
-		await MarketDataController.persist(payload);
+		await MarketDataPersister.persist(payload);
 
 		expect(MOCK_MODEL.insertCandles).toHaveBeenCalledTimes(1);
 		expect(MOCK_MODEL.insertTrades).toHaveBeenCalledTimes(1);
@@ -172,7 +174,7 @@ describe("MarketDataController", () => {
 			fetchedAt: Date.now(),
 		};
 
-		await MarketDataController.persist(payload);
+		await MarketDataPersister.persist(payload);
 
 		expect(MOCK_MODEL.insertCandles).not.toHaveBeenCalled();
 		expect(MOCK_MODEL.insertTrades).not.toHaveBeenCalled();
@@ -194,7 +196,7 @@ describe("MarketDataController", () => {
 			fetchedAt: Date.now(),
 		};
 
-		await expect(MarketDataController.persist(payload)).rejects.toThrow(
+		await expect(MarketDataPersister.persist(payload)).rejects.toThrow(
 			/Market data persist failed.*DB error/
 		);
 	});
