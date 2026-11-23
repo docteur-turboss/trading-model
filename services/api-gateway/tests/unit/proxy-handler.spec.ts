@@ -5,7 +5,14 @@ const ENV: any = {
 	AUTH_TOKEN_HEADER: "x-api-key",
 	PROXY_TIMEOUT_MS: 10000,
 	PROXY_MAX_RESPONSE_BYTES: 16,
+	TLS_KEY_PATH: "/k",
+	TLS_CERT_PATH: "/c",
+	TLS_CA_PATH: "/a",
 };
+
+jest.mock("@trading-model/http/http-tls-loader", () => ({
+	buildHttpsAgentOptions: jest.fn((..._args: any[]) => ({})),
+}));
 
 jest.mock("@trading-model/http/logger", () => ({
 	logger: {
