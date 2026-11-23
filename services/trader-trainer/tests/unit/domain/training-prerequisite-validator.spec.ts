@@ -4,7 +4,6 @@ import {
 	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import { DataType } from "../../../src/domain/data-handlers/data-types";
 import { MarketDataBuffer } from "../../../src/domain/market-data-buffer";
 import type { SymbolState } from "../../../src/domain/market-data-types";
 import { validateTrainingPrerequisites } from "../../../src/domain/training-prerequisite-validator";
@@ -36,8 +35,7 @@ describe("validateTrainingPrerequisites", () => {
 	it("should refuse a series whose contiguous run is too short", () => {
 		const buffer = new MarketDataBuffer();
 		for (let i = 0; i < 100; i++) {
-			buffer.addData(
-				DataType.Candle,
+			buffer.addCandle(
 				BTC,
 				makeCandle({
 					symbol: BTC,
@@ -84,8 +82,7 @@ describe("validateTrainingPrerequisites", () => {
 
 	it("should refuse while a training is already running", () => {
 		const buffer = new MarketDataBuffer();
-		buffer.addData(
-			DataType.Candle,
+		buffer.addCandle(
 			BTC,
 			makeCandle({
 				symbol: BTC,
