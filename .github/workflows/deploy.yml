@@ -109,7 +109,7 @@ jobs:
   # rights, which GITHUB_TOKEN lacks: secret ENVIRONMENT_READ_TOKEN
   # (fine-grained PAT, repository permission "Administration: read") is required.
   check-environment:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -196,7 +196,7 @@ jobs:
     # STAGING_RUNNER (repository variable): label of the self-hosted runner next
     # to a cluster GitHub cannot reach, e.g. the local kind staging
     # (docs/deployment/STAGING_LOCAL.md). Production always runs on GitHub.
-    runs-on: ${{ (inputs.environment == 'staging' && vars.STAGING_RUNNER) || 'ubuntu-latest' }}
+    runs-on: ${{ (inputs.environment == 'staging' && vars.STAGING_RUNNER) || 'ubuntu-24.04' }}
     environment: ${{ inputs.environment }}
     # Budget = 90 + 60 * DEPLOY_TIMEOUT_FACTOR min (150 at 1, 330 at 4), sum of the step caps:
     # fixed 90 = checks 10 + pre-migrate backup 30 + canary 5 + smoke 5 + market data 10 + verify 10 + rollback 10 + margin 10;
