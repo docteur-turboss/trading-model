@@ -445,6 +445,26 @@ describe("BusConsumer", () => {
 		expect((await parts.streams.list(TOPIC))[0]?.attempts).toBe(10);
 	});
 
+	it("should dead-letter a crashed entry past MAX_RETRIES without calling the handler", async () => {
+		const parts = bus();
+		await parts.journal.register(GROUP);
+		await publishToBus(parts.journal, "a", METADATA);
+		const [read] = await parts.journal.readNew(GROUP, "mm", 1);
+		const pending = parts.redis.streams
+			.get(`p:journal:${TOPIC}`)
+			?.groups.get(GROUP.service)
+			?.pending.get(read?.id as string);
+		(pending as { deliveries: number }).deliveries = 10;
+		const handler = jest.fn<(...args: any[]) => any>();
+		const { consumer: c, onDeadLetter } = consumer(handler, parts);
+
+		await c.start([TOPIC]);
+		await until(() => onDeadLetter.mock.calls.length === 1);
+		await c.stop();
+
+		expect(handler).not.toHaveBeenCalled();
+	});
+
 	it("should leave the entry pending when the dead stream write fails", async () => {
 		const {
 			consumer: c,
