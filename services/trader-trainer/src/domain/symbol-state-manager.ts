@@ -49,6 +49,11 @@ export class SymbolStateManager {
 	}
 
 	addCandle(symbol: TradingSymbol, candle: CandleData): void {
+		this._append(symbol, candle);
+		this._evictIfNeeded();
+	}
+
+	private _append(symbol: TradingSymbol, candle: CandleData): void {
 		const maxSize = this._memoryManager.getMaxSize();
 		const state = this._getOrCreate(symbol);
 		if (!isConsistentCandle(candle)) {
@@ -60,7 +65,6 @@ export class SymbolStateManager {
 		if (isNew) {
 			candleHandler.updateNorms(state, candle);
 		}
-		this._evictIfNeeded();
 	}
 
 	private _evictIfNeeded(): void {
@@ -115,8 +119,9 @@ export class SymbolStateManager {
 		state.candles = [];
 		Object.assign(state.norm, candleHandler.createNorms());
 		for (const candle of candles) {
-			this.addCandle(symbol, candle);
+			this._append(symbol, candle);
 		}
+		this._evictIfNeeded();
 	}
 
 	getCandleCount(symbol: TradingSymbol): number {

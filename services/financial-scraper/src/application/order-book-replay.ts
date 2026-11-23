@@ -1,4 +1,4 @@
-import { runCli } from "./run-cli";
+import { runCli } from "@trading-model/common/utils/run-cli";
 
 /**
  * Operator command (ADR-0053): prints the stored order book snapshots of a

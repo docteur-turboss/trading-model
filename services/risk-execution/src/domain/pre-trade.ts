@@ -118,7 +118,8 @@ function priceReject(ctx: PricedContext): string | null {
 }
 
 function exposureReject(ctx: PricedContext): string | null {
-	const { intent, limits, state, market } = ctx;
+	const { intent, limits, state } = ctx;
+	const at = orderPrice(ctx);
 	const cap = limits.allocatedCapital;
 	const signed = intent.side === "buy" ? intent.quantity : -intent.quantity;
 	if (
@@ -129,15 +130,14 @@ function exposureReject(ctx: PricedContext): string | null {
 	}
 	const projected = projectedPositions(state, "buy");
 	const after = (projected[intent.symbol] ?? 0) + signed;
-	if (after * market > limits.instrumentExposurePct * cap) {
+	if (after * at > limits.instrumentExposurePct * cap) {
 		return "instrument_exposure";
 	}
 	projected[intent.symbol] = after;
 	let global = 0;
 	for (const [symbol, qty] of Object.entries(projected)) {
 		global +=
-			qty *
-			(symbol === intent.symbol ? market : (state.marks[symbol]?.price ?? 0));
+			qty * (symbol === intent.symbol ? at : (state.marks[symbol]?.price ?? 0));
 	}
 	if (global > limits.globalExposurePct * cap) {
 		return "global_exposure";
