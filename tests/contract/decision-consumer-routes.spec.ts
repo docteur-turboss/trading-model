@@ -35,9 +35,18 @@ const post = (caller: string, body: unknown) =>
 		headers: { "content-type": "application/json", "x-caller": caller },
 		body: JSON.stringify(body),
 	});
+const read = (caller: string, symbol: string) =>
+	fetch(`${baseUrl}/positions/${symbol}`, { headers: { "x-caller": caller } });
 jest.mock("@trading-model/http/http-client", () => ({
 	HttpClient: {
 		createWithTls: () => ({
+			get: async (url: string, _o: unknown, schema: any) => {
+				const res = await read("decision-consumer", url.split("/").pop() ?? "");
+				if (!res.ok) {
+					throw new Error(`${res.status}`);
+				}
+				return schema.parse(await res.json());
+			},
 			post: async (_url: string, body: unknown, _o: unknown, schema: any) => {
 				const res = await post("decision-consumer", body);
 				if (!res.ok) {
@@ -98,6 +107,7 @@ describe("intent contract: decision-consumer → risk-execution", () => {
 		]);
 		const router = Router();
 		mountRoute(router, RISK_API.intent, handlers.intent);
+		mountRoute(router, RISK_API.position, handlers.position);
 		const app = express();
 		app.use(express.json());
 		app.use((req, _res, next) => {
@@ -123,6 +133,15 @@ describe("intent contract: decision-consumer → risk-execution", () => {
 		const again = await client.send(INTENT);
 		expect(first.status).not.toBe("rejected");
 		expect(again.clientOrderId).toBe(first.clientOrderId);
+	});
+
+	it("reads the real position: the fill of the intent, 0 when flat, 403 for any other identity", async () => {
+		const client = new RiskClient({} as never);
+		expect(await client.position("BTCUSDT")).toBeCloseTo(INTENT.quantity);
+		expect(await client.position("ETHUSDT")).toBe(0);
+		for (const caller of ["api-gateway", "model-evaluator", "risk-execution"]) {
+			expect((await read(caller, "BTCUSDT")).status).toBe(403);
+		}
 	});
 
 	it("answers a rejection as a result with its reason code", async () => {
