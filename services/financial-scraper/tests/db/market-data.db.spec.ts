@@ -737,4 +737,32 @@ describe("index-build — paged symbol reads (ADR-0088)", () => {
 			expect(redundant).toHaveLength(0);
 		}
 	});
+
+	it("should not block writers behind a long snapshot transaction, then build once it ends", async () => {
+		await DATABASE.promise()
+			.query("DROP INDEX IF EXISTS idx_trades_symbol_ts ON market_trades")
+			.catch(() => undefined);
+		await DATABASE.promise().query(
+			"CREATE INDEX idx_trades_symbol ON market_trades (symbol)"
+		);
+		const snapshot = await createConnection({
+			uri: process.env.TEST_MYSQL_URI,
+		});
+		await snapshot.query("START TRANSACTION WITH CONSISTENT SNAPSHOT");
+		await snapshot.query("SELECT COUNT(*) FROM market_trades");
+		const build = runner.runAsync("index-build");
+		await new Promise((resolve) => setTimeout(resolve, 2000));
+		const start = Date.now();
+		await DATABASE.promise().query(
+			"INSERT INTO market_trades (symbol, market, source, trade_id, price, quantity, side, timestamp) VALUES ('BTCUSDT', 'crypto', 'binance', 987654321, 1, 1, 'buy', NOW(3))"
+		);
+		expect(Date.now() - start).toBeLessThan(10_000);
+		await snapshot.query("COMMIT");
+		await snapshot.end();
+
+		const result = await build;
+		expect(result.output).toContain("metadata lock wait timeout");
+		expect(result.code).toBe(0);
+		expect((await explain("market_trades")).key).toBe("idx_trades_symbol_ts");
+	}, 60_000);
 });
