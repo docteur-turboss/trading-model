@@ -269,18 +269,20 @@ kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/k8s/overlays/pro
       | [$n,$r,.name,.resources.requests.cpu,.resources.requests.memory,.resources.limits.cpu,.resources.limits.memory] | @tsv'
 ```
 
-Persistent volumes: **418 GiB**, in the same rendering (`volumeClaimTemplates` × replicas, plus PVC manifests).
+Persistent volumes: **369 GiB**, in the same rendering (`volumeClaimTemplates` × replicas, plus PVC manifests).
 
 | Component             | Volumes          | GiB |
 | --------------------- | ---------------- | --- |
 | Prometheus            | 2 × 50           | 100 |
 | `backup-data`         | 1 × 100          | 100 |
-| Trainer checkpoints   | 1 × 50           | 50  |
+| Trainer checkpoints   | 1 × 1            | 1   |
 | MongoDB DLQ           | 3 × 20           | 60  |
 | MongoDB audit, Redis  | 3 × 10 each      | 60  |
 | MySQL                 | 1 × 20           | 20  |
 | Grafana, Loki         | 10 each          | 20  |
 | Jaeger, Alertmanager (2 × 1), SPIRE | 5 + 2 + 1 | 8 |
+
+Trainer checkpoints: measured 2026-11-23 in staging, about 28 KB per model (1.1 MB for 2 symbols × 20 models, `TRAINER_MODEL_RETENTION=20`); 100 symbols stay under 60 MB. The production overlay requests 1Gi (about 17× margin over 100 symbols). Staging keeps its 50Gi: a bound PVC cannot shrink, so `kubectl apply` would fail (issue #2393).
 
 ### External dependencies
 

@@ -24,7 +24,7 @@ jest.mock("prom-client", () => ({
 	},
 }));
 
-import { IPAddress, toServiceId } from "@trading-model/primitives/primitives";
+import { IPAddress, ServiceId } from "@trading-model/primitives/primitives";
 import AddressManager from "../../src/address-manager";
 
 type AddressManagerConfig = ConstructorParameters<typeof AddressManager>[0];
@@ -45,7 +45,7 @@ describe("AddressManager (main)", () => {
 		const am = new AddressManager(
 			makeConfig({
 				dnsNameMap: {
-					[toServiceId("test-service")]: IPAddress.of("127.0.0.1"),
+					[ServiceId.of("test-service")]: IPAddress.of("127.0.0.1"),
 				},
 			})
 		);
@@ -63,7 +63,7 @@ describe("AddressManager (main)", () => {
 		const am = new AddressManager(
 			makeConfig({
 				dnsNameMap: {
-					[toServiceId("test-service")]: IPAddress.of("127.0.0.1"),
+					[ServiceId.of("test-service")]: IPAddress.of("127.0.0.1"),
 				},
 			})
 		);

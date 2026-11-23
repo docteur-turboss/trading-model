@@ -27,7 +27,7 @@ All access to trading-model platform resources shall be authenticated, authorise
 |---|---|---|
 | **Transport** | mTLS TLS 1.3 | `@trading-model/http/service-server-factory.ts` |
 | **Identity** | SPIFFE ID (SAN `spiffe://...`) | `@trading-model/http/mtls-auth.ts` |
-| **API key** | External access, one named key per client with its scopes (`read`, `dlq:write`; ADR-0059) | `api-gateway` — `AUTH_TOKENS` env var (`name:scopes:secret`) |
+| **API key** | External access, one named key per client with its scopes (`read`, `dlq:write`, `risk:admin`; ADR-0059) | `api-gateway` — `AUTH_TOKENS` env var (`name:scopes:secret`) |
 
 ### 2.2 Authorisation Layers
 

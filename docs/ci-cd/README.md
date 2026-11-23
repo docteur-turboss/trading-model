@@ -88,7 +88,7 @@ CHANGELOG, annotated tag, `git push --follow-tags`). See [release.md](../contrib
    leading `v`) and whether this release becomes `latest`
 2. `ci` — the whole CI (`ci.yml`, called as a reusable workflow) on the tagged
    commit: no image is pushed unless every gate passes
-3. `build-and-push` — the service images
+3. `scan-services` + `scan-tools` (build + Trivy, no push), then `build-and-push` — the service images
 4. `build-tools` — `spire-tools` (K8s SPIRE entry reconciler), `db-migrate` (migrations Jobs) and `backup-tools`
    (db-backup CronJob)
 5. `sign` — keyless cosign signature of each pushed digest (ADR-0038);

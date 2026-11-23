@@ -8,7 +8,7 @@ import {
 	ModelManifestSchema,
 	ModelMetricsSchema,
 } from "@trading-model/model-runtime/model-manifest";
-import { toSymbol } from "@trading-model/primitives/primitives";
+import { TradingSymbol } from "@trading-model/primitives/primitives";
 import { z } from "zod";
 import {
 	MODEL_SYMBOL_PATTERN,
@@ -129,7 +129,9 @@ export const TRAINER_API = {
 		method: "GET",
 		path: "/v1/training-agents/:symbol",
 		summary: "Best agent of a symbol, with its latest stored model",
-		params: z.object({ symbol: z.string().min(1).transform(brand(toSymbol)) }),
+		params: z.object({
+			symbol: z.string().min(1).transform(brand(TradingSymbol.of)),
+		}),
 		responses: {
 			200: z.object({
 				data: AgentOfSymbol.extend({
