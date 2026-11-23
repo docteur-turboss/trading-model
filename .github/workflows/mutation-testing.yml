@@ -98,7 +98,9 @@ jobs:
           MUTATE: ${{ matrix.mutate }}
           MUTATION_BREAK: ${{ matrix.break }}
           FORCE: ${{ inputs.full && '--force' || '' }}
-        run: bun run stryker --incremental --incrementalFile ".stryker-incremental/${{ matrix.name }}.json" $FORCE --mutate "$MUTATE,!src/**/*.spec.ts,!src/**/*.d.ts"
+        run: |
+          # shellcheck disable=SC2086 # FORCE is empty or a flag
+          bun run stryker --incremental --incrementalFile ".stryker-incremental/${{ matrix.name }}.json" $FORCE --mutate "$MUTATE,!src/**/*.spec.ts,!src/**/*.d.ts"
       - name: Save incremental file
         if: always() && (github.event_name != 'push' || matrix.name == 'risk-execution-domain')
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

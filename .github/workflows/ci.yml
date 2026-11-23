@@ -81,13 +81,13 @@ jobs:
       - run: bun run compose-ports:check
       - run: bun run env-protection:test
       - run: bun run preflight:test
-      - name: Workflows valid (actionlint; shellcheck off, run blocks not yet clean)
+      - name: Workflows valid (actionlint + shellcheck)
         run: |
           v=1.7.12
           curl -fsSL -o "$RUNNER_TEMP/actionlint.tgz" "https://github.com/rhysd/actionlint/releases/download/v${v}/actionlint_${v}_linux_amd64.tar.gz"
           echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $RUNNER_TEMP/actionlint.tgz" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/actionlint.tgz" -C "$RUNNER_TEMP" actionlint
-          "$RUNNER_TEMP/actionlint" -shellcheck= .github/workflows/*.yml
+          "$RUNNER_TEMP/actionlint" .github/workflows/*.yml
       # actionlint accepts arithmetic in timeout-minutes; GitHub refuses the file (run without jobs, #2111).
       - name: No arithmetic in timeout-minutes expressions
         run: |
@@ -338,12 +338,12 @@ jobs:
       # One gha cache scope per image: a shared scope would keep only the last image's layers.
       - name: Build the images (layer cache)
         run: |
-          f="-f docker-compose.yml -f docker-compose.build.yml -f tests/e2e/docker-compose.e2e.yml"
+          f=(-f docker-compose.yml -f docker-compose.build.yml -f tests/e2e/docker-compose.e2e.yml)
           args=()
-          for t in $(docker buildx bake $f --print | jq -r '.group.default.targets[]'); do
+          for t in $(docker buildx bake "${f[@]}" --print | jq -r '.group.default.targets[]'); do
             args+=(--set "$t.cache-from=type=gha,scope=e2e-$t" --set "$t.cache-to=type=gha,mode=max,ignore-error=true,scope=e2e-$t")
           done
-          docker buildx bake $f --load "${args[@]}"
+          docker buildx bake "${f[@]}" --load "${args[@]}"
       - if: ${{ always() }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
