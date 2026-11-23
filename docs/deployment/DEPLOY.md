@@ -323,7 +323,10 @@ the repository can check, and lists every gap in one run. What stays manual
    bucket ([Prerequisites (off-site backup bucket)](#prerequisites-off-site-backup-bucket)), `AUDIT_ANCHOR_*` for the audit
    chain anchor bucket (ADR-0027; `AUDIT_ANCHOR_REGION` is required and must be an EU region).
 6. **Compliance**: the `Controller` and `Contact` fields of the
-   [data processing register](../compliance/data-processing-register.md).
+   [data processing register](../compliance/data-processing-register.md);
+   the provider, region and DPA of every operator-chosen service of
+   [third-party-dpas.md](../compliance/third-party-dpas.md#operator-chosen-services)
+   (no "to be confirmed by the operator" left).
 
 Not checked by the preflight: the register, a
 canary or a real rollout (the preflight never starts a pod).
