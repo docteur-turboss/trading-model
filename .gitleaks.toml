@@ -44,4 +44,10 @@ paths = [
   '''^\.github/workflows/ci\.yml$''',
 ]
 stopwords = [
+  "e2e-", # e2e fixture credentials
+  "0123456789abcdef", # hex placeholder
+  "my-signing-secret", # fixture signing secret
+  "long-secret", # fixture secret
+  "dGVzdA", # base64 of "test"
+  "STUB_", # stub token prefix
 ]
