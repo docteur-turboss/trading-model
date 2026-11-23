@@ -120,21 +120,3 @@ export interface Binance24hrTickerStats extends BinanceTickerBaseStats {
 }
 
 export type Binance24hrTickerStatsResponse = Binance24hrTickerStats[];
-
-export interface BinanceSymbolPriceTicker {
-	symbol: TradingSymbol;
-	price: PriceString;
-}
-
-export type BinanceSymbolPriceTickerResponse = BinanceSymbolPriceTicker[];
-
-export interface BinanceSymbolOrderBookTicker {
-	symbol: TradingSymbol;
-	bidPrice: PriceString;
-	askPrice: PriceString;
-	bidQty: VolumeString;
-	askQty: VolumeString;
-}
-
-export type BinanceSymbolOrderBookTickerResponse =
-	BinanceSymbolOrderBookTicker[];

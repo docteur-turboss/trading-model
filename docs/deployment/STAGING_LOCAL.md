@@ -74,8 +74,8 @@ change it, in this order:
 
 1. Restart MinIO: `docker compose -p trading-staging -f deploy/staging-local/docker-compose.yml --env-file ~/.trading-staging/env up -d minio`
 2. Check: `aws --endpoint-url http://127.0.0.1:9000 s3api get-bucket-location --bucket trading-staging-backup` returns `eu-west-3`.
-3. Set `BACKUP_S3_REGION` and `AUDIT_ANCHOR_REGION` to `eu-west-3` in the GitHub environment `staging`.
-4. Redeploy staging. MinIO rejects signatures from another region, so the pods and `backup-key-check.yml` need the new value at the same time.
+3. Set `BACKUP_S3_REGION` and `AUDIT_ANCHOR_REGION` to `eu-west-3` in the GitHub environment `staging`, and `BACKUP_S3_REGION` in `backup-key-check` and `sealed-secrets-key-backup`.
+4. Redeploy staging. MinIO rejects signatures from another region, so the pods, `backup-key-check.yml` and `sealed-secrets-key-backup.yml` need the new value at the same time (until then `BackupOffsiteCopyFailed` fires and the audit anchors fail).
 
 ## Runner
 
@@ -158,8 +158,12 @@ The staging overlay runs one pod per data StatefulSet (`mysql`, `redis`,
 before its replacement starts, so a release that changes their pod template
 (3.1.0: exporter sidecars) would cut the database for the stop, the image pull
 and the start (up to 30 min for MySQL here). The `staging-local` overlay sets
-`updateStrategy.rollingUpdate.partition: 1` on these nine (issues #700, #709,
-enforced by `tests/k8s/check-overlays.mjs`):
+`updateStrategy.rollingUpdate.partition: 1` on seven of them (issues #700, #709,
+enforced by `tests/k8s/check-overlays.mjs`). `prometheus` and `alertmanager` keep
+partition 0 (issue #2323): held, they kept the rules and scrape jobs of the
+release that created them (no `risk-execution` job, no risk alerts). A deploy
+that changes their config restarts them: alerts and metrics pause for the
+restart, the services do not.
 
 - a deploy never restarts them: their pods keep UID, restart count and the pod
   template of their revision; `kubectl rollout status` reports the partitioned
@@ -196,7 +200,7 @@ alone waits for the master its sentinel still names, the dead pod (PR #579).
 
 ```bash
 NS=trading-model-staging
-for sts in redis redis-sentinel; do   # or: mysql, mongo-dlq, mongo-audit, alertmanager, grafana, loki, prometheus (one at a time)
+for sts in redis redis-sentinel; do   # or: mysql, mongo-dlq, mongo-audit, grafana, loki (one at a time)
   kubectl -n "$NS" patch sts "$sts" -p '{"spec":{"updateStrategy":{"rollingUpdate":{"partition":0}}}}'
 done
 for sts in redis redis-sentinel; do kubectl -n "$NS" rollout status "sts/$sts" --timeout=1800s; done
