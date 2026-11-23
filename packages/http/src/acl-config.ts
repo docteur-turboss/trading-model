@@ -22,21 +22,17 @@ export const DEFAULT_ACL: Record<ServiceInstanceName, readonly ServiceId[]> = {
 		// Order and kill switch events for the audit chain (ADR-0064 §3).
 		ServiceId.of("risk-execution"),
 	],
-	// message-manager delivers subscribed topics to services that mount
-	// MessageManagerListenExpress (POST /<MESSAGE_CALLBACK_PATH>).
 	[ServiceInstanceName.FinancialScraperService]: [
 		ServiceId.of("api-gateway"),
-		ServiceId.of("message-manager"),
 		// The data supply: the trainer reads its signals and market data (ADR-0036).
 		ServiceId.of("trader-trainer"),
 		// The replay of a published model reads its candle window (ADR-0079).
 		ServiceId.of("model-evaluator"),
+		// Risk/Execution marks its positions on the last closed candle (ADR-0064 §7).
+		ServiceId.of("risk-execution"),
 	],
 	[ServiceInstanceName.TraderTrainerService]: [
 		ServiceId.of("api-gateway"),
-		ServiceId.of("financial-scraper"),
-		ServiceId.of("discovery-server"),
-		ServiceId.of("message-manager"),
 		// Offline evaluation of published models (ADR-0049): manifest and weights.
 		ServiceId.of("model-evaluator"),
 		// Risk/Execution reads the admission of the model an intent names (ADR-0064 §2).

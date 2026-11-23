@@ -1318,6 +1318,173 @@ paths:
                         additionalProperties: false
                       genome:
                         type: "object"
+                        properties:
+                          id:
+                            type: "string"
+                          gaControl:
+                            type: "object"
+                            properties:
+                              population:
+                                type: "object"
+                                properties:
+                                  size:
+                                    type: "integer"
+                                  elitismFraction:
+                                    type: "number"
+                                  survivorFraction:
+                                    type: "number"
+                                required:
+                                  - "size"
+                                  - "elitismFraction"
+                                  - "survivorFraction"
+                                additionalProperties: {}
+                              evaluation:
+                                type: "object"
+                                properties:
+                                  episodesPerIndividual:
+                                    type: "integer"
+                                required:
+                                  - "episodesPerIndividual"
+                                additionalProperties: {}
+                              selectionType:
+                                type: "string"
+                              fitnessType:
+                                type: "string"
+                            required:
+                              - "population"
+                              - "evaluation"
+                              - "selectionType"
+                              - "fitnessType"
+                            additionalProperties: {}
+                          network:
+                            type: "object"
+                            properties:
+                              inputDim:
+                                type: "integer"
+                              outputDim:
+                                type: "integer"
+                              hiddenLayers:
+                                type: "array"
+                                items:
+                                  type: "object"
+                                  properties:
+                                    neurons:
+                                      type: "integer"
+                                    activation:
+                                      type: "string"
+                                      enum:
+                                        - "sigmoid"
+                                        - "tanh"
+                                        - "relu"
+                                        - "leakyReLu"
+                                        - "gelu"
+                                        - "elu"
+                                        - "mish"
+                                        - "linear"
+                                    connectionType:
+                                      type: "string"
+                                      enum:
+                                        - "fully-connected"
+                                        - "dense-skip"
+                                        - "residual-connection"
+                                    biasType:
+                                      type: "string"
+                                      enum:
+                                        - "zeros"
+                                        - "leCun"
+                                        - "he"
+                                        - "xavier"
+                                        - "random"
+                                  required:
+                                    - "neurons"
+                                    - "activation"
+                                  additionalProperties: {}
+                              normalization:
+                                type: "string"
+                                enum:
+                                  - "min-max"
+                                  - "z-score"
+                                  - "decimal-scaling"
+                                  - "border"
+                                  - "robust-scaling"
+                                  - "logarithmic-normalization"
+                                  - "none"
+                              actionSet:
+                                type: "string"
+                                enum:
+                                  - "sell_hold_buy"
+                                  - "sized_50_100"
+                                  - "sized_25_50_100"
+                              inputMask:
+                                type: "array"
+                                items:
+                                  type: "boolean"
+                            required:
+                              - "inputDim"
+                              - "outputDim"
+                              - "hiddenLayers"
+                              - "normalization"
+                            additionalProperties: {}
+                          rl:
+                            type: "object"
+                            properties:
+                              gamma:
+                                type: "number"
+                              learningRate:
+                                type: "number"
+                              discretePolicy:
+                                type: "object"
+                                properties:
+                                  epsilonStart:
+                                    type: "number"
+                                  epsilonMin:
+                                    type: "number"
+                                  epsilonDecay:
+                                    type: "number"
+                                required:
+                                  - "epsilonStart"
+                                  - "epsilonMin"
+                                  - "epsilonDecay"
+                                additionalProperties: {}
+                              horizon:
+                                type: "object"
+                                properties:
+                                  frameSkip:
+                                    type: "integer"
+                                  decision:
+                                    type: "object"
+                                    properties:
+                                      mode:
+                                        type: "string"
+                                        enum:
+                                          - "every_bar"
+                                          - "on_event"
+                                      priceMove:
+                                        type: "number"
+                                      volumeMultiple:
+                                        type: "number"
+                                      minGap:
+                                        type: "number"
+                                    required:
+                                      - "mode"
+                                      - "priceMove"
+                                      - "volumeMultiple"
+                                      - "minGap"
+                                    additionalProperties: {}
+                                required:
+                                  - "frameSkip"
+                                additionalProperties: {}
+                            required:
+                              - "gamma"
+                              - "learningRate"
+                              - "discretePolicy"
+                              - "horizon"
+                            additionalProperties: {}
+                        required:
+                          - "id"
+                          - "gaControl"
+                          - "network"
+                          - "rl"
                         additionalProperties: {}
                       features:
                         type: "object"

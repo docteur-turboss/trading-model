@@ -1,6 +1,6 @@
 {
   "name": "api-gateway",
-  "version": "3.1.0-rc.4",
+  "version": "3.1.0",
   "description": "External single entry point — versioned routing, auth, rate limiting",
   "homepage": "https://github.com/docteur-turboss/trading-model#readme",
   "bugs": {
@@ -37,7 +37,7 @@
     "@trading-model/common": "*",
     "@trading-model/http": "*",
     "express": "^5.3.0",
-    "express-rate-limit": "^8.7.4",
+    "express-rate-limit": "^8.7.5",
     "prom-client": "^15.1.3",
     "zod": "^4.6.7"
   }

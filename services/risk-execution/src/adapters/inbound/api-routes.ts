@@ -16,7 +16,7 @@ const Scope = z.object({
 });
 
 /**
- * Service-to-service API of risk-execution. `intents`, `prices` and `cancel` never go in
+ * Service-to-service API of risk-execution. `intents` and `cancel` never go in
  * PUBLIC_ROUTES (ADR-0064 §1); `adminEngage` and `adminRearm` do, scope `risk:admin`, and the
  * actor is the API key name the gateway sets in `x-actor` (ADR-0059). `adminStatus`: the pod.
  */
@@ -40,21 +40,6 @@ export const RISK_API = {
 			allowRepeat: z.boolean().optional(),
 		}),
 		responses: { 200: Result, 400: ErrorResponse, 403: ErrorResponse },
-	}),
-	price: defineRoute({
-		method: "POST",
-		path: "/prices",
-		summary: "Push the latest reference price of an instrument",
-		body: z.object({
-			symbol: z.string().min(1),
-			price: z.number().positive(),
-			at: z.number().int().positive(),
-		}),
-		responses: {
-			200: z.object({ status: z.literal("recorded") }),
-			400: ErrorResponse,
-			403: ErrorResponse,
-		},
 	}),
 	cancel: defineRoute({
 		method: "POST",

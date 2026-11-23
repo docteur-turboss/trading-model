@@ -15,12 +15,11 @@ Never edit a past entry: add a correction under it.
 - **Annual exercises** (tabletop, full recovery drill): organisational, run by
   people on a real or production-like environment. Durations are those of the
   exercise, compared with the RTO of the tier / data store involved.
-- **Automated drills**: the restore drills of CI (`k8s` job of `ci.yml`,
-  `tests/k8s/run-kind.sh` `verify_backup`; weekly `backup-test.yml`,
-  `tests/backup/compose-restore-drill.sh`). The kind drill runs on pull
+- **Automated drills**: the restore drill of CI (`k8s` job of `ci.yml`,
+  `tests/k8s/run-kind.sh` `verify_backup`). It runs on pull
   requests touching databases, backups or their services and on every release;
-  the Docker drill runs weekly. They publish their timings themselves (job summary and the artifact
-  `restore-drill-timings-kind` / `restore-drill-timings-docker`, file
+  It publishes its timings itself (job summary and the artifact
+  `restore-drill-timings-kind`, file
   `restore-drill-timings.json`). They are **not** logged one by one here. Log
   one when the timings change the picture: a budget exceeded, a step that
   doubled, a trend worth a decision. The market-data dumps are not purged
@@ -32,15 +31,13 @@ Never edit a past entry: add a correction under it.
 | Drill | Steps in `restore-drill-timings.json` (seconds) | Default budget |
 |---|---|---|
 | kind | `backup_daily`, `backup_incremental`, `disaster`, `fetch_offsite`, `restore_mongodb`, `restore_mysql`, `restore_checkpoints`, `restore_spire`, `restore_total` (per-component values logged by `restore-k8s.sh`), `restore_total_host`, `verify_data`, `spire_agents_reattest`, `verify_services`; then `total_seconds` and `recovery_seconds` | 1200 s |
-| Docker | `backup`, `recreate_empty_stack`, `restore`, `verify_data`; then `total_seconds` and `recovery_seconds` | 300 s |
 
 `recovery_seconds` runs from the moment the data is destroyed to the end of the
 checks: it is the figure the budget (`RESTORE_DRILL_BUDGET_SECONDS`) limits.
 `RESTORE_DRILL_BUDGET_MODE=fail` (default) fails the drill when it is exceeded,
 `warn` only emits a `::warning::`; `RESTORE_DRILL_BUDGET_SECONDS=0` turns the
 check off. **Where the defaults come from:** about 5 times the recovery window
-measured by the first CI run (entry of 2026-11-03: 252 s on kind, 20 s on
-Docker), rounded: 1200 s and 300 s. That margin absorbs a slower runner, image
+measured by the first CI run (entry of 2026-11-03: 252 s on kind), rounded: 1200 s. That margin absorbs a slower runner, image
 pulls and the variable drain of the writers, and still catches a step that
 doubles or hangs. Kind on a shared runner is not sized like production, so the
 budget is a guard against a blow-up, not the RTO, which is judged on a real
@@ -86,8 +83,8 @@ summary with the steps done.
 | Field | Value |
 |---|---|
 | **Type** | Automated drill |
-| **Environment** | kind (`ci.yml`, job `k8s`, run 41643357917) and Docker (`backup-test.yml`, job `test-restore`, run 41643357972), GitHub-hosted runners |
-| **Scenario** | Both drills time every step. kind: audit and dlq databases, markers, `market_candles` and the SPIRE server volume destroyed, restored from the in-cluster S3 to an instant. Docker: containers and volumes deleted, restored |
+| **Environment** | kind (`ci.yml`, job `k8s`, run 41643357917), GitHub-hosted runner |
+| **Scenario** | The drill times every step: audit and dlq databases, markers, `market_candles` and the SPIRE server volume destroyed, restored from the in-cluster S3 to an instant |
 | **Data restored from** | the backup run of the drill (kind: daily dump plus incremental archives, `--until` the recorded instant) |
 
 kind (seconds):
@@ -109,8 +106,6 @@ kind (seconds):
 | **total** | 722 |
 | **recovery (disaster to checks)** | 252 |
 
-Docker: recovery window 20 s.
-
 - **RTO gap:** none. 252 s against the 4 h data-store RTO of
   [BACKUP_DR.md](../deployment/BACKUP_DR.md). Not representative: kind on a
   shared runner, a few MB of data, no real off-site latency, and the market-data
@@ -118,8 +113,7 @@ Docker: recovery window 20 s.
   largest step is `restore_spire` (60 s).
 - **RPO gap:** not measured by this drill beyond the instant restored to.
 - **Deviations:** none.
-- **Actions:** default budgets set from these figures (1200 s kind, 300 s
-  Docker, see above); read `restore_mysql` and `fetch_offsite` as a trend in
+- **Actions:** default budgets set from these figures (1200 s, see above); read `restore_mysql` and `fetch_offsite` as a trend in
   later runs.
 
 No annual tabletop exercise or full recovery drill has been recorded yet; the

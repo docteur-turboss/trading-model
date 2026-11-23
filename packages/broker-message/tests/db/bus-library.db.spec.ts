@@ -1,12 +1,16 @@
 import { afterAll, beforeEach, describe, expect, it } from "@jest/globals";
-import { BusConsumer } from "@trading-model/broker-message/bus/consumer";
-import { DeadStreams } from "@trading-model/broker-message/bus/dead-streams";
-import { publishToBus } from "@trading-model/broker-message/bus/publisher";
-import { RedisMessageJournal } from "@trading-model/broker-message/bus/redis-journal";
-import { deadLetterError } from "@trading-model/broker-message/shared/errors";
 import type { Message } from "@trading-model/contracts/message-types";
 import Redis from "ioredis";
-import { mockServiceIdentity } from "../fixtures/broker.fixture";
+import { BusConsumer } from "../../src/bus/consumer";
+import { DeadStreams } from "../../src/bus/dead-streams";
+import { publishToBus } from "../../src/bus/publisher";
+import { RedisMessageJournal } from "../../src/bus/redis-journal";
+import { deadLetterError } from "../../src/shared/errors";
+
+const mockServiceIdentity = {
+	serviceName: "financial-scraper",
+	instanceId: "instance-1",
+};
 
 const PREFIX = "bus-library-db-spec";
 const TOPIC = "test.topic";

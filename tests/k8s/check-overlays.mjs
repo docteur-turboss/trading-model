@@ -37,6 +37,8 @@
 //     node-agents overlay in node-role.yaml or cluster-role.yaml
 //   - no bus user (BUS_USERS) of staging-local reaches the partitioned redis-0 (its ConfigMap
 //     sets BUS_TRANSPORT=http), unless in BUS_ON_PARTITIONED_REDIS (issue #1931)
+//   - mongo-dlq and mongo-audit run the same bootstrap script, which adds every
+//     pod to the replica set (issue #2197)
 // Usage: node tests/k8s/check-overlays.mjs   (needs kubectl)
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -51,8 +53,9 @@ const SINGLETONS = {
 	"financial-scraper-collector": { adr: "ADR-0057", lease: "financial-scraper-collector", env: "COLLECTOR_LEASE_NAME" },
 };
 // Data and observability StatefulSets of staging-local held by a partition (issue #700).
+// Not prometheus nor alertmanager: a held pod keeps the rules and scrape jobs of an old release (issue #2323).
 const DATABASES = ["mysql", "redis", "redis-sentinel", "mongo-dlq", "mongo-audit"];
-const DATA_STATEFULSETS = [...DATABASES, "alertmanager", "grafana", "loki", "prometheus"];
+const DATA_STATEFULSETS = [...DATABASES, "grafana", "loki"];
 // Bus ACL users (redis-ha.sh) a partitioned redis-0 learns only when restarted (issue #1931).
 const BUS_USERS = ["audit-logger", "trader-trainer", "model-evaluator", "risk-execution"];
 // Bus users allowed on the sentinels in staging-local: those redis-0 knows after the
@@ -403,6 +406,14 @@ for (const env of OVERLAYS) {
 		if (env !== "staging-local" && partition > 0) {
 			errors.push(`${env}: StatefulSet ${name} must not set a partition: its pods would keep the old template`);
 		}
+	}
+
+	// Issue #2197: every Mongo pod adds itself to the replica set, with one script for both sets.
+	const [dlqBoot, auditBoot] = ["mongo-dlq", "mongo-audit"].map(
+		(name) => docs.find((doc) => doc.kind === "StatefulSet" && doc.name === name)?.text.match(/^ +M="mongosh [\s\S]*?exec sleep infinity$/m)?.[0],
+	);
+	if (!dlqBoot?.includes("rs.add(process.env.SELF)") || dlqBoot !== auditBoot) {
+		errors.push(`${env}: the mongodb-bootstrap scripts of mongo-dlq and mongo-audit must be identical and rs.add each member (issue #2197)`);
 	}
 
 	const redisSts = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === "redis")?.text ?? "";

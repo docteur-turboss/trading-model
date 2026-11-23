@@ -30,7 +30,10 @@ function buildMetadata(ctx: PublishContext): MessageMetadata {
 		instanceId: toInstanceId(ctx.instanceId),
 		serviceName: toServiceId(ctx.trainerId),
 	})
-		.setDelivery({ mode: DeliveryMode.AtLeastOnce })
+		.setDelivery({
+			mode: DeliveryMode.AtLeastOnce,
+			requireSubscriber: true,
+		})
 		.setIds({
 			causationId: toCorrelationId(randomUUID()),
 			correlationId: getBusCorrelationId() ?? toCorrelationId(randomUUID()),

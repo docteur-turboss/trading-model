@@ -1,8 +1,21 @@
-# Egress shared by the workloads whose own policy restricts egress.
-# NetworkPolicies are additive: each component's policy adds its service ports
-# on top of these. Select only those components: selecting a pod with an
-# Egress policy isolates its egress, so `podSelector: {}` would cut every
-# other pod (Redis peers, Mongo, Grafana, Prometheus...) down to DNS + OTLP.
+# Default deny, then one allow per flow. `default-deny-all` isolates every pod
+# of the namespace (Ingress and Egress); each component's policy (this file and
+# deploy/k8s/{services,infra,jobs,config}) opens only its own flows, so a new
+# workload reaches nothing and is reached by nothing until it gets a policy.
+# NetworkPolicies are additive: the second one gives every pod cluster DNS and
+# OTLP to the collector, the others add each component's ports.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  labels:
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -10,25 +23,7 @@ metadata:
   labels:
     app.kubernetes.io/part-of: trading-model
 spec:
-  podSelector:
-    matchExpressions:
-      - key: app.kubernetes.io/component
-        operator: In
-        values:
-          - api-gateway
-          - audit-logger
-          - discovery-server
-          - dlq-service
-          - edge-proxy
-          - financial-scraper
-          - financial-scraper-collector
-          - message-manager
-          - model-evaluator
-          - mongodb-audit
-          - risk-execution
-          - mysql
-          - spire-server
-          - trader-trainer
+  podSelector: {}
   policyTypes:
     - Egress
   egress:
@@ -45,4 +40,300 @@ spec:
               app.kubernetes.io/component: otel-collector
       ports:
         - port: 4318
+          protocol: TCP
+---
+# Private ranges only: kept in CI (tests/k8s/ci-render.mjs drops 0.0.0.0/0),
+# where the API server and the kubelets are the kind nodes.
+# Prometheus: Kubernetes SD (API server), kubelet / cAdvisor (10250),
+# node-exporter (host network, 9100) and every scrape target of the namespace
+# (discovered by SD, ports vary).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: prometheus-network-policy
+  labels:
+    app.kubernetes.io/component: prometheus
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: prometheus
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: grafana
+      ports:
+        - port: 9090
+          protocol: TCP
+  egress:
+    - to:
+        - podSelector: {}
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/8
+        - ipBlock:
+            cidr: 172.16.0.0/12
+        - ipBlock:
+            cidr: 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+        - port: 6443
+          protocol: TCP
+        - port: 9100
+          protocol: TCP
+        - port: 10250
+          protocol: TCP
+---
+# Loki: pushes from promtail (namespace trading-model-node, fixed in every
+# overlay), reads from Grafana, scrape from Prometheus.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: loki-network-policy
+  labels:
+    app.kubernetes.io/component: loki
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: loki
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: trading-model-node
+      ports:
+        - port: 3100
+          protocol: TCP
+---
+# Grafana: its datasources and the OIDC identity provider (HTTPS, public).
+# Alertmanager: gossip peers, the CI webhook sink (8080) and the receivers
+# (HTTPS, public). Public ranges only, dropped by ci-render.mjs in CI.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grafana-alertmanager-egress
+  labels:
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values: ["grafana", "alertmanager"]
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector: {}
+      ports:
+        - port: 3100
+          protocol: TCP
+        - port: 8080
+          protocol: TCP
+        - port: 9090
+          protocol: TCP
+        - port: 9094
+          protocol: TCP
+        - port: 9094
+          protocol: UDP
+        - port: 16686
+          protocol: TCP
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+---
+# Redis and Sentinel peers (replication, failover, TLS listeners).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-egress
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values: ["redis", "redis-sentinel"]
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values: ["redis", "redis-sentinel"]
+      ports:
+        - port: 6379
+          protocol: TCP
+        - port: 6380
+          protocol: TCP
+        - port: 26379
+          protocol: TCP
+        - port: 26380
+          protocol: TCP
+---
+# MongoDB (dlq) replica set peers, as mongo-audit-network-policy does.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mongodb-egress
+  labels:
+    app.kubernetes.io/component: mongodb
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: mongodb
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: mongodb
+      ports:
+        - port: 27017
+          protocol: TCP
+---
+# otel-collector exports to Jaeger (4317); blackbox-exporter probes the
+# services' /ping (3000).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: collector-and-probe-egress
+  labels:
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values: ["otel-collector", "blackbox-exporter"]
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector: {}
+      ports:
+        - port: 3000
+          protocol: TCP
+        - port: 4317
+          protocol: TCP
+---
+# kube-state-metrics lists objects on the API server. The backup CronJobs
+# reach it for `kubectl exec` (private ranges), then copy off-site: public
+# 443, or the S3 of the CI inside the namespace (9000).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: apiserver-egress
+  labels:
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values: ["kube-state-metrics", "backup"]
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/8
+        - ipBlock:
+            cidr: 172.16.0.0/12
+        - ipBlock:
+            cidr: 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+        - port: 6443
+          protocol: TCP
+    - to:
+        - podSelector: {}
+      ports:
+        - port: 9000
+          protocol: TCP
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+---
+# Migration, retention and database-user Jobs: their database only.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: db-jobs-egress
+  labels:
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values:
+          - db-migrate
+          - db-migrate-down
+          - db-migrate-user
+          - retention
+          - mongodb-init
+          - mongodb-audit-init
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector: {}
+      ports:
+        - port: 3306
+          protocol: TCP
+        - port: 27017
+          protocol: TCP
+---
+# backup-metrics-exporter: read by Prometheus only.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backup-metrics-network-policy
+  labels:
+    app.kubernetes.io/component: backup-metrics
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backup-metrics
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: prometheus
+      ports:
+        - port: 9118
           protocol: TCP

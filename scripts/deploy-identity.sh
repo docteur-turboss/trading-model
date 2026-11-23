@@ -10,14 +10,15 @@
 #           overlay, migrations, rollout, smoke test, rollback. No cluster-scope
 #           right, no other namespace.
 #  cluster  ServiceAccount `deploy-cluster` (same namespace) bound to the
-#           ClusterRole cluster-role.yaml (namespaces, the CSIDriver, the CRD
+#           ClusterRole cluster-role.yaml (read namespaces, the CSIDriver, the CRD
 #           check, read-only on the overlay ClusterRoles and their bindings) and to Roles in the
 #           node-agents namespace and in the Sealed Secrets controller
 #           namespace. Used by the cluster-scope steps of deploy.yml only.
-#           The script also applies, as admin, the ClusterRoles and
-#           ClusterRoleBindings of the overlays of --environment (spire-server,
-#           spire-agent, promtail): the identity may read them, never create,
-#           change or bind them. Run it again when a release changes one.
+#           The script also applies, as admin, the ClusterRoles,
+#           ClusterRoleBindings, Namespaces (Pod Security labels) and node-agent
+#           DaemonSets of the overlays of --environment: the identity may read
+#           them, never create, relabel or bind them (it only updates the
+#           existing DaemonSets). Run it again when a release changes one.
 #
 #  The kubeconfig carries a bounded token (`kubectl create token --duration`),
 #  never a permanent service-account-token Secret: it expires by itself, run
@@ -159,13 +160,13 @@ if [ "$MODE" = app ]; then
 else
 	kubectl apply -f "$RBAC/cluster-role.yaml" >&2
 	bind_clusterrole deploy-cluster
-	log "ClusterRoles and ClusterRoleBindings of the ${ENVIRONMENT} overlays (deploy-cluster may only read them)"
+	log "ClusterRoles, bindings, Namespaces and node-agent DaemonSets of the ${ENVIRONMENT} overlays (deploy-cluster may not create or relabel them)"
 	{
 		kubectl kustomize --load-restrictor LoadRestrictionsNone "$ROOT/deploy/k8s/overlays/$ENVIRONMENT"
 		echo ---
 		kubectl kustomize "$ROOT/deploy/k8s/overlays/$ENVIRONMENT/node-agents"
 	} | awk '
-		function flush() { if (kind == "ClusterRole" || kind == "ClusterRoleBinding") { printf "%s%s", sep, doc; sep = "---\n" } doc = ""; kind = "" }
+		function flush() { if (kind == "ClusterRole" || kind == "ClusterRoleBinding" || kind == "Namespace" || kind == "DaemonSet") { printf "%s%s", sep, doc; sep = "---\n" } doc = ""; kind = "" }
 		/^---[ \t]*$/ { flush(); next }
 		/^kind:[ \t]/ && kind == "" { kind = $2 }
 		{ doc = doc $0 "\n" }

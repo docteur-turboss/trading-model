@@ -520,3 +520,91 @@ describe("K8s Redis HA start script — real failovers", () => {
 		await eventually(async () => (await masterIp()) !== ipOf(master));
 	}, 120_000);
 });
+
+describe("K8s Redis HA start script — cold start", () => {
+	let network: StartedNetwork;
+	let pods: StartedTestContainer[] = [];
+
+	afterAll(async () => {
+		await Promise.all(pods.map((pod) => pod.stop().catch(() => {})));
+		await network?.stop();
+	}, 120_000);
+
+	it("should promote the node that was master, not redis-0, after every pod restarts together", async () => {
+		network = await new Network().start();
+		// No sentinel: nodes find each other through ROLE; AOF on, so the volume holds data.
+		pods = await Promise.all(
+			ORDINALS.map((n) =>
+				new GenericContainer(composeImage("redis"))
+					.withNetwork(network)
+					.withHostname(`redis-${n}`)
+					.withNetworkAliases(`redis-${n}`)
+					.withEnvironment({ ...HA_ENV, COLD_START_GRACE_SECONDS: "10" })
+					.withCopyFilesToContainer([
+						{ source: HA_SCRIPT, target: "/scripts/redis-ha.sh" },
+					])
+					.withCommand([
+						"sh",
+						"/scripts/redis-ha.sh",
+						"server",
+						"--appendonly",
+						"yes",
+					])
+					.withWaitStrategy(Wait.forLogMessage("Ready to accept connections"))
+					.withStartupTimeout(120_000)
+					.start()
+			)
+		);
+		await eventually(async () => (await role(pods[1])) === "slave");
+		// Failover by hand: redis-1 takes over, redis-0 follows it, then redis-1 takes a write.
+		await cli(pods[1], "REPLICAOF", "NO", "ONE");
+		await cli(pods[0], "REPLICAOF", "redis-1", String(REDIS_PORT));
+		await eventually(async () => (await role(pods[0])) === "slave");
+		await asService(pods[1], "discovery", "SET", `${DISCOVERY_KEY}:cold`, "1");
+		const marked = async (pod: StartedTestContainer) =>
+			(await pod.exec(["test", "-e", "/data/was-master"])).exitCode === 0;
+		await eventually(
+			async () => (await marked(pods[1])) && !(await marked(pods[0]))
+		);
+
+		await Promise.all(pods.map((pod) => pod.restart()));
+
+		await eventually(async () => (await role(pods[1])) === "master", 90_000);
+		await eventually(async () => (await role(pods[0])) === "slave", 90_000);
+		// A replica is empty while its full resync from the new master loads.
+		await eventually(
+			async () =>
+				(
+					await asService(pods[0], "discovery", "GET", `${DISCOVERY_KEY}:cold`)
+				)[0] === "1",
+			60_000
+		);
+	}, 240_000);
+
+	it("should fall back to redis-0 after the grace when no node carries the marker", async () => {
+		const pod = await new GenericContainer(composeImage("redis"))
+			.withHostname("redis-0")
+			.withEnvironment({ ...HA_ENV, COLD_START_GRACE_SECONDS: "3" })
+			.withCopyFilesToContainer([
+				{ source: HA_SCRIPT, target: "/scripts/redis-ha.sh" },
+			])
+			.withCommand([
+				"sh",
+				"/scripts/redis-ha.sh",
+				"server",
+				"--appendonly",
+				"yes",
+			])
+			.withWaitStrategy(Wait.forLogMessage("Ready to accept connections"))
+			.withStartupTimeout(120_000)
+			.start();
+		pods.push(pod);
+		await asService(pod, "discovery", "SET", `${DISCOVERY_KEY}:nomarker`, "1");
+		await pod.exec(["rm", "-f", "/data/was-master"]);
+		await pod.restart();
+		await eventually(async () => (await role(pod)) === "master", 60_000);
+		expect(
+			(await asService(pod, "discovery", "GET", `${DISCOVERY_KEY}:nomarker`))[0]
+		).toBe("1");
+	}, 180_000);
+});

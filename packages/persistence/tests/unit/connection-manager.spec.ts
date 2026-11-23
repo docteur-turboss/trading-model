@@ -28,6 +28,20 @@ describe("ConnectionManager", () => {
 		expect(connectFn).toHaveBeenCalledTimes(1);
 	});
 
+	it("should not cache a failed connection: the next call retries", async () => {
+		const connectFn = jest
+			.fn<() => Promise<string>>()
+			.mockRejectedValueOnce(new Error("down"))
+			.mockResolvedValue("conn");
+		const cm = new ConnectionManager<string>(
+			connectFn,
+			jest.fn<(conn: string) => Promise<void>>().mockResolvedValue(undefined),
+			{ maxRetries: 1 }
+		);
+		await expect(cm.getConnection()).rejects.toThrow("down");
+		await expect(cm.getConnection()).resolves.toBe("conn");
+	});
+
 	it("should report isConnected after connection", async () => {
 		const cm = new ConnectionManager<string>(
 			jest.fn<() => Promise<string>>().mockResolvedValue("conn"),

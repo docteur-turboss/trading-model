@@ -6,7 +6,7 @@
 #    docker compose down -v
 # =============================================================================
 
-# mem_limit of each long-running service = resources.limits.memory of its K8s manifest (deploy/k8s); no K8s limit (spiffe-helper-*, backup-metrics-exporter, docker-socket-proxy): none here.
+# mem_limit of each long-running service = resources.limits.memory of its K8s manifest (deploy/k8s); no K8s limit (spiffe-helper-*, docker-socket-proxy): none here.
 # Shared environment templates — reduces duplications across service blocks
 x-core-env: &core-env
   NODE_ENV: ${NODE_ENV:-production}
@@ -44,7 +44,7 @@ services:
   # ---------------------------------------------------------------------------
   mongo:
     logging: *default-logging
-    image: mongo:7.0.43@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+    image: mongo:7.0.45@sha256:8bb4442761a63a8dda452744082cdac9644b429807eb977b42324a63cef59ca4
     container_name: trading-mongo
     stop_grace_period: 2m
     restart: unless-stopped
@@ -57,7 +57,6 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD must be set (MongoDB user, ADR-0067)}
-      # scripts/backup.sh and restore.sh read them inside the container.
       MONGO_BACKUP_PASSWORD: ${MONGO_BACKUP_PASSWORD:?MONGO_BACKUP_PASSWORD must be set (MongoDB user, ADR-0067)}
     volumes:
       - mongo-data:/data/db
@@ -73,7 +72,7 @@ services:
   # Jobs mongo-*-users). Idempotent: runs at every `up`.
   mongo-users:
     logging: *default-logging
-    image: mongo:7.0.43@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+    image: mongo:7.0.45@sha256:8bb4442761a63a8dda452744082cdac9644b429807eb977b42324a63cef59ca4
     container_name: trading-mongo-users
     restart: "no"
     command: mongosh --quiet mongo:27017/admin --file /scripts/users.js
@@ -161,9 +160,7 @@ services:
   migrate:
     logging: *default-logging
     # Same image as the K8s Jobs (deploy/migrate): mysql2 locked, nothing installed at run time.
-    build:
-      context: .
-      dockerfile: deploy/migrate/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/db-migrate:${IMAGE_TAG:-latest}
     container_name: trading-migrate
     restart: "no"
     command: ["up"]
@@ -184,9 +181,7 @@ services:
   # ---------------------------------------------------------------------------
   discovery-server:
     logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/discovery-server/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/discovery-server:${IMAGE_TAG:-latest}
     container_name: trading-discovery
     restart: unless-stopped
     mem_limit: 256m
@@ -245,9 +240,7 @@ services:
   # ---------------------------------------------------------------------------
   spire-bootstrap:
     logging: *default-logging
-    build:
-      context: deploy/spire
-      target: bootstrap
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/spire-tools:${IMAGE_TAG:-latest}
     container_name: trading-spire-bootstrap
     restart: "no"
     environment:
@@ -265,9 +258,7 @@ services:
   # ---------------------------------------------------------------------------
   spire-agent:
     logging: *default-logging
-    build:
-      context: deploy/spire
-      target: agent
+    image: trading-model/spire-agent:${IMAGE_TAG:-latest}
     container_name: trading-spire-agent
     restart: unless-stopped
     mem_limit: 256m
@@ -302,9 +293,7 @@ services:
   # ---------------------------------------------------------------------------
   message-manager:
     logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/message-manager/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/message-manager:${IMAGE_TAG:-latest}
     container_name: trading-message
     restart: unless-stopped
     mem_limit: 512m
@@ -345,9 +334,7 @@ services:
     # Waits for its publishes in flight on stop (PUBLISH_ACCEPT_TIMEOUT_MS + 5s).
     stop_grace_period: 1m
     logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/financial-scraper/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/financial-scraper:${IMAGE_TAG:-latest}
     container_name: trading-scraper
     restart: unless-stopped
     mem_limit: 512m
@@ -408,9 +395,7 @@ services:
   # ---------------------------------------------------------------------------
   trader-trainer:
     logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/trader-trainer/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/trader-trainer:${IMAGE_TAG:-latest}
     container_name: trading-trainer
     stop_grace_period: 2m
     restart: unless-stopped
@@ -432,6 +417,7 @@ services:
       FEATURE_SIGNAL_INPUTS: ${FEATURE_SIGNAL_INPUTS:-false}
       FEATURE_INPUT_MASK_GENE: ${FEATURE_INPUT_MASK_GENE:-false}
       FEATURE_SHARED_TRUNK: ${FEATURE_SHARED_TRUNK:-false}
+      TRAINER_SHARED_TRUNK_SYMBOLS_PER_GENERATION: ${TRAINER_SHARED_TRUNK_SYMBOLS_PER_GENERATION:-0}
       TRAINER_INPUT_MASK_PROTECT_CANDLE: ${TRAINER_INPUT_MASK_PROTECT_CANDLE:-false}
       TRAINER_DATA_WINDOW: ${TRAINER_DATA_WINDOW:-500}
       TRAINER_VALIDATION_SPLIT: ${TRAINER_VALIDATION_SPLIT:-0.15}
@@ -447,7 +433,7 @@ services:
       FEATURE_ACTION_SPACE_GENE: ${FEATURE_ACTION_SPACE_GENE:-false}
       TRAINER_OBSERVE_POSITION: ${TRAINER_OBSERVE_POSITION:-true}
       TRAINER_SEED_OFFSET: ${TRAINER_SEED_OFFSET:-0}
-      # Model artifacts (ADR-0022), backed up by scripts/backup.sh (checkpoints)
+      # Model artifacts (ADR-0022)
       TRAINER_MODEL_DIR: /data/checkpoints/models
       MODEL_DOWNLOAD_CALLERS: ${MODEL_DOWNLOAD_CALLERS:-model-evaluator}
     volumes:
@@ -473,11 +459,10 @@ services:
   # ---------------------------------------------------------------------------
   api-gateway:
     logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/api-gateway/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/api-gateway:${IMAGE_TAG:-latest}
     container_name: trading-gateway
     restart: unless-stopped
+    stop_grace_period: 30s
     mem_limit: 256m
     ports:
       - '127.0.0.1:${GATEWAY_PORT:-8448}:3000'
@@ -510,11 +495,10 @@ services:
   # ---------------------------------------------------------------------------
   audit-logger:
     logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/audit-logger/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/audit-logger:${IMAGE_TAG:-latest}
     container_name: trading-audit
     restart: unless-stopped
+    stop_grace_period: 30s
     mem_limit: 256m
     ports:
       - '127.0.0.1:${AUDIT_PORT:-8450}:3000'
@@ -551,11 +535,10 @@ services:
   # ---------------------------------------------------------------------------
   model-evaluator:
     logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/model-evaluator/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/model-evaluator:${IMAGE_TAG:-latest}
     container_name: trading-model-evaluator
     restart: unless-stopped
+    stop_grace_period: 2m
     mem_limit: 256m
     ports:
       - '127.0.0.1:${MODEL_EVALUATOR_PORT:-8453}:3000'
@@ -588,11 +571,10 @@ services:
   # ---------------------------------------------------------------------------
   risk-execution:
     logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/risk-execution/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/risk-execution:${IMAGE_TAG:-latest}
     container_name: trading-risk-execution
     restart: unless-stopped
+    stop_grace_period: 30s
     mem_limit: 256m
     ports:
       - '127.0.0.1:${RISK_EXECUTION_PORT:-8454}:3000'
@@ -611,7 +593,7 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping || exit 1
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
       interval: 15s
       timeout: 5s
       retries: 3
@@ -626,11 +608,10 @@ services:
   # ---------------------------------------------------------------------------
   dlq-service:
     logging: *default-logging
-    build:
-      context: .
-      dockerfile: services/dlq-service/Dockerfile
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/dlq-service:${IMAGE_TAG:-latest}
     container_name: trading-dlq
     restart: unless-stopped
+    stop_grace_period: 30s
     mem_limit: 256m
     ports:
       - '127.0.0.1:${DLQ_PORT:-8452}:3000'
@@ -919,34 +900,6 @@ services:
       - '--storage.tsdb.retention.size=10GB'
     extra_hosts:
       - 'host.docker.internal:host-gateway'
-
-  # Serves what scripts/backup.sh writes to ${BACKUP_DIR}/metrics (run it with
-  # METRICS_FILE=${BACKUP_DIR}/metrics/backup.prom), as the K8s
-  # backup-metrics-exporter does. Docker has no scheduler: the host runs backup.sh.
-  backup-metrics-exporter:
-    logging: *default-logging
-    image: busybox:1.38.0@sha256:a46257e06c82ad85242d0d38077d0a52d9896389ca60a1a59d3463db586e5fa4
-    container_name: trading-backup-metrics
-    restart: unless-stopped
-    user: '65534:65534'
-    command:
-      - sh
-      - -c
-      - |
-        mkdir -p /tmp/metrics
-        echo '# No backup metrics yet' > /tmp/metrics/metrics
-        httpd -f -p 9118 -h /tmp/metrics &
-        while true; do
-          if ls /metrics/*.prom >/dev/null 2>&1; then
-            cat /metrics/*.prom > /tmp/metrics/metrics.tmp
-            mv /tmp/metrics/metrics.tmp /tmp/metrics/metrics
-          fi
-          sleep 5
-        done
-    volumes:
-      - ${BACKUP_DIR:-./backups}/metrics:/metrics:ro
-    networks:
-      - backend-net
 
   # ---------------------------------------------------------------------------
   #  Infrastructure exporters (issue #601, ADR-0056): databases and the host.

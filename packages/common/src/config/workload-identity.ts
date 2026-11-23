@@ -5,7 +5,7 @@ import { ServiceId } from "@trading-model/primitives/primitives/general-ids";
  *
  * Single source of truth for the platform's SPIFFE trust domain, SPIFFE ID
  * scheme, and canonical service identities. All service workloads are issued
- * SVIDs whose SPIFFE ID ends with their canonical service name:
+ * SVIDs whose SPIFFE ID is bound to their canonical service name; only this shape from our trust domain is accepted as a caller identity (no CN fallback):
  *
  *   spiffe://<TRUST_DOMAIN>/ns/<namespace>/sa/<service>
  */
@@ -97,7 +97,7 @@ export function parseSpiffeId(identity: string): ParsedSpiffeId | null {
 		raw: identity,
 	};
 	if (
-		path.length >= 3 &&
+		path.length === 4 &&
 		path[0] === SPIFFE_PATH_SEGMENT_NAMESPACE &&
 		path[2] === SPIFFE_PATH_SEGMENT_SERVICE_ACCOUNT
 	) {
@@ -113,26 +113,27 @@ export function serviceNameFromSpiffeId(identity: string): ServiceId | null {
 }
 
 /**
- * Maps a raw client identity (from an mTLS peer certificate SAN/CN) to a
- * canonical {@link ServiceId}.
- *
- *  - `spiffe://...`, alone or inside a SAN list (`DNS:x, URI:spiffe://...`,
- *    as Node reports `subjectaltname`) → the canonical service name
- *  - `client:<token-prefix>` → the API gateway (external callers)
- *  - anything else → legacy registration names normalized onto their
- *    canonical SPIFFE service name
+ * Maps a peer certificate identity (a SPIFFE ID, alone or inside a SAN list
+ * such as `DNS:x, URI:spiffe://...`) to its canonical {@link ServiceId}.
+ * Only `spiffe://<TRUST_DOMAIN>/ns/<namespace>/sa/<service>` is accepted, in
+ * `namespace` when given; anything else (other trust domain or path, no SPIFFE
+ * ID, CN, `client:*`) gives null.
  */
 export function extractCanonicalServiceName(
-	clientIdentity: string
+	clientIdentity: string,
+	namespace?: string
 ): ServiceId | null {
 	const spiffeId = _findSpiffeId(clientIdentity);
-	if (spiffeId) {
-		return serviceNameFromSpiffeId(spiffeId);
+	const parsed = spiffeId ? parseSpiffeId(spiffeId) : null;
+	if (
+		!parsed ||
+		parsed.trustDomain !== TRUST_DOMAIN ||
+		parsed.namespace === undefined ||
+		(namespace !== undefined && parsed.namespace !== namespace)
+	) {
+		return null;
 	}
-	if (clientIdentity.startsWith("client:")) {
-		return ServiceId.of("api-gateway");
-	}
-	return clientIdentity ? normalizeServiceName(clientIdentity) : null;
+	return parsed.serviceName;
 }
 
 /** The SPIFFE ID in a raw identity: the identity itself, or the URI entry of a SAN list. */

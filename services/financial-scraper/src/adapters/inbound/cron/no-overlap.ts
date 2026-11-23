@@ -1,3 +1,4 @@
+import { runJob } from "@trading-model/http/correlation-id";
 import cron from "node-cron";
 
 export interface NoOverlapTask {
@@ -6,11 +7,12 @@ export interface NoOverlapTask {
 }
 
 /**
- * Runs `run` on the cron `schedule` (UTC). A tick that finds the previous run
- * still in progress is skipped and reported through `onSkip`. `stop()` aborts
- * the `signal` given to `run`, which must stop starting work once it fires.
+ * Runs `run` (as the root span `name`) on the cron `schedule` (UTC). A tick that finds the
+ * previous run still in progress is skipped and reported through `onSkip`.
+ * `stop()` aborts the `signal` given to `run`, which must stop starting work once it fires.
  */
 export function scheduleNoOverlap(
+	name: string,
 	schedule: string,
 	run: (signal: AbortSignal) => Promise<void>,
 	onSkip: () => void
@@ -25,7 +27,8 @@ export function scheduleNoOverlap(
 				return;
 			}
 			abort = new AbortController();
-			running = run(abort.signal).finally(() => {
+			const { signal } = abort;
+			running = runJob(name, () => run(signal)).finally(() => {
 				running = undefined;
 			});
 			await running;

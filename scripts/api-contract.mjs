@@ -76,7 +76,7 @@ const SERVICE_TO_SERVICE = {
 	],
 	"audit-logger": ["POST /message"],
 	"model-evaluator": ["POST /message"],
-	"risk-execution": ["POST /intents", "POST /prices", "POST /orders/:clientOrderId/cancel", "GET /admin/status"],
+	"risk-execution": ["POST /intents", "POST /orders/:clientOrderId/cancel", "GET /admin/status"],
 	"message-manager": ["POST /message", "POST /message/replay", "POST /subscribe", "DELETE /subscribe"],
 	// Model weights: never through the gateway (ADR-0022).
 	"trader-trainer": ["GET /models/:symbol/:version/weights"],
@@ -106,7 +106,6 @@ const CALLERS = {
 const AWAITING_CALLER = {
 	// The decision consumer (ADR-0049 option C) does not exist yet: nothing may send an intent before it does (ADR-0064 §9).
 	"risk-execution POST /intents": "no decision consumer yet",
-	"risk-execution POST /prices": "no decision consumer yet",
 	"risk-execution POST /orders/:clientOrderId/cancel": "no decision consumer yet",
 	// The operator calls them from the pod (kubectl exec, docs/operations/runbook-risk-execution.md), not from the repository.
 	"risk-execution GET /admin/status": "operator, from the pod",

@@ -1,10 +1,19 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	jest,
+} from "@jest/globals";
 
 const MOCK_CRON_CONSTRUCTOR = jest.fn((config: unknown) => ({
 	config,
 	start: jest.fn<(...args: any[]) => any>(),
 	stop: jest.fn(async () => undefined),
 }));
+
+const MOCK_RESTORE = jest.fn<() => Promise<void>>();
 
 const MOCK_LOGGER = {
 	info: jest.fn<(...args: any[]) => any>(),
@@ -24,7 +33,10 @@ jest.mock("../../../src/adapters/inbound/cron/scrape.cron", () => ({
 jest.mock(
 	"../../../src/adapters/outbound/binance/binance-market-data-source",
 	() => ({
-		BinanceMarketDataSource: jest.fn((..._args: any[]) => ({ id: "binance" })),
+		BinanceMarketDataSource: jest.fn((..._args: any[]) => ({
+			id: "binance",
+			restore: MOCK_RESTORE,
+		})),
 	})
 );
 
@@ -65,6 +77,7 @@ jest.mock("@trading-model/reliability/kubernetes-lease", () => ({
 		api,
 	})),
 	kubernetesLeaseApi: MOCK_LEASE_API,
+	leaseAnnotation: jest.fn(() => ({ get: jest.fn(), set: jest.fn() })),
 }));
 
 import { Leadership } from "@trading-model/reliability/leadership";
@@ -112,6 +125,58 @@ describe("config/container — createScrapeScheduler", () => {
 		expect(MOCK_LOGGER.warn).toHaveBeenCalledWith(
 			expect.stringContaining("market data collection is disabled")
 		);
+	});
+});
+
+describe("config/container — quarantine restore before the first cycle", () => {
+	const SETTINGS = {
+		SCRAPE_INTERVAL: "*/1 * * * *",
+		SYMBOLS_TO_TRACK: ["BTCUSDT"],
+		SCRAPE_SCHEDULER_ENABLED: true,
+	};
+	const STORE = {
+		load: jest.fn(async () => ({})),
+		save: jest.fn(async () => undefined),
+	};
+
+	beforeEach(() => {
+		jest.clearAllMocks();
+		jest.useFakeTimers();
+	});
+	afterEach(() => {
+		jest.useRealTimers();
+	});
+
+	it("starts the cron only after restore resolves, retrying a failed read", async () => {
+		MOCK_RESTORE.mockRejectedValueOnce(new Error("lease get failed"));
+		const scheduler = await createScrapeScheduler(SETTINGS, STORE);
+		const cron = MOCK_CRON_CONSTRUCTOR.mock.results[0].value as {
+			start: jest.Mock;
+		};
+
+		scheduler?.start();
+		await jest.advanceTimersByTimeAsync(0);
+		expect(MOCK_RESTORE).toHaveBeenCalledTimes(1);
+		expect(cron.start).not.toHaveBeenCalled();
+
+		await jest.advanceTimersByTimeAsync(2000);
+		expect(MOCK_RESTORE).toHaveBeenCalledTimes(2);
+		expect(cron.start).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not start the cron when stopped before restore ends", async () => {
+		MOCK_RESTORE.mockRejectedValueOnce(new Error("lease get failed"));
+		const scheduler = await createScrapeScheduler(SETTINGS, STORE);
+		const cron = MOCK_CRON_CONSTRUCTOR.mock.results[0].value as {
+			start: jest.Mock;
+		};
+
+		scheduler?.start();
+		await jest.advanceTimersByTimeAsync(0);
+		await scheduler?.stop();
+		await jest.advanceTimersByTimeAsync(5000);
+
+		expect(cron.start).not.toHaveBeenCalled();
 	});
 });
 

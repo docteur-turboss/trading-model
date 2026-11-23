@@ -4,7 +4,20 @@ export interface BrokerOrderRequest {
 	side: "buy" | "sell";
 	quantity: number;
 	limitPrice?: number;
+	/** The price the service read itself (`PricePort`), never the intent's. */
 	referencePrice: number;
+}
+
+/** A market price and the market time it was observed at (epoch ms). */
+export interface MarketPrice {
+	price: number;
+	at: number;
+}
+
+/** The market prices the service reads itself (ADR-0064 §7): the only source of its marks. */
+export interface PricePort {
+	/** The latest price of each symbol; a symbol with no recent price is absent. */
+	latest(symbols: readonly string[]): Promise<Record<string, MarketPrice>>;
 }
 
 /** What the broker says about an order: cumulative fills, never the requested quantity. */

@@ -5,7 +5,12 @@ import type { LeaderLeasePort } from "./leader-lease.port";
 
 /** The fields of a coordination.k8s.io/v1 Lease this adapter reads and writes. */
 export interface Lease {
-	metadata: { name: string; resourceVersion?: string; [key: string]: unknown };
+	metadata: {
+		name: string;
+		resourceVersion?: string;
+		annotations?: Record<string, string>;
+		[key: string]: unknown;
+	};
 	spec?: {
 		holderIdentity?: string;
 		leaseDurationSeconds?: number;
@@ -100,6 +105,30 @@ export class KubernetesLease implements LeaderLeasePort {
 		this._observedAt = this._now();
 		return updated.spec?.holderIdentity === this._identity;
 	}
+}
+
+/** Reads and writes one annotation of the Lease: small state the next leader inherits. */
+export function leaseAnnotation(api: LeaseApi, key: string) {
+	return {
+		async get(): Promise<string | undefined> {
+			return (await api.get()).metadata.annotations?.[key];
+		},
+		/** Retries once on a conflict (the holder renewing at the same time). */
+		async set(value: string): Promise<void> {
+			for (let attempt = 0; attempt < 2; attempt++) {
+				const { metadata, ...rest } = await api.get();
+				const annotations = { ...metadata.annotations, [key]: value };
+				const updated = await api.update({
+					...rest,
+					metadata: { ...metadata, annotations },
+				});
+				if (updated !== "conflict") {
+					return;
+				}
+			}
+			throw new Error(`Lease annotation ${key} not written: update conflict`);
+		},
+	};
 }
 
 const SERVICE_ACCOUNT_DIR = "/var/run/secrets/kubernetes.io/serviceaccount";

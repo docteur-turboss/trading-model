@@ -162,10 +162,8 @@ groups:
           description: 'No {{ $labels.component }} archive for more than 2 hours (db-backup-incremental runs hourly): the 1 h RPO is no longer met.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
-      # Not on compose: scripts/backup.sh reports backup_pitr_supported 0 (no
-      # incremental job, standalone mongod).
       - alert: BackupIncrementalMissing
-        expr: '(absent(backup_last_success_timestamp{component="mysql-binlog",run="incremental"}) or absent(backup_last_success_timestamp{component="mongodb-oplog",run="incremental"}) or absent(backup_last_success_timestamp{component="mongodb-audit-oplog",run="incremental"})) unless on() (backup_pitr_supported == 0)'
+        expr: '(absent(backup_last_success_timestamp{component="mysql-binlog",run="incremental"}) or absent(backup_last_success_timestamp{component="mongodb-oplog",run="incremental"}) or absent(backup_last_success_timestamp{component="mongodb-audit-oplog",run="incremental"}))'
         for: 2h
         labels:
           severity: warning
@@ -210,7 +208,7 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
       - alert: BackupComponentMissing
-        expr: 'absent(backup_last_success_timestamp{component="mongodb"}) or absent(backup_last_success_timestamp{component="mongodb-audit"}) or absent(backup_last_success_timestamp{component="mysql"}) or absent(backup_last_success_timestamp{component="spire"}) or absent(backup_last_success_timestamp{component="checkpoints"})'
+        expr: 'absent(backup_last_success_timestamp{component="mongodb"}) or absent(backup_last_success_timestamp{component="mongodb-audit"}) or absent(backup_last_success_timestamp{component="mysql"}) or absent(backup_last_success_timestamp{component="spire"}) or absent(backup_last_success_timestamp{component="checkpoints"}) or absent(backup_last_success_timestamp{component="risk"})'
         for: 26h
         labels:
           severity: warning
@@ -281,6 +279,16 @@ groups:
           summary: 'Kill switch engaged ({{ $labels.scope }}, {{ $labels.mode }})'
           description: 'risk-execution stopped new orders and cancelled the open ones. It stays on until an operator re-arms it by hand after checking the cause (loss limit, stale data, reconciliation, rejections).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#killswitchengaged'
+
+      - alert: RiskTickFailing
+        expr: 'sum by (job, mode) (increase(risk_tick_failures_total[10m])) > 0'
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'risk-execution ticks keep failing ({{ $labels.mode }})'
+          description: 'The periodic risk tick (reconciliation, stale-data and loss checks, state write) threw for 5 min. Gauges are still republished from memory, but the state may not be persisted.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#risktickfailing'
 
       - alert: ReconciliationMismatch
         expr: 'max by (job, mode) (risk_reconciliation_mismatch) > 0'

@@ -125,8 +125,7 @@ Every dump is age-encrypted before it is written; the off-site copy only sends e
 ### 4.2 Backup Verification
 
 - Restore drill on every CI run (`k8s` job, `tests/k8s/run-kind.sh`): the daily CronJob backs up, the drill writes markers, audit events and a dead letter after the dump, stops the writers, records the instant, runs the hourly archive CronJob, drops data (the real `audit` and `dlq` databases, markers, `market_candles`, the SPIRE server volume), then restores as after the loss of the cluster: `fetch-offsite.sh --pitr` fetches the newest complete run and the binlog / oplog archives from the off-site bucket into a pod that never mounts the `backup-data` volume, and `restore-k8s.sh --until <instant>` restores MongoDB (dlq + audit), MySQL and the SPIRE CA; it passes only if every audit event of the instant (those written after the dump included) comes back with the same hashes and a verified hash chain, nothing written after the instant comes back, the data and the trust bundle come back and mTLS still works
-- Weekly restore drill of the Docker scripts (`backup-test.yml`, `tests/backup/compose-restore-drill.sh`): containers and volumes deleted, then restored
-- Both drills time every step and compare the recovery with a budget (`RESTORE_DRILL_BUDGET_SECONDS`): table in the job summary, `restore-drill-timings.json` as an artifact; see the [DR Exercise Log](dr-exercise-log.md)
+- The drill times every step and compare the recovery with a budget (`RESTORE_DRILL_BUDGET_SECONDS`): table in the job summary, `restore-drill-timings.json` as an artifact; see the [DR Exercise Log](dr-exercise-log.md)
 - Off-site fetch tests (`backup-test.yml`, `tests/backup/fetch-offsite.test.sh`): newest complete run chosen from an S3 store, files still encrypted, refusal on an incomplete or absent run and on an empty or unreachable bucket
 - Integrity: age authenticates every encrypted file (a corrupted or truncated file fails to decrypt); no separate checksum
 - Monitoring: alerts on a failed, stale, missing or unencrypted backup and on a failed off-site copy (`deploy/k8s/infra/config/alerting.yml`)
@@ -166,7 +165,7 @@ Monitoring Stack ───────────────┘
 
 | Activity | Frequency | Success Criteria |
 |---|---|---|
-| **Backup restoration test** | Every CI run (K8s) + weekly (Docker) | Restored data and SPIRE trust bundle identical to the backed-up state |
+| **Backup restoration test** | Every CI run (K8s) | Restored data and SPIRE trust bundle identical to the backed-up state |
 | **Certificate expiry simulation** | Quarterly | Auto-renewal completes without manual intervention |
 | **Tabletop exercise** | Annual | All stakeholders execute response within RTO |
 | **Full recovery drill** | Annual | Complete platform recovery within 4 hours |

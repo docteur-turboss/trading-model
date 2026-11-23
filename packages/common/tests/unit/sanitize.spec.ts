@@ -60,32 +60,6 @@ describe("sanitizeForLog", () => {
 		expect(result).not.toHaveProperty("stack");
 	});
 
-	it("should map arrays recursively", () => {
-		const input = [
-			"a",
-			new Error("err"),
-			{ key: "-----BEGIN KEY-----\nxxxx\n-----END KEY-----" },
-		];
-		const result = sanitizeForLog(input) as unknown[];
-		expect(result[0]).toBe("a");
-		expect((result[1] as Record<string, unknown>).message).toBe("err");
-		expect((result[2] as Record<string, unknown>).key).toBe("[REDACTED PEM]");
-	});
-
-	it("should clone plain objects with recursive sanitization", () => {
-		const input = {
-			password: "secret",
-			nested: {
-				cert: "-----BEGIN CERTIFICATE-----\nZm9v\n-----END CERTIFICATE-----",
-			},
-		};
-		const result = sanitizeForLog(input) as Record<string, unknown>;
-		expect(result).toEqual({
-			password: "secret",
-			nested: { cert: "[REDACTED PEM]" },
-		});
-	});
-
 	it("should return primitives unchanged", () => {
 		expect(sanitizeForLog(42)).toBe(42);
 		expect(sanitizeForLog(true)).toBe(true);

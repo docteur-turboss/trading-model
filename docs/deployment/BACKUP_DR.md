@@ -20,10 +20,7 @@ restore verification for the trading-model platform.
 >   audit-logger from the live flow must come back whole: same events, same
 >   hashes, hash chain verified (`tests/backup/audit-chain.js`), then extended
 >   by audit-logger after the restore.
-> - Docker: `backup-test.yml` (weekly and on changes to the scripts) deletes
->   the containers and their volumes and restores them with
->   `scripts/restore.sh` (`tests/backup/compose-restore-drill.sh`). Results:
->   the workflow runs ([Backup Verification](#backup-verification-cicd)).
+> - Compose: no backup, disposable stack (do not store real data in it).
 >
 > Known limits are listed at the end of this document.
 
@@ -36,6 +33,8 @@ restore verification for the trading-model platform.
 | MySQL `financial_scraper`     | financial-scraper                             | High        | 1 h (hourly binlog archive; point in time over the last 72 h) | 4 hours    |
 | SPIRE `datastore.sqlite3` + `keys-sqlite.json` | SPIRE Server (datastore and CA private keys, SQLite on its own volume, ADR-0065) | Critical | 24 h (daily backup: one tar, no journal) | 2 hours (SVIDs stay valid about 2 h after the server stops: TTL 4 h) |
 | Trained agents                | trader-trainer (checkpoint files)             | Medium      | 24 h (daily tar)       | 1 hour     |
+| `risk-execution-pvc` (`state.json`, `paper-ledger.json`) | risk-execution (kill switch, orders, positions; paper ledger, ADR-0064) | High | 24 h (daily tar, K8s only; `--until` restores the daily run at or before the instant) | 1 hour (a missing state starts with the kill switch on until an operator re-arms) |
+| `model-evaluations-pvc`       | model-evaluator (evaluation results)          | Low         | Not backed up: recomputed by replay (ADR-0079) | Rebuilt |
 | SealedSecrets controller keys | Sealed Secrets controller (namespace `sealed-secrets`, ADR-0035): decrypts every SealedSecret of `deploy/k8s/secrets/` | Critical | Daily run of `scripts/backup-sealed-secrets-key.sh` by `sealed-secrets-key-backup.yml` (ADR-0035), plus a manual run after a manual key change ([sealed-secrets.md](sealed-secrets.md#back-up-the-controller-keys)): a renewed key is off-site within 24 h | 1 hour |
 | Redis                         | message-manager journal (ADR-0048), discovery-server, dlq-service, readiness | High (journal), Low (rest) | Not backed up: journal protected by AOF and replication only | Journal not rebuildable; rest rebuilt |
 | Loki (access and operational logs) | edge-proxy, Promtail-collected services (K8s `deploy/k8s/infra/loki.yaml`, 10Gi; Compose `loki-data`) | Low (security evidence kept 31 days) | Not backed up | Rebuilt |
@@ -57,11 +56,7 @@ entries, so Redis is not backed up in Kubernetes. The message-manager journal
 up to 24 h per stopped subscriber. **Journal RPO:** AOF plus replication
 (`JOURNAL_MIN_REPLICAS=1` in production); losing the master and all replicas
 loses those messages. No alert fires on a total loss (`JournalEntriesTrimmed`
-only counts the 24 h trim): republish from the publishers' sources. The Docker scripts still
-dump it (single node). With `REDIS_APPENDONLY=yes` Redis starts from its
-append-only file and would ignore a restored `dump.rdb`: `scripts/restore.sh`
-loads the snapshot in a throwaway server on the same volume and rewrites the
-AOF from it before starting Redis again.
+only counts the 24 h trim): republish from the publishers' sources.
 
 The observability stores are not backed up either, and this is a deliberate
 choice, not an oversight. Logs and metrics are operational data kept for a
@@ -152,44 +147,17 @@ kubectl create job --from=cronjob/db-backup-incremental db-backup-incremental-ma
 
 ### Docker
 
-```bash
-# Full backup (all components)
-bash scripts/backup.sh
-
-# Selective backup
-bash scripts/backup.sh --components mongodb,mysql
-
-# Dry-run (preview without executing)
-bash scripts/backup.sh --dry-run
-
-# Encrypted (age public key; refuse to run without it)
-BACKUP_AGE_RECIPIENTS=age1... BACKUP_REQUIRE_ENCRYPTION=true bash scripts/backup.sh
-
-# With off-site upload (encrypted files only)
-BACKUP_AGE_RECIPIENTS=age1... BACKUP_S3_BUCKET=s3://my-bucket/backups bash scripts/backup.sh
-```
-
-Docker has no scheduler: schedule `backup.sh` with the host's cron (Windows:
-Task Scheduler running Git Bash with `MSYS_NO_PATHCONV=1`) if a compose stack
-holds data that matters. Set `BACKUP_DIR` in `.env` to the same directory and
-run with `METRICS_FILE=$BACKUP_DIR/metrics/backup.prom`: the compose service
-`backup-metrics-exporter` serves it to Prometheus (job `backup-metrics`), so the
-daily backup alerts apply. Compose has no point-in-time recovery (no
-incremental job, standalone mongod): `backup.sh` reports
-`backup_pitr_supported 0`, which keeps `BackupIncrementalMissing` quiet, and
-reports `mongodb-audit` from the single mongod dump that holds it.
+Compose: no backup, disposable stack. Its volumes cannot be saved by script.
 
 ### Components Backed Up
 
 | Component                                  | Method                                                         | Consistency                       |
 | ------------------------------------------ | -------------------------------------------------------------- | --------------------------------- |
 | MongoDB dlq and audit (one dump per replica set, from its primary) | `mongodump --gzip --oplog --archive`   | Point-in-time (end of the dump)   |
-| MongoDB (Docker: message-manager, audit-logger, dlq) | `mongodump --gzip --archive` (standalone)            | Per collection                    |
 | MySQL, every non-system database (`financial_scraper`; `spire` of the releases before ADR-0065) | `mysqldump --databases … --single-transaction --set-gtid-purged=OFF` | Transaction-consistent snapshot |
 | Trainer checkpoints                        | `tar czf` of `/data/checkpoints/`                              | Filesystem snapshot               |
+| risk-execution state (K8s)                 | `tar czf` of `/data/risk-execution/*.json`; restored with the pod stopped | Per file (each written by rename): the two files can differ by one fill |
 | SPIRE server, K8s (`datastore.sqlite3`, `keys-sqlite.json`) | through the `spire-entries` sidecar: `sqlite3 .backup` of the datastore, then the key file, in one tar (`spire/data_<TS>.tar`) | Online snapshot, server not paused (ADR-0065) |
-| SPIRE server, Docker (`/run/spire/data`)   | `docker cp` of the whole directory, server paused              | keys.json + SQLite datastore together |
-| Redis (Docker only)                        | `BGSAVE`, wait for `LASTSAVE`, stream `dump.rdb`               | Fork-consistent                   |
 
 The `mysql` system schema is not dumped (it cannot be restored over a running
 server); users come from the deployment (`MYSQL_ROOT_PASSWORD`, `MYSQL_USER`).
@@ -227,8 +195,7 @@ dump. So the backup scripts (`write_dump` in `scripts/backup-lib.sh`):
 ```
 
 `component` is the restore unit: `mongodb`, `mongodb-audit`, `mysql`,
-`mysql-core`, `checkpoints`, `spire` (Kubernetes); `mongodb`, `mysql`, `mysql-core`, `redis:<container>`,
-`checkpoints`, `spire` (Docker). `path` is relative to `BACKUP_DIR`, `size` is
+`mysql-core`, `checkpoints`, `spire`, `risk`. `path` is relative to `BACKUP_DIR`, `size` is
 the size of the file on disk (encrypted), `sha256` the checksum of its
 decrypted content. One entry per line: the restore scripts read it without
 `jq`.
@@ -563,7 +530,7 @@ and Prometheus scrapes them (job `backup-metrics`).
 | Alert                     | Fires when                                                                   |
 | ------------------------- | ---------------------------------------------------------------------------- |
 | `BackupFailed`            | a component's last success is older than 25 h                                |
-| `BackupComponentMissing`  | a component (mongodb, mongodb-audit, mysql, spire, checkpoints) reports nothing |
+| `BackupComponentMissing`  | a component (mongodb, mongodb-audit, mysql, spire, checkpoints, risk on K8s) reports nothing |
 | `BackupJobStale`          | the job has not run for 26 h                                                 |
 | `BackupIncrementalStale`  | a binlog / oplog archive last succeeded more than 2 h ago (2 × the interval) |
 | `BackupIncrementalMissing` | a binlog / oplog component reported nothing for 2 h                        |
@@ -589,8 +556,6 @@ backups from the off-site copy first).
 ### Rows past their retention after a restore
 
 `restore-k8s.sh` runs the `db-retention` CronJob once (`kubectl create job db-retention-post-restore-<stamp> --from=cronjob/db-retention`) after a successful MySQL restore, full or `--until`, and waits for it (`RETENTION_WAIT`, default `4h`, like the CronJob's deadline). If the Job fails, the restore exits 1 and prints the Job's last log lines: run the purge again. `--no-retention` skips it (forensic analysis of a past state): the expired rows then stay until the next daily run. The CI `k8s` drill restores a ticker 2000 days old and checks it is gone.
-
-Limit: the compose `scripts/restore.sh` does not run it (no `db-retention` job in compose, where no purge runs at all); purge by hand after a compose restore.
 
 MongoDB: `mongorestore` runs without `--noIndexRestore`, so the TTL indexes of `audit_events` and the DLQ come back with the data and the TTL monitor purges expired documents on its own (it wakes every 60 s). The CI `k8s` drill asserts both indexes after the restore and that an expired DLQ document (31 days old, inserted after the restore) is purged within 2 minutes.
 
@@ -618,16 +583,19 @@ restore is explained, acknowledge the loss
 ### Kubernetes
 
 `restore-k8s.sh` needs namespace admin rights: exec into the databases, stop
-and start the SPIRE server, create a helper pod. SPIRE (datastore and CA
+and start the SPIRE server and risk-execution, create a helper pod. SPIRE (datastore and CA
 keys, ADR-0065) no longer depends on MySQL: any order.
 
 From a workstation, with the backup files copied locally:
 
 ```bash
 BACKUP_DIR=./backups K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
-  bash scripts/restore-k8s.sh                      # mongodb,mysql,checkpoints,spire
+  bash scripts/restore-k8s.sh                      # mongodb,mysql,checkpoints,spire,risk
 bash scripts/restore-k8s.sh --timestamp 2026-10-01_020000 --components mongodb
 ```
+
+A run taken before `risk` was backed up (issue #1933) has no such component:
+restore it with `--components mongodb,mysql,checkpoints,spire`.
 
 Or inside the cluster, next to the `backup-data` volume: a pod running
 `backup-tools` with the `backup-scripts` ConfigMap at `/scripts`,
@@ -653,7 +621,7 @@ into an empty directory in the layout `restore-k8s.sh` reads. Without
 components and its run manifest: `upload_offsite` only copies the dumps that
 succeeded, so a run missing a file (`mongodb/<TS>/mongodb.archive.gz.age` and
 `mongodb-audit.archive.gz.age`, `mysql/financial_scraper_<TS>.sql.gz.age`,
-`checkpoints/checkpoints_<TS>.tar.gz.age`, `spire/data_<TS>.tar.age`
+`checkpoints/checkpoints_<TS>.tar.gz.age`, `risk/risk_<TS>.tar.gz.age`, `spire/data_<TS>.tar.age`
 (`spire/keys_<TS>.json.age` before ADR-0065),
 `manifests/manifest_<TS>.json.age`) is skipped, and refused with `--timestamp`
 when a dump is missing. The manifest comes with the run: `restore-k8s.sh`
@@ -782,18 +750,6 @@ The instants inside the break cannot be restored. For `mongodb-audit-oplog`,
 if a restore later has to go back across it, the lost events are acknowledged
 as an audit-chain loss (ADR-0027, `chain-cli.js acknowledge-loss`).
 
-### Docker
-
-```bash
-bash scripts/restore.sh                                   # latest, all components
-bash scripts/restore.sh --timestamp 2025-01-01_120000
-bash scripts/restore.sh --components mongodb,mysql
-bash scripts/restore.sh --dry-run
-```
-
-SPIRE: the server is stopped and its whole data directory (`data_*.tar`: CA
-keys + SQLite datastore) is written back.
-
 ### Restoring part of MongoDB (`--ns`, `--into-scratch`)
 
 After a targeted deletion (one collection, a few documents), do not restore the
@@ -824,7 +780,7 @@ bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dlq_entries' --into-s
 - **Audit trail (ADR-0027):** restoring `audit_events` partially in place breaks
   the hash chain. every `--ns` whose database part can match `audit` (`audit.*`, `a*.*`, `*.x`...)
   without `--into-scratch` is refused; restore
-  into scratch and inspect there. `scripts/restore.sh` (Docker) has no such option.
+  into scratch and inspect there.
 
 ### SPIRE CA restore and SVIDs
 
@@ -927,8 +883,7 @@ from one region to the other. The data-store procedures it points to are in
 [Recovery Steps for Total Outage](#recovery-steps-for-total-outage).
 
 > **Status: not exercised.** No regional failover has ever been run. The
-> pieces are exercised separately (restore drills `tests/k8s/run-kind.sh` and
-> `tests/backup/compose-restore-drill.sh`, SealedSecrets key drill
+> pieces are exercised separately (restore drill `tests/k8s/run-kind.sh`, SealedSecrets key drill
 > `tests/k8s/sealed-secrets-key-drill.sh`), but not this sequence on a real
 > second region (DNS, new cluster, bucket access from another region). Record
 > the first exercise in the [DR Exercise Log](../compliance/dr-exercise-log.md)
@@ -981,7 +936,18 @@ credentials of the cloud account (not the ones stored in the cluster);
    optional second copy at another provider (`BACKUP_S3_SECONDARY_*`, ADR-0033):
    fetch from it by setting `BACKUP_S3_BUCKET` and the `AWS_*` / `RCLONE_S3_*`
    variables of `scripts/fetch-offsite.sh` to its values. The anchor bucket has
-   no replica. If reachable:
+   no replica.
+
+   > **Accepted risk (2026-11-22, issue #1943):** no second provider is
+   > configured. The only off-site copy is the `BACKUP_S3_BUCKET` store
+   > (staging: MinIO on the same host as the kind cluster); there is no
+   > production environment yet. Losing that store together with the cluster
+   > loses every restorable backup. A second MinIO on the same host would not
+   > cover this, so none is run. The second Object Lock bucket at another
+   > provider is postponed to the production launch: reopen #1943 then, and
+   > fill `BACKUP_S3_SECONDARY_*` before the first production deploy.
+
+   If reachable:
    - keep the **same buckets**: Object Lock (compliance mode; 30-31 days
      default for backups, `AUDIT_RETENTION_DAYS` for anchors) and the
      credentials without delete right stay as they are
@@ -1076,9 +1042,9 @@ the off-site bucket is intact. Cluster creation and DNS propagation add to the
 | ----- | ---- |
 | `ci.yml`, job `k8s` (pull requests touching the filter of its "Decide the restore drill" step, every release through `workflow_call`, pushes to main and development) | Kind restore drill with PITR and loss of the cluster (`tests/k8s/run-kind.sh`, `verify_backup`): backup, [run manifest](#run-manifest), [off-site fetch](#from-the-off-site-bucket), [point-in-time restore](#point-in-time-restore---until-adr-0031), then checks of the audit chain, dead letters, markers, `market_candles` and the SPIRE bundle |
 | `backup-test.yml`, job `sealed-secrets-key` (weekly, on changes to the scripts) | Key backup and restore across two kind clusters (`tests/backup/sealed-secrets-key.test.sh`, `tests/k8s/sealed-secrets-key-drill.sh`), see `docs/deployment/sealed-secrets.md` |
-| `backup-test.yml` (weekly, on changes to the scripts; Docker only, no PITR or replica set) | Library tests of `tests/backup/` ([encryption](#automated-backup-system), [off-site immutability](#off-site-immutability), [PITR chains](#point-in-time-archives-adr-0031), [partial backups and manifest](#run-manifest), [off-site fetch](#from-the-off-site-bucket)), then the Docker restore drill (`tests/backup/compose-restore-drill.sh`) |
+| `backup-test.yml` (weekly, on changes to the scripts) | Library tests of `tests/backup/` ([encryption](#automated-backup-system), [off-site immutability](#off-site-immutability), [PITR chains](#point-in-time-archives-adr-0031), [partial backups and manifest](#run-manifest), [off-site fetch](#from-the-off-site-bucket)) |
 
-Drill timings (issue #329): both drills time every step (`tests/backup/drill-timings.sh`) and publish a table in the job summary and `restore-drill-timings.json` as an artifact (`restore-drill-timings-kind`, `restore-drill-timings-docker`). The recovery window (data destroyed to checks done) is compared with `RESTORE_DRILL_BUDGET_SECONDS` (default 1200 s kind, 300 s Docker; `0` = no check); `RESTORE_DRILL_BUDGET_MODE=fail` (default) fails the drill when it is exceeded, `warn` only warns. The defaults are about 5 times the recovery window of the first CI run (252 s kind, 20 s Docker, run 41643357917), so a step that doubles or hangs is caught without failing a healthy run on a slower runner; they are not the RTO (kind on a CI runner is not sized like production), which is judged on real exercises ([DR Exercise Log](../compliance/dr-exercise-log.md)). A drill that fails half way still publishes the steps it measured (`"status": "failed"`). `restore-k8s.sh` logs `restore-timing component=<c> seconds=<n>` for each component it restores, also outside CI.
+Drill timings (issue #329): the kind drill times every step (`tests/backup/drill-timings.sh`) and publishes a table in the job summary and `restore-drill-timings.json` as an artifact (`restore-drill-timings-kind`). The recovery window (data destroyed to checks done) is compared with `RESTORE_DRILL_BUDGET_SECONDS` (default 1200 s; `0` = no check); `RESTORE_DRILL_BUDGET_MODE=fail` (default) fails the drill when it is exceeded, `warn` only warns. The defaults are about 5 times the recovery window of the first CI run (252 s, run 41643357917), so a step that doubles or hangs is caught without failing a healthy run on a slower runner; they are not the RTO (kind on a CI runner is not sized like production), which is judged on real exercises ([DR Exercise Log](../compliance/dr-exercise-log.md)). A drill that fails half way still publishes the steps it measured (`"status": "failed"`). `restore-k8s.sh` logs `restore-timing component=<c> seconds=<n>` for each component it restores, also outside CI.
 
 ## Known Limits
 
@@ -1099,17 +1065,13 @@ Drill timings (issue #329): both drills time every step (`tests/backup/drill-tim
 - **RPO 1 h, not continuous** (ADR-0031): writes since the last hourly
   archive are lost with the volume. Point in time only over the last 72 h;
   older restores are day by day. The SPIRE datastore and CA keys stay daily.
-- **Point-in-time in Kubernetes only**: the Docker scripts restore the daily
-  dump (no binlog or oplog archive; compose MongoDB is not a replica set).
 - **After a point-in-time restore onto a new MySQL volume**, the server has a
   new uuid: its binlogs go to a new directory, and the next point-in-time
   restore needs the next daily dump. Run `db-backup` by hand after such a
   restore to shorten that window.
 - **DDL between the dump and the instant** (a migration) replays as is: a
   statement the restored schema rejects stops the replay with exit 1.
-- **Docker stack**: no scheduler, no backup metrics scraped, Redis without
-  persistence (the message journal is lost on restart). Compose is a development stack: do not
-  store real data in it ([SETUP.md](SETUP.md#local-development-setup),
+- **Compose**: no backup (compose: aucune sauvegarde, pile jetable): a development stack, do not store real data in it ([SETUP.md](SETUP.md#local-development-setup),
   [DOCKER.md](DOCKER.md#docker-compose-services)).
 - **Business validation after a restore** is `scripts/verify-restore-k8s.sh`
   (Recovery Verification); it fails when a main table (`market_candles`,

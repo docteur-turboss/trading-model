@@ -14,10 +14,8 @@ The financial-scraper service fetches **market data only** from Binance's public
 | `GET /api/v3/trades`            | Recent trades (price, quantity, side)          |
 | `GET /api/v3/depth`             | Order book snapshots (bids, asks)              |
 | `GET /api/v3/ticker/24hr`       | 24-hour statistics                             |
-| `GET /api/v3/ticker/price`      | Current price ticker                           |
-| `GET /api/v3/ticker/bookTicker` | Best bid/ask                                   |
 
-The six endpoints above are the only ones called, all public. No request is signed and no Binance account exists: `BINANCE_API_KEY` / `BINANCE_API_SECRET` are read by no code.
+The four endpoints above are the only ones called, all public. No request is signed and no Binance account exists: `BINANCE_API_KEY` / `BINANCE_API_SECRET` are read by no code.
 
 ### Regulatory Status (MiCA)
 
@@ -84,7 +82,7 @@ checked 2026-11-04); one row per provider, every source id listed:
 | Source | Data received | PII received? | Terms |
 | ------ | ------------- | ------------- | ----- |
 | ECB Data Portal (`data-api.ecb.europa.eu`): `ecb-aaa-yield-10y`, `ecb-hicp-annual-rate`, `ecb-deposit-facility-rate`, `ecb-euro-reference-rates` | Euro area yields, HICP, deposit rate, reference rates | No | [Free reuse](https://www.ecb.europa.eu/stats/ecb_statistics/governance_and_quality_framework/html/usage_policy.en.html), commercial included, "Source: ECB statistics", data not modified |
-| SEC EDGAR (`data.sec.gov`, United States): `sec-edgar-eps-diluted`, `sec-edgar-revenue`, `sec-edgar-core-facts` | XBRL facts of company filings | No | [May be copied or redistributed without permission](https://www.sec.gov/privacy), cite the SEC; fair access: User-Agent with a contact e-mail, at most 10 requests/s |
+| SEC EDGAR (`data.sec.gov`, United States): `sec-edgar-eps-diluted`, `sec-edgar-revenue`, `sec-edgar-core-facts` | XBRL facts of company filings | No | [SEC data access terms](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data), cite the SEC; fair access: User-Agent with a contact e-mail, at most 10 requests/s |
 | US National Weather Service (`api.weather.gov`): `nws-kansas-wheat-belt` | Latest observation of a weather station (Hutchinson, Kansas) | No | [Public domain](https://www.weather.gov/disclaimer), no endorsement implied; User-Agent required |
 | Twelve Data (`api.twelvedata.com`): `twelvedata-daily-prices` (rank 2, `non-commercial`) | Daily prices of equities and ETFs | No | Free tier, internal use: §2.3(l) no "Use Free Tier data for commercial purposes"; §16.2(a) data deleted within 30 days of termination ([terms](https://twelvedata.com/terms)); API key and User-Agent sent |
 | Wikimedia Analytics API (`wikimedia.org`): `wikipedia-pageviews` | Daily views of Wikipedia articles | No: counts only | [CC0 1.0](https://doc.wikimedia.org/generated-data-platform/aqs/analytics-api/documentation/access-policy.html); User-Agent with a contact required |

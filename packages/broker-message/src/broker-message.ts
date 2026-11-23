@@ -124,8 +124,8 @@ export default class BrokerMessage {
 			journal,
 			deadStreams: new DeadStreams(journal),
 			service: this._serviceName,
-			handle: async ({ metadata, payload }) => {
-				if (!(await deliverToListeners(metadata, payload))) {
+			handle: async ({ metadata, payload }, signal) => {
+				if (!(await deliverToListeners(metadata, payload, signal))) {
 					throw deadLetterError("Invalid payload format", {
 						reason: "REJECTED_BY_SUBSCRIBER",
 					});

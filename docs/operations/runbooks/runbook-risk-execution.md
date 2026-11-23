@@ -1,36 +1,34 @@
 # Runbook: Risk/Execution Kill Switch, Reconciliation, Stale Prices
 
-**Severity:** L1 (`KillSwitchEngaged`, `ReconciliationMismatch`), L2 (`RiskRejectRatioHigh`, `RiskMarketDataStale`)
-**Alerts:** `KillSwitchEngaged`, `ReconciliationMismatch`, `RiskRejectRatioHigh`, `RiskMarketDataStale`
+**Severity:** L1 (`KillSwitchEngaged`, `ReconciliationMismatch`), L2 (`RiskRejectRatioHigh`, `RiskMarketDataStale`, `RiskTickFailing`)
+**Alerts:** `KillSwitchEngaged`, `ReconciliationMismatch`, `RiskRejectRatioHigh`, `RiskMarketDataStale`, `RiskTickFailing`
 **Decision:** [ADR-0064](../../adr/0064-risk-and-execution-context-before-order-flow.md) · **Policy:** [risk-limits-policy](../../compliance/risk-limits-policy.md) · **Drill log:** [risk-drill-log](../../compliance/risk-drill-log.md)
 
 `risk-execution` owns every order (paper only: simulated broker, no live adapter). The switch state is in `/data/risk-execution/state.json` on its PVC. Nothing re-arms the switch except an operator, by hand.
 
 ## Operate the service
 
-`GET /admin/status` accepts only the service's own identity: run it from the pod. Engaging and re-arming go through the gateway with an API key of scope `risk:admin`: the key name is the actor recorded in the audit trail, and the owner is the key named `RISK_OWNER_ACTOR` (default `owner`). Without the gateway (down), no one can engage or re-arm.
+`GET /admin/status` accepts only the service's own identity: `scripts/risk-admin.sh status` runs it from the pod. Engaging and re-arming go through the gateway with an API key of scope `risk:admin` (`RISK_ADMIN_URL` = edge-proxy base URL, `RISK_ADMIN_KEY`): the key name is the actor recorded in the audit trail, and the owner is the key named `RISK_OWNER_ACTOR` (default `owner`). With the gateway down, no one can engage or re-arm.
 
 ```bash
-POD=$(kubectl get pods -n trading-model -l app.kubernetes.io/component=risk-execution -o jsonpath='{.items[0].metadata.name}')
-CURL="curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem -H content-type:application/json https://localhost:3000"
-kubectl exec -n trading-model "$POD" -c risk-execution -- sh -c "$CURL/admin/status"
-# Engage (scope global, or symbol + "symbol":"BTCUSDT"):
-API=https://<edge-proxy host>/v1/risk-execution/admin
-curl -s -H "x-api-key: <your risk:admin key>" -H content-type:application/json $API/kill-switch -d '{"scope":"global","reason":"<why>"}'
+bash scripts/risk-admin.sh status
+# Engage (global, or add --symbol BTCUSDT):
+bash scripts/risk-admin.sh engage --reason "<why>"
 # Re-arm, after checking that the cause is gone:
-curl -s -H "x-api-key: <your risk:admin key>" -H content-type:application/json $API/kill-switch/rearm -d '{"scope":"global","reason":"<what you checked>"}'
+bash scripts/risk-admin.sh rearm --reason "<what you checked>"
 ```
 
 Service unreachable, last resort: revoke the broker API key at the exchange, or delete the SPIRE entry of `risk-execution` (ADR-0064 §5). Closing positions is never automatic: decide it explicitly.
 
 ## KillSwitchEngaged
 
-1. `GET /admin/status`: `killSwitch.global` / `killSwitch.symbols` name the reason: `daily_loss`, `daily_loss_symbol`, `drawdown`, `stale_data`, `reconciliation`, `rejects`, `state_unreadable`, `operator`.
+1. `GET /admin/status`: `killSwitch.global` / `killSwitch.symbols` name the reason: `daily_loss`, `daily_loss_symbol`, `drawdown`, `stale_data`, `reconciliation`, `rejects`, `state_missing`, `state_unreadable`, `operator`.
 2. Check the cause is gone, then re-arm (policy §4.4):
    - `daily_loss`, `daily_loss_symbol`: the limit restarts at 00:00 UTC but the switch does not; re-arm after review.
    - `drawdown`: only the owner (`RISK_OWNER_ACTOR`) re-arms, after reviewing the strategy.
    - `stale_data`, `reconciliation`, `rejects`: see the sections below.
-   - `state_unreadable`: the state file cannot be read and **cannot be re-armed**. No backup covers the `risk-execution-pvc`: first copy `state.json` and `paper-ledger.json` out of the pod (`kubectl cp`), then either repair `state.json` from that copy, or remove both files together (state and paper ledger start flat), then restart the pod.
+   - `state_missing`: no `state.json` at start (first install, or the volume was lost). After a loss, restore it first (`restore-k8s.sh --components risk`, [BACKUP_DR](../../deployment/BACKUP_DR.md)); on a first install, or when no backup is usable, re-arm once you have checked there is nothing to restore. The `deploy.yml` gate (`deploy-k8s.sh verify-release`) reports this alert without rolling back, so the first deploy of a new or rebuilt environment passes; re-arm after it.
+   - `state_unreadable`: the state file cannot be read and **cannot be re-armed**. Restore the newest daily backup (`restore-k8s.sh --components risk`), or copy `state.json` and `paper-ledger.json` out of the pod (`kubectl cp`), then either repair `state.json` from that copy, or remove both files together (state and paper ledger start flat, switch on `state_missing`), then restart the pod.
 3. Re-arm with a reason that says what you checked; it goes to the log with the actor.
 
 ## ReconciliationMismatch
@@ -39,23 +37,30 @@ The service state and the broker differ (a position, an open order, or a balance
 
 1. Read the `reconciliation.mismatch` log line (`diffs`: `position:<symbol>`, `open_orders`, `balance`).
 2. Paper mode: compare `state.json` and `paper-ledger.json`. Someone or something changed one of them (restore of one file only, manual edit, crash between the two writes of a fill).
-3. Copy both files out of the pod (no backup covers the PVC), decide which side is right, make the other file match it (or remove both together to start flat), restart the pod, check `ready: true`, then re-arm.
+3. Copy both files out of the pod (the daily backup may be older than the mismatch), decide which side is right, make the other file match it (or remove both together to start flat), restart the pod, check `ready: true`, then re-arm.
 4. Broker unreachable instead (`reconciliation.error` log line, pod not ready, intents rejected `not_reconciled`): this alert does not fire (`risk_reconciliation_mismatch` stays 0); no switch is engaged; the service retries at every tick and is ready again once a reconciliation passes.
 
 ## RiskRejectRatioHigh
 
 More than 50% of the intents were rejected over 15 min (no alert without traffic). Dashboard `risk-execution`: panel "Rejects by reason" names the cause.
 
-1. `price_band`, `price_gap`, `stale_intent`: the decision consumer sends bad or old reference prices; check it and the feed ([runbook-market-data-stale](runbook-market-data-stale.md)).
+1. `price_band`, `price_gap`, `stale_intent`: the decision consumer sends prices far from the market or old decisions; check it. `stale_price`: the service cannot read a price newer than 15 min from financial-scraper; check the feed ([runbook-market-data-stale](runbook-market-data-stale.md)).
 2. `global_exposure`, `instrument_exposure`, `loss_limit_*`: a limit is close (panels "Exposure" and "Daily loss"); this is the limit working, check the strategy.
 3. `not_reconciled`, `kill_switch`: see the sections above.
 
 ## RiskMarketDataStale
 
-A price older than 15 min on an allowed instrument that already had one: that symbol is switched off, the global switch when every priced symbol is stale. An instrument never priced (no decision consumer yet) is not stale. Intents decided on a price older than 1 min are rejected without engaging anything.
+A price older than 15 min on an allowed instrument that already had one: that symbol is switched off, the global switch when every priced symbol is stale. An instrument never priced (financial-scraper has no candle of it) is not stale. Intents decided on a price older than 1 min are rejected without engaging anything.
 
-1. The decision consumer pushes prices (`POST /prices`) and sends reference prices with each intent: check it is running, then [runbook-market-data-stale](runbook-market-data-stale.md) for the feed.
+1. The service reads the last closed candle of each instrument from financial-scraper at every tick: check the `prices.error` log lines, then [runbook-market-data-stale](runbook-market-data-stale.md) for the feed.
 2. When fresh prices flow, re-arm the symbol (and the global switch if engaged).
+
+## RiskTickFailing
+
+The periodic tick threw for 5 min (`risk tick failed` log line, counter `risk_tick_failures_total`). Gauges are still republished from memory, so a switch engaged during the failure shows in `KillSwitchEngaged`; what is lost is persistence.
+
+1. Read the `risk tick failed` error: PVC full or read-only (`df` in the pod), broker unreachable, state file unwritable.
+2. Fix the cause, then check `GET /admin/status`. Copy `state.json` out of the pod before restarting (no backup covers the PVC).
 
 ## Drill
 

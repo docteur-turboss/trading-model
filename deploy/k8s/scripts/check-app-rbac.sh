@@ -5,7 +5,8 @@
 # Forbidden half way, after the migrations, when an admin has not re-run
 # scripts/deploy-identity.sh app. Runs with the app kubeconfig (current kubectl
 # context), read-only, before any apply; same normalization as
-# check-cluster-rbac.sh (rules only, metadata ignored). Exits 1 when different.
+# check-cluster-rbac.sh (rules only, metadata ignored). Exits 1 when a rule is
+# missing; a live Role holding more (release N, returning to N-1) passes.
 #   bash deploy/k8s/scripts/check-app-rbac.sh --namespace NS --environment OVERLAY
 set -euo pipefail
 
@@ -20,14 +21,16 @@ done
 [ -n "$NAMESPACE" ] && [ -n "$ENVIRONMENT" ] || { echo "Usage: $0 --namespace NS --environment OVERLAY" >&2; exit 1; }
 
 ROLE_FILE="$(cd "$(dirname "$0")/../deploy-identity" && pwd)/app-role.yaml"
-NORM='{rules: (.rules // [])}'
-desired=$(kubectl create --dry-run=client -o json -f "$ROLE_FILE" | jq -cS "$NORM")
+# One (group, resource, verb, resourceNames) tuple per right, so rule order and grouping do not matter.
+# shortcut: no wildcard expansion and exact resourceNames, upgrade if app-role.yaml uses "*".
+TUPLES='[(.rules // [])[] | . as $r | ($r.apiGroups // [])[] as $g | ($r.resources // [])[] as $x | ($r.verbs // [])[] as $v | [$g, $x, $v, ($r.resourceNames // [] | join(","))]] | unique'
+desired=$(kubectl create --dry-run=client -o json -f "$ROLE_FILE" | jq -c "$TUPLES")
 
 err=$(mktemp)
 trap 'rm -f "$err"' EXIT
 if live=$(kubectl get role deploy-app -n "$NAMESPACE" -o json 2>"$err"); then
-	[ "$(jq -cS "$NORM" <<<"$live")" != "$desired" ] || { echo "Role deploy-app is up to date"; exit 0; }
-	problem="differs from deploy/k8s/deploy-identity/app-role.yaml"
+	[ "$(jq --argjson d "$desired" "$TUPLES | \$d - . | length" <<<"$live")" != 0 ] || { echo "Role deploy-app is up to date"; exit 0; }
+	problem="lacks rights of deploy/k8s/deploy-identity/app-role.yaml"
 else
 	# Any other error (API unreachable, Forbidden) fails the script, not "missing".
 	grep -q NotFound "$err" || { cat "$err" >&2; exit 2; }
