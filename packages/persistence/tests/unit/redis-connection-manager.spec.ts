@@ -25,8 +25,11 @@ jest.mock("ioredis", () => {
 });
 
 describe("createRedisClient", () => {
-	it("should create a client from a URL string", () => {
-		const client = createRedisClient("redis://localhost:6379");
+	it("should create a client from a single-node config", () => {
+		const client = createRedisClient({
+			mode: "single",
+			url: "redis://localhost:6379" as never,
+		});
 		expect(client).toBeInstanceOf(Redis);
 	});
 });

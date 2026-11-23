@@ -6,6 +6,7 @@ import {
 	type ForwardContext,
 	type LayerMemory,
 	type NeuralNetworkConfig,
+	NormalisationType,
 } from "./type";
 
 export class FeedForwardEngine {
@@ -109,6 +110,9 @@ export class FeedForwardEngine {
 		input: Float32Array,
 		params?: NormalizeParams
 	): Float32Array {
+		if (this._config.normalisationType === NormalisationType.None) {
+			return input;
+		}
 		const data = new Float32Array(input);
 		const len = data.length;
 

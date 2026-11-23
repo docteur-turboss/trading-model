@@ -33,11 +33,21 @@ export function createDbConfigFromEnv(
 	if (Boolean(certPath) !== Boolean(keyPath)) {
 		throw new Error("DB_SSL_CERT and DB_SSL_KEY must be set together");
 	}
+	const user = process.env.DB_USER ?? "root";
+	const password = process.env.DB_PASSWORD ?? "";
+	if (
+		process.env.NODE_ENV === "production" &&
+		(user === "root" || password === "")
+	) {
+		throw new Error(
+			"DB_USER must be a dedicated non-root user and DB_PASSWORD non-empty in production"
+		);
+	}
 	return {
 		host: Hostname.of(process.env.DB_HOST ?? "127.0.0.1"),
 		port: Port.of(Number(process.env.DB_PORT) || 3306),
-		user: DbUser.of(process.env.DB_USER ?? "root"),
-		password: DbPassword.of(process.env.DB_PASSWORD ?? ""),
+		user: DbUser.of(user),
+		password: DbPassword.of(password),
 		database: DbName.of(process.env.DB_NAME ?? "financial_scraper"),
 		...(caPath
 			? {
