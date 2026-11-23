@@ -28,6 +28,7 @@ import {
 	insertCandles,
 	lastCandleOpenTime,
 	selectCandlesBy,
+	selectLatestClosedCandles,
 } from "../../src/adapters/outbound/persistence/schema/candles.schema";
 import {
 	insertOrderBook,
@@ -205,10 +206,10 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
 		await expect(tables()).resolves.toEqual(ALL_TABLES);
 
-		// 012 (trades id, down is a no-op), 010 (index), 009 (signals.area), 008 (market_order_books).
-		migrate("down", "4");
+		// 013 (candles index), 012 (trades id, down is a no-op), 010 (index), 009 (signals.area), 008 (market_order_books).
+		migrate("down", "5");
 		await expect(appliedMigrations()).resolves.toEqual(
-			MIGRATION_IDS.slice(0, -4)
+			MIGRATION_IDS.slice(0, -5)
 		);
 		await expect(tables()).resolves.toEqual(
 			ALL_TABLES.filter((table) => table !== "market_order_books")
@@ -560,6 +561,45 @@ describe("lastCandleOpenTime — real MySQL", () => {
 		]);
 
 		await expect(lastCandleOpenTime(SERIES)).resolves.toBe(minute(2));
+	});
+});
+
+describe("selectLatestClosedCandles — real MySQL", () => {
+	const ETH = TradingSymbol.of("ETHUSDT");
+	const at = (minutes: number) => UnixTimestamp.of(T0 + minutes * 60_000);
+	const closed = (minutes: number, overrides: Partial<CandleData> = {}) =>
+		candle({
+			timestamp: at(minutes),
+			closeTimestamp: UnixTimestamp.of(at(minutes) + 59_999),
+			...overrides,
+		});
+
+	it("should return one newest closed row per symbol, the highest id on a tie", async () => {
+		await insertCandles([
+			closed(0, { close: Price.of(1) }),
+			closed(5, { close: Price.of(2) }),
+			closed(9, { close: Price.of(3) }),
+			closed(5, { close: Price.of(4), interval: CandleInterval.Min5 }),
+			closed(2, { symbol: ETH, close: Price.of(7) }),
+		]);
+
+		const rows = await selectLatestClosedCandles(
+			[SYMBOL, ETH],
+			new Date(at(7))
+		);
+
+		expect(rows.map((row) => [row.symbol, row.close]).sort()).toEqual([
+			["BTCUSDT", 4],
+			["ETHUSDT", 7],
+		]);
+	});
+
+	it("should use the symbol/close index", async () => {
+		const [plan] = await DATABASE.promise().query(
+			"EXPLAIN SELECT MAX(close_timestamp) FROM market_candles WHERE symbol = 'BTCUSDT' AND close_timestamp <= NOW()"
+		);
+
+		expect(JSON.stringify(plan)).toContain("idx_candles_symbol_close");
 	});
 });
 

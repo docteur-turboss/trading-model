@@ -51,10 +51,11 @@ export class ScraperPrices implements PricePort {
 			{ serviceName: ServiceId.of("financial-scraper") },
 			Page
 		);
-		const oldest = this._now() - HARD_CEILINGS.haltAgeMs;
+		const now = this._now();
+		const oldest = now - HARD_CEILINGS.haltAgeMs;
 		for (const row of page?.rows ?? []) {
 			const at = Date.parse(row.closeTimestamp);
-			if (at >= oldest) {
+			if (at >= oldest && at <= now) {
 				prices[row.symbol] = { price: row.close, at };
 			}
 		}

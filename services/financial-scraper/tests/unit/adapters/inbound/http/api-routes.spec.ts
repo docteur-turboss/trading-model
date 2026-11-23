@@ -41,8 +41,9 @@ jest.mock(
 );
 jest.mock(
 	"../../../../../src/adapters/outbound/persistence/schema/candles.schema",
-	() => ({ selectCandlesBy })
+	() => ({ selectCandlesBy, selectLatestClosedCandles })
 );
+const selectLatestClosedCandles = jest.fn<(...args: any[]) => any>();
 const findForAsset = jest.fn<(...args: any[]) => any>();
 jest.mock(
 	"../../../../../src/adapters/outbound/persistence/signal-store",
@@ -208,6 +209,30 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			const { status } = await get(route, path);
 
 			expect(status).toBe(200);
+		});
+
+		it("queries the latest closed candle of each listed symbol", async () => {
+			selectLatestClosedCandles.mockResolvedValue([]);
+
+			const { status } = await get(
+				SCRAPER_API.candlesLatest,
+				"/candles/latest?symbols=BTCUSDT,,ETHUSDT"
+			);
+
+			expect(status).toBe(200);
+			expect(selectLatestClosedCandles).toHaveBeenCalledWith(
+				["BTCUSDT", "ETHUSDT"],
+				expect.any(Date)
+			);
+		});
+
+		it.each([
+			["/candles/latest?symbols="],
+			[`/candles/latest?symbols=${"A,".repeat(101)}`],
+		])("%#: rejects an empty or oversized symbol list", async (path) => {
+			const { status } = await get(SCRAPER_API.candlesLatest, path);
+
+			expect(status).toBe(400);
 		});
 
 		it("queries the candles after a date", async () => {
