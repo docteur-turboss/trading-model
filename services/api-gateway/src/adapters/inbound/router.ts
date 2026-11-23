@@ -143,13 +143,12 @@ const createCatchAllRoute = (env: Env) => {
 		}
 
 		if (allowedProxyRanges.length === 0 && env.NODE_ENV === "production") {
-			logger.error(
-				"Proxy target IP validation disabled — ALLOWED_PROXY_CIDRS is empty in production"
-			);
-			SERVICE_ERRORS_TOTAL.inc({ service: serviceName });
-			return sendResponse(
-				{ error: "Service unavailable — server misconfiguration" },
-				HTTP_STATUS.SERVICE_UNAVAILABLE
+			return _unavailable(
+				serviceName,
+				"error",
+				"Proxy target IP validation disabled — ALLOWED_PROXY_CIDRS is empty in production",
+				undefined,
+				"Service unavailable — server misconfiguration"
 			);
 		}
 
