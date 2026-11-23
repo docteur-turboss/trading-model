@@ -1,9 +1,9 @@
 /**
  * Scopes of an API key (ADR-0059): `read` for the GET routes of
- * `PUBLIC_ROUTES`, `dlq:write` for the others (delete, replay DLQ
- * entries).
+ * `PUBLIC_ROUTES`, `dlq:write` for the other DLQ routes (delete, replay),
+ * `risk:admin` for the risk-execution kill switch (engage, re-arm).
  */
-const API_SCOPES = ["read", "dlq:write"] as const;
+const API_SCOPES = ["read", "dlq:write", "risk:admin"] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 
 /** A key of `AUTH_TOKENS`. Only `name` leaves the gateway, never `secret`. */
@@ -46,8 +46,11 @@ export function parseApiKey(entry: string): ApiKey | { error: string } {
 	return { name, scopes, secret };
 }
 
-/** Scope a public route needs: `read` for GET, `dlq:write` otherwise. */
-export function requiredScope(method: string): ApiScope {
-	// Every non-GET public route is a DLQ write (public-routes.spec checks it).
-	return method === "GET" ? "read" : "dlq:write";
+/** Scope a public route needs: `read` for GET, `risk:admin` for risk-execution, `dlq:write` otherwise. */
+export function requiredScope(method: string, pattern = ""): ApiScope {
+	if (method === "GET") {
+		return "read";
+	}
+	// Every other non-GET public route is a DLQ write (api-keys.spec checks it).
+	return pattern.includes("/risk-execution/") ? "risk:admin" : "dlq:write";
 }
