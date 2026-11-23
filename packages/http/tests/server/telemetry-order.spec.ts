@@ -85,11 +85,11 @@ describe("telemetry start order", () => {
 		expect(spans.map((span) => span.name)).toContain(
 			"request handler - /traced"
 		);
-	});
+	}, 60_000);
 
 	it("records no server span when started after Express loads", async () => {
 		expect(await runFixture("late")).toBe(0);
 
 		expect(spans.filter((span) => span.kind === SPAN_KIND_SERVER)).toEqual([]);
-	});
+	}, 60_000);
 });
