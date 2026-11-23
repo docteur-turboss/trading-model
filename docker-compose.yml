@@ -136,8 +136,11 @@ services:
     restart: unless-stopped
     mem_limit: 2g
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-financial_scraper}
+      # Application user: all privileges on MYSQL_DATABASE only (created at first init)
+      MYSQL_USER: ${MYSQL_USER:-scraper}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
     volumes:
       - mysql-data:/var/lib/mysql
     networks:
@@ -167,14 +170,36 @@ services:
     environment:
       DB_HOST: mysql
       DB_PORT: "3306"
-      DB_USER: ${MYSQL_USER:-root}
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      # root assumed: the migrator may need privileges beyond one database
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
       DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
     networks:
       - data-net
     depends_on:
       mysql:
         condition: service_healthy
+
+  # Paged read indexes (ADR-0088): built apart from `migrate`, nothing waits for it.
+  index-build:
+    logging: *default-logging
+    build:
+      context: .
+      dockerfile: deploy/migrate/Dockerfile
+    container_name: trading-index-build
+    restart: "no"
+    command: ["index-build"]
+    environment:
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_USER: ${MYSQL_USER:-root}
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
+    networks:
+      - data-net
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
   # ---------------------------------------------------------------------------
   #  Discovery Server — Service registry & lease management
@@ -362,8 +387,8 @@ services:
       # Same file as the K8s ConfigMap financial-scraper-signal-registry (issue #1308).
       SIGNAL_REGISTRY_FILE: /etc/signal-registry/signal-registry.json
       SIGNAL_NON_COMMERCIAL_ACCEPTED: ${SIGNAL_NON_COMMERCIAL_ACCEPTED:-}
-      DB_USER: ${MYSQL_USER:-root}
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_USER: ${MYSQL_USER:-scraper}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
       DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
       DB_HOST: mysql
       DB_PORT: '3306'
@@ -604,7 +629,7 @@ services:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------
-  #  Decision Consumer — paper decisions of the promoted models, intents to risk-execution (ADR-0049 option C, ADR-0087)
+  #  Decision Consumer — paper decisions of the promoted models, intents to risk-execution (ADR-0049 option C, ADR-0088)
   # ---------------------------------------------------------------------------
   decision-consumer:
     logging: *default-logging
@@ -1158,28 +1183,34 @@ services:
       - backend-net
 
   # Only holder of the Docker socket (ADR-0011 amendment), mounted read-only.
-  # GET allow-list (issue #1623): ping, version, container and network lists (promtail
-  # discovery), inspect (SPIRE Docker attestor, promtail discovery) and logs (promtail tailing); archive, export, any other
-  # path and any non-GET answer 403. Remaining limits: inspect returns the Env of any
-  # container of the daemon (unavoidable for the attestor) and the logs of another
-  # project's container stay readable (promtail needs them).
-  # No shell in the image, so no healthcheck: dependants start with it and retry.
+  # nginx + njs (deploy/docker-socket-proxy/, issue #2409): GET only on ping, version,
+  # networks, the container list (always filtered on this compose project's label),
+  # inspect (SPIRE Docker attestor, promtail) and logs (promtail tailing). Inspect and
+  # logs answer 403 for a container of another project, inspect never returns
+  # Config.Env, and every other path or method answers 403 (logged on stdout).
+  # Remaining limit: /networks lists every network of the daemon (names only).
   docker-socket-proxy:
     logging: *default-logging
-    image: wollomatic/socket-proxy:1.13.2@sha256:ff95d6ff6c27853005ef85eb8f4ab5923dc3d2f1e055f98fb6aeeaceec3fe848
+    image: nginx:1.31.8-alpine@sha256:fed7e14be83cbd2661a75cdc5b872d936cf155d46c327084d30b8df19ae88d72  # nginx 1.31.8-alpine
     container_name: trading-docker-socket-proxy
     restart: unless-stopped
-    # Root to read the socket, no capability.
+    # Root to read the root-owned socket; SETGID only for nginx's worker initgroups.
     user: "0"
-    command:
-      - -listenip=0.0.0.0
-      - -allowfrom=0.0.0.0/0
-      - -allowGET=^(/v[0-9.]+)?/(_ping|version|containers/json|networks|containers/[a-f0-9]+/(json|logs))$$
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:mode=1777
+      - /var/run:mode=1777
+      - /tmp:mode=1777
+    environment:
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}
     volumes:
+      - ./deploy/docker-socket-proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/docker-socket-proxy/docker-api.js:/etc/nginx/docker-api.js:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - docker-api-net
     cap_drop: [ALL]
+    cap_add: [SETGID]
     security_opt:
       - no-new-privileges:true
 
