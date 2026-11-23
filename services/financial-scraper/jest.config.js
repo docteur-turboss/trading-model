@@ -7,4 +7,6 @@ module.exports = jestConfig(__dirname, {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^config/(.*)$': '<rootDir>/src/config/$1',
   },
+  // Process wiring (bootstrap, server, container): exercised by the E2E and k8s jobs.
+  coveragePathIgnorePatterns: ['/node_modules/', 'src/application/(index|server|telemetry)\.ts', 'src/config/container\.ts'],
 });
