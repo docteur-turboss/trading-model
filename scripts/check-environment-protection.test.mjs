@@ -24,6 +24,7 @@ test('staging: no v* tag rule', () => assert.deepEqual(checkEnvironment(env([]),
 test('staging: no branch limit', () => assert.match(checkEnvironment(env([], false), [], RULES.staging)[0], /not limited/));
 test('staging: missing main', () => assert.deepEqual(checkEnvironment(env([]), [...br('development'), ...tag], RULES.staging), ['no deployment branch rule "main"']));
 test('staging: extra branch', () => assert.deepEqual(checkEnvironment(env([]), [...br('development', 'main', 'x*'), ...tag], RULES.staging), ['unexpected deployment branch rule "x*"']));
+test('compose: same rule as staging', () => assert.deepEqual(RULES.compose, RULES.staging));
 test('release: reviewer without self-review rule is enough', () => assert.deepEqual(checkEnvironment(env([rule({ prevent_self_review: false })]), tag, RULES.release), []));
 test('release: no reviewer', () => assert.deepEqual(checkEnvironment(env([]), tag, RULES.release), ['no required reviewer']));
 const key = RULES['backup-key-check'];
