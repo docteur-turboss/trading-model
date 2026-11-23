@@ -15,6 +15,7 @@ on:
       - 'scripts/verify-backup-key.sh'
       - 'scripts/sealed-secrets-backup-identity.sh'
       - 'scripts/rotate-secrets.sh'
+      - 'scripts/compose-secrets.sh'
       - 'deploy/backup/**'
       - 'tests/backup/**'
       - 'tests/k8s/sealed-secrets-key-drill.sh'
@@ -164,6 +165,8 @@ jobs:
 
       - name: Test rotate-secrets.sh
         run: bash tests/backup/rotate-secrets.test.sh
+n      - name: Test compose-secrets.sh
+        run: bash tests/backup/compose-secrets.test.sh
 
       - name: Build backup-tools
         run: docker build -q -t backup-tools deploy/backup
