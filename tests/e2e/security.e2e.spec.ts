@@ -132,7 +132,12 @@ describe("Security E2E", () => {
 				"sleep",
 				"300"
 			);
-			projectId = docker("inspect", "-f", "{{.Id}}", "trading-promtail");
+			projectId = docker(
+				"inspect",
+				"-f",
+				"{{.Id}}",
+				"trading-docker-socket-proxy"
+			);
 		});
 		afterAll(() => {
 			docker("rm", "-f", OTHER);
@@ -142,7 +147,7 @@ describe("Security E2E", () => {
 			expect(proxyStatus("/containers/json")).toBe("200");
 			expect(proxyStatus("/networks")).toBe("200");
 			const names = proxyBody("/containers/json?all=1");
-			expect(names).toContain("trading-promtail");
+			expect(names).toContain("trading-docker-socket-proxy");
 			expect(names).not.toContain(OTHER);
 		});
 
