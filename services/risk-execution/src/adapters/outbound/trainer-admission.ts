@@ -32,7 +32,7 @@ export class TrainerAdmission implements AdmissionPort {
 			ServiceInstanceName.TraderTrainerService
 		);
 		const url = URLString.of(
-			`https://${HostPort.toAddress(target)}/models/${encodeURIComponent(symbol)}/${encodeURIComponent(version)}`
+			`https://${HostPort.toAddress(target)}/v1/models/${encodeURIComponent(symbol)}/${encodeURIComponent(version)}`
 		);
 		const body = await this._http.get(
 			url,
