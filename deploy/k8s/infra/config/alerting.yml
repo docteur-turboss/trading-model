@@ -33,7 +33,7 @@ groups:
           severity: critical
           slo: latency
         annotations:
-          summary: 'Latency SLO fast burn rate exceeded'
+          summary: 'Latency SLO: p95 latency above 5 s'
           description: 'P95 latency > 5s over 5m — exceeding 2s SLO target.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slolatencyfastburn'
 
@@ -44,7 +44,7 @@ groups:
           severity: warning
           slo: latency
         annotations:
-          summary: 'Latency SLO slow burn rate exceeded'
+          summary: 'Latency SLO: p95 latency above 3 s'
           description: 'P95 latency > 3s over 1h — approaching 2s SLO target breach.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#which-alert-tells-what'
 
@@ -470,16 +470,6 @@ groups:
           summary: 'Training completion rate below 50%'
           description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 12h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
-
-      - alert: TrainerEventLoopBlocked
-        expr: histogram_quantile(0.99, sum by (job, le) (rate(tt_genome_evaluation_seconds_bucket[15m]))) > 5
-        for: 15m
-        labels:
-          severity: warning
-        annotations:
-          summary: 'trader-trainer event loop blocked for several seconds'
-          description: 'p99 genome evaluation is {{ $value | humanizeDuration }} over 15m (threshold 5 s). Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventloopblocked'
 
       - alert: TrainerEventLoopLagHigh
         expr: max by (job) (nodejs_eventloop_lag_max_seconds{job="trader-trainer"}) > 10
