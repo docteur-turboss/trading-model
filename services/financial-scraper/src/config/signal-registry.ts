@@ -69,16 +69,6 @@ function _holeValue(asset: Asset, hole: string): string | undefined {
 		: undefined;
 }
 
-/** Fills the asset holes of a URL (URL-encoded); undefined when the asset lacks one. */
-export function fillAssetHoles(url: string, asset: Asset): string | undefined {
-	const holes = [...url.matchAll(HOLE)].map((match) => match[1] as string);
-	return holes.some((hole) => _holeValue(asset, hole) === undefined)
-		? undefined
-		: url.replace(HOLE, (_, hole: string) =>
-				encodeURIComponent(_holeValue(asset, hole) as string)
-			);
-}
-
 /** Unfolds the templates of a source into requests; every problem goes to `problems`. */
 function _expandTemplates(
 	source: { id: string; templates: readonly SourceTemplate[] },

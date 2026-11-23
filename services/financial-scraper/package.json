@@ -19,7 +19,6 @@
   "type": "commonjs",
   "main": "./dist/application/index.js",
   "bin": {
-    "signal-backfill": "./dist/application/signal-backfill.js",
     "order-book-replay": "./dist/application/order-book-replay.js"
   },
   "scripts": {
