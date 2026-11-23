@@ -132,6 +132,7 @@ export async function createRiskExecutionApp() {
 			const router = Router();
 			mountRoute(router, RISK_API.intent, handlers.intent);
 			mountRoute(router, RISK_API.cancel, handlers.cancel);
+			mountRoute(router, RISK_API.position, handlers.position);
 			mountRoute(router, RISK_API.adminStatus, handlers.adminStatus);
 			mountRoute(router, RISK_API.adminEngage, handlers.adminEngage);
 			mountRoute(router, RISK_API.adminRearm, handlers.adminRearm);

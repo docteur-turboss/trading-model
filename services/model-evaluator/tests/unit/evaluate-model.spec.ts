@@ -162,9 +162,14 @@ describe("evaluate a published model", () => {
 			store,
 			scraper: {
 				candles: (_s, _f, _t, _i, signal) =>
-					new Promise((_, reject) =>
-						signal?.addEventListener("abort", () => reject(signal.reason))
-					),
+					new Promise((_, reject) => {
+						// On a slow runner the 20 ms budget can expire before this call.
+						if (signal?.aborted) {
+							reject(signal.reason);
+							return;
+						}
+						signal?.addEventListener("abort", () => reject(signal.reason));
+					}),
 			},
 			trainer: {
 				manifest: async () =>
