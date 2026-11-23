@@ -347,15 +347,12 @@ export class RedisMessageJournal implements MessageJournalPort {
 			return;
 		}
 		for (const row of rows) {
-			const info = new Map<unknown, unknown>();
-			for (let i = 0; i < row.length; i += 2) {
-				info.set(row[i], row[i + 1]);
-			}
-			const name = String(info.get("name"));
+			const info = toRecord(row);
+			const name = String(info.name);
 			if (
 				name !== keep &&
-				Number(info.get("pending")) === 0 &&
-				Number(info.get("idle")) >= idleMs
+				Number(info.pending) === 0 &&
+				Number(info.idle) >= idleMs
 			) {
 				await this._deps.redis.call(
 					"XGROUP",

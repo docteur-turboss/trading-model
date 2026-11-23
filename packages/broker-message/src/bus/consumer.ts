@@ -152,13 +152,19 @@ export class BusConsumer {
 					const claim = Date.now() - lastClaim >= CLAIM_EVERY_MS;
 					if (claim) {
 						lastClaim = Date.now();
-					}
-					if (claim) {
-						await journal.pruneConsumers(
-							group,
-							this._consumer,
-							CONSUMER_IDLE_MS
-						);
+						// Housekeeping must not stop delivery (e.g. NOPERM before the ACL ships).
+						try {
+							await journal.pruneConsumers(
+								group,
+								this._consumer,
+								CONSUMER_IDLE_MS
+							);
+						} catch (err) {
+							getLogger().warn("Bus consumer prune failed", {
+								context: { topic: group.topic, service: group.service },
+								error: normalizeError(err),
+							});
+						}
 					}
 					const entries = claim
 						? await journal.claimDue(

@@ -175,6 +175,25 @@ describe("RedisMessageJournal blocking reads — real Redis", () => {
 		journal.close();
 	});
 
+	it("should remove a dead consumer with nothing pending and keep one holding an entry", async () => {
+		const journal = journalOn(replica());
+		await journal.register(GROUP);
+		await journal.append(createMockMessage("m1"), [GROUP.service]);
+		await journal.append(createMockMessage("m2"), [GROUP.service]);
+		await journal.readNew(GROUP, "busy", 1);
+		await journal.readNew(GROUP, "dead", 1);
+		await journal.claimDue(GROUP, "dead", RETRY_NOW, 1);
+		await journal.pruneConsumers(GROUP, "me", 0);
+
+		const rows = (await replica().call(
+			"XINFO",
+			"CONSUMERS",
+			stream(),
+			GROUP.service
+		)) as unknown[][];
+		expect(rows.map((row) => row[1])).toEqual(["busy"]);
+	});
+
 	it("should create the group again when Redis lost it", async () => {
 		const journal = journalOn(replica());
 		await journal.register(GROUP);

@@ -463,6 +463,28 @@ describe("BusConsumer", () => {
 		await c.stop();
 
 		expect(handler).not.toHaveBeenCalled();
+		expect(await parts.streams.list(TOPIC)).toEqual([
+			expect.objectContaining({ reason: "MAX_RETRIES_EXCEEDED" }),
+		]);
+		expect(pendingOf(parts.redis)).toBe(0);
+	});
+
+	it("should keep delivering when pruning consumers fails", async () => {
+		const handled: unknown[] = [];
+		const { consumer: c, journal } = consumer(async (m) => {
+			handled.push(m.payload);
+		});
+		await journal.register(GROUP);
+		jest
+			.spyOn(journal, "pruneConsumers")
+			.mockRejectedValueOnce(new Error("NOPERM"));
+		await publishToBus(journal, "a", METADATA);
+
+		await c.start([TOPIC]);
+		await until(() => handled.length === 1);
+		await c.stop();
+
+		expect(handled).toEqual(["a"]);
 	});
 
 	it("should leave the entry pending when the dead stream write fails", async () => {
