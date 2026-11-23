@@ -1,9 +1,16 @@
 import { makePRNG } from "@trading-model/crypto/prng";
 import { AGENT_STATE_DIM } from "@trading-model/model-runtime/agent/agent-state";
-import { evaluateFitness } from "./evaluation-pipeline";
+import {
+	evaluateFitness,
+	evaluateGenomeAllWindows,
+} from "./evaluation-pipeline";
 import { createDefaultGenome } from "./factory";
 import { type GaTelemetry, NoopGaTelemetry } from "./ga-telemetry";
-import type { GARunnerConfig, GenerationContext } from "./generation-types";
+import type {
+	GARunnerConfig,
+	GenerationContext,
+	WindowSet,
+} from "./generation-types";
 import type { GAControlGenome, LamarckGenome, PopMember } from "./genome";
 import { adaptGAControl } from "./genome-control";
 import { selectElites } from "./offspring-factory";
@@ -15,6 +22,7 @@ import {
 	buildNextPopulation,
 	createInitialPopulation,
 } from "./population-builder";
+import { rotatingWindowSets } from "./shared-trunk";
 import { type DeepReadonly, deepFreeze } from "./shared-types";
 import { StagnationTracker, type TrackResult } from "./stagnation-tracker";
 
@@ -29,6 +37,7 @@ export class GenerationProcessor {
 	private _generation = 0;
 	private _archive = new ParetoArchive();
 	private _stagnationTracker = new StagnationTracker();
+	private _finalBest: ArchiveBest | undefined;
 	private readonly _telemetry: GaTelemetry;
 
 	constructor(private readonly _cfg: GARunnerConfig) {
@@ -46,7 +55,7 @@ export class GenerationProcessor {
 	}
 	/** Front member with the highest fitness: the genome a run publishes. */
 	get archiveBest(): ArchiveBest | undefined {
-		return this._archive.best();
+		return this._finalBest ?? this._archive.best();
 	}
 	get lastBestGenome(): DeepReadonly<LamarckGenome> | undefined {
 		return this.archiveBest?.genome;
@@ -65,8 +74,40 @@ export class GenerationProcessor {
 			this._cfg.inputGroups?.length
 		);
 		this._generation = 0;
+		this._finalBest = undefined;
 		this._archive = new ParetoArchive();
 		this._stagnationTracker = new StagnationTracker();
+	}
+
+	/**
+	 * With a rotating subset (k < N), archive fitnesses come from different
+	 * symbol slices and are not comparable: score every front member on all
+	 * symbols and publish the best of those (ADR-0076 step 1).
+	 */
+	async selectOnAllSymbols(): Promise<void> {
+		const all = this._cfg.windowSets;
+		const members = this._archive.members;
+		if (
+			rotatingWindowSets(all, this._cfg.symbolsPerGeneration, 0, 1) === all ||
+			members.length === 0
+		) {
+			return;
+		}
+		const rng = makePRNG(members[0].gaControl.seeding.mutationSeed);
+		let best: ArchiveBest | undefined;
+		for (const member of members) {
+			const { updatedGenome, meta } = await evaluateGenomeAllWindows(
+				member,
+				all,
+				this._cfg.backendFactory,
+				this._telemetry,
+				rng
+			);
+			if (!best || meta.efficiencyScore > best.fitness) {
+				best = { genome: updatedGenome, fitness: meta.efficiencyScore, meta };
+			}
+		}
+		this._finalBest = best;
 	}
 
 	async runGeneration(startTime?: number): Promise<GenerationContext> {
@@ -75,7 +116,12 @@ export class GenerationProcessor {
 		const { ctrl, rng } = this._initRunParams();
 		const evalResult = await evaluateFitness({
 			population: this._population,
-			windowSets: this._cfg.windowSets,
+			windowSets: rotatingWindowSets(
+				this._cfg.windowSets,
+				this._cfg.symbolsPerGeneration,
+				this._cfg.initialControl?.seeding?.networkSeed ?? 0,
+				this._generation
+			) as WindowSet[],
 			backendFactory: this._cfg.backendFactory,
 			telemetry: this._telemetry,
 			rng,

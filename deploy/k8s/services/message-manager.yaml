@@ -43,7 +43,9 @@ spec:
       serviceAccountName: message-manager
       # preStop 15 s + leaving discovery while callers' caches expire
       # (CACHE_TTL_MS, 30 s) + in-flight publishes (PUBLISH_ACCEPT_TIMEOUT_MS,
-      # 15 s) + deliveries in flight (10 s).
+      # 15 s) = 60 s; an HTTP delivery in flight may last up to 90 s
+      # (DELIVERY_ATTEMPT_TIMEOUT_MS): worst case 150 s, beyond the grace, so it
+      # is cut and redelivered. The HTTP path goes with #1241.
       # Messages not delivered yet stay in the Redis journal (ADR-0048).
       terminationGracePeriodSeconds: 120
       securityContext:

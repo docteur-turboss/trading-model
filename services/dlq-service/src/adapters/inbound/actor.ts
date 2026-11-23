@@ -13,7 +13,6 @@ export function actorOf(req: Request): string | null {
 	// Set by the mTLS middleware from the peer certificate.
 	const identity = (req as Request & { clientIdentity?: string })
 		.clientIdentity;
-	// A SPIFFE ID only: extractCanonicalServiceName also maps `client:` names to the gateway.
 	const caller = identity?.includes("spiffe://")
 		? extractCanonicalServiceName(String(identity))
 		: null;

@@ -4,6 +4,7 @@ import type { ApiRouteHandler } from "@trading-model/http/api-route/mount-route"
 import { sendResponse } from "@trading-model/http/response-exception";
 import type { Request } from "express";
 import type { RiskExecution } from "../../application/risk-execution";
+import type { KillTarget } from "../../domain/accounting";
 import type { RISK_API } from "./api-routes";
 
 /** Callers by route (ADR-0064 §1): the ACL lets them in, each route keeps its own. */
@@ -16,13 +17,20 @@ const callerOf = (req: Request): string | null => {
 		? String(extractCanonicalServiceName(identity))
 		: null;
 };
-const scopeError = (body: { scope: string; symbol?: string }) =>
-	body.scope === "symbol" && !body.symbol
-		? sendResponse(
-				{ error: "symbol is required for scope symbol" },
-				HTTP_STATUS.BAD_REQUEST
-			)
-		: null;
+const killTarget = (body: {
+	scope: "global" | "symbol";
+	symbol?: string;
+}): KillTarget | null =>
+	body.scope === "global"
+		? { scope: "global" }
+		: body.symbol
+			? { scope: "symbol", symbol: body.symbol }
+			: null;
+const scopeError = () =>
+	sendResponse(
+		{ error: "symbol is required for scope symbol" },
+		HTTP_STATUS.BAD_REQUEST
+	);
 const forbidden = (req: Request, ...allowed: string[]) =>
 	allowed.includes(callerOf(req) ?? "")
 		? null
@@ -41,7 +49,7 @@ type Handler<Key extends keyof typeof RISK_API> = ApiRouteHandler<
 >;
 
 /**
- * @param decisionConsumers identities allowed to send intents and prices: none until the
+ * @param decisionConsumers identities allowed to send intents: none until the
  * decision consumer exists, with its own identity and ACL entry (ADR-0049 §1.3).
  */
 export function createHandlers(
@@ -60,14 +68,6 @@ export function createHandlers(
 		);
 		return sendResponse(result, HTTP_STATUS.OK);
 	};
-	const price: Handler<"price"> = async ({ body }, req) => {
-		const denied = forbidden(req, ...decisionConsumers);
-		if (denied) {
-			return denied;
-		}
-		await risk.observePrice(body.symbol, body.price, body.at);
-		return sendResponse({ status: "recorded" as const }, HTTP_STATUS.OK);
-	};
 	const cancel: Handler<"cancel"> = async ({ params }, req) => {
 		const denied = forbidden(req, ...decisionConsumers, OPERATOR);
 		if (denied) {
@@ -85,11 +85,11 @@ export function createHandlers(
 		if (denied) {
 			return denied;
 		}
-		const invalid = scopeError(body);
-		if (invalid) {
-			return invalid;
+		const target = killTarget(body);
+		if (!target) {
+			return scopeError();
 		}
-		await risk.engage(body.scope, body.reason, body.actor, body.symbol);
+		await risk.engage(target, body.reason, body.actor);
 		return sendResponse({ status: "engaged" as const }, HTTP_STATUS.OK);
 	};
 	const adminRearm: Handler<"adminRearm"> = async ({ body }, req) => {
@@ -97,12 +97,12 @@ export function createHandlers(
 		if (denied) {
 			return denied;
 		}
-		const invalid = scopeError(body);
-		if (invalid) {
-			return invalid;
+		const target = killTarget(body);
+		if (!target) {
+			return scopeError();
 		}
 		try {
-			await risk.rearm(body.scope, body.reason, body.actor, body.symbol);
+			await risk.rearm(target, body.reason, body.actor);
 		} catch (error) {
 			return sendResponse(
 				{ error: error instanceof Error ? error.message : "refused" },
@@ -111,5 +111,5 @@ export function createHandlers(
 		}
 		return sendResponse({ status: "rearmed" as const }, HTTP_STATUS.OK);
 	};
-	return { intent, price, cancel, adminStatus, adminEngage, adminRearm };
+	return { intent, cancel, adminStatus, adminEngage, adminRearm };
 }

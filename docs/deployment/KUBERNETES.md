@@ -17,7 +17,7 @@ This guide covers deploying the Trading Model platform on Kubernetes. The K8s ma
   the trainer checkpoints PVC (`trainer-checkpoints-pvc`)
 - CRDs, installed before the first deploy (operators are not installed by the manifests):
   `verticalpodautoscalers.autoscaling.k8s.io` (VPA, recommendations only: `updateMode: "Off"`,
-  the HPAs own CPU and memory scaling), `sealedsecrets.bitnami.com` (production), cert-manager
+  the HPAs own scaling, on CPU), `sealedsecrets.bitnami.com` (production), cert-manager
   (`ClusterIssuer` `letsencrypt-prod`) and an `IngressClass` named `nginx`
 - `deploy.yml` derives these from the rendered overlay (`deploy/k8s/scripts/check-prereqs.sh`) and
   refuses, listing what is missing, before the first apply
@@ -289,7 +289,7 @@ No price is stated: it depends on the provider, which is not chosen.
 
 | Dependency | Free only if | Where |
 | ---------- | ------------ | ----- |
-| GitHub Actions (CI, about 10^5 runner-minutes per month per the 2026-11-12 FinOps audit, an estimate) | the repository stays **public**; private repositories bill minutes | `.github/workflows/` |
+| GitHub Actions (CI, about 3×10^5 job-minutes per month, measured on 2026-11-22 over 1000 runs (±50 %); re-measure: `gh run list --limit 1000 --json databaseId,createdAt`, then sum the job durations of `gh run view <id> --json jobs`) | the repository stays **public**; private repositories bill minutes | `.github/workflows/` |
 | GHCR images (`ghcr.io/<owner>`) | the packages stay public | `release.yml` |
 | Data sources | each `accessPolicy.terms` is `public-domain` or `attribution` | `services/financial-scraper/src/config/signal-registry.json`, ADR-0036 |
 | Off-site backup bucket (S3, Object Lock) | never: paid storage, provider not chosen | [BACKUP_DR.md](BACKUP_DR.md), ADR-0033 |
@@ -381,11 +381,10 @@ All services have NetworkPolicies that restrict ingress/egress:
   in other namespaces such as `trading-model-staging` work), except api-gateway
   (ingress controller) and edge-proxy (any namespace, port 8080). edge-proxy may
   only egress to the api-gateway
-- Egress: only to required infrastructure ports, plus the shared
-  `allow-dns-and-telemetry-egress` policy (cluster DNS, OTLP to the collector)
-  for the components with an egress policy. It lists them explicitly: a
-  policy selecting a pod for Egress isolates its egress, so selecting every
-  pod would cut the others (Redis, Mongo, Grafana...) down to DNS + OTLP
+- Default deny: `default-deny-all` (`deploy/k8s/base/network-policies.yaml`)
+  isolates every pod for Ingress and Egress. `allow-dns-and-telemetry-egress`
+  gives every pod cluster DNS and OTLP to the collector; each component's
+  policy adds its own ports (a workload without one reaches nothing)
 - External egress: only for financial-scraper (Binance API)
 
 ### Encryption at Rest

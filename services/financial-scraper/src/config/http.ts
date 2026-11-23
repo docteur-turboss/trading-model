@@ -108,7 +108,11 @@ export function createHttpClient(baseURL: string): AxiosInstance {
 
 function _attachRateLimiter(instance: AxiosInstance, baseURL: string): void {
 	instance.interceptors.request.use(async (config) => {
-		await acquireToken(baseURL, config.weight ?? 1);
+		await acquireToken(
+			baseURL,
+			config.weight ?? 1,
+			config.signal as AbortSignal | undefined
+		);
 		return config;
 	});
 }

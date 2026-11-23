@@ -1,5 +1,6 @@
 import { mountRoute } from "@trading-model/http/api-route/mount-route";
 import { createServiceServer } from "@trading-model/http/service-server-factory";
+import { redisReadinessCheck } from "@trading-model/persistence/redis-readiness";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import { Router } from "express";
 import { EVALUATOR_API } from "../adapters/inbound/api-routes";
@@ -24,6 +25,6 @@ export function createServer(
 			app.get("/metrics", metricsHandler);
 			ADDRESS_MANAGER_ROUTES(app);
 		},
-		readiness: [REGISTRATION_READINESS],
+		readiness: [REGISTRATION_READINESS, redisReadinessCheck(ENV)],
 	});
 }

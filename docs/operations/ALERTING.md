@@ -75,7 +75,9 @@ not scraped yet, only Loki's own metrics are.
 
 The collector (K8s only; compose exports straight to Jaeger, so the rule stays
 silent there) reports `otelcol_exporter_send_failed_spans` on `:8888`. Spans
-are being dropped between collector and Jaeger.
+are being dropped between collector and Jaeger. The exporter retries for 15
+minutes, so a Jaeger restart on a rollout (Badger start, up to 5 minutes) drops
+nothing; the alert means Jaeger stayed unreachable longer.
 
 1. `kubectl logs deploy/otel-collector`: look for export errors to `jaeger:4317`.
 2. Check the `jaeger` Service has ready endpoints.
@@ -104,6 +106,7 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `BusDeadLetters` | A dead stream holds entries (`bus_dead_letters`): a subscriber group gave up on them, an operator replays or deletes them with `audit-dlq` | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `DlqAuditEventLost` | a DLQ delete or replay was done but message-manager refused its audit event (`dlq_audit_publish_failures_total`): not in the audit chain, the API answered 502 (ADR-0059) | [runbook-dlq-backlog#dlqauditeventlost](runbooks/runbook-dlq-backlog.md#dlqauditeventlost) |
 | `KillSwitchEngaged` | the Risk/Execution kill switch is engaged (global or per symbol): no new order, open orders cancelled, manual re-arming only | [runbook-risk-execution#killswitchengaged](runbooks/runbook-risk-execution.md#killswitchengaged) |
+| `RiskTickFailing` | the risk-execution tick failed repeatedly for 5 min (`risk_tick_failures_total`): state write or reconciliation error | [runbook-risk-execution#risktickfailing](runbooks/runbook-risk-execution.md#risktickfailing) |
 | `ReconciliationMismatch` | risk-execution found a position, open order or balance difference with the broker (ADR-0064 §4) | [runbook-risk-execution#reconciliationmismatch](runbooks/runbook-risk-execution.md#reconciliationmismatch) |
 | `RiskRejectRatioHigh` | risk-execution rejected over 50% of the order intents for 15 min (`risk_orders_total`) | [runbook-risk-execution#riskrejectratiohigh](runbooks/runbook-risk-execution.md#riskrejectratiohigh) |
 | `RiskMarketDataStale` | the newest reference price of an allowed instrument is older than 15 min (ADR-0064 §7) | [runbook-risk-execution#riskmarketdatastale](runbooks/runbook-risk-execution.md#riskmarketdatastale) |

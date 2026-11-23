@@ -34,7 +34,7 @@ export function isEventDriven(horizon: HorizonGenome): boolean {
 /**
  * Detectors on bar `index`, from the bars closed up to and including it (the
  * decision is taken on its close): the close moved by `priceMove` over the
- * last EVENT_WINDOW bars, or the volume reached `volumeMultiple` deviations.
+ * last EVENT_WINDOW bars, or the volume / its standard deviation (`volumeRatio`) reached `volumeMultiple`.
  * No order-book detector: candles carry no book imbalance (ADR-0078).
  */
 function fires(

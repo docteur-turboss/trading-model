@@ -113,7 +113,9 @@ main() {
   MONGO_DLQ_KEYFILE="${MONGO_DLQ_KEYFILE:-$(rand_hex 64)}"
 
   if ! $DRY_RUN; then
-    local plaintext_app="/tmp/trading-model-secrets-plaintext.yaml"
+    # Global, not local: the EXIT trap must still see it when set -e exits mid-main.
+    plaintext_app=$(umask 077; mktemp)
+    trap 'rm -f "$plaintext_app"' EXIT
     cat > "$plaintext_app" <<EOF
 apiVersion: v1
 kind: Secret

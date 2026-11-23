@@ -135,11 +135,11 @@ This register documents the processing activities of the trading-model platform,
 | ------------------------ | ------------------- | ------------------- | ---------------------------- | ---------------------------- |
 | Market Data Ingestion    | ❌ None             | —                   | 1827 days (`db-retention`) | Received from Binance; functional contact address sent to signal sources (US included) |
 | Message Routing          | ❌ None             | —                   | Redis journal 24 h; DLQ 30 days       | None                         |
-| Audit Logging            | ❌ None             | —                   | 5 years (1827 days)          | None                         |
+| Audit Logging            | ✅ Pseudonym `actor` | See activity 8      | 5 years (1827 days)          | None                         |
 | Workload Identity        | ❌ None             | —                   | 4h–168h                      | None                         |
 | ML Training              | ❌ None             | —                   | Per-agent                    | None                         |
 | API Access Logs          | ✅ Truncated IP     | Legitimate interest | 31 days                      | None                         |
 | Operator Access          | ✅ E-mail, name, login, key name | Legitimate interest | Accounts until departure; logs 31 days; `actor` 5 years | None |
-| Telemetry and Backups    | ❌ None             | —                   | 30–31 days                   | Off-site store / Slack (TBD) |
+| Telemetry and Backups    | ❌ None             | —                   | 31 days online; backups up to 60 months | Off-site store / Slack (TBD) |
 
 **Conclusion:** two activities process personal data: a truncated caller IP kept 31 days (activity 6) and operator data (activity 8). Data subject rights apply. For callers, since a truncated address cannot be linked to a requester, Art. 11 applies (no additional data collected to identify them).

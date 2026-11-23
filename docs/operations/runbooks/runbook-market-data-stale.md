@@ -49,35 +49,19 @@ kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
    Lease (`CollectorNoLeader`).
 3. **Binance unreachable**: `fs_binance_requests_total{status!="200"}` growing.
    - **451** (`BinanceRestrictedLocation`): Binance refuses the region.
-     Confirm from the collector pod, then apply the first fallback of
-     [ADR-0026](../../adr/0026-binance-public-market-data-kept.md), the
-     market-data-only host (same API, configuration change only):
+     Confirm from the collector pod:
      ```bash
      kubectl -n $NS exec deploy/financial-scraper-collector -- \
        node -e "fetch('https://api.binance.com/api/v3/ping').then(r=>console.log(r.status))"
-     kubectl -n $NS exec deploy/financial-scraper-collector -- \
-       node -e "fetch('https://data-api.binance.vision/api/v3/ping').then(r=>console.log(r.status))"
      ```
-     Switch through Git: set `BINANCE_BASE_URL=https://data-api.binance.vision`
-     in `deploy/k8s/config/financial-scraper.properties`, then run `Deploy`.
-     The ConfigMap name carries a content hash (issue #410), so both
-     Deployments roll out with the new value.
-
-     Only if the switch cannot wait for a deploy, override the variable by hand:
-     ```bash
-     kubectl -n $NS set env deploy/financial-scraper-collector deploy/financial-scraper \
-       BINANCE_BASE_URL=https://data-api.binance.vision
-     ```
-     The next deploy does **not** remove this override: `kubectl apply` only
-     removes fields it applied itself, and `env` wins over `envFrom`, so it
-     would hide any later value from the `.properties` file. Once the value is
-     in Git and deployed, remove the override explicitly:
-     ```bash
-     kubectl -n $NS set env deploy/financial-scraper-collector deploy/financial-scraper \
-       BINANCE_BASE_URL-
-     ```
-     If both hosts answer 451, the second fallback (another exchange) is a
-     development task: re-open ADR-0026.
+     Do **not** switch to `data-api.binance.vision`: its terms forbid live
+     trading ([ADR-0077](../../adr/0077-rank-the-market-data-source-terms.md)),
+     and the scraper refuses to start with it when `NODE_ENV=production`
+     (every K8s overlay, staging included). The next fallback is another
+     exchange (Bitstamp, ADR-0077), a development task: re-open
+     [ADR-0026](../../adr/0026-binance-public-market-data-kept.md). Until
+     then, stop the collection (`SCRAPE_SCHEDULER_ENABLED=false` or scale the
+     collector to 0) rather than run on an inadmissible source.
    - **403** (WAF violation) or **418** (IP ban after ignored 429s): not
      retried. Lower the request weight (fewer `SYMBOLS_TO_TRACK`, longer
      `SCRAPE_INTERVAL`) and wait for the ban to expire.
@@ -228,14 +212,3 @@ trial fails and the quarantine starts again.
 A collection that failed is not retried before the next schedule of its
 source; values the source still publishes then are collected again (ECB: last
 5, Wikimedia: 8 days, NWS: latest observation only).
-
-## Backfill a signal source's history
-
-After adding an asset, load its past in one command on the collector pod (never on an HTTP replica: it shares the source quota with the crons). The source needs a `history` entry in `signal-registry.json` and an adapter that sets `observedAt` itself; otherwise the command refuses (exit 2).
-
-```bash
-kubectl -n $NS exec deploy/financial-scraper-collector -c financial-scraper-collector -- \
-  node dist/application/signal-backfill.js --source <id> [--asset <id>] --from 2020-01-01 --to 2026-11-01
-```
-
-Pages are sent at `maxRequestsPerMinute`, within what `maxRequestsPerDay` leaves after the cron. Exit 1 (failure, or quota reached: log `Daily quota reached`) keeps the pages stored; run the same command again to resume after the last one (the count of the UTC day is kept, so reruns the same day share the quota). Progress is in the pod's temp dir: a restarted pod starts over, which is harmless (same ids) but resends the pages. Signal ids match the normal collection, so overlap or replay stores nothing twice.

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { withTimeout } from "@trading-model/common/utils/retry";
+import { sleep } from "@trading-model/common/utils/sleep";
 import { isExpectedPublisher } from "@trading-model/contracts/event-routes";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { Message } from "@trading-model/contracts/message-types";
@@ -10,6 +11,7 @@ import type {
 } from "@trading-model/primitives/primitives";
 import { runInMessageTraceContext } from "../shared/trace-context";
 import {
+	ABORT_GRACE_MS,
 	DELIVERY_ATTEMPT_TIMEOUT_MS,
 	HANDLER_TIMEOUT_MS,
 	retryDueMs,
@@ -45,8 +47,8 @@ export interface BusConsumerOptions {
 	service: string;
 	/** Name of this replica in the group. */
 	consumer?: string;
-	/** Throws to retry; a `DeadLetterError` dead-letters at once. */
-	handle: (message: Message) => Promise<void>;
+	/** Throws to retry; `signal` aborts at the handler deadline (stop the work, it is redelivered); a `DeadLetterError` dead-letters at once. */
+	handle: (message: Message, signal: AbortSignal) => Promise<void>;
 	/** Called once an entry is in the dead stream. */
 	onDeadLetter?: (
 		group: JournalGroup,
@@ -224,14 +226,26 @@ export class BusConsumer {
 				return;
 			}
 			try {
-				// The handler cannot be cancelled, but its late ack can no longer overlap another replica's claim.
-				await withTimeout(
-					runInMessageTraceContext(entry.message.metadata, () =>
-						handle(entry.message)
-					),
-					HANDLER_TIMEOUT_MS,
-					"Bus handler timed out"
+				const abort = new AbortController();
+				const running = runInMessageTraceContext(entry.message.metadata, () =>
+					handle(entry.message, abort.signal)
 				);
+				try {
+					await withTimeout(
+						running,
+						HANDLER_TIMEOUT_MS,
+						"Bus handler timed out"
+					);
+				} catch (err) {
+					abort.abort(err);
+					// The slot stays taken until the handler returns (or the grace ends): concurrency stays bounded by BATCH.
+					await Promise.race([
+						// biome-ignore lint/plugin: the late error of the abandoned handler is not the failure reported (the timeout is); the grace only waits for its return
+						running.catch(() => undefined),
+						sleep(ABORT_GRACE_MS),
+					]);
+					throw err;
+				}
 				MESSAGES_DELIVERED_TOTAL.inc({ topic: group.topic, status: "success" });
 			} catch (err) {
 				MESSAGES_DELIVERED_TOTAL.inc({ topic: group.topic, status: "failed" });

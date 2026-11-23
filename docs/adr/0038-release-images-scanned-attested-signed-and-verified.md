@@ -18,6 +18,9 @@
 5. **Verification at deploy.** `deploy.yml`, right after "Resolve image digests", runs `cosign verify` on every `image@digest` with issuer `https://token.actions.githubusercontent.com` and identity regexp `^https://github\.com/<repository>/\.github/workflows/release\.yml@refs/tags/v`. Any failure stops the deploy before the first `kubectl` change.
 6. **Rollback / compatibility.** Tags published before this ADR are unsigned and can no longer be deployed through `deploy.yml`; redeploy by publishing a new release tag. `rollout undo` in the cluster is unaffected.
 
+7. **Approval before publication (issue #2180).** Job `approve` of `release.yml` carries `environment: release`; `build-and-push`, `build-tools` and `sign` depend on it: one human approval per release. Job `check-environment` (no `environment:`) first refuses a missing or reviewer-less environment (`scripts/check-environment-protection.mjs release`). `ci.yml` is called without `secrets: inherit`.
+8. **No build cache, scanned = pushed.** Release builds use no `type=gha` cache (a push to `main` could plant layers in its scope). The push build reuses the layers of the scanned build from the same builder.
+
 ## Alternatives Considered
 
 | Alternative | Reason for Rejection |

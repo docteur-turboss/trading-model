@@ -1,5 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
+import { SpanStatusCode, trace } from "@opentelemetry/api";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import {
 	type CorrelationId,
@@ -33,6 +35,39 @@ export function runWithCorrelationId<TResult>(
 	fn: () => TResult
 ): TResult {
 	return correlationStore.run(correlationId, fn);
+}
+
+/**
+ * Runs a background job as one root span and one fresh correlation id, so its
+ * logs and outbound calls share a trace. A rejection is passed to `onError`
+ * (still inside the span and correlation id, so its log carries both), recorded
+ * on the span, then rethrown: the caller keeps its own error handling.
+ */
+export function runJob<TResult>(
+	name: string,
+	fn: () => Promise<TResult>,
+	onError?: (err: unknown) => void
+): Promise<TResult> {
+	return trace
+		.getTracer("background-job")
+		.startActiveSpan(name, { root: true }, (span) =>
+			runWithCorrelationId(toCorrelationId(randomUUID()), async () => {
+				try {
+					return await fn();
+				} catch (err) {
+					const error = normalizeError(err);
+					onError?.(err);
+					span.recordException(error);
+					span.setStatus({
+						code: SpanStatusCode.ERROR,
+						message: error.message,
+					});
+					throw err;
+				} finally {
+					span.end();
+				}
+			})
+		);
 }
 
 // An external client must not inject arbitrary data into logs: other ids are replaced.

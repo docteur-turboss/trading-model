@@ -15,8 +15,9 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  # In a called workflow github.ref is the caller's: never cancel a release (tag) run.
-  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  # Only a newer commit of the same PR cancels a run: every push (merge to development or main,
+  # release tag; github.event_name is the caller's in a called workflow) runs to the end.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Decides once which jobs run (a skipped gate skips every job that needs it) and whether the
@@ -84,6 +85,10 @@ jobs:
           echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $RUNNER_TEMP/actionlint.tgz" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/actionlint.tgz" -C "$RUNNER_TEMP" actionlint
           "$RUNNER_TEMP/actionlint" -shellcheck= .github/workflows/*.yml
+      # actionlint accepts arithmetic in timeout-minutes; GitHub refuses the file (run without jobs, #2111).
+      - name: No arithmetic in timeout-minutes expressions
+        run: |
+          if grep -hE '^\s*timeout-minutes:.*\$\{\{' .github/workflows/*.yml | sed -E "s/'[^']*'//g" | grep -E '[*+/%]|[0-9] - | - [0-9]'; then exit 1; fi
 
   security:
     # Not in pre-push: bun audit needs the network, gitleaks the full history.
@@ -97,14 +102,15 @@ jobs:
         with:
           bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
-      # GHSA-fc5q-39xc-vjpf (picomatch ReDoS): no patched version exists (4.0.7 is the latest); dev tooling only (jest, knip), absent from --prod. Remove --ignore once picomatch-fix-check.yml fails (fix published).
-      - run: bun audit --audit-level=high --ignore=GHSA-fc5q-39xc-vjpf
+      - run: bun audit --audit-level=high
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   typecheck:
     needs: gate
+    # Also on the merge push to development (gate skipped, see its if), like test.
+    if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -135,6 +141,8 @@ jobs:
 
   test:
     needs: gate
+    # Also on the merge push to development (gate skipped, see its if): two green PRs can still break the unit tests together.
+    if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -228,6 +236,8 @@ jobs:
 
   contract:
     needs: gate
+    # Also on the merge push to development (gate skipped, see its if), like test.
+    if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -298,7 +308,8 @@ jobs:
       # The overlay points the scraper at a Binance stub. The observability
       # stack is not needed here.
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      # buildx reads the gha cache only with these variables, which a run: step does not get.
+      # buildx reads the gha cache only with these variables, which a run: step does not get:
+      # exported for the build step alone, cleared right after (tests and dependencies never see them).
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -309,15 +320,20 @@ jobs:
       # One gha cache scope per image: a shared scope would keep only the last image's layers.
       - name: Build the images (layer cache)
         run: |
-          f="-f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml"
+          f="-f docker-compose.yml -f docker-compose.build.yml -f tests/e2e/docker-compose.e2e.yml"
           args=()
           for t in $(docker buildx bake $f --print | jq -r '.group.default.targets[]'); do
-            args+=(--set "$t.tags=$COMPOSE_PROJECT_NAME-$t" --set "$t.cache-from=type=gha,scope=e2e-$t" --set "$t.cache-to=type=gha,mode=max,ignore-error=true,scope=e2e-$t")
+            args+=(--set "$t.cache-from=type=gha,scope=e2e-$t" --set "$t.cache-to=type=gha,mode=max,ignore-error=true,scope=e2e-$t")
           done
           docker buildx bake $f --load "${args[@]}"
+      - if: ${{ always() }}
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            for (const k of ['ACTIONS_RUNTIME_TOKEN', 'ACTIONS_RESULTS_URL', 'ACTIONS_CACHE_URL']) core.exportVariable(k, '');
       - name: Boot the application stack
         run: >-
-          docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml
+          docker compose -f docker-compose.yml -f docker-compose.build.yml -f tests/e2e/docker-compose.e2e.yml
           up -d --wait --wait-timeout 600
           discovery-server message-manager financial-scraper trader-trainer
           api-gateway audit-logger dlq-service model-evaluator risk-execution edge-proxy
@@ -369,10 +385,10 @@ jobs:
         run: bun run test:e2e -- resilience
       - name: Dump service logs
         if: failure()
-        run: docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml logs --no-color --tail 200
+        run: docker compose -f docker-compose.yml -f docker-compose.build.yml -f tests/e2e/docker-compose.e2e.yml logs --no-color --tail 200
       - name: Tear down the Docker stack
         if: always()
-        run: docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml down -v
+        run: docker compose -f docker-compose.yml -f docker-compose.build.yml -f tests/e2e/docker-compose.e2e.yml down -v
 
   # The Kubernetes manifests had never run before 2026-10: deploy the staging
   # overlay on kind (node agents, overlay, migrations, as deploy.yml does), run
@@ -381,7 +397,7 @@ jobs:
   # Images of release N-1 and N, built once for the three k8s groups (run-kind.sh images).
   k8s-images:
     needs: gate
-    # The merge push to development skips gate (see its if): kind still runs there, the other jobs stay skipped.
+    # The merge push to development skips gate (see its if): kind, typecheck, test and contract still run there, the other jobs stay skipped.
     if: ${{ !cancelled() && (needs.gate.outputs.k8s == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -511,16 +527,17 @@ jobs:
         if: failure()
         run: bash tests/k8s/run-kind.sh dump
 
-  # One check for the development ruleset: a skipped matrix reports
-  # "k8s (${{ matrix.group }})", never "k8s (network)", so a required matrix
-  # name would wait forever on a PR the gate spares from kind.
+  # The one check the development and main rulesets require, so it aggregates every job of this
+  # workflow: a red or cancelled job fails it, a skipped one (gate, k8s=false) does not. Keep the
+  # name: renaming it breaks the rulesets. A skipped k8s matrix reports "k8s (${{ matrix.group }})",
+  # never "k8s (network)", so a required matrix name would wait forever on a PR the gate spares from kind.
   k8s-result:
-    needs: [gate, k8s-images, k8s]
+    needs: [gate, lint, security, typecheck, test, db-integration, observability, k8s-overlays, contract, e2e, k8s-images, k8s]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
-          echo "gate, k8s-images, k8s: $RESULTS"
+          echo "gate, lint, security, typecheck, test, db-integration, observability, k8s-overlays, contract, e2e, k8s-images, k8s: $RESULTS"
           case " $RESULTS " in *" failure "* | *" cancelled "*) exit 1 ;; esac

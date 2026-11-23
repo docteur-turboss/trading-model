@@ -31,13 +31,17 @@ export class TrainerClient {
 		return `https://${HostPort.toAddress(target)}`;
 	}
 
-	async manifest(symbol: string, version: string): Promise<ModelManifest> {
+	async manifest(
+		symbol: string,
+		version: string,
+		signal?: AbortSignal
+	): Promise<ModelManifest> {
 		const url = URLString.of(
 			`${await this._base()}/models/${symbol}/${version}`
 		);
 		const body = await this._http.get(
 			url,
-			{ serviceName: TRAINER },
+			{ serviceName: TRAINER, signal },
 			z.object({ data: ModelManifest })
 		);
 		if (!body) {
@@ -49,7 +53,8 @@ export class TrainerClient {
 	/** Raw weights and the `x-model-sha256` header (the JSON client reads neither). */
 	async weights(
 		symbol: string,
-		version: string
+		version: string,
+		signal?: AbortSignal
 	): Promise<{ bytes: Buffer; sha256: string | undefined }> {
 		const url = new URL(
 			`${await this._base()}/models/${symbol}/${version}/weights`
@@ -59,7 +64,10 @@ export class TrainerClient {
 				url,
 				{
 					...buildHttpsAgentOptions(this._tls, TRAINER),
-					signal: AbortSignal.timeout(WEIGHTS_TIMEOUT_MS),
+					signal: AbortSignal.any([
+						AbortSignal.timeout(WEIGHTS_TIMEOUT_MS),
+						...(signal ? [signal] : []),
+					]),
 				},
 				(res) => {
 					const chunks: Buffer[] = [];

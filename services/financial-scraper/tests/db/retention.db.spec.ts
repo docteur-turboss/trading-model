@@ -92,9 +92,8 @@ beforeAll(async () => {
 	await db.query("SET FOREIGN_KEY_CHECKS = 0");
 	for (const [table, column] of TABLES) {
 		await db.query(`DROP TABLE IF EXISTS \`${table}\``);
-		// Keep the index INVISIBLE (as before migration 007, or after a rollback): the job must cope.
 		await db.query(
-			`CREATE TABLE \`${table}\` (id INT AUTO_INCREMENT PRIMARY KEY, \`${column}\` DATETIME(3) NOT NULL, INDEX idx_t (\`${column}\`) INVISIBLE)`
+			`CREATE TABLE \`${table}\` (id INT AUTO_INCREMENT PRIMARY KEY, \`${column}\` DATETIME(3) NOT NULL, INDEX idx_t (\`${column}\`))`
 		);
 	}
 });

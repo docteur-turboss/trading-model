@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Step timings of a restore drill (tests/k8s/run-kind.sh verify_backup,
-# tests/backup/compose-restore-drill.sh). Sourced, never run.
+# Step timings of a restore drill (tests/k8s/run-kind.sh verify_backup). Sourced, never run.
 #
-#   drill_begin <drill>            start the clock (drill name: kind, docker)
+#   drill_begin <drill>            start the clock (drill name: kind)
 #   drill_disaster                 the data is about to be destroyed: the
 #                                  recovery window (what the budget limits)
 #                                  starts here

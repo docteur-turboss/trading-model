@@ -205,4 +205,26 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 			rows<{ id: string }>("SELECT LEFT(id, 1) AS id FROM signals ORDER BY id")
 		).resolves.toEqual([{ id: "a" }, { id: "b" }]);
 	});
+
+	it("should purge signals by idx_signals_observed once migration 010 is up, and drop it on down", async () => {
+		const real = join(__dirname, "../../../../scripts/migrations");
+		for (const file of readdirSync(real).filter((f) =>
+			/^(006|009|010)_/.test(f)
+		)) {
+			copyFileSync(join(real, file), join(runner.migrationsDir, file));
+		}
+		runner.run("up");
+		const plan = async () =>
+			(
+				await rows<{ key: string | null }>(
+					"EXPLAIN DELETE FROM signals WHERE observed_at < UTC_TIMESTAMP(3) - INTERVAL 30 DAY LIMIT 10000"
+				)
+			)[0].key;
+
+		await expect(plan()).resolves.toBe("idx_signals_observed");
+
+		runner.run("down", "1");
+
+		await expect(plan()).resolves.toBeNull();
+	});
 });

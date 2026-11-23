@@ -58,8 +58,10 @@ export class ScraperClient {
 		symbol: string,
 		from: number,
 		to: number,
-		intervalMs: number
+		intervalMs: number,
+		signal?: AbortSignal
 	): Promise<CandleData[]> {
+		signal?.throwIfAborted();
 		if (intervalMs === DAY_MS) {
 			// The history ends at `to`; its size only has to reach back to `from`.
 			const bars = await this._daily.loadWindow(
@@ -67,6 +69,8 @@ export class ScraperClient {
 				to,
 				Math.ceil((to - from) / DAY_MS) + 1
 			);
+			// shortcut: SignalBarHistory takes no signal, so a slow read is only caught after it returns.
+			signal?.throwIfAborted();
 			return bars.filter((bar) => bar.timestamp >= from);
 		}
 		const target = await FIND_A_SERVICE(
@@ -78,7 +82,7 @@ export class ScraperClient {
 		do {
 			const page = await this._http.get(
 				URLString.of(`${base}${after}`),
-				{ serviceName: ServiceId.of("financial-scraper") },
+				{ serviceName: ServiceId.of("financial-scraper"), signal },
 				Page
 			);
 			if (!page) {

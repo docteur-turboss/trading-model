@@ -54,6 +54,7 @@ jest.mock("../../src/adapters/outbound/proxy-handler", () => ({
 import { createRouter } from "../../src/adapters/inbound/router";
 import type { ProxyResult } from "../../src/adapters/outbound/proxy-handler";
 import { forwardRequest } from "../../src/adapters/outbound/proxy-handler";
+import type { ForwardableRequest } from "../../src/domain/ports/gateway.port";
 import { safeHeaders } from "../../src/shared/proxy-header-sanitizer";
 
 interface RequestOptions {
@@ -345,7 +346,7 @@ describe("API Gateway — Routes Integration", () => {
 		});
 		expect(result.status).toBe(200);
 		const { req } = jest.mocked(forwardRequest).mock.calls[0][0] as {
-			req: express.Request;
+			req: ForwardableRequest;
 		};
 		const forwarded = safeHeaders(req, "x-api-key");
 		expect(forwarded["x-actor"]).toBe("ops-alice");

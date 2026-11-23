@@ -21,7 +21,8 @@ const deliveredIds = new Set<string>();
  */
 export async function deliverToListeners(
 	metadata: DeliveredMetadata,
-	payload: unknown
+	payload: unknown,
+	signal?: AbortSignal
 ): Promise<boolean> {
 	const resultPayload = await MESSAGE_PAYLOAD_SCHEMA.safeParseAsync({
 		type: metadata.topic,
@@ -46,7 +47,8 @@ export async function deliverToListeners(
 		EVENT_MANAGER.emit(
 			metadata.topic as keyof EventMap,
 			payload as never,
-			metadata
+			metadata,
+			signal
 		);
 	await (metadata.correlationId
 		? runWithCorrelationId(toCorrelationId(metadata.correlationId), emit)

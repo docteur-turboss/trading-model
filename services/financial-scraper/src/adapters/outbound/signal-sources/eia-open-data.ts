@@ -1,6 +1,10 @@
 import { z } from "zod";
 import type { SourceAdapter } from "../../../domain/ports/signal-source.port";
-import { federalHolidays, newYorkLocalToUtc } from "./cftc-cot-legacy";
+import {
+	federalHolidays,
+	newYorkLocalToUtc,
+	notBeforeCollection,
+} from "./cftc-cot-legacy";
 
 /** `GET https://api.eia.gov/v2/<route>/data/?facets[series][]=<id>`: weekly rows, the value a string. */
 const Rows = z.object({
@@ -53,12 +57,12 @@ const US_CENTRE = {
 export const EIA_OPEN_DATA: SourceAdapter = {
 	dimensions: ["contextual"],
 	params: z.object({ metric: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/) }),
-	normalize(payload, { params }) {
+	normalize(payload, { params, ingestedAt }) {
 		return Rows.parse(payload).response.data.map((row, index) => ({
 			key: `${row.period}|${row.value}`,
 			observedAt:
 				index === 0 && params.metric !== "natural_gas_storage"
-					? _publishedAt(row.period)
+					? notBeforeCollection(_publishedAt(row.period), ingestedAt)
 					: undefined,
 			payload: {
 				metric: params.metric,

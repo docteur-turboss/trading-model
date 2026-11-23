@@ -30,7 +30,7 @@ Never edit a closed entry: add a dated correction under it.
 | Field | Content |
 |---|---|
 | **Entry ID** | `BR-<year>-<nn>` |
-| **Incident references** | Incident ticket, post-mortem (`docs/operations/post-mortems/`), severity L1-L4 |
+| **Incident references** | Incident ticket, post-mortem, severity L1-L4 |
 | **Discovered** | Date and time (UTC), who discovered it, how |
 | **Breach period** | Start date, end date, duration |
 | **Nature** | Confidentiality, integrity or availability loss; cause |

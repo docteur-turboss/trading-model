@@ -22,6 +22,9 @@ export const ADMISSION_THRESHOLDS = {
  */
 export const MIN_ADMISSION_TEST_BARS = 1440;
 
+/** Fewest days of bars the test segment must cover, whatever the bar interval (ADR-0069). */
+export const MIN_ADMISSION_TEST_DAYS = 30;
+
 /** Verdict written in the manifest; `admissible` only makes a model eligible. */
 export interface ModelAdmission {
 	admissible: boolean;
@@ -29,28 +32,35 @@ export interface ModelAdmission {
 	/** Annualised ratios of the model and Sharpe of buy and hold on the same bars. */
 	criteria: SegmentRatios;
 	thresholds: typeof ADMISSION_THRESHOLDS;
+	/** Rank of this verdict among the symbol's published models (1 = first); absent in older manifests. */
+	attempt?: number;
 }
 
 /**
  * Checks the ADR-0030 criteria on the test segment metrics of the published
  * genome. Undefined unless they were measured on the test segment: metrics of
  * the validation the selection read are biased upward (ADR-0068), and
- * undefined under `MIN_ADMISSION_TEST_BARS` test bars (or `barsPerYear` if fewer). Without bar
+ * undefined under `MIN_ADMISSION_TEST_BARS` test bars (or `barsPerYear` if fewer)
+ * and under `MIN_ADMISSION_TEST_DAYS` days of bars. Without bar
  * timestamps (`barsPerYear` unknown) the ratios stay per bar. A model that
  * never decided (`decisions` 0) is never admissible.
  */
 export function assessAdmission(
 	meta: GenomeFitnessMeta | undefined,
-	test: readonly MarketStep[]
+	test: readonly MarketStep[],
+	attempt?: number
 ): ModelAdmission | undefined {
 	const curve = meta?.pnlCurve;
 	if (
 		meta?.evaluatedOn !== "test" ||
 		!curve ||
 		test.length <
-			Math.min(
-				MIN_ADMISSION_TEST_BARS,
-				meta.barsPerYear ?? MIN_ADMISSION_TEST_BARS
+			Math.max(
+				Math.min(
+					MIN_ADMISSION_TEST_BARS,
+					meta.barsPerYear ?? MIN_ADMISSION_TEST_BARS
+				),
+				Math.ceil((MIN_ADMISSION_TEST_DAYS * (meta.barsPerYear ?? 0)) / 365)
 			)
 	) {
 		return undefined;
@@ -66,5 +76,6 @@ export function assessAdmission(
 		evaluatedOn: "test",
 		criteria,
 		thresholds: ADMISSION_THRESHOLDS,
+		...(attempt !== undefined && { attempt }),
 	};
 }

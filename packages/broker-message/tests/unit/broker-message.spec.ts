@@ -146,7 +146,11 @@ describe("BrokerMessage", () => {
 				{ candle: [] },
 				metadata
 			);
-			expect(listener).toHaveBeenCalledWith({ candle: [] }, metadata);
+			expect(listener).toHaveBeenCalledWith(
+				{ candle: [] },
+				metadata,
+				undefined
+			);
 		});
 	});
 

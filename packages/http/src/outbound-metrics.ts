@@ -46,6 +46,7 @@ for (const reason of [
 	"caller_unresolved",
 	"caller_not_allowed",
 	"no_policy",
+	"publisher_not_allowed",
 ]) {
 	mtlsDenialsTotal.inc({ reason }, 0);
 }

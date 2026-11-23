@@ -7,6 +7,7 @@ import {
 	DurationMs,
 	TradingSymbol,
 } from "@trading-model/primitives/primitives";
+import { nextAttempt } from "../../../src/application/model-artifact-service";
 import { Trainer } from "../../../src/application/trainer";
 import { runInProcess } from "../../../src/application/training-session";
 import {
@@ -576,7 +577,7 @@ describe("Trainer — model publication", () => {
 					sha256: "0123456789abcdef",
 				}),
 				latest: jest.fn<(...args: any[]) => any>(),
-				list: jest.fn<(...args: any[]) => any>(),
+				list: jest.fn<(...args: any[]) => any>().mockResolvedValue([]),
 				manifest: jest.fn<(...args: any[]) => any>(),
 				weights: jest.fn<(...args: any[]) => any>(),
 			};
@@ -673,6 +674,33 @@ describe("Trainer — model publication", () => {
 
 			expect(publish.mock.calls[3][2]).toMatchObject({ version: "v2" });
 			expect(publish).toHaveBeenCalledTimes(4);
+		});
+
+		it("still stores the model when the attempt rank cannot be read", async () => {
+			const genome = await trainedGenome();
+			mockRunImpl = () => Promise.resolve(genome);
+			const models = fakeStore();
+			models.list.mockRejectedValue(new Error("EIO"));
+			const trainer = new Trainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+				models,
+			});
+			feedCandles(dataBuffer, "BTCUSDT", 130);
+
+			await trainer.train(TradingSymbol.of("BTCUSDT"));
+
+			expect(models.save).toHaveBeenCalledTimes(1);
+		});
+
+		it("ranks attempts above the pruned history (1, 2, then past the retention)", async () => {
+			const store = (held: number, recorded?: number) => ({
+				latest: async () =>
+					recorded ? { admission: { attempt: recorded } } : undefined,
+				list: async () => new Array(held).fill({}),
+			});
+			expect(await nextAttempt(store(0) as any, "BTCUSDT")).toBe(1);
+			expect(await nextAttempt(store(1, 1) as any, "BTCUSDT")).toBe(2);
+			expect(await nextAttempt(store(20, 500) as any, "BTCUSDT")).toBe(501);
 		});
 
 		it("publishes nothing when the artifact write fails", async () => {
