@@ -136,7 +136,8 @@ environment and prints its secrets):
   A required reviewer is advised, not checked.
 - `release` (approval of `release.yml` before any image is published or signed): a required
   reviewer and the tag rule `v*`. "Prevent self-review" stays off while the owner pushes
-  the tags. `release.yml` checks it first (`ENVIRONMENT_READ_TOKEN`).
+  the tags. `release.yml` checks it first (`ENVIRONMENT_READ_TOKEN`). The orchestrator approves
+  the tags it pushes itself, under the owner's account (ADR-0038 §7).
 - `backup-key-check` (`BACKUP_ESCROW_AGE_IDENTITY`, the key that decrypts every
   backup): "Selected branches and tags" with exactly the branch `main`, **before**
   storing the escrow key. No required reviewer: it would hold the weekly
