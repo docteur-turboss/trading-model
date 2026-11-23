@@ -20,7 +20,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # No `environment:` here: a job naming a missing environment would create it unprotected.
+  check-environment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check the environment protection
+        env:
+          GH_TOKEN: ${{ secrets.ENVIRONMENT_READ_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Secret ENVIRONMENT_READ_TOKEN is not set: the protection of environment compose cannot be checked. See docs/deployment/DEPLOY.md (Protect the production environment)."
+            exit 1
+          fi
+          node scripts/check-environment-protection.mjs compose "$GITHUB_REPOSITORY"
+      # The runner is persistent and the repository public (same check as deploy.yml, issue #842).
+      - name: Check fork pull request approval (self-hosted runner)
+        env:
+          GH_TOKEN: ${{ secrets.ENVIRONMENT_READ_TOKEN }}
+        run: node scripts/check-environment-protection.mjs --fork-approval "$GITHUB_REPOSITORY"
+
   deploy:
+    needs: check-environment
     runs-on: ${{ vars.STAGING_RUNNER }}
     environment: compose
     timeout-minutes: 60
@@ -49,7 +71,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Digests first: a missing image stops the deploy before anything changes.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      # Digests first: a missing or unsigned image stops the deploy before anything changes.
+      # Only digests signed by release.yml of this repository (keyless, ADR-0038) are deployed.
       - name: Resolve image digests
         shell: bash
         run: |
@@ -57,7 +83,7 @@ jobs:
             trader-trainer:trader-trainer api-gateway:api-gateway audit-logger:audit-logger dlq-service:dlq-service
             model-evaluator:model-evaluator risk-execution:risk-execution spire-bootstrap:spire-tools migrate:db-migrate"
           { echo "services:"; } > "$RUNNER_TEMP/next.yml"
-          missing=""
+          missing=""; unsigned=""
           for p in $map; do
             svc=${p%%:*}; img=${p##*:}
             if digest=$(docker buildx imagetools inspect "${REGISTRY,,}/$img:${TAG#v}" --format '{{.Manifest.Digest}}'); then
@@ -65,10 +91,14 @@ jobs:
             else
               missing="$missing $img"; continue
             fi
+            cosign verify "$ref" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              --certificate-identity-regexp "^https://github\.com/${GITHUB_REPOSITORY}/\.github/workflows/release\.yml@refs/tags/v" >/dev/null || unsigned="$unsigned $img"
             printf '  %s:\n    image: %s\n' "$svc" "$ref" >> "$RUNNER_TEMP/next.yml"
           done
           printf '  spire-agent:\n    image: trading-model/spire-agent:%s\n' "${TAG#v}" >> "$RUNNER_TEMP/next.yml"
           [ -z "$missing" ] || { echo "::error::No ${REGISTRY,,} image tagged ${TAG#v} for:$missing (was the release published?)"; exit 1; }
+          [ -z "$unsigned" ] || { echo "::error::No valid release.yml signature for:$unsigned"; exit 1; }
           # spire-agent is not released (only SPIRE binaries on alpine): built from the tag, after the checks above.
           docker build -q -t "trading-model/spire-agent:${TAG#v}" --target agent deploy/spire
 

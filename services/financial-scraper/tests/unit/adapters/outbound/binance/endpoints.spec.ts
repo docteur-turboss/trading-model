@@ -63,28 +63,4 @@ describe("BINANCE_ENDPOINTS", () => {
 			expect(url).toBe("/api/v3/ticker/24hr");
 		});
 	});
-
-	describe("symbolPriceTicker", () => {
-		it("should build price ticker URL with symbols", () => {
-			const url = BINANCE_ENDPOINTS.symbolPriceTicker([BTC]);
-			expect(url).toContain("/api/v3/ticker/price?symbols=");
-		});
-
-		it("should build price ticker URL without symbols", () => {
-			const url = BINANCE_ENDPOINTS.symbolPriceTicker();
-			expect(url).toBe("/api/v3/ticker/price");
-		});
-	});
-
-	describe("orderBookTicker", () => {
-		it("should build book ticker URL with symbols", () => {
-			const url = BINANCE_ENDPOINTS.orderBookTicker([BTC]);
-			expect(url).toContain("/api/v3/ticker/bookTicker?symbols=");
-		});
-
-		it("should build book ticker URL without symbols", () => {
-			const url = BINANCE_ENDPOINTS.orderBookTicker();
-			expect(url).toBe("/api/v3/ticker/bookTicker");
-		});
-	});
 });

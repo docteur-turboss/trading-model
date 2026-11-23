@@ -19,12 +19,6 @@ spec:
         target:
           type: Utilization
           averageUtilization: 65
-    - type: Resource
-      resource:
-        name: memory
-        target:
-          type: Utilization
-          averageUtilization: 70
     - type: Pods
       pods:
         metric:
