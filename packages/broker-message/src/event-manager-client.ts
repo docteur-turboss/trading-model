@@ -14,7 +14,9 @@ export interface DeliveredMetadata {
 /** Callback signature for event listeners: a rejection leaves the message to redelivery. */
 export type Listener<TData> = (
 	data: TData,
-	metadata: DeliveredMetadata
+	metadata: DeliveredMetadata,
+	/** Aborts at the delivery deadline: stop the work, the message is redelivered. */
+	signal?: AbortSignal
 ) => void | Promise<void>;
 
 /**
@@ -42,10 +44,15 @@ class EventEmitter<TEvents extends keyof EventMap> {
 	async emit<TEvent extends TEvents>(
 		eventName: TEvent,
 		data: EventMessagesArgs<TEvent>,
-		metadata: DeliveredMetadata
+		metadata: DeliveredMetadata,
+		signal?: AbortSignal
 	): Promise<void> {
 		for (const listener of this._emitter.listeners(eventName)) {
-			await (listener as Listener<EventMessagesArgs<TEvent>>)(data, metadata);
+			await (listener as Listener<EventMessagesArgs<TEvent>>)(
+				data,
+				metadata,
+				signal
+			);
 		}
 	}
 }

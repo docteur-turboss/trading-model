@@ -113,7 +113,7 @@ describe("Model training flow E2E", () => {
 
 	it("lets a MODEL_DOWNLOAD_CALLERS service download the weights", () => {
 		const { status, body } = meshRequest(
-			CALLER.scraper,
+			CALLER.gateway,
 			`${TRAINER}/models/${SYMBOL}/${version}/weights`
 		);
 		expect(status).toBe(200);
@@ -122,7 +122,7 @@ describe("Model training flow E2E", () => {
 
 	it("refuses the weights to a service that is not listed", () => {
 		const { status } = meshRequest(
-			CALLER.message,
+			CALLER.risk,
 			`${TRAINER}/models/${SYMBOL}/${version}/weights`
 		);
 		expect(status).toBe(403);

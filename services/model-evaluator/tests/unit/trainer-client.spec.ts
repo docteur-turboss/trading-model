@@ -127,12 +127,51 @@ describe("ScraperClient", () => {
 				nextCursor: "c1",
 			})
 			.mockResolvedValueOnce({ rows: [row(1)], nextCursor: null });
-		const candles = await new ScraperClient(TLS).candles("BTCUSDT", 0, 119_999);
+		const candles = await new ScraperClient(TLS).candles(
+			"BTCUSDT",
+			0,
+			119_999,
+			60_000
+		);
 
 		expect(candles.map((c) => c.timestamp)).toEqual([0, 60_000]);
 		expect(String(manifestGet.mock.calls[0][0])).toBe(
 			"https://trainer:3000/v2/candles/symbols/BTCUSDT?from=1970-01-01T00:00:00.000Z&to=1970-01-01T00:01:59.999Z&limit=5000"
 		);
 		expect(String(manifestGet.mock.calls[1][0])).toMatch(/&after=c1$/);
+	});
+	it("rebuilds daily bars from signals: bars from `from`, nothing observed after `to`", async () => {
+		const day = (date: string, close: number) =>
+			Object.entries({
+				open: close,
+				high: close,
+				low: close,
+				close,
+				volume: 1,
+			}).map(([metric, value]) => ({
+				id: `${date}:${metric}`,
+				assetId: "AAPL",
+				dimension: "market",
+				observedAt: `${date}T22:00:00Z`,
+				payload: { metric, value, period: { start: date, end: date } },
+			}));
+		manifestGet.mockReset();
+		manifestGet.mockResolvedValue({
+			signals: [
+				...day("2026-03-10", 1),
+				...day("2026-03-11", 2),
+				...day("2026-03-12", 3),
+				...day("2026-03-13", 4),
+			],
+			truncated: false,
+		});
+		const bars = await new ScraperClient(TLS).candles(
+			"AAPL",
+			Date.parse("2026-03-11T00:00:00Z"),
+			Date.parse("2026-03-13T00:00:00Z"),
+			86_400_000
+		);
+
+		expect(bars.map((bar) => bar.close)).toEqual([2, 3]);
 	});
 });

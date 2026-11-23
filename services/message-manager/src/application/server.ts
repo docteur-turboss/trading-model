@@ -1,8 +1,6 @@
-import { logger } from "@trading-model/http/logger";
 import { createServiceServer } from "@trading-model/http/service-server-factory";
-import { createRedisClient } from "@trading-model/persistence/redis-connection-manager";
-import { redisConnectionFromEnv } from "@trading-model/persistence/redis-env";
-import { DurationMs, ServiceId } from "@trading-model/primitives/primitives";
+import { redisReadinessCheck } from "@trading-model/persistence/redis-readiness";
+import { ServiceId } from "@trading-model/primitives/primitives";
 import type { Application } from "express";
 
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
@@ -21,44 +19,6 @@ export function createServer() {
 		serviceId: ServiceId.of("message-manager"),
 		trustProxy: true,
 		routes: mountRoutes,
-		readiness: [
-			{
-				name: "redis",
-				// Two pings of connectTimeout 2 s, under the 5 s probe timeoutSeconds.
-				timeoutMs: DurationMs.of(4500),
-				check: async () => {
-					const connection = redisConnectionFromEnv(ENV);
-					if (!connection) {
-						return true;
-					}
-					const pingOnce = async () => {
-						// Fresh client per attempt, no internal retry.
-						const client = createRedisClient(connection, {
-							maxRetriesPerRequest: 1,
-							connectTimeout: 2000,
-							retryStrategy: () => null,
-							sentinelRetryStrategy: () => null,
-						});
-						try {
-							await client.connect();
-							return (await client.ping()) === "PONG";
-						} finally {
-							client.disconnect();
-						}
-					};
-					// One isolated connect timeout (CPU-starved runner, issue #725)
-					// must not fail the probe; a second failure propagates (503).
-					try {
-						return await pingOnce();
-					} catch (error) {
-						// Logged so a Redis failing every other probe stays visible.
-						logger.warn("Redis readiness ping failed, retrying once", {
-							error: error instanceof Error ? error.message : String(error),
-						});
-						return pingOnce();
-					}
-				},
-			},
-		],
+		readiness: [redisReadinessCheck(ENV)],
 	});
 }

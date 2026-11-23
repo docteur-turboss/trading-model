@@ -122,7 +122,7 @@ Previously validated as `z.unknown()`, the `authContext` object is now strictly 
 ## Features
 
 - **TTL**: Message expiration based on time-to-live configured in metadata
-- **Retry with backoff**: `AT_LEAST_ONCE` retries up to 10 times (10s per attempt, no HTTP-client retry underneath) with exponential backoff (1s base, 20s cap) and ±20% random jitter; the retry state (attempts, last attempt) is the pending list of the journal, shared by the replicas: a retry is due once the previous attempt has timed out and its backoff passed, and any replica takes it over if the one that owned it died
+- **Retry with backoff**: `AT_LEAST_ONCE` retries up to 10 times (90s per attempt, handler cut at 85s, no HTTP-client retry underneath) with exponential backoff (1s base, 20s cap) and ±20% random jitter; the retry state (attempts, last attempt) is the pending list of the journal, shared by the replicas: a retry is due once the previous attempt has timed out and its backoff passed, and any replica takes it over if the one that owned it died
 - **Circuit breaker**: After 5 consecutive dispatch failures, new messages for that subscriber are not sent: they stay pending in the journal and are retried until the breaker resets on a successful delivery
 - **Alerting**: Persistent delivery failures are logged at ERROR level with topic, service name, and attempt count
 - **Dead Letter Queue**: Undelivered messages are written to their Redis dead stream (ADR-0073), which dlq-service reads. While it cannot take one, the journal entry stays pending and is retried (no local file)

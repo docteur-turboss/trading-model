@@ -17,6 +17,11 @@ describe("safeStringify", () => {
 		expect(result).toContain("[Circular]");
 	});
 
+	it("should not flag shared non-circular references", () => {
+		const o = { a: 1 };
+		expect(safeStringify({ x: o, y: o })).toBe('{"x":{"a":1},"y":{"a":1}}');
+	});
+
 	it("should use custom replacer", () => {
 		const result = safeStringify({ password: "secret" }, 0, (key, val) =>
 			key === "password" ? "***" : val

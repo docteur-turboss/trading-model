@@ -12,7 +12,7 @@ Some concerns are genuinely cross-cutting and have no single owning domain: the 
 > - Reliability (circuit-breaker, circuit-state-machine, heartbeat interfaces) → `@trading-model/reliability`
 > - Persistence (Redis/Mongo connection managers, store adapters, key builders) → `@trading-model/persistence`
 > - Server bootstrap / secure HTTPS factory → `@trading-model/http`
-> - Environment validation & Zod schemas → `@trading-model/validation`
+> - Environment validation & Zod schemas → `@trading-model/http` (`config/*`)
 > - Crypto primitives → `@trading-model/crypto`
 > - HTTP middleware, HTTP client, logging system → `@trading-model/http`
 > - Distributed worker protocol & orphan recovery → `@trading-model/jobs` (removed by ADR-0029: no producer, no worker)
@@ -21,7 +21,7 @@ Some concerns are genuinely cross-cutting and have no single owning domain: the 
 
 ## Package Map Post-Split
 
-The monorepo has **12 shared packages** under the `@trading-model/*` scope. Build order is topological (base → derived); there are **no cyclic dependencies**. `primitives` and `contracts` are the foundations and must never import higher-layer packages such as `http`.
+The monorepo has shared packages under the `@trading-model/*` scope. Build order is topological (base → derived); there are **no cyclic dependencies**. `primitives` and `contracts` are the foundations and must never import higher-layer packages such as `http`.
 
 | # | Package | Role | Dependencies |
 |---|---------|------|--------------|
@@ -31,12 +31,10 @@ The monorepo has **12 shared packages** under the `@trading-model/*` scope. Buil
 | 4 | `@trading-model/common` | Residual shared infra: `AppError`/`ErrorCodes`, retry/backoff, SPIFFE, TLS config, cache, sanitize, shared schemas | primitives, contracts |
 | 5 | `@trading-model/model-runtime` | Network forward pass, feature codec, portfolio simulator (ADR-0066); moved out of the trainer | primitives, contracts, common |
 | 6 | `@trading-model/persistence` | Redis/Mongo connection managers, store adapters, key builders (absorbed `redis-config`) | common, primitives, contracts (+ ioredis, mongodb) |
-| 7 | `@trading-model/http` | HTTP middleware, HTTP client, concrete logging pipeline | primitives, contracts, common, reliability |
-| 8 | `@trading-model/validation` | Environment validation, Zod schemas, DTOs, shared type contracts | primitives, contracts, common, http |
-| 9 | `@trading-model/http` | Secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry | primitives, contracts, common, http |
-| 10 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness | primitives, contracts, common, validation |
-| 11 | `@trading-model/address-manager` | DNS service resolution client, service routes (`/ping`, `/status`, `/metrics`) | primitives, contracts, common, persistence, http, reliability, validation |
-| 12 | `@trading-model/broker-message` | Inter-service messaging SDK: message-manager client, event emitter, controller/routes | primitives, contracts, address-manager, common, http, validation |
+| 7 | `@trading-model/http` | HTTP middleware, HTTP client, concrete logging pipeline, secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry | primitives, contracts, common, reliability |
+| 9 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness | primitives, contracts, common, validation |
+| 10 | `@trading-model/address-manager` | DNS service resolution client, service routes (`/ping`, `/status`, `/metrics`) | primitives, contracts, common, persistence, http, reliability, validation |
+| 11 | `@trading-model/broker-message` | Inter-service messaging SDK: message-manager client, event emitter, controller/routes | primitives, contracts, address-manager, common, http, validation |
 
 ## What Remains in `common`
 
@@ -155,7 +153,7 @@ import { sanitizeForLog } from '@trading-model/common/utils/sanitize';
 | Circuit breakers, heartbeats, leader lease | `@trading-model/reliability` |
 | Redis/Mongo stores, connection managers, `redis-config` | `@trading-model/persistence` |
 | Server bootstrap, secure HTTPS factory, TLS loading | `@trading-model/http` |
-| Environment validation (Zod) | `@trading-model/validation` |
+| Environment validation (Zod) | `@trading-model/http` |
 | Crypto primitives (PRNG, random string) | `@trading-model/crypto` |
 | HTTP middleware, HTTP client | `@trading-model/http` |
 | Worker protocol, orphan recovery | removed (ADR-0029) |

@@ -72,13 +72,21 @@ export class WorkerOrchestrator {
 		}
 	}
 
-	async executeAll(): Promise<void> {
-		this._deps.source.beginCycle?.(this._symbols);
+	/**
+	 * Once `signal` fires (lease lost), no symbol starts another step: at most
+	 * the requests already in flight finish.
+	 */
+	async executeAll(signal?: AbortSignal): Promise<void> {
+		this._deps.source.beginCycle?.(this._symbols, signal);
 		const limiter = await _createLimiter(this._maxConcurrency);
 
 		const settled = await Promise.allSettled(
-			this._symbols.map((symbol) => limiter(() => this._scrape(symbol)))
+			this._symbols.map((symbol) => limiter(() => this._scrape(symbol, signal)))
 		);
+
+		if (signal?.aborted) {
+			return; // Aborted symbols are not failures.
+		}
 
 		settled.forEach((outcome, index) => {
 			const symbol = this._symbols[index];
@@ -133,15 +141,22 @@ export class WorkerOrchestrator {
 		}
 	}
 
-	private async _scrape(symbol: TradingSymbol): Promise<void> {
+	private async _scrape(
+		symbol: TradingSymbol,
+		signal?: AbortSignal
+	): Promise<void> {
 		const state = this._stateOf(symbol);
+		signal?.throwIfAborted();
 		await this._loadCursor(symbol, state);
+		signal?.throwIfAborted();
 		const snapshot = await this._deps.source.fetchSnapshot({
 			symbol,
 			interval: this._candleInterval,
 			candleStartTime: state.cursor,
+			signal,
 		});
 
+		signal?.throwIfAborted();
 		await this._deps.persist(snapshot);
 		getLogger().debug("Data persisted");
 		// Moves past the last persisted candle; a failed cycle is fetched again.
@@ -167,8 +182,9 @@ export class WorkerOrchestrator {
 
 	/**
 	 * Resumes the fetch at the newest persisted candle, so a stop longer than
-	 * one fetch window leaves no gap. Unreadable: logged, fetches the latest
-	 * candles and tries again next cycle.
+	 * one fetch window leaves no gap. Unreadable: the cycle fails (logged by
+	 * `executeAll`) and nothing is fetched or persisted, since a fallback fetch
+	 * would store candles past the gap and hide it from the next read.
 	 */
 	private async _loadCursor(
 		symbol: TradingSymbol,
@@ -177,19 +193,10 @@ export class WorkerOrchestrator {
 		if (state.cursorLoaded) {
 			return;
 		}
-		try {
-			// Its open time, not close + 1: the newest candle may have been stored
-			// still open; fetching it again is an idempotent upsert.
-			state.cursor ??= await this._deps.lastCandleOpenTime(
-				this._seriesOf(symbol)
-			);
-			state.cursorLoaded = true;
-		} catch (err) {
-			getLogger().error("Last persisted candle unreadable", {
-				context: { symbol },
-				error: err,
-			});
-		}
+		// Its open time, not close + 1: the newest candle may have been stored
+		// still open; fetching it again is an idempotent upsert.
+		state.cursor = await this._deps.lastCandleOpenTime(this._seriesOf(symbol));
+		state.cursorLoaded = true;
 	}
 
 	private _advanceCursor(

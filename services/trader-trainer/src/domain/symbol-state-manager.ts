@@ -1,4 +1,5 @@
 import type { CandleData } from "@trading-model/contracts/market-data.types";
+import { isConsistentCandle } from "@trading-model/model-runtime/features/feature-builder";
 import { candleHandler } from "./data-handlers/candle-handler";
 import { DataType } from "./data-handlers/data-types";
 import { EvictionPolicy } from "./eviction-policy";
@@ -7,15 +8,20 @@ import type { SymbolState, TradingSymbol } from "./market-data-types";
 import type { MemoryConfig } from "./memory-config";
 import { NormalizationManager } from "./normalization-manager";
 
-type SymbolStateManagerConfig = MemoryConfig;
+interface SymbolStateManagerConfig extends MemoryConfig {
+	/** Called for each candle whose low/high do not bound open/close (it is not stored). */
+	onInconsistentCandle?: (symbol: TradingSymbol) => void;
+}
 
 export class SymbolStateManager {
 	readonly states: Map<TradingSymbol, SymbolState> = new Map();
 	private readonly _memoryManager: MemoryManager;
 	private readonly _normManager: NormalizationManager;
 	private readonly _evictionPolicy: EvictionPolicy;
+	private readonly _onInconsistentCandle: SymbolStateManagerConfig["onInconsistentCandle"];
 
 	constructor(config: SymbolStateManagerConfig) {
+		this._onInconsistentCandle = config.onInconsistentCandle;
 		this._evictionPolicy = config.evictionPolicy;
 		this._memoryManager = new MemoryManager({
 			maxSize: config.maxSize,
@@ -53,6 +59,9 @@ export class SymbolStateManager {
 			return;
 		}
 		const candle = data as CandleData;
+		if (!isConsistentCandle(candle)) {
+			this._onInconsistentCandle?.(symbol);
+		}
 		const isNew = candleHandler.isNew?.(state, candle) ?? true;
 		candleHandler.mutateState({
 			symbol,
@@ -60,6 +69,7 @@ export class SymbolStateManager {
 			state,
 			maxSize,
 		});
+		// Normes cumulées sur toutes les bougies ajoutées, sans décrément à l'éviction (maxSize).
 		if (isNew) {
 			this._normManager.updateNorms(state, candle);
 		}

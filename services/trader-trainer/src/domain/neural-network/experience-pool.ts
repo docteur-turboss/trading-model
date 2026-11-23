@@ -4,7 +4,6 @@ import type { Experience } from "@trading-model/model-runtime/neural-network/typ
 
 export interface ExperiencePoolPort {
 	add(experience: Experience): void;
-	getPool(): Experience[];
 	getPoolSize(): number;
 	samplePool(batchSize: number): Experience[];
 	clearPool(): void;
@@ -40,7 +39,6 @@ const DISABLED_POOL: ExperiencePoolPort = {
 	add: () => {
 		// Intentional no-op.
 	},
-	getPool: () => [],
 	getPoolSize: () => 0,
 	samplePool: () => [],
 	clearPool: () => {
@@ -51,7 +49,7 @@ const DISABLED_POOL: ExperiencePoolPort = {
 class ExperiencePool implements ExperiencePoolPort {
 	private _poolMap = new Map<number, Experience>();
 	protected _nextPoolId = 0;
-	private readonly _poolMaxSize: number;
+	protected readonly _poolMaxSize: number;
 	protected readonly _rng: () => number;
 
 	constructor(poolMaxSize: number, rng: () => number) {
@@ -59,16 +57,10 @@ class ExperiencePool implements ExperiencePoolPort {
 		this._rng = rng;
 	}
 
-	/** Hook for subclasses keeping per-experience state keyed by pool id. */
-	protected _onRemoved(_id: number): void {
-		// Intentional no-op.
-	}
-
 	private _evictOldest(): void {
 		// Map keeps insertion order: the first key is the oldest; add() calls this only when non-empty.
 		const firstKey = this._poolMap.keys().next().value as number;
 		this._poolMap.delete(firstKey);
-		this._onRemoved(firstKey);
 	}
 
 	public add(experience: Experience): void {
@@ -77,10 +69,6 @@ class ExperiencePool implements ExperiencePoolPort {
 		if (this._poolMap.size > this._poolMaxSize) {
 			this._evictOldest();
 		}
-	}
-
-	public getPool(): Experience[] {
-		return [...this._poolMap.values()];
 	}
 
 	public getPoolSize(): number {
@@ -134,8 +122,13 @@ class PrioritizedExperiencePool
 	extends ExperiencePool
 	implements PrioritizedExperiencePoolPort
 {
-	/** p_i^α per pool id, scaled once when the priority changes. */
-	private readonly _priorities = new Map<number, number>();
+	/**
+	 * Sum / min trees over p_i^α, one leaf per circular slot (`id % poolMaxSize`):
+	 * a new id overwrites the slot of the evicted one. Node k has children 2k, 2k+1.
+	 */
+	private readonly _leafCount: number;
+	private readonly _sum: Float64Array;
+	private readonly _min: Float64Array;
 	private _maxPriority = 1.0;
 	private _beta: number;
 
@@ -146,14 +139,16 @@ class PrioritizedExperiencePool
 	) {
 		super(poolMaxSize, rng);
 		this._beta = _per.beta;
+		this._leafCount = 2 ** Math.ceil(Math.log2(Math.max(1, poolMaxSize)));
+		this._sum = new Float64Array(2 * this._leafCount);
+		this._min = new Float64Array(2 * this._leafCount).fill(
+			Number.POSITIVE_INFINITY
+		);
 	}
 
 	public add(experience: Experience): void {
 		super.add(experience);
-		this._priorities.set(
-			this._nextPoolId - 1,
-			this._maxPriority ** this._per.alpha
-		);
+		this._setLeaf(this._nextPoolId - 1, this._maxPriority ** this._per.alpha);
 	}
 
 	public updatePriorities(
@@ -166,46 +161,39 @@ class PrioritizedExperiencePool
 			);
 		}
 		ids.forEach((id, idx) => {
-			if (!this._priorities.has(id)) {
+			if (!this.getPoolMap().has(id)) {
 				return;
 			}
 			const priority = Math.abs(tdErrors[idx]) + PRIORITY_EPSILON;
-			this._priorities.set(id, priority ** this._per.alpha);
+			this._setLeaf(id, priority ** this._per.alpha);
 			this._maxPriority = Math.max(this._maxPriority, priority);
 		});
 	}
 
 	public sampleWithWeights(batchSize: number): PrioritizedSample {
-		const entries = [...this.getPoolMap().entries()];
-		if (entries.length === 0 || batchSize <= 0) {
+		const count = this.getPoolSize();
+		if (count === 0 || batchSize <= 0) {
 			return { experiences: [], ids: [], weights: new Float32Array(0) };
 		}
 
-		const scaled = entries.map(([id]) => this._priorities.get(id) as number);
-		// Running sums in pool order: the same bounds the linear scan used.
-		const bounds = new Float64Array(scaled.length);
-		let total = 0;
-		scaled.forEach((val, idx) => {
-			total += val;
-			bounds[idx] = total;
-		});
-		const count = entries.length;
-		const minScaled = scaled.reduce((acc, val) => Math.min(acc, val));
-		const maxWeight = ((count * minScaled) / total) ** -this._beta;
-
-		const picks = Array.from({ length: batchSize }, () =>
-			this._pickIndex(bounds, total)
-		);
-		const sample: PrioritizedSample = {
-			experiences: picks.map((idx) => entries[idx][1]),
-			ids: picks.map((idx) => entries[idx][0]),
-			weights: Float32Array.from(
-				picks,
-				(idx) => ((count * scaled[idx]) / total) ** -this._beta / maxWeight
-			),
-		};
+		const total = this._sum[1];
+		const maxWeight = ((count * this._min[1]) / total) ** -this._beta;
+		const first = this._nextPoolId - count;
+		const experiences: Experience[] = [];
+		const ids: number[] = [];
+		const weights = new Float32Array(batchSize);
+		for (let i = 0; i < batchSize; i++) {
+			const leaf = this._pickLeaf(this._rng() * total);
+			const slot = leaf - this._leafCount;
+			const max = this._poolMaxSize;
+			const id = first + ((slot - (first % max) + max) % max);
+			ids.push(id);
+			experiences.push(this.getPoolMap().get(id) as Experience);
+			weights[i] =
+				((count * this._sum[leaf]) / total) ** -this._beta / maxWeight;
+		}
 		this._advanceBeta();
-		return sample;
+		return { experiences, ids, weights };
 	}
 
 	public samplePool(batchSize: number): Experience[] {
@@ -214,29 +202,36 @@ class PrioritizedExperiencePool
 
 	public clearPool(): void {
 		super.clearPool();
-		this._priorities.clear();
+		this._sum.fill(0);
+		this._min.fill(Number.POSITIVE_INFINITY);
 		this._maxPriority = 1.0;
 	}
 
-	protected _onRemoved(id: number): void {
-		this._priorities.delete(id);
+	private _setLeaf(id: number, value: number): void {
+		let node = this._leafCount + (id % this._poolMaxSize);
+		this._sum[node] = value;
+		this._min[node] = value;
+		for (node >>= 1; node >= 1; node >>= 1) {
+			this._sum[node] = this._sum[2 * node] + this._sum[2 * node + 1];
+			this._min[node] = Math.min(this._min[2 * node], this._min[2 * node + 1]);
+		}
 	}
 
-	/** First index whose running sum exceeds the roll (binary search). */
-	private _pickIndex(bounds: Float64Array, total: number): number {
-		const roll = this._rng() * total;
-		let low = 0;
-		// Floating-point rounding can leave roll just above the last bound: last index.
-		let high = bounds.length - 1;
-		while (low < high) {
-			const mid = (low + high) >>> 1;
-			if (roll < bounds[mid]) {
-				high = mid;
+	/** Leaf whose cumulative range holds the roll, in O(log N). */
+	private _pickLeaf(roll: number): number {
+		let node = 1;
+		let rest = roll;
+		while (node < this._leafCount) {
+			const left = 2 * node;
+			// An empty right subtree (rounding at the top of the range) goes left.
+			if (rest < this._sum[left] || this._sum[left + 1] === 0) {
+				node = left;
 			} else {
-				low = mid + 1;
+				rest -= this._sum[left];
+				node = left + 1;
 			}
 		}
-		return low;
+		return node;
 	}
 
 	private _advanceBeta(): void {

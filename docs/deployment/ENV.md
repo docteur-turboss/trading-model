@@ -19,7 +19,7 @@ Service abbreviation legend:
 
 ## Common — all services
 
-Defined in `@trading-model/validation` (`config/env` — `BaseEnvSchema`), validated at startup via `application/services/validate-env`.
+Defined in `@trading-model/http` (`config/env` — `BaseEnvSchema`), validated at startup via `application/services/validate-env`.
 
 | Variable        | Type                                           | Default                 | Required | Description                   | Services |
 | --------------- | ---------------------------------------------- | ----------------------- | -------- | ----------------------------- | -------- |
@@ -39,7 +39,7 @@ Defined in `@trading-model/validation` (`config/env` — `BaseEnvSchema`), valid
 
 Used by services that resolve other services (DNS).
 
-Defined in `@trading-model/validation` (`config/address-manager-env` — `AddressManagerEnvSchema`), validated at startup via `application/services/validate-env`.
+Defined in `@trading-model/address-manager` (`config/address-manager-env` — `AddressManagerEnvSchema`), validated at startup via `application/services/validate-env`.
 
 | Variable                          | Type   | Default                         | Required | Description                                      | Services       |
 | --------------------------------- | ------ | ------------------------------- | -------- | ------------------------------------------------ | -------------- |
@@ -54,7 +54,7 @@ Defined in `@trading-model/validation` (`config/address-manager-env` — `Addres
 
 ## Redis — shared connection
 
-Defined in `@trading-model/validation` (`config/redis-env` — `RedisEnvSchema`), turned into a connection by `redisConnectionFromEnv` (`@trading-model/persistence/redis-env`). With `REDIS_SENTINELS` set the service goes through the sentinels (K8s HA); otherwise it falls back to `REDIS_URL` (compose, dev).
+Defined in `@trading-model/persistence/redis-env` (`RedisEnvSchema`) and turned into a connection by `redisConnectionFromEnv`. With `REDIS_SENTINELS` set the service goes through the sentinels (K8s HA); otherwise it falls back to `REDIS_URL` (compose, dev).
 
 | Variable                     | Type   | Default    | Required | Description                                                               | Services                |
 | ---------------------------- | ------ | ---------- | -------- | ------------------------------------------------------------------------- | ----------------------- |
@@ -66,6 +66,7 @@ Defined in `@trading-model/validation` (`config/redis-env` — `RedisEnvSchema`)
 | `REDIS_TLS_MODE` | `optional` | `required` | `optional` | no | `required`: TLS to Redis and the sentinels, needs `REDIS_TLS_CA` (release N+1, ADR-0047, `docs/deployment/REDIS_TLS.md`) | MM, DLQ, AL, TT, ME |
 | `REDIS_TLS_CA` | path | — | with `required` | PEM CA of the Redis server certificates (K8s: `ca.crt` of Secret `redis-tls`) | MM, DLQ, AL, TT, ME |
 | `REDIS_TLS_SERVERNAME` | string | `redis` | no | Name the Redis certificate must carry (nodes are reached by IP) | MM, DLQ, AL, TT, ME |
+| `BUS_TRANSPORT` | `library` \| `http` | — | no | Bus transport (ADR-0073, `BusEnvSchema`): `library` = Redis Streams in process, refuses to start without `REDIS_URL` / `REDIS_SENTINELS`; `http` = message-manager, Redis settings ignored; unset = `library` when Redis is set (N-1 rule). Set by every deployment | AL, TT, ME |
 
 ---
 
@@ -107,6 +108,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `TRAINER_SIGNAL_FEATURES`         | string       | empty             | no       | `SUBJECT:dimension:metric` list (`BTC:social:pageviews`, subject = asset, sector or area): signals fed to the network as value, age and confidence inputs, 3 per metric (ADR-0081); read only with `FEATURE_SIGNAL_INPUTS`; each key must match the format or the service refuses to start; a key that finds no signal in the window logs a warning and trains on zeros | TT       |
 | `FEATURE_SIGNAL_INPUTS`           | boolean      | `false`           | no       | Feature flag (ADR-0039): `true` appends the `TRAINER_SIGNAL_FEATURES` inputs to the 18 market inputs; `false`: input and published genome as before | TT       |
 | `FEATURE_INPUT_MASK_GENE`         | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0082): `true` lets the GA evolve a mask over the input groups (candle, window, one per signal metric); `false`: no mask, genome and manifest as before | TT       |
+| `FEATURE_SHARED_TRUNK`            | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076 step 1): `true` trains all the symbols in one session, hidden layers shared, one output head per symbol, each symbol published as its own model with `components` naming the trunk; `false`: one session per symbol, genome and manifest as before | TT       |
 | `TRAINER_INPUT_MASK_PROTECT_CANDLE` | boolean    | `false`           | no       | `true` keeps the candle group active in every mask the GA evolves (ADR-0082); read only with `FEATURE_INPUT_MASK_GENE` | TT       |
 | `TRAINER_DATA_WINDOW`             | number       | `500`             | no       | Data window size (inputs per step)   | TT       |
 | `TRAINER_VALIDATION_SPLIT`        | number (]0, 1[) | `0.15`            | no       | Fraction of the steps left after the test cut, used for validation (selection) | TT       |
@@ -121,6 +123,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `FEATURE_RISK_ADJUSTED_FITNESS`   | boolean      | `true`            | no       | Feature flag (ADR-0039): `false` forces fitness `total_pnl` whatever `TRAINER_FITNESS_TYPE` says. Invalid value: refused at startup | TT       |
 | `FEATURE_ACTION_SPACE_GENE`        | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076): `true` lets the GA mutate the action set (partial order sizes, recorded as `actions` in the manifest); `false`: `sell_hold_buy`, never mutated | TT       |
 | `FEATURE_EVENT_DRIVEN_DECISIONS`   | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076 §5): `true` makes the agent decide on market events (price move, volume) instead of every bar; network gets a 33rd input `BarsSinceDecision`. `false`: genome and manifest unchanged. Invalid value: refused at startup | TT       |
+| `TRAINER_SHARED_TRUNK_SYMBOLS_PER_GENERATION` | int | `0` | no | ADR-0076 step 1, read only with `FEATURE_SHARED_TRUNK`: symbols each generation trains and evaluates on, a rotating subset of the group (k in [1, number of symbols], refused above; `0`: `ceil(N / 3)`; k = N: every symbol every generation) | TT       |
 | `TRAINER_SEED_OFFSET`             | int          | `0`               | no       | Added to the default PRNG seeds: same value and same data give the same run (A/B measures, ADR-0030) | TT       |
 | `TRAINER_OBSERVE_POSITION`        | boolean      | `true`            | no       | Show the agent its position (`false`: a constant input, to measure what it is worth, ADR-0025) | TT       |
 | `TRAINER_WALK_FORWARD_FOLDS`      | number (1-20)| `1`               | no       | Walk-forward folds per training run (ADR-0030); `1`: a single train/validation split | TT       |
@@ -331,6 +334,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 
 | Variable | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
+| `BACKUP_S3_SECONDARY_BUCKET` (+ `_REGION`, `_ENDPOINT`, `_PROVIDER`, `_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY`) | `s3://bucket/prefix` + store settings | unset | Optional second off-site backup bucket at another provider: when set, `upload_offsite` sends it every file sent to `BACKUP_S3_BUCKET` (same tiers, metric `component="offsite-secondary"`), and `deploy.yml` checks it like the first (`scripts/backup-bucket-check.sh`). GitHub environment variables / secrets of the same names; `deploy.yml` writes them to the Secret `trading-model-backup-s3`. Unset: nothing changes |
 | `BACKUP_S3_ALLOWED_REGIONS` | space-separated list | EU regions of AWS (`eu-*`), Scaleway (`fr-par nl-ams pl-waw`), OVH (`gra sbg rbx par`) | Regions the off-site backup bucket may be in. `deploy.yml` runs `scripts/backup-bucket-check.sh`: a bucket elsewhere, or whose region cannot be read, is an error in production and a warning elsewhere (`BACKUP_S3_IMMUTABILITY_CHECK=warn` downgrades both). GDPR art. 44, `docs/compliance/third-party-dpas.md` |
 
 ---
@@ -388,6 +392,7 @@ TRAINER_ASSET_COSTS={}
 TRAINER_SIGNAL_FEATURES=
 FEATURE_SIGNAL_INPUTS=false
 FEATURE_INPUT_MASK_GENE=false
+FEATURE_SHARED_TRUNK=false
 TRAINER_INPUT_MASK_PROTECT_CANDLE=false
 TRAINER_DATA_WINDOW=500
 TRAINER_VALIDATION_SPLIT=0.15

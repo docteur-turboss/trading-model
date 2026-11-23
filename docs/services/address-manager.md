@@ -30,4 +30,4 @@ const { AddressManager, ADDRESS_MANAGER_ROUTES, FIND_A_SERVICE } = createService
 
 ## Environment Schema
 
-`AddressManagerEnvSchema` (`@trading-model/validation/config/address-manager-env`); every variable is in [ENV.md](../deployment/ENV.md). Only `DNS_NAME_MAP` is read.
+`AddressManagerEnvSchema` (`@trading-model/address-manager/config/address-manager-env`); every variable is in [ENV.md](../deployment/ENV.md). Only `DNS_NAME_MAP` is read.

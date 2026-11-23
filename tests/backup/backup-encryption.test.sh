@@ -58,10 +58,10 @@ else
 	failed "upload_offsite accepted unencrypted backups"
 fi
 if BACKUP_DIR="$WORK/none" BACKUP_REQUIRE_ENCRYPTION=true BACKUP_AGE_RECIPIENTS="" \
-	bash "$ROOT/scripts/backup.sh" --components mysql >/dev/null 2>&1; then
-	failed "backup.sh ran without recipient under BACKUP_REQUIRE_ENCRYPTION"
+	K8S_NAMESPACE=test bash "$ROOT/scripts/backup-k8s.sh" >/dev/null 2>&1; then
+	failed "backup-k8s.sh ran without recipient under BACKUP_REQUIRE_ENCRYPTION"
 else
-	pass "backup.sh exits 1 without recipient under BACKUP_REQUIRE_ENCRYPTION"
+	pass "backup-k8s.sh exits 1 without recipient under BACKUP_REQUIRE_ENCRYPTION"
 fi
 
 echo "metrics"
@@ -97,16 +97,14 @@ write_dump mysql "$BACKUPS/mysql/financial_scraper_${TIMESTAMP}.sql.gz${AGE_SUFF
 write_dump spire "$BACKUPS/spire/data_${TIMESTAMP}.tar${AGE_SUFFIX}" echo x 2>/dev/null
 write_dump checkpoints "$BACKUPS/checkpoints/checkpoints_${TIMESTAMP}.tar.gz${AGE_SUFFIX}" echo x 2>/dev/null
 write_manifest 2>/dev/null
-for script in restore.sh restore-k8s.sh; do
-	out="$(BACKUP_DIR="$BACKUPS" BACKUP_AGE_IDENTITY="$WORK/key.txt" bash "$ROOT/scripts/$script" --dry-run \
-		--components mysql,spire,checkpoints --timestamp 2026-01-01_020000 2>&1 || true)"
-	if echo "$out" | grep -q 'financial_scraper_2026-01-01_020000.sql.gz.age' &&
-		echo "$out" | grep -q 'data_2026-01-01_020000.tar.age'; then
-		pass "$script resolves the encrypted files"
-	else
-		failed "$script did not find the encrypted files:"
-		echo "$out" | sed 's/^/      /'
-	fi
-done
+out="$(BACKUP_DIR="$BACKUPS" BACKUP_AGE_IDENTITY="$WORK/key.txt" bash "$ROOT/scripts/restore-k8s.sh" --dry-run \
+	--components mysql,spire,checkpoints --timestamp 2026-01-01_020000 2>&1 || true)"
+if echo "$out" | grep -q 'financial_scraper_2026-01-01_020000.sql.gz.age' &&
+	echo "$out" | grep -q 'data_2026-01-01_020000.tar.age'; then
+	pass "restore-k8s.sh resolves the encrypted files"
+else
+	failed "restore-k8s.sh did not find the encrypted files:"
+	echo "$out" | sed 's/^/      /'
+fi
 
 exit "$FAILED"

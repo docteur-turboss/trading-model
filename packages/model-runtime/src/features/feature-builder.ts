@@ -5,6 +5,7 @@ import type {
 	Volume,
 } from "@trading-model/primitives/primitives";
 import { FeatureVector } from "../feature-vector";
+import { SlidingWindowSize } from "../feature-vector-codec";
 import { NormalizationStats } from "./normalization-stats";
 
 /** One day in milliseconds: the length of a daily bar (ADR-0083). */
@@ -97,7 +98,7 @@ function buildCandleFeatures(
 }
 
 /** Candles before a step that its features read (the sliding window). */
-export const FEATURE_LOOKBACK = 8;
+export const FEATURE_LOOKBACK = SlidingWindowSize;
 
 function buildSlidingWindowFeatures(
 	features: FeatureVector,

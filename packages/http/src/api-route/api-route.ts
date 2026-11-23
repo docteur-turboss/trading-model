@@ -15,25 +15,6 @@ export const ErrorResponse = z.object({
 /** Body shape of an error response sent by an API route. */
 export type ErrorResponse = z.output<typeof ErrorResponse>;
 
-/**
- * Applies a `primitives` brand in a schema, `.transform(brand(Topic.of))`: a
- * value the brand rejects becomes a validation issue (400). A bare
- * `.transform(Topic.of)` would throw out of the parse instead (500).
- */
-export function brand<In, Out>(of: (value: In) => Out) {
-	return (value: In, ctx: z.RefinementCtx): Out => {
-		try {
-			return of(value);
-		} catch (err) {
-			ctx.addIssue({
-				code: "custom",
-				message: err instanceof Error ? err.message : String(err),
-			});
-			return z.NEVER;
-		}
-	};
-}
-
 /** A response body that is not JSON (`responses: { 200: binary("application/octet-stream") }`). */
 export interface BinaryBody {
 	readonly binary: string;

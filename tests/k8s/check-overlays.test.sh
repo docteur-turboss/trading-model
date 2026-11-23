@@ -3,7 +3,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
-cp -r "$ROOT/deploy" "$ROOT/scripts" "$ROOT/.github" "$TMP"
+cp -r "$ROOT/deploy" "$ROOT/scripts" "$ROOT/.github" "$ROOT/docker-compose.yml" "$TMP"
 mkdir -p "$TMP/services/api-gateway/src/shared" && cp "$ROOT/services/api-gateway/src/shared/public-routes.ts" "$TMP/services/api-gateway/src/shared/"
 # The base kustomization builds the ConfigMap financial-scraper-signal-registry from this file (issue #1308).
 mkdir -p "$TMP/services/financial-scraper/src/config"
@@ -48,6 +48,17 @@ if out="$(cd "$TMP" && node "$ROOT/tests/k8s/check-overlays.mjs" 2>&1)"; then
 fi
 if grep -q '^staging: risk-execution-config sets EXECUTION_MODE=live outside production' <<<"$out"; then
   echo "  ✓ live outside production refused"
+else
+  echo "  ✗ unexpected failure:"; echo "$out"; exit 1
+fi
+# Issue #1931: a bus user sent to the partitioned redis-0, which lacks its ACL user.
+rm -r "$TMP/deploy" && cp -r "$ROOT/deploy" "$TMP/deploy"
+sed -i '/^  - name: model-evaluator-config$/,+3d' "$TMP/deploy/k8s/overlays/staging-local/kustomization.yaml"
+if out="$(cd "$TMP" && node "$ROOT/tests/k8s/check-overlays.mjs" 2>&1)"; then
+  echo "  ✗ bus user on partitioned redis accepted"; exit 1
+fi
+if grep -q '^staging-local: model-evaluator-config-[a-z0-9]* sends bus user model-evaluator to the partitioned redis' <<<"$out"; then
+  echo "  ✓ bus user on partitioned redis refused"
 else
   echo "  ✗ unexpected failure:"; echo "$out"; exit 1
 fi

@@ -110,6 +110,7 @@ jobs:
   # (fine-grained PAT, repository permission "Administration: read") is required.
   check-environment:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       # Reads the production-ready objective issue (label objectif).
@@ -195,11 +196,19 @@ jobs:
     # (docs/deployment/STAGING_LOCAL.md). Production always runs on GitHub.
     runs-on: ${{ (inputs.environment == 'staging' && vars.STAGING_RUNNER) || 'ubuntu-latest' }}
     environment: ${{ inputs.environment }}
+    # Budget = 90 + 45 * DEPLOY_TIMEOUT_FACTOR min (135 at 1, 270 at 4), sum of the step caps:
+    # fixed 90 = checks 10 + pre-migrate backup 30 + canary 5 + smoke 5 + market data 10 + verify 10 + rollback 10 + margin 10;
+    # per factor 45 = migrations 3 + Redis TLS/sts 10 + rollouts 15 + API wait 5 + rollback rollouts 12.
+    # A timeout cancels the job: "Rollback on failure" runs on cancelled(); the rollback share above keeps time for it.
+    # Expressions have no arithmetic (actionlint in ci.yml lint): budget looked up per factor 1-4, any other factor gets 270.
+    timeout-minutes: ${{ fromJSON('{"1":135,"2":180,"3":225,"4":270}')[vars.DEPLOY_TIMEOUT_FACTOR || '1'] || 270 }}
     env:
       # DEPLOY_TIMEOUT_FACTOR (variable of the GitHub environment): integer the
       # MySQL, migration and rollout timeouts are multiplied by, for a slow
       # cluster (local kind staging). Unset: 1.
       DEPLOY_TIMEOUT_FACTOR: ${{ vars.DEPLOY_TIMEOUT_FACTOR || '1' }}
+      # Canary services (canary-all and canary-cleanup read this one list).
+      CANARY_SERVICES: message-manager financial-scraper api-gateway audit-logger dlq-service
       # Free-text inputs reach scripts through env only, never ${{ }} in run:.
       DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
       ALLOW_FIRING_ALERTS: ${{ inputs.allow_firing_alerts }}
@@ -330,6 +339,22 @@ jobs:
           echo "$CLUSTER_KUBECONFIG_CONTENT" | base64 -d > "$RUNNER_TEMP/kube/cluster"
           echo "KUBECONFIG=$RUNNER_TEMP/kube/config" >> "$GITHUB_ENV"
           echo "CLUSTER_KUBECONFIG=$RUNNER_TEMP/kube/cluster" >> "$GITHUB_ENV"
+          # Token expiry (deploy-identity.sh: 168 h): fail with the date before any network call.
+          # token-expiry:begin
+          for v in APP CLUSTER; do
+            f=config; [ "$v" = CLUSTER ] && f=cluster
+            p="$(KUBECONFIG="$RUNNER_TEMP/kube/$f" kubectl config view --raw -o jsonpath='{.users[0].user.token}' | cut -d. -f2 | tr '_-' '/+')"
+            exp="$(printf '%s%s' "$p" "$(printf '%*s' $(((4 - ${#p} % 4) % 4)) '' | tr ' ' =)" | base64 -d 2>/dev/null | jq -r '.exp // empty' 2>/dev/null || true)"
+            [[ "$exp" =~ ^[0-9]+$ ]] || continue
+            at="$(date -u -d "@$exp" '+%Y-%m-%d %H:%M UTC')"
+            if [ "$exp" -le "$(date +%s)" ]; then
+              echo "::error::KUBECONFIG_${upper}_$v token expired on $at: regenerate with bash scripts/deploy-identity.sh ${v,,} (docs/deployment/DEPLOY.md)"
+              exit 1
+            elif [ "$exp" -le "$(( $(date +%s) + 86400 ))" ]; then
+              echo "::warning::KUBECONFIG_${upper}_$v token expires on $at: regenerate with bash scripts/deploy-identity.sh ${v,,}"
+            fi
+          done
+          # token-expiry:end
           export KUBECONFIG="$RUNNER_TEMP/kube/config"
           # cluster-info reads kube-system, which neither identity may.
           kubectl auth can-i get deployments -n "$NS"
@@ -540,7 +565,7 @@ jobs:
             echo "::warning::$ENV edge-proxy still trusts the placeholder pod CIDR: set the real one in deploy/k8s/overlays/$OVERLAY/realip.inc"
           fi
 
-      # The cluster identity may only read ClusterRoles and their bindings: an
+      # The cluster identity may only read ClusterRoles, bindings, Namespaces and node-agent DaemonSets: an
       # admin applies them (deploy-identity.sh cluster). A release that adds or
       # changes one (3.1.0: prometheus-nodes) would make the next steps fail
       # Forbidden half way: stop here with the admin command (issue #701).
@@ -553,8 +578,7 @@ jobs:
             kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$OVERLAY"
             echo ---
             kubectl kustomize "deploy/k8s/overlays/$OVERLAY/node-agents"
-          } | bash scripts/split-cluster-scope.sh cluster |
-            KUBECONFIG="$CLUSTER_KUBECONFIG" bash deploy/k8s/scripts/check-cluster-rbac.sh \
+          } | KUBECONFIG="$CLUSTER_KUBECONFIG" bash deploy/k8s/scripts/check-cluster-rbac.sh \
               --namespace "$NAMESPACE" --environment "$OVERLAY"
 
       # The app identity cannot grant itself rights: a Role deploy-app created
@@ -647,9 +671,7 @@ jobs:
         id: cluster_scope
         shell: bash
         run: |
-          NS="$NAMESPACE"
           export KUBECONFIG="$CLUSTER_KUBECONFIG"
-          kubectl get namespace "$NS" >/dev/null 2>&1 || kubectl create namespace "$NS"
           kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$OVERLAY" |
             bash scripts/split-cluster-scope.sh cluster | kubectl apply -f -
 
@@ -698,6 +720,11 @@ jobs:
           BACKUP_S3_ENDPOINT: ${{ vars.BACKUP_S3_ENDPOINT }}
           BACKUP_S3_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
           BACKUP_S3_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          BACKUP_S3_SECONDARY_BUCKET: ${{ vars.BACKUP_S3_SECONDARY_BUCKET }}
+          BACKUP_S3_SECONDARY_REGION: ${{ vars.BACKUP_S3_SECONDARY_REGION }}
+          BACKUP_S3_SECONDARY_ENDPOINT: ${{ vars.BACKUP_S3_SECONDARY_ENDPOINT }}
+          BACKUP_S3_SECONDARY_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_SECONDARY_ACCESS_KEY_ID }}
+          BACKUP_S3_SECONDARY_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECONDARY_SECRET_ACCESS_KEY }}
           BACKUP_S3_IMMUTABILITY_CHECK: ${{ vars.BACKUP_S3_IMMUTABILITY_CHECK }}
           # Empty: the script's default list of EU regions.
           BACKUP_S3_ALLOWED_REGIONS: ${{ vars.BACKUP_S3_ALLOWED_REGIONS }}
@@ -735,6 +762,10 @@ jobs:
           AWS_ACCESS_KEY_ID="$key_id" AWS_SECRET_ACCESS_KEY="$secret" AWS_REGION="$region" \
             bash scripts/backup-bucket-check.sh --environment "$DEPLOY_ENVIRONMENT" \
               --bucket "$bucket" --endpoint "$endpoint" --min-days "$retention"
+          # Optional second bucket at another provider: same rules.
+          if [ -n "$BACKUP_S3_SECONDARY_BUCKET" ]; then
+            AWS_ACCESS_KEY_ID="$BACKUP_S3_SECONDARY_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$BACKUP_S3_SECONDARY_SECRET_ACCESS_KEY"               AWS_REGION="$BACKUP_S3_SECONDARY_REGION"               bash scripts/backup-bucket-check.sh --environment "$DEPLOY_ENVIRONMENT"                 --bucket "$BACKUP_S3_SECONDARY_BUCKET" --endpoint "$BACKUP_S3_SECONDARY_ENDPOINT" --min-days "$retention"
+          fi
 
       # At least two distinct age recipients in production (operator key +
       # escrow key, issue #327): with one, losing its private key makes every
@@ -948,13 +979,12 @@ jobs:
           NS="$NAMESPACE"
           export K8S_NAMESPACE="$NS"
           export CANARY_IMAGE_REPO="${{ steps.tag.outputs.registry }}"
+          export CANARY_DIGESTS_FILE="$RUNNER_TEMP/image-digests"
           chmod +x deploy/k8s/scripts/deploy-k8s.sh
           TAG="$RESOLVED_TAG"
           # Created in parallel, observed over one CANARY_GATE_SECONDS window.
           # No singleton here (trader-trainer ADR-0058, collector ADR-0057): a canary is a second pod.
-          ./deploy/k8s/scripts/deploy-k8s.sh canary-all "$TAG" 10 \
-            message-manager financial-scraper \
-            api-gateway audit-logger dlq-service
+          ./deploy/k8s/scripts/deploy-k8s.sh canary-all "$TAG" 10 $CANARY_SERVICES
 
       # Revision each Deployment runs before the overlay: "Rollback on failure"
       # returns to exactly it (deploy-release.sh, shared with the k8s CI job).
@@ -1025,6 +1055,12 @@ jobs:
           BACKUP_S3_PROVIDER: ${{ vars.BACKUP_S3_PROVIDER }}
           BACKUP_S3_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
           BACKUP_S3_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          BACKUP_S3_SECONDARY_BUCKET: ${{ vars.BACKUP_S3_SECONDARY_BUCKET }}
+          BACKUP_S3_SECONDARY_REGION: ${{ vars.BACKUP_S3_SECONDARY_REGION }}
+          BACKUP_S3_SECONDARY_ENDPOINT: ${{ vars.BACKUP_S3_SECONDARY_ENDPOINT }}
+          BACKUP_S3_SECONDARY_PROVIDER: ${{ vars.BACKUP_S3_SECONDARY_PROVIDER }}
+          BACKUP_S3_SECONDARY_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_SECONDARY_ACCESS_KEY_ID }}
+          BACKUP_S3_SECONDARY_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECONDARY_SECRET_ACCESS_KEY }}
         run: |
           NS="$NAMESPACE"
           if [ -z "$BACKUP_S3_BUCKET" ]; then
@@ -1036,6 +1072,13 @@ jobs:
           # An empty endpoint would override rclone's default (AWS): left out.
           endpoint=()
           [ -z "$BACKUP_S3_ENDPOINT" ] || endpoint=(--from-literal=S3_ENDPOINT="$BACKUP_S3_ENDPOINT")
+          # Optional second off-site bucket: the keys the job reads as BACKUP_S3_SECONDARY_*.
+          if [ -n "$BACKUP_S3_SECONDARY_BUCKET" ]; then
+            for k in BUCKET REGION ENDPOINT PROVIDER ACCESS_KEY_ID SECRET_ACCESS_KEY; do
+              v="BACKUP_S3_SECONDARY_$k"
+              [ -z "${!v}" ] || endpoint+=(--from-literal="$v=${!v}")
+            done
+          fi
           kubectl -n "$NS" create secret generic trading-model-backup-s3 \
             --from-literal=BACKUP_S3_BUCKET="$BACKUP_S3_BUCKET" \
             --from-literal=AWS_REGION="$BACKUP_S3_REGION" \
@@ -1135,8 +1178,7 @@ jobs:
         run: |
           NS="$NAMESPACE"
           export K8S_NAMESPACE="$NS"
-          for dep in message-manager financial-scraper \
-                     api-gateway audit-logger dlq-service; do
+          for dep in $CANARY_SERVICES; do
             ./deploy/k8s/scripts/deploy-k8s.sh canary-cleanup "$dep"
           done
 

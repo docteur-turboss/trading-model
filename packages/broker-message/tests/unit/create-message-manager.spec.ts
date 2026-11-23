@@ -16,7 +16,36 @@ jest.mock("../../src/broker-message", () => ({
 
 jest.mock("@trading-model/address-manager", () => ({}));
 
-import { createMessageManager } from "../../src/create-message-manager";
+import {
+	busJournalFromEnv,
+	createMessageManager,
+} from "../../src/create-message-manager";
+
+describe("busJournalFromEnv", () => {
+	it("should keep the N-1 rule without BUS_TRANSPORT: no Redis settings, message-manager", () => {
+		expect(
+			busJournalFromEnv({
+				REDIS_SENTINELS: "",
+				REDIS_USERNAME: "trader-trainer",
+			})
+		).toBeUndefined();
+	});
+
+	it("should refuse BUS_TRANSPORT=library without Redis settings", () => {
+		expect(() =>
+			busJournalFromEnv({ BUS_TRANSPORT: "library", REDIS_SENTINELS: "" })
+		).toThrow("BUS_TRANSPORT=library needs REDIS_URL or REDIS_SENTINELS");
+	});
+
+	it("should leave the bus to message-manager with BUS_TRANSPORT=http, even with Redis settings", () => {
+		expect(
+			busJournalFromEnv({
+				BUS_TRANSPORT: "http",
+				REDIS_URL: "redis://localhost:6379",
+			})
+		).toBeUndefined();
+	});
+});
 
 describe("createMessageManager", () => {
 	const options = {

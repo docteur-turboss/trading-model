@@ -84,7 +84,7 @@ checked 2026-11-04); one row per provider, every source id listed:
 | Source | Data received | PII received? | Terms |
 | ------ | ------------- | ------------- | ----- |
 | ECB Data Portal (`data-api.ecb.europa.eu`): `ecb-aaa-yield-10y`, `ecb-hicp-annual-rate`, `ecb-deposit-facility-rate`, `ecb-euro-reference-rates` | Euro area yields, HICP, deposit rate, reference rates | No | [Free reuse](https://www.ecb.europa.eu/stats/ecb_statistics/governance_and_quality_framework/html/usage_policy.en.html), commercial included, "Source: ECB statistics", data not modified |
-| SEC EDGAR (`data.sec.gov`, United States): `sec-edgar-eps-diluted`, `sec-edgar-revenue`, `sec-edgar-core-facts` | XBRL facts of company filings | No | [May be copied or redistributed without permission](https://www.sec.gov/privacy), cite the SEC; fair access: User-Agent with a contact e-mail, at most 10 requests/s |
+| SEC EDGAR (`data.sec.gov`, United States): `sec-edgar-eps-diluted`, `sec-edgar-revenue`, `sec-edgar-core-facts` | XBRL facts of company filings | No | [SEC data access terms](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data), cite the SEC; fair access: User-Agent with a contact e-mail, at most 10 requests/s |
 | US National Weather Service (`api.weather.gov`): `nws-kansas-wheat-belt` | Latest observation of a weather station (Hutchinson, Kansas) | No | [Public domain](https://www.weather.gov/disclaimer), no endorsement implied; User-Agent required |
 | Twelve Data (`api.twelvedata.com`): `twelvedata-daily-prices` (rank 2, `non-commercial`) | Daily prices of equities and ETFs | No | Free tier, internal use: §2.3(l) no "Use Free Tier data for commercial purposes"; §16.2(a) data deleted within 30 days of termination ([terms](https://twelvedata.com/terms)); API key and User-Agent sent |
 | Wikimedia Analytics API (`wikimedia.org`): `wikipedia-pageviews` | Daily views of Wikipedia articles | No: counts only | [CC0 1.0](https://doc.wikimedia.org/generated-data-platform/aqs/analytics-api/documentation/access-policy.html); User-Agent with a contact required |
@@ -162,7 +162,7 @@ The repository neither signs a DPA nor picks a provider. The operating entity si
 
 | Field | Value |
 | ----- | ----- |
-| Role | Off-site copy of every backup (ADR-0032, ADR-0033): `BACKUP_S3_BUCKET`, Object Lock compliance mode |
+| Role | Off-site copy of every backup (ADR-0032, ADR-0033): `BACKUP_S3_BUCKET`, Object Lock compliance mode; optional second copy at another provider, `BACKUP_S3_SECONDARY_BUCKET`, same rules and same DPA requirement |
 | Data sent | `.age` files only, encrypted before upload; the provider holds no key. Contents: dumps of activities 1–4 (no personal data, see the register) and the audit trail (only the pseudonymous API key name `actor`, register activity 8) |
 | Region | Operator-set (`BACKUP_S3_REGION`), must be an EU region: `scripts/backup-bucket-check.sh` refuses any region outside `BACKUP_S3_ALLOWED_REGIONS` in production (warning elsewhere). Provider and region: to be confirmed by the operator |
 | Processor? | Storage only; the data is ciphertext to the provider. The register's position is that the dumps hold no personal data beyond the pseudonymous key name in the audit trail (activity 8) |

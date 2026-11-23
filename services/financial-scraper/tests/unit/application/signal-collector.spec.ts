@@ -214,7 +214,10 @@ describe("SignalCollector", () => {
 		await collector().collect(SOURCE);
 
 		expect(worker).toHaveBeenCalledWith(SOURCE.requests[0], "none", SOURCE);
-		expect(normalize).toHaveBeenCalledWith({ payload: true }, { params: {} });
+		expect(normalize).toHaveBeenCalledWith(
+			{ payload: true },
+			{ params: {}, ingestedAt: NOW }
+		);
 		expect(save).toHaveBeenNthCalledWith(1, [
 			{
 				id: signalId(
@@ -326,6 +329,7 @@ describe("SignalCollector", () => {
 		expect(save.mock.calls[0][0]).toMatchObject([
 			{ observedAt: "2026-11-04T12:03:00.000Z" },
 		]);
+		expect((await SIGNAL_NEWEST_OBSERVED.get()).values).toEqual([]);
 	});
 
 	it.each([
@@ -429,6 +433,15 @@ describe("SignalCollector", () => {
 		expect(await gauge(SIGNAL_NEWEST_OBSERVED)).toEqual([OBSERVED_AT / 1000]);
 	});
 
+	it("keeps the observed gauge on replayed data, whatever the collection time", async () => {
+		await collector().collect(ONE_REQUEST);
+		clock += 3_600_000;
+		await collector().collect(ONE_REQUEST);
+		expect(
+			(await SIGNAL_NEWEST_OBSERVED.get()).values.map((v) => v.value)
+		).toEqual([OBSERVED_AT / 1000]);
+	});
+
 	it("restores the gauges from the store, the threshold from the cron", async () => {
 		const newestBySource = async () =>
 			new Map([["test-source", { ingestedAt: 5000, observedAt: 2000 }]]);
@@ -496,6 +509,22 @@ describe("quarantine of a failing source", () => {
 		expect(await quarantined()).toBe(0);
 		await c.collect(ONE_REQUEST);
 		expect(worker).toHaveBeenCalledTimes(6);
+	});
+
+	it("counts an HttpStatusError thrown by the adapter as a fetch error and quarantines the source", async () => {
+		worker.mockResolvedValue({ payload: true });
+		normalize.mockImplementation(() => {
+			throw new HttpStatusError("quota in a 200 body", 429);
+		});
+		const c = collector();
+		for (let i = 0; i < 3; i++) {
+			await c.collect(ONE_REQUEST);
+		}
+		expect((await counted())["test-source:fetch_error"]).toBe(3);
+		expect((await counted())["test-source:invalid_payload"]).toBeUndefined();
+		expect(await quarantined()).toBe(1);
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(3);
 	});
 
 	it("honours Retry-After in seconds and as an HTTP date", async () => {

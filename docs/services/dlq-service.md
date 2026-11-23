@@ -14,7 +14,7 @@ Stores and manages dead letter entries — messages that could not be delivered 
 | `@trading-model/common`          | runtime                            |
 | `@trading-model/address-manager` | runtime                            |
 | MongoDB                          | persistence                        |
-| Redis                            | auto-retry queue and replay claims |
+| Redis                            | replay claims                      |
 
 ## Endpoints
 
