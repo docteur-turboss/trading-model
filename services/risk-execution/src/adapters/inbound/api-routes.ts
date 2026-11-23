@@ -41,6 +41,17 @@ export const RISK_API = {
 			404: ErrorResponse,
 		},
 	}),
+	position: defineRoute({
+		method: "GET",
+		path: "/positions/:symbol",
+		summary:
+			"Real paper position of a symbol (0 when flat): the consumer sizes sales on it",
+		params: z.object({ symbol: z.string().min(1) }),
+		responses: {
+			200: z.object({ symbol: z.string(), quantity: z.number() }),
+			403: ErrorResponse,
+		},
+	}),
 	adminStatus: defineRoute({
 		method: "GET",
 		path: "/admin/status",
