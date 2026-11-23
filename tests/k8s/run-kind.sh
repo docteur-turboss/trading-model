@@ -170,10 +170,18 @@ node_digests() {
 
 # Pulls the release images of tag $PREVIOUS_REF from $KIND_PREVIOUS_REGISTRY by
 # digest, each verified as signed by release.yml (as deploy.yml does), as
-# ghcr.io/trading-model/<image>:previous.
+# ghcr.io/trading-model/<image>:previous. An image the tag predates (decided on
+# its checkout, never on a registry error) gets a stand-in built from this
+# checkout, as build_images does: N-1 manifests never deploy it.
 pull_previous_images() {
-	local img ref digest repo="${GITHUB_REPOSITORY:-docteur-turboss/trading-model}"
+	local img ref digest repo="${GITHUB_REPOSITORY:-docteur-turboss/trading-model}" missing=""
+	local released=" $(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$PREVIOUS/deploy/k8s/services/kustomization.yaml" | tr '\n' ' ')spire-tools backup-tools "
+	[ ! -f "$PREVIOUS/deploy/migrate/Dockerfile" ] || released="${released}db-migrate "
 	for img in $IMAGES; do
+		[[ "$released" == *" $img "* ]] || {
+			missing="$missing $img"
+			continue
+		}
 		ref="$KIND_PREVIOUS_REGISTRY/$img"
 		digest="$(docker buildx imagetools inspect "$ref:${PREVIOUS_REF#v}" --format '{{.Manifest.Digest}}')"
 		cosign verify "$ref@$digest" --certificate-oidc-issuer https://token.actions.githubusercontent.com \
@@ -184,6 +192,15 @@ pull_previous_images() {
 		retry 3 docker pull -q "$ref@$digest" >/dev/null
 		docker tag "$ref@$digest" "ghcr.io/trading-model/$img:previous"
 	done
+	[ -n "$missing" ] || return 0
+	log "not in $PREVIOUS_REF, unsigned stand-in built from this checkout:$missing"
+	if [[ "$missing" == *" db-migrate"* ]]; then
+		retry 3 docker build -q -t ghcr.io/trading-model/db-migrate:previous -f "$ROOT/deploy/migrate/Dockerfile" "$ROOT"
+		missing="${missing/ db-migrate/}"
+	fi
+	export IMAGE_TAG=previous
+	# shellcheck disable=SC2086
+	[ -z "$missing" ] || retry 3 docker compose -f "$ROOT/docker-compose.yml" -f "$ROOT/docker-compose.build.yml" build $missing
 }
 
 images() {
