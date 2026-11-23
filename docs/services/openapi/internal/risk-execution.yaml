@@ -323,3 +323,39 @@ paths:
             "application/json":
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /positions/{symbol}:
+    get:
+      operationId: "getPositionsSymbol"
+      tags:
+        - "risk-execution"
+      summary: "Real paper position of a symbol (0 when flat): the consumer sizes sales on it"
+      x-registry-entry: "position"
+      parameters:
+        - name: "symbol"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            minLength: 1
+      responses:
+        "200":
+          description: "OK"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  symbol:
+                    type: "string"
+                  quantity:
+                    type: "number"
+                required:
+                  - "symbol"
+                  - "quantity"
+                additionalProperties: false
+        "403":
+          description: "Caller not allowed"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
