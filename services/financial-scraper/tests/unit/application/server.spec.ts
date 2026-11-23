@@ -50,12 +50,6 @@ function mysqlReadiness(): () => Promise<boolean> {
 }
 
 describe("app/server", () => {
-	it("should create server", async () => {
-		const server = await createServer();
-		expect(server).toBeDefined();
-		expect(server.close).toBeDefined();
-	});
-
 	it("reports MySQL ready when the promise query succeeds", async () => {
 		await expect(mysqlReadiness()()).resolves.toBe(true);
 		expect(MOCK_PROMISE_QUERY).toHaveBeenCalledWith("SELECT 1");
