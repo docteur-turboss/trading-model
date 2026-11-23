@@ -90,7 +90,10 @@ describe("discovery-server public API (DISCOVERY_API)", () => {
 	it("lists the services with registered instances", async () => {
 		await registry.registerInstance(instance("financial-scraper", "i1"));
 
-		const { status, body } = await get(DISCOVERY_API.listServices, "/services");
+		const { status, body } = await get(
+			DISCOVERY_API.listServices,
+			"/v1/services"
+		);
 
 		expect(status).toBe(200);
 		expect(body).toEqual(["financial-scraper"]);
@@ -103,7 +106,7 @@ describe("discovery-server public API (DISCOVERY_API)", () => {
 
 			const { status, body } = await get(
 				DISCOVERY_API.getServiceInstances,
-				"/services/financial-scraper"
+				"/v1/services/financial-scraper"
 			);
 
 			expect(status).toBe(200);
@@ -115,7 +118,7 @@ describe("discovery-server public API (DISCOVERY_API)", () => {
 		it("answers 404 for an unknown service (it used to be a 500)", async () => {
 			const { status, body } = await get(
 				DISCOVERY_API.getServiceInstances,
-				"/services/unknown-service"
+				"/v1/services/unknown-service"
 			);
 
 			expect(status).toBe(404);
@@ -129,7 +132,7 @@ describe("discovery-server public API (DISCOVERY_API)", () => {
 
 			const { status, body } = await get(
 				DISCOVERY_API.getInstance,
-				"/services/financial-scraper/i1"
+				"/v1/services/financial-scraper/i1"
 			);
 
 			expect(status).toBe(200);
@@ -140,15 +143,19 @@ describe("discovery-server public API (DISCOVERY_API)", () => {
 		it.each([
 			[
 				"an unknown instance",
-				"/services/financial-scraper/nope",
+				"/v1/services/financial-scraper/nope",
 				"Instance not found",
 			],
 			[
 				"an instance of another service",
-				"/services/dlq-service/i1",
+				"/v1/services/dlq-service/i1",
 				"Instance not found",
 			],
-			["an unknown service", "/services/unknown-service/i1", "Unknown service"],
+			[
+				"an unknown service",
+				"/v1/services/unknown-service/i1",
+				"Unknown service",
+			],
 		])("answers 404 for %s", async (_label, path, error) => {
 			await registry.registerInstance(instance("financial-scraper", "i1"));
 
@@ -163,7 +170,7 @@ describe("discovery-server public API (DISCOVERY_API)", () => {
 
 			const { status } = await get(
 				DISCOVERY_API.getInstance,
-				"/services/financial-scraper/old"
+				"/v1/services/financial-scraper/old"
 			);
 
 			expect(status).toBe(404);
