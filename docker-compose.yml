@@ -179,6 +179,27 @@ services:
       mysql:
         condition: service_healthy
 
+  # Paged read indexes (ADR-0086): built apart from `migrate`, nothing waits for it.
+  index-build:
+    logging: *default-logging
+    build:
+      context: .
+      dockerfile: deploy/migrate/Dockerfile
+    container_name: trading-index-build
+    restart: "no"
+    command: ["index-build"]
+    environment:
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_USER: ${MYSQL_USER:-root}
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
+    networks:
+      - data-net
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
   # ---------------------------------------------------------------------------
   #  Discovery Server — Service registry & lease management
   # ---------------------------------------------------------------------------

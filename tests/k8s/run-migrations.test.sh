@@ -43,6 +43,7 @@ run() { : >"$STUB_LOG"; : >"$STUB_LOG.manifests"; set +e; OUT=$("$@" 2>&1); RC=$
 
 STUB_KEY=c2VjcmV0 run bash "$RUN" ns
 { [ $RC = 0 ] && grep -q 'job/db-migrate ' "$STUB_LOG" && grep -q 'job/db-migrate-user ' "$STUB_LOG"; } && ok "key present: both jobs run" || ko "key present"
+{ grep -q 'name: db-index-build$' "$STUB_LOG.manifests" && ! grep -q 'job/db-index-build ' "$STUB_LOG"; } && ok "db-index-build applied last, not waited for" || ko "index build job"
 { [ "$(grep -c 'activeDeadlineSeconds: 180$' "$STUB_LOG.manifests")" = 3 ] && grep -q 'image: ghcr.io/trading-model/db-migrate:latest' "$STUB_LOG.manifests"; } &&
   ok "no DEPLOY_TIMEOUT_FACTOR: base Job deadline, manifest image" || ko "default deadline: $(grep activeDeadlineSeconds "$STUB_LOG.manifests")"
 

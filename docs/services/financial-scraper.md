@@ -24,13 +24,10 @@ A client of 2.x must migrate: see [Breaking changes in 3.0.0](#breaking-changes-
 
 | Route                                    | Returns                                           | Parameter                                   |
 | ---------------------------------------- | ------------------------------------------------- | ------------------------------------------- |
-| `/v2/trade/sources/:source`                 | trades of a source                                | `binance`, `bloomberg` or `nyse`            |
 | `/v2/trade/symbols/:symbol`                 | trades of a symbol                                | e.g. `BTCUSDT`                              |
 | `/v2/trade/timestamp/:timestamp`            | trades at **exactly** this instant                | ISO date or date-time                       |
-| `/v2/ticker/sources/:source`                | 24h tickers of a source                           | source                                      |
 | `/v2/ticker/symbols/:symbol`                | 24h tickers of a symbol                           | symbol                                      |
 | `/v2/ticker/timestamp/:timestamp`           | 24h tickers opened at **exactly** this instant    | ISO date or date-time                       |
-| `/v2/candles/sources/:source`               | candles of a source                               | source                                      |
 | `/v2/candles/symbols/:symbol`               | candles of a symbol                               | symbol                                      |
 | `/v2/candles/timestamp/:timestamp`          | candles opened **after** this instant             | ISO date or date-time                       |
 

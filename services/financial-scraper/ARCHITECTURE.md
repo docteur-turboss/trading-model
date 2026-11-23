@@ -99,13 +99,10 @@ Storage schemas live in `src/adapters/outbound/persistence/schema/`; market data
 
 | Method | Path                                     | Description                  |
 | ------ | ---------------------------------------- | ---------------------------- |
-| GET    | `/trade/sources/:source`                 | Trades by source             |
 | GET    | `/trade/symbols/:symbol`                 | Trades by symbol             |
 | GET    | `/trade/timestamp/:timestamp`            | Trades by timestamp          |
-| GET    | `/ticker/sources/:source`                | Tickers by source            |
 | GET    | `/ticker/symbols/:symbol`                | Tickers by symbol            |
 | GET    | `/ticker/timestamp/:timestamp`           | Tickers by timestamp         |
-| GET    | `/candles/sources/:source`               | Candles by source            |
 | GET    | `/candles/symbols/:symbol`               | Candles by symbol            |
 | GET    | `/candles/timestamp/:timestamp`          | Candles by timestamp         |
 | GET    | `/signals/assets/:assetId?from=&to=`     | Signals of an asset and its sector in a window (ADR-0036) |

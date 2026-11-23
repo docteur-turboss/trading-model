@@ -1,0 +1,85 @@
+# =============================================================================
+#  index-build-job.yaml — long online index builds, outside the db-migrate Job
+#  Builds the (symbol, timestamp, id) indexes of the market tables (ADR-0086):
+#  ~10 M rows take longer than the 720 s of db-migrate (issue #1473). Same
+#  image, user and ServiceAccount as db-migrate; run-migrations.sh applies it
+#  without waiting. Idempotent: a failed or killed build is retried from the
+#  table it was on (backoffLimit), and a rerun skips what exists.
+# =============================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-index-build
+  annotations:
+    description: "Builds the paged read indexes online"
+    app.kubernetes.io/part-of: trading-model
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 3
+  activeDeadlineSeconds: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: db-index-build
+        app.kubernetes.io/part-of: trading-model
+    spec:
+      serviceAccountName: migration-runner
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: index-build
+          image: ghcr.io/trading-model/db-migrate:latest
+          # run-migrations.sh pins the digest; IfNotPresent also lets kind use the loaded image.
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          args:
+            - index-build
+          env:
+            - name: DB_HOST
+              value: mysql-primary
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              value: migrator
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_MIGRATE_PASSWORD
+            - name: DB_NAME
+              value: financial_scraper
+            # Server certificate checked with the internal CA, host name included (ADR-0060).
+            - name: DB_SSL_CA
+              value: /etc/mysql-tls/ca.crt
+            # Client certificate of user `migrator` (Secret mysql-client-migrator).
+            - name: DB_SSL_CERT
+              value: /etc/mysql-tls/tls.crt
+            - name: DB_SSL_KEY
+              value: /etc/mysql-tls/tls.key
+          volumeMounts:
+            - name: mysql-tls
+              mountPath: /etc/mysql-tls
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      volumes:
+        - name: mysql-tls
+          secret:
+            secretName: mysql-client-migrator

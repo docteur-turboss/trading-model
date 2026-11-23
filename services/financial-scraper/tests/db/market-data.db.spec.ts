@@ -315,9 +315,10 @@ describe("market_candles — real MySQL", () => {
 		]);
 
 		await expect(count("market_candles")).resolves.toBe(3);
-		await expect(
-			selectCandlesBy.source(SourceType.Nyse, PAGE)
-		).resolves.toHaveLength(1);
+		const [nyse] = await DATABASE.promise().query(
+			"SELECT 1 FROM market_candles WHERE source = 'nyse'"
+		);
+		expect(nyse).toHaveLength(1);
 	});
 
 	it("should store a candle without a trade count", async () => {
@@ -665,4 +666,30 @@ describe("timestamp queries — real MySQL (issue #555)", () => {
 			expect(row.key).toBe(index);
 		}
 	);
+});
+
+describe("index-build — paged symbol reads (ADR-0086)", () => {
+	const TABLES = ["market_candles", "market_trades", "market_tickers"];
+
+	async function explain(table: string) {
+		const [rows] = await DATABASE.promise().query(
+			`EXPLAIN SELECT * FROM ${table} WHERE symbol = 'BTCUSDT' ORDER BY timestamp, id LIMIT 100`
+		);
+		return (rows as { key: string; Extra: string }[])[0];
+	}
+
+	it("should serve a symbol page from the index without filesort, and be idempotent", async () => {
+		migrate("index-build");
+		migrate("index-build");
+
+		for (const table of TABLES) {
+			const plan = await explain(table);
+			expect(plan.key).toMatch(/^idx_\w+_symbol_ts$/);
+			expect(plan.Extra ?? "").not.toContain("filesort");
+			const [redundant] = await DATABASE.promise().query(
+				`SHOW INDEX FROM ${table} WHERE Key_name = '${plan.key.replace("_ts", "")}'`
+			);
+			expect(redundant).toHaveLength(0);
+		}
+	});
 });
