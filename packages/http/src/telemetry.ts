@@ -25,11 +25,15 @@ export function isProbeRequest(req: { url?: string }): boolean {
 	return PROBE_PATHS.has((req.url ?? "").split("?")[0]);
 }
 
-/** Overrides the incoming span attributes that carry the caller's User-Agent and query string (privacy notice, Art. 13). */
-export const dropCallerIdentifiers = () => ({
-	"user_agent.original": undefined,
-	"url.query": undefined,
-});
+/** HTTP instrumentation without the caller's User-Agent and query string on incoming spans (privacy notice, Art. 13): hook attributes are applied last and OTel drops `undefined`. */
+export const createHttpInstrumentation = () =>
+	new HttpInstrumentation({
+		ignoreIncomingRequestHook: isProbeRequest,
+		startIncomingSpanHook: () => ({
+			"user_agent.original": undefined,
+			"url.query": undefined,
+		}),
+	});
 
 /**
  * Starts tracing for a service from its environment (`OTEL_EXPORTER_OTLP_ENDPOINT`,
@@ -63,10 +67,7 @@ export function startTelemetry(serviceName: ServiceInstanceName): void {
 			timeoutMillis: EXPORT_TIMEOUT_MS,
 		}),
 		instrumentations: [
-			new HttpInstrumentation({
-				ignoreIncomingRequestHook: isProbeRequest,
-				startIncomingSpanHook: dropCallerIdentifiers,
-			}),
+			createHttpInstrumentation(),
 			new ExpressInstrumentation(),
 			// No query values in spans: mysql2 masks literals, mongodb replaces
 			// them by default, redis keeps the command name only (no key, no value).
