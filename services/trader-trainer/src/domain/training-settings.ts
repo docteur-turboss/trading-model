@@ -45,7 +45,7 @@ export function effectiveFitnessType(settings: {
 		: settings.TRAINER_FITNESS_TYPE;
 }
 
-/** Symbols per generation of a shared-trunk group of `total` (ADR-0076 step 1): `count` in [1, total], 0 or absent: `ceil(total / 3)`. */
+/** Symbols per generation of a shared-trunk group of `total` (ADR-0076 step 1): `count` in [1, total], 0 or absent: `max(1, floor(total / 3))`. */
 export function symbolsPerGeneration(
 	count: number | undefined,
 	total: number
@@ -55,5 +55,5 @@ export function symbolsPerGeneration(
 			`TRAINER_SHARED_TRUNK_SYMBOLS_PER_GENERATION=${count} must be in [1, ${total}] (the number of symbols)`
 		);
 	}
-	return count || Math.ceil(total / 3);
+	return count || Math.max(1, Math.floor(total / 3));
 }
