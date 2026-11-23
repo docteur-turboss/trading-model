@@ -1508,7 +1508,7 @@ tests:
               description: 'No successful db-retention run for more than 36 hours (it runs daily): suspended, failing to start or failing.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'
 
-  # Fully down service: no requests any more, probes fail -> SLI error 1 (not absent).
+  # Fully down service (up 0, probes fail; a failing probe alone, e.g. blocked by an ACL, does not count) -> SLI error 1 (not absent).
   - name: availability SLI falls back to probes when a service receives no requests
     interval: 1m
     input_series:
@@ -1516,8 +1516,10 @@ tests:
         values: '0+1000x60 _x240'
       - series: 'probe_success{job="blackbox-exporter",service="api-gateway",instance="a"}'
         values: '1x60 0x240'
+      - series: 'up{job="api-gateway",instance="a"}'
+        values: '1x60 0x240'
     promql_expr_test:
-      - expr: round(slo:sli_error:ratio_rate5m)
+      - expr: round(slo:sli_error:ratio_rate1h)
         eval_time: 30m
         exp_samples:
           - labels: '{job="api-gateway"}'
