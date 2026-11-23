@@ -82,7 +82,7 @@ Run on a production-sized host. Nothing here is run by CI; no figure is committe
    k6 run -e API_KEY=e2e-api-key-0123456789abcdef0123456789abcdef -e SOAK_DURATION=4h --summary-export=out/soak.json tests/load/k6/soak-test.js
    kill %1
    ```
-5. **GA benchmark**: `bun run --filter trader-trainer bench > out/ga-bench.json` (runs under Node, like the trainer image) (twice: generations and fitness must match).
+5. **GA benchmark**: `bun run --cwd services/trader-trainer bench > out/ga-bench.json` (Node via ts-node, with the Node version of `services/trader-trainer/Dockerfile`; check `runtime` in the JSON; twice: generations and fitness must match).
 6. **Record**: fill the table below (date, commit, host, figure), keep the raw files (`out/*`) outside the repository or attach them to the issue. Then tear down: `docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml down -v --rmi local`.
 
 ### Soak
