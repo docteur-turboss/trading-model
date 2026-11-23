@@ -6,7 +6,7 @@ import { EVENT_SUBSCRIBERS } from "@trading-model/contracts/event-routes";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
 import { ScraperClient } from "@trading-model/http/model-api/scraper-client";
 import { TrainerClient } from "@trading-model/http/model-api/trainer-client";
-import { toInstanceId } from "@trading-model/primitives/primitives";
+import { InstanceId } from "@trading-model/primitives/primitives";
 import {
 	createMessageHandler,
 	createModelPublishedListener,
@@ -35,7 +35,7 @@ export async function createModelEvaluatorApp() {
 		journal: busJournalFromEnv(ENV),
 		addressManagerClient: AddressManager,
 		tlsPaths: tls,
-		instanceId: toInstanceId(ENV.INSTANCE_ID),
+		instanceId: InstanceId.of(ENV.INSTANCE_ID),
 		serviceName: ServiceInstanceName.ModelEvaluatorService,
 	});
 	brokerMessage.on(

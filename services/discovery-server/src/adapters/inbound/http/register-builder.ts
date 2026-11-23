@@ -2,12 +2,11 @@ import { Protocol } from "@trading-model/contracts/service-registry-types";
 import type { UnixTimestamp } from "@trading-model/primitives/primitives";
 import {
 	DurationMs,
-	type InstanceId,
+	InstanceId,
 	IPAddress,
 	Port,
-	toInstanceId,
-	toServiceId,
-	toVersion,
+	ServiceId,
+	Version,
 } from "@trading-model/primitives/primitives";
 import type { z } from "zod";
 import type { ServiceRegistry } from "../../../domain/service-registry";
@@ -19,10 +18,10 @@ function resolveInstanceId(
 	registry: ServiceRegistry
 ): InstanceId {
 	const { serviceName, instanceId, ip, port } = data;
-	return toInstanceId(
+	return InstanceId.of(
 		instanceId ??
 			registry.tokenManager.generateInstanceId({
-				serviceName: toServiceId(serviceName),
+				serviceName: ServiceId.of(serviceName),
 				host: IPAddress.of(ip),
 				port: Port.of(port),
 			})
@@ -42,10 +41,10 @@ export function buildServiceInstance(
 	const { serviceName, ip, port, version } = data;
 	return {
 		instanceId: resolveInstanceId(data, registry),
-		serviceName: toServiceId(serviceName),
+		serviceName: ServiceId.of(serviceName),
 		host: IPAddress.of(observedIp ?? ip),
 		port: Port.of(port),
-		version: toVersion(version ?? "1.0.0"),
+		version: Version.of(version ?? "1.0.0"),
 		ttl: DurationMs.of(30_000),
 		protocol: Protocol.Mtls,
 		registeredAt: Date.now() as UnixTimestamp,

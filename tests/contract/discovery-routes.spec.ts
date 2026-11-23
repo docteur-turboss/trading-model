@@ -6,10 +6,7 @@ import {
 	responseIssues,
 } from "@trading-model/http/api-route/api-route";
 import { ResponseProtocol } from "@trading-model/http/response-protocol";
-import {
-	toInstanceId,
-	toServiceId,
-} from "@trading-model/primitives/primitives";
+import { InstanceId, ServiceId } from "@trading-model/primitives/primitives";
 import express from "express";
 import { AddressManagerClient } from "../../packages/address-manager/src/client/address-manager-client";
 import { TokenManager } from "../../packages/address-manager/src/client/token-manager";
@@ -171,8 +168,8 @@ describe("discovery contract: address-manager → discovery-server", () => {
 		instanceId = `scraper-${Date.now()}-${Math.random()}`;
 		const config = {
 			identity: {
-				serviceName: toServiceId(SERVICE),
-				instanceId: toInstanceId(instanceId),
+				serviceName: ServiceId.of(SERVICE),
+				instanceId: InstanceId.of(instanceId),
 			},
 			servicePort: 3000,
 			addressManagerUrl: baseUrl,

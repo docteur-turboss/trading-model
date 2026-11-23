@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
-import { Limit, toSymbol } from "@trading-model/primitives/primitives";
+import { Limit, TradingSymbol } from "@trading-model/primitives/primitives";
 
 jest.mock("../../../../../src/config/http", () => ({
 	httpClients: {
@@ -36,7 +36,7 @@ import {
 } from "../../../../../src/adapters/outbound/binance/binance.client";
 import { httpClients } from "../../../../../src/config/http";
 
-const BTC = toSymbol("BTCUSDT");
+const BTC = TradingSymbol.of("BTCUSDT");
 const MOCK_GET = jest.mocked(httpClients.binance.get);
 
 const LIMIT_100 = Limit.of(100, 5000);
