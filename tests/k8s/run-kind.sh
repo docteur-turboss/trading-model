@@ -126,7 +126,8 @@ build_images() {
 	[ -f "$root/deploy/migrate/Dockerfile" ] || mroot="$ROOT"
 	retry 3 docker build -q -t "ghcr.io/trading-model/db-migrate:$tag" -f "$mroot/deploy/migrate/Dockerfile" "$mroot"
 	# N-1 (no `image:` in compose) builds as <project>-<svc>; N builds straight to ghcr.io/trading-model/<svc>:$tag.
-	tag_built() { ! docker image inspect "$1" >/dev/null 2>&1 || docker tag "$1" "$2"; }
+	# The source name is dropped once tagged: left over, it would overwrite the direct build of the next release.
+	tag_built() { ! docker image inspect "$1" >/dev/null 2>&1 || { docker tag "$1" "$2" && docker rmi "$1" >/dev/null; }; }
 	tag_built "${COMPOSE_PROJECT_NAME}-spire-bootstrap" "ghcr.io/trading-model/spire-tools:$tag"
 	for svc in $SERVICES; do
 		tag_built "${COMPOSE_PROJECT_NAME}-${svc}" "ghcr.io/trading-model/${svc}:$tag"
@@ -602,7 +603,7 @@ upgrade() {
 		log "migrations of release N-1 no longer applied after the rollback: $missing"
 		return 1
 	}
-	SMOKE_SKIP="model-evaluator risk-execution" deploy_script smoke-test # new in N: deleted by the rollback
+	SMOKE_SKIP="model-evaluator risk-execution decision-consumer" deploy_script smoke-test # new in N: deleted by the rollback
 	log "  rollback: every Deployment back on its N-1 pod template (image digests, $marked N-1 ConfigMaps), N-1 migrations applied"
 
 	log "migrate-down 1, then the migrations again"

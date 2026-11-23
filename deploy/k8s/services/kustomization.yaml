@@ -11,4 +11,5 @@ resources:
   - dlq-service.yaml
   - model-evaluator.yaml
   - risk-execution.yaml
+  - decision-consumer.yaml
   - edge-proxy.yaml

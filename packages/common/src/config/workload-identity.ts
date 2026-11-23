@@ -23,6 +23,7 @@ export const SPIFFE_PATH_SEGMENT_SERVICE_ACCOUNT = "sa" as const;
 export const PLATFORM_SERVICES = [
 	"api-gateway",
 	"audit-logger",
+	"decision-consumer",
 	"discovery-server",
 	"dlq-service",
 	"edge-proxy",

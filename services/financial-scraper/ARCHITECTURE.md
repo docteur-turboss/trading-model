@@ -22,7 +22,7 @@ BinanceMarketDataSource ─── MarketDataSourcePort (domain): snapshot per sy
 WorkerOrchestrator ─── fetch → persist, per symbol
      │
      ▼
-MarketDataController.persist()
+MarketDataPersister.persist()
      │
      ├── insertCandles()   → MySQL (market_candles)
      ├── insertTrades()    → MySQL (market_trades)
@@ -43,7 +43,7 @@ ScrapeCronOrchestrator (deps built by config/container.ts)
     └── WorkerOrchestrator, for each symbol:
          ├── source.fetchSnapshot()   BinanceMarketDataSource:
          │                            6 parallel API calls + normalization
-         └── persist()                MarketDataController.persist()
+         └── persist()                MarketDataPersister.persist()
 ```
 
 ## Component Breakdown
@@ -84,7 +84,7 @@ Adding a source means an adapter implementing `MarketDataSourcePort` and a value
 
 ### 4. Persistence Layer (`src/adapters/outbound/persistence/`)
 
-Storage schemas live in `src/adapters/outbound/persistence/schema/`; market data types in `src/domain/market-data.types.ts`. The persistence use case `createMarketDataController()` (`src/application/market-data.controller.ts`) depends on `MarketDataRepositoryPort` (`src/domain/ports/`); `src/config/container.ts` wires it to the schema insert functions and exports the `MarketDataController` instance plus the scrape-cycle dependencies of `WorkerOrchestrator`.
+Storage schemas live in `src/adapters/outbound/persistence/schema/`; market data types in `src/domain/market-data.types.ts`. The persistence use case `createMarketDataPersister()` (`src/application/persist-market-data.ts`) depends on `MarketDataRepositoryPort` (`src/domain/ports/`); `src/config/container.ts` wires it to the schema insert functions and exports the `MarketDataPersister` instance plus the scrape-cycle dependencies of `WorkerOrchestrator`.
 
 | Component                    | Storage                           | Tables/Structures                                                                        |
 | ---------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -93,7 +93,7 @@ Storage schemas live in `src/adapters/outbound/persistence/schema/`; market data
 | `schema/ticker24h.schema.ts` | MySQL                             | `market_tickers` — id, symbol, market, source, OHLC, volume, timestamps                  |
 | `schema/order-book.schema.ts` | MySQL                            | `market_order_books` — symbol, market, source, timestamp, bids/asks (JSON); write only (ADR-0053) |
 
-`MarketDataController.persist()` (built in `src/config/container.ts`) conditionally delegates to the schema insert functions, the order book wrapped as a one-element array.
+`MarketDataPersister.persist()` (built in `src/config/container.ts`) conditionally delegates to the schema insert functions, the order book wrapped as a one-element array.
 
 ### 5. REST API (`src/adapters/inbound/http/`)
 
@@ -184,5 +184,5 @@ All configuration is validated at startup via Zod schemas from `@trading-model/c
 | Level           | Focus                                                                             | Tools                       |
 | --------------- | --------------------------------------------------------------------------------- | --------------------------- |
 | **Unit**        | Client functions (URLs, weights), normalizers, workers (mocked API), utils        | Jest, manual mocks          |
-| **Integration** | Persistence pipeline (MarketDataController + model) | Jest, mocked repository |
+| **Integration** | Persistence pipeline (MarketDataPersister + model) | Jest, mocked repository |
 | **Fixtures**    | Mock Binance API responses for all endpoints                                      | Static fixture files        |

@@ -173,7 +173,7 @@ The repository neither signs a DPA nor picks a provider. The operating entity si
 | ----- | ----- |
 | Role | Holds the verified head of the audit hash chain (`AUDIT_ANCHOR_*`), Object Lock |
 | Data sent | Chain head hash and sequence number, no event content |
-| Region | Operator-set (`AUDIT_ANCHOR_REGION`, **`us-east-1` when unset** in `deploy.yml`): set it to an EU region. No automatic region check for this bucket yet. Provider and region: to be confirmed by the operator |
+| Region | Operator-set (`AUDIT_ANCHOR_REGION`): `deploy.yml` checks it against the EU list (error in production, warning elsewhere; also read from the existing `audit-anchor-s3` Secret when the variable is empty). Provider and region: to be confirmed by the operator |
 | Processor? | Hashes only, no personal data; a DPA is advised if the provider also hosts the backups |
 | Mechanism | Same as the off-site store (to be confirmed by the operator) |
 | Signed by | Operating entity |

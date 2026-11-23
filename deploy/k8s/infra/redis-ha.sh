@@ -173,7 +173,7 @@ acl_args() {
 	service_user message-manager "${REDIS_MESSAGE_MANAGER_PASSWORD:-}" "trading-model:message-manager:*" +hset +hgetall +hdel +pexpire +sadd +srem +smembers +exists +xadd +xdel +xlen +xreadgroup +xpending +xclaim +xack +xgroup +xinfo +xrange +wait
 	# Bus users (ADR-0073, #1620): write only the journal of the topics published, consume only the topics subscribed.
 	# Topic lists = EVENT_PUBLISHERS / EVENT_SUBSCRIBERS of @trading-model/contracts/event-routes (checked by bus-acl.spec.ts).
-	bus_user audit-logger "${REDIS_AUDIT_LOGGER_PASSWORD:-}" "audit.heartbeat audit.gap.detected dlq.entry.added dlq.replay.completed dlq.entries.deleted" "audit.heartbeat audit.gap.detected training.model.published dlq.entry.added dlq.replay.completed dlq.entries.deleted risk.order.transitioned risk.kill-switch.engaged risk.kill-switch.rearmed"
+	bus_user audit-logger "${REDIS_AUDIT_LOGGER_PASSWORD:-}" "audit.heartbeat audit.gap.detected dlq.entry.added dlq.replay.completed dlq.entries.deleted" "audit.heartbeat audit.gap.detected training.model.published dlq.entry.added dlq.replay.completed dlq.entries.deleted risk.order.transitioned risk.kill-switch.engaged risk.kill-switch.rearmed risk.promotion.loaded"
 	bus_user trader-trainer "${REDIS_TRADER_TRAINER_PASSWORD:-}" "training.model.published" ""
 	bus_user risk-execution "${REDIS_RISK_EXECUTION_PASSWORD:-}" "risk.order.transitioned risk.kill-switch.engaged risk.kill-switch.rearmed" ""
 	bus_user model-evaluator "${REDIS_MODEL_EVALUATOR_PASSWORD:-}" "dlq.entry.added" "training.model.published"
