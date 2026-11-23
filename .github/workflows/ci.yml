@@ -9,6 +9,9 @@ on:
     branches: [main, development]
   # release.yml runs the whole CI on the tagged commit before pushing images.
   workflow_call:
+  # Merge queue of development (issue #2440): the queue waits for k8s-result on the queued commit.
+  # Every job runs there like on a push (gate passes, k8s=true: only pull_request filters kind).
+  merge_group:
 
 permissions:
   contents: read
@@ -21,7 +24,7 @@ concurrency:
 
 jobs:
   # Decides once which jobs run (a skipped gate skips every job that needs it) and whether the
-  # k8s jobs are worth running: always, except on a pull request touching nothing they deploy or test.
+  # k8s jobs are worth running: always (merge_group included), except on a pull request touching nothing they deploy or test.
   gate:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
@@ -39,8 +42,8 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           k8s=true
-          # A PR only runs kind when it changes what kind deploys or runs; the merge push to development
-          # (k8s-images/k8s below) proves the rest, a red commit status there means revert.
+          # A PR only runs kind when it changes what kind deploys or runs; the merge queue run (merge_group)
+          # and the merge push to development (k8s-images/k8s below) prove the rest, a red commit status there means revert.
           # deploy/: manifests, tool images, migrate; tests/k8s/: the kind runner; scripts/: the deploy, migration,
           # backup/restore (incl. verify-restore-k8s.sh) and sealed-secrets scripts the jobs call; tests/backup/: audit-chain.js and
           # drill-timings.sh of the restore drill (same filter as the drill step); tests/e2e/binance-stub/: the stub run-kind.sh
