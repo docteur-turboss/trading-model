@@ -81,3 +81,10 @@ export function makeGuard(code: ErrorCode) {
 	return (err: unknown): err is AppError =>
 		isAppError(err) && err.code === code;
 }
+
+export const authenticationError = makeErrorCode(ErrorCode.Authentication, 498);
+export const isAuthenticationError = makeGuard(ErrorCode.Authentication);
+export const configurationError = makeErrorCode(
+	ErrorCode.Configuration,
+	HTTP_STATUS.INTERNAL_SERVER_ERROR
+);

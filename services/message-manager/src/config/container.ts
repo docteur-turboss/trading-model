@@ -3,6 +3,7 @@
  */
 
 import type { MessageJournalPort } from "@trading-model/broker-message/bus/journal.port";
+import { EVENT_VALIDATORS } from "@trading-model/broker-message/shared/barrel/message.schema";
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
@@ -25,7 +26,10 @@ import {
 /** Between two reads of the journal backlog: a few Redis calls per group, never per message. */
 const LAG_INTERVAL_MS = 15_000;
 
-/** Publishes the backlog of each group; a group that left the journal drops out of the gauges. */
+/**
+ * Publishes the backlog of each group; a group that left the journal drops out of the gauges, and so does
+ * a group of a topic no longer in the contracts: nobody publishes it, its backlog never drains (issue #2479).
+ */
 export async function publishJournalLag(
 	journal: MessageJournalPort
 ): Promise<void> {
@@ -44,6 +48,9 @@ export async function publishJournalLag(
 	JOURNAL_PENDING_ENTRIES.reset();
 	JOURNAL_OLDEST_PENDING_AGE_SECONDS.reset();
 	for (const { topic, service, pending, oldestPendingAgeMs } of lags) {
+		if (!(topic in EVENT_VALIDATORS)) {
+			continue;
+		}
 		JOURNAL_PENDING_ENTRIES.set({ topic, service }, pending);
 		JOURNAL_OLDEST_PENDING_AGE_SECONDS.set(
 			{ topic, service },

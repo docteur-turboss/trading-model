@@ -38,6 +38,25 @@ describe("createDbConfigFromEnv", () => {
 		expect(config.password).toBe("");
 	});
 
+	it.each([
+		[undefined, "pass"],
+		["root", "pass"],
+		["scraper", undefined],
+		["scraper", ""],
+	])("should refuse user %s / password %s in production", (user, password) => {
+		process.env.NODE_ENV = "production";
+		process.env.DB_USER = user;
+		process.env.DB_PASSWORD = password;
+		expect(() => createDbConfigFromEnv()).toThrow(/production/);
+	});
+
+	it("should accept a dedicated user in production", () => {
+		process.env.NODE_ENV = "production";
+		process.env.DB_USER = "scraper";
+		process.env.DB_PASSWORD = "pass";
+		expect(createDbConfigFromEnv().user).toBe("scraper");
+	});
+
 	it("should apply overrides", () => {
 		process.env.DB_PASSWORD = "pass";
 		const config = createDbConfigFromEnv({

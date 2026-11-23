@@ -104,14 +104,6 @@ export const IDS_METADATA_PREDICATE = z
 	})
 	.optional();
 
-/** Predicate checking the schema version of a message metadata. */
-export const SCHEMA_METADATA_VERSION_PREDICATE = z
-	.literal(["1.0.0"], {
-		error: (iss) =>
-			`schemaVersion value '${iss.input}' is invalid. Expected exactly '1.0.0'.`,
-	})
-	.optional();
-
 const TOPIC_FORMAT_MESSAGE =
 	"Invalid topic format. Expected at least '<bounded-context>.<aggregate>.<action>': dot-separated lowercase segments of letters, digits and hyphens (e.g. 'billing.invoice.created', 'market.order-book.snapshot.fetch').";
 
