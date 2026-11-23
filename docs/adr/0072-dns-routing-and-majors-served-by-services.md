@@ -18,7 +18,7 @@ The owner accepted the retirement of discovery-server (ADR-0046 step 2, issue #1
 2. **Majors are served by the services.** A public route's registry entry carries its major as the first segment of its path (`v2` for the scraper's candles route). A service mounts one route per major it supports and answers 404 to the others. The gateway's `PUBLIC_ROUTES` lists the public routes per major (`GET /v2/financial-scraper/candles/symbols/:symbol`); a major not listed answers 404 before any proxying. The OpenAPI follows from `PUBLIC_ROUTES` (`bun run api:write`). `APP_VERSION` no longer sets the gateway prefix.
 3. **Deprecation window.** When a service ships major N+1 of a route, major N stays in its registry and in `PUBLIC_ROUTES` for one more release, then is removed.
 4. **Service-to-service routes are not versioned.** They are internal, called by code released with the target, and guarded by the contract tests (`bun run test:contract`).
-5. **Readiness** of the gateway no longer depends on the registry (SVID only). The services keep the `discovery-registration` readiness check in release N, so a pod is not Ready before N-1 gateways can find it in the registry; it goes in N+1 with discovery-server.
+5. **Readiness** of the gateway no longer depends on the registry (SVID only). The services keep the `discovery-registration` readiness check in release N, so a pod is not Ready before N-1 gateways can find it in the registry; it goes in N+1 with discovery-server. risk-execution, added after release N and with no public route, neither registers nor has the check (issue #2424): its single `Recreate` pod must become Ready on a rollback from N+1 without discovery-server.
 
 ### Two releases (ADR-0040)
 
