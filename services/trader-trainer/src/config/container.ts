@@ -3,7 +3,7 @@ import { getLogger } from "@trading-model/contracts/logger-registry";
 import { AssetId, type AssetType } from "@trading-model/contracts/wire/signals";
 import { SignalBarHistory } from "@trading-model/http/signals/signal-bar-history";
 import { inputGroupNames } from "@trading-model/model-runtime/agent/input-mask";
-import { toSymbol } from "@trading-model/primitives/primitives";
+import { TradingSymbol } from "@trading-model/primitives/primitives";
 import {
 	KubernetesLease,
 	kubernetesLeaseApi,
@@ -27,7 +27,6 @@ import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
 } from "../domain/market-data-buffer";
-import type { TradingSymbol } from "../domain/market-data-types";
 import type { CandleHistoryPort } from "../domain/ports/candle-history.port";
 import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-store.port";
 import type { SignalHistoryPort } from "../domain/ports/signal-history.port";
@@ -199,7 +198,7 @@ export function createTraderTrainerContainer(
 	const symbols = [
 		...new Set([
 			...parseCommaSeparated(settings.TRAINER_SYMBOLS).map((symbol) =>
-				toSymbol(symbol)
+				TradingSymbol.of(symbol)
 			),
 			...dailyCosts.keys(),
 		]),
@@ -245,7 +244,7 @@ export function createTraderTrainerContainer(
 			assets: new Map(
 				parseCommaSeparated(settings.TRAINER_SYMBOL_ASSETS).map((pair) => {
 					const [symbol, asset] = pair.split(":");
-					return [toSymbol(symbol), AssetId.parse(asset)];
+					return [TradingSymbol.of(symbol), AssetId.parse(asset)];
 				})
 			),
 			windowMs: SIGNAL_WINDOW_MS,

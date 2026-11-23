@@ -8,9 +8,9 @@ import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { RiskEvent } from "@trading-model/contracts/risk-events";
 import {
-	toInstanceId,
-	toServiceId,
-	toTopic,
+	InstanceId,
+	ServiceId,
+	Topic,
 } from "@trading-model/primitives/primitives";
 import { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
 import type { StatePort } from "../domain/ports";
@@ -34,7 +34,7 @@ function _messageManager(): MessageManager {
 	messageManager ??= createMessageManager({
 		addressManagerClient: AddressManager,
 		tlsPaths: buildTlsFromEnv(ENV),
-		instanceId: toInstanceId(ENV.INSTANCE_ID),
+		instanceId: InstanceId.of(ENV.INSTANCE_ID),
 		serviceName: parseServiceName(ENV.SERVICE_NAME),
 		callbackPath: ENV.MESSAGE_CALLBACK_PATH,
 	}).messageManager;
@@ -64,9 +64,9 @@ function _serial(task: () => Promise<void>): Promise<void> {
 }
 
 async function _send({ topic, fields }: Pending): Promise<void> {
-	const metadata = new HELPER.metadataBuilder(toTopic(topic), topic, {
-		instanceId: toInstanceId(ENV.INSTANCE_ID),
-		serviceName: toServiceId(ServiceInstanceName.RiskExecutionService),
+	const metadata = new HELPER.metadataBuilder(Topic.of(topic), topic, {
+		instanceId: InstanceId.of(ENV.INSTANCE_ID),
+		serviceName: ServiceId.of(ServiceInstanceName.RiskExecutionService),
 	})
 		.setDelivery({ mode: DeliveryMode.AtLeastOnce })
 		.toJSON();
