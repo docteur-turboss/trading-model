@@ -296,21 +296,35 @@ export class RedisMessageJournal implements MessageJournalPort {
 					!skip.has(id) && idleMs >= retry.dueAfterMs(deliveries)
 			)
 			.slice(0, count);
-		// MIN-IDLE makes each claim atomic: of two replicas, one wins. Promise.all keeps the XPENDING order.
+		// One XCLAIM per min-idle value. MIN-IDLE makes each claim atomic: of two replicas, one wins.
+		const deliveriesById = new Map(due.map(([id, , , count2]) => [id, count2]));
+		const idsByMinIdle = new Map<number, string[]>();
+		for (const [id, , , deliveries] of due) {
+			const minIdle = retry.dueAfterMs(deliveries);
+			idsByMinIdle.set(minIdle, [...(idsByMinIdle.get(minIdle) ?? []), id]);
+		}
 		const batches = await Promise.all(
-			due.map(async ([id, , , deliveries]) => {
+			[...idsByMinIdle].map(async ([minIdle, ids]) => {
 				const claimed = (await this._deps.redis.call(
 					"XCLAIM",
 					stream,
 					group.service,
 					consumer,
-					String(retry.dueAfterMs(deliveries)),
-					id
+					String(minIdle),
+					...ids
 				)) as StreamReply;
-				return this._parse(group, claimed, () => deliveries + 1);
+				return this._parse(group, claimed, () => 1);
 			})
 		);
-		return batches.flat();
+		// Back to the XPENDING order, each entry with its own delivery count.
+		const order = [...deliveriesById.keys()];
+		return batches
+			.flat()
+			.map((entry) => ({
+				...entry,
+				deliveries: (deliveriesById.get(entry.id) ?? 0) + 1,
+			}))
+			.sort((x1, x2) => order.indexOf(x1.id) - order.indexOf(x2.id));
 	}
 
 	/** Lag of the groups of `service` only when given: a bus user has no right on other services' streams. */
