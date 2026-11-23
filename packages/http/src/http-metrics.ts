@@ -4,9 +4,11 @@ import promClient from "prom-client";
 
 // OpenMetrics: the only format that carries exemplars, and the registry must use
 // it before the histogram is created.
-promClient.register.setContentType(
-	promClient.Registry.OPENMETRICS_CONTENT_TYPE
-);
+(
+	promClient.register as unknown as promClient.Registry<
+		typeof promClient.Registry.OPENMETRICS_CONTENT_TYPE
+	>
+).setContentType(promClient.Registry.OPENMETRICS_CONTENT_TYPE);
 
 const HTTP_REQUESTS_TOTAL = new promClient.Counter({
 	name: "http_requests_total",
@@ -89,7 +91,7 @@ export function httpMetricsMiddleware(
 			value: duration,
 			exemplarLabels:
 				spanContext && isSpanContextValid(spanContext)
-					? { trace_id: spanContext.traceId }
+					? ({ trace_id: spanContext.traceId } as never) // typed as the metric labels
 					: {},
 		});
 		HTTP_REQUESTS_IN_FLIGHT.dec();
