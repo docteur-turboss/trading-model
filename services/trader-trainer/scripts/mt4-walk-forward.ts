@@ -34,7 +34,6 @@ import {
 	Volume,
 } from "@trading-model/primitives/primitives";
 import { runInProcess } from "../src/application/training-session";
-import { DataType } from "../src/domain/data-handlers/data-types";
 import { evalPhase } from "../src/domain/genetic-algorithm/evaluation-phase";
 import type { MarketStep } from "../src/domain/genetic-algorithm/genome";
 import { FitnessType } from "../src/domain/genetic-algorithm/genome-control";
@@ -146,7 +145,7 @@ export function marketSteps(
 ): MarketStep[] {
 	const buffer = new MarketDataBuffer({ maxSize: 2 * klines.length + 10 });
 	for (const kline of klines) {
-		buffer.addData(DataType.Candle, symbol, toCandle(symbol, kline));
+		buffer.addCandle(symbol, toCandle(symbol, kline));
 	}
 	return buffer.buildMarketSteps(symbol);
 }

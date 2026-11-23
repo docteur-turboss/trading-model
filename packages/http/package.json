@@ -33,6 +33,8 @@
     "./mtls-identity": "./dist/mtls-identity.js",
     "./outbound-metrics": "./dist/outbound-metrics.js",
     "./readiness": "./dist/readiness.js",
+    "./model-api/scraper-client": "./dist/model-api/scraper-client.js",
+    "./model-api/trainer-client": "./dist/model-api/trainer-client.js",
     "./response-exception": "./dist/response-exception.js",
     "./response-protocol": "./dist/response-protocol.js",
     "./sensitive-data-sanitizer": "./dist/sensitive-data-sanitizer.js",

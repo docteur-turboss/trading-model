@@ -3,7 +3,6 @@ import {
 	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import { DataType } from "../../../src/domain/data-handlers/data-types";
 import { EvictionPolicy } from "../../../src/domain/eviction-policy";
 import { SymbolStateManager } from "../../../src/domain/symbol-state-manager";
 import { makeCandle } from "../../fixtures/market-data.fixture";
@@ -19,13 +18,8 @@ describe("SymbolStateManager norms", () => {
 			evictionPolicy: EvictionPolicy.None,
 		});
 		const timestamp = UnixTimestamp.of(T0);
-		manager.addData(
-			DataType.Candle,
-			SYMBOL,
-			makeCandle({ symbol: SYMBOL, timestamp })
-		);
-		manager.addData(
-			DataType.Candle,
+		manager.addCandle(SYMBOL, makeCandle({ symbol: SYMBOL, timestamp }));
+		manager.addCandle(
 			SYMBOL,
 			makeCandle({ symbol: SYMBOL, timestamp, close: Price.of(101) })
 		);

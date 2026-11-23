@@ -1,5 +1,14 @@
+import { isSpanContextValid, trace } from "@opentelemetry/api";
 import type { NextFunction, Request, Response } from "express";
 import promClient from "prom-client";
+
+// OpenMetrics: the only format that carries exemplars, and the registry must use
+// it before the histogram is created.
+(
+	promClient.register as unknown as promClient.Registry<
+		typeof promClient.Registry.OPENMETRICS_CONTENT_TYPE
+	>
+).setContentType(promClient.Registry.OPENMETRICS_CONTENT_TYPE);
 
 const HTTP_REQUESTS_TOTAL = new promClient.Counter({
 	name: "http_requests_total",
@@ -13,6 +22,7 @@ const HTTP_REQUEST_DURATION_SECONDS = new promClient.Histogram({
 	name: "http_request_duration_seconds",
 	help: "HTTP request latency in seconds",
 	labelNames: ["method", "path", "status_class"] as const,
+	enableExemplars: true,
 	buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30],
 });
 
@@ -61,6 +71,8 @@ export function httpMetricsMiddleware(
 ): void {
 	HTTP_REQUESTS_IN_FLIGHT.inc();
 	const start = performance.now();
+	// Read now: the `close` callback no longer runs inside the request context.
+	const spanContext = trace.getActiveSpan()?.spanContext();
 
 	// `close` also fires when the client aborts (no `finish`): the in-flight
 	// gauge never leaks.
@@ -70,10 +82,18 @@ export function httpMetricsMiddleware(
 		const method = req.method;
 
 		HTTP_REQUESTS_TOTAL.inc({ method, path, status: String(res.statusCode) });
-		HTTP_REQUEST_DURATION_SECONDS.observe(
-			{ method, path, status_class: `${Math.floor(res.statusCode / 100)}xx` },
-			duration
-		);
+		HTTP_REQUEST_DURATION_SECONDS.observe({
+			labels: {
+				method,
+				path,
+				status_class: `${Math.floor(res.statusCode / 100)}xx`,
+			},
+			value: duration,
+			exemplarLabels:
+				spanContext && isSpanContextValid(spanContext)
+					? ({ trace_id: spanContext.traceId } as never) // typed as the metric labels
+					: {},
+		});
 		HTTP_REQUESTS_IN_FLIGHT.dec();
 	});
 

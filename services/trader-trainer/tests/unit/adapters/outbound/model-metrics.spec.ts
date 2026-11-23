@@ -19,7 +19,6 @@ import {
 } from "@trading-model/primitives/primitives";
 import { ModelPublisher } from "../../../../src/adapters/outbound/model-publisher";
 import { NETWORK_INPUT_LAYOUT } from "../../../../src/domain/agent/agent-state";
-import { DataType } from "../../../../src/domain/data-handlers/data-types";
 import { evalPhase } from "../../../../src/domain/genetic-algorithm/evaluation-phase";
 import { createDefaultGenome } from "../../../../src/domain/genetic-algorithm/factory";
 import type { LamarckGenome } from "../../../../src/domain/genetic-algorithm/genome";
@@ -342,7 +341,7 @@ describe("replay of a published model (ADR-0079 §3)", () => {
 		(eventDriven) => {
 			const buffer = new MarketDataBuffer();
 			for (const candle of candles) {
-				buffer.addData(DataType.Candle, "BTCUSDT" as never, candle);
+				buffer.addCandle("BTCUSDT" as never, candle);
 			}
 			const test = buffer.getAllWindows("BTCUSDT" as never)![0].test!;
 			const genome = createDefaultGenome("g-1", 1 as PositiveInt, eventDriven);

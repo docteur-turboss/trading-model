@@ -4,10 +4,6 @@ import {
 	type CandleData,
 	CandleInterval,
 } from "@trading-model/contracts/market-data.types";
-import { HttpClient } from "@trading-model/http/http-client";
-import { ScraperSignalHistory } from "@trading-model/http/signals/scraper-signal-history";
-import { SignalBarHistory } from "@trading-model/http/signals/signal-bar-history";
-import { DAY_MS } from "@trading-model/model-runtime/features/feature-builder";
 import {
 	ServiceId,
 	TradingSymbol,
@@ -15,8 +11,11 @@ import {
 } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import { z } from "zod";
-import { FIND_A_SERVICE } from "../../config/address-manager";
+import { HttpClient } from "../http-client";
+import { ScraperSignalHistory } from "../signals/scraper-signal-history";
+import { SignalBarHistory } from "../signals/signal-bar-history";
 
+const DAY_MS = 86_400_000;
 const PAGE_LIMIT = 5000;
 
 const Page = z.object({
@@ -44,11 +43,14 @@ export class ScraperClient {
 	private readonly _http: HttpClient;
 	private readonly _daily: SignalBarHistory;
 
-	constructor(tls: TlsPaths) {
+	constructor(
+		tls: TlsPaths,
+		private readonly _find: (name: ServiceInstanceName) => Promise<HostPort>
+	) {
 		this._http = HttpClient.createWithTls(tls);
 		// No asset-type map: every asset reads as equity (market label only, no effect on replay).
 		this._daily = new SignalBarHistory(
-			new ScraperSignalHistory(tls, FIND_A_SERVICE),
+			new ScraperSignalHistory(tls, _find),
 			new Map()
 		);
 	}
@@ -73,7 +75,7 @@ export class ScraperClient {
 			signal?.throwIfAborted();
 			return bars.filter((bar) => bar.timestamp >= from);
 		}
-		const target = await FIND_A_SERVICE(
+		const target = await this._find(
 			ServiceInstanceName.FinancialScraperService
 		);
 		const base = `https://${HostPort.toAddress(target)}/v2/candles/symbols/${symbol}?from=${new Date(from).toISOString()}&to=${new Date(to).toISOString()}&limit=${PAGE_LIMIT}`;
