@@ -1050,7 +1050,7 @@ mongo_tool() {
 	# mongosh: the password is read from the pod env inside --eval ($4), never in argv
 	if [ "$1" = mongosh ]; then
 		kubectl_exec ${flags[@]+"${flags[@]}"} "${pod}" -c mongodb -- mongosh --quiet \
-			--eval "db.getSiblingDB('admin').auth('$user', process.env.$var); $4"
+			--tls --tlsCAFile /keyfile/ca.crt --eval "db.getSiblingDB('admin').auth('$user', process.env.$var); $4"
 		return
 	fi
 	kubectl_exec ${flags[@]+"${flags[@]}"} "${pod}" -c mongodb -- sh -c \
