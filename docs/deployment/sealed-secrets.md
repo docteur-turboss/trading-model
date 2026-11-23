@@ -60,7 +60,7 @@ kubectl create secret generic trading-model-secrets \
   --from-literal=REDIS_AUDIT_LOGGER_PASSWORD='your-audit-logger-redis-password' \
   --from-literal=REDIS_TRADER_TRAINER_PASSWORD='your-trader-trainer-redis-password' \
   --from-literal=REDIS_RISK_EXECUTION_PASSWORD='your-risk-execution-redis-password' \
-  --from-literal=REDIS_MODEL_EVALUATOR_PASSWORD='your-model-evaluator-redis-password' \
+  --from-literal=REDIS_DECISION_CONSUMER_PASSWORD='your-decision-consumer-redis-password' \n  --from-literal=REDIS_MODEL_EVALUATOR_PASSWORD='your-model-evaluator-redis-password' \
   --from-literal=REDIS_EXPORTER_PASSWORD='your-exporter-redis-password' \
   --from-literal=MONGO_ROOT_PASSWORD='your-mongo-root-password' \
   --from-literal=MONGO_EXPORTER_PASSWORD='your-mongo-exporter-password' \

@@ -136,7 +136,8 @@ environment and prints its secrets):
   A required reviewer is advised, not checked.
 - `release` (approval of `release.yml` before any image is published or signed): a required
   reviewer and the tag rule `v*`. "Prevent self-review" stays off while the owner pushes
-  the tags. `release.yml` checks it first (`ENVIRONMENT_READ_TOKEN`).
+  the tags. `release.yml` checks it first (`ENVIRONMENT_READ_TOKEN`). The orchestrator approves
+  the tags it pushes itself, under the owner's account (ADR-0038 §7).
 - `backup-key-check` (`BACKUP_ESCROW_AGE_IDENTITY`, the key that decrypts every
   backup): "Selected branches and tags" with exactly the branch `main`, **before**
   storing the escrow key. No required reviewer: it would hold the weekly
@@ -166,7 +167,7 @@ bash scripts/deploy-identity.sh app     --namespace trading-model | base64 -w0 |
 bash scripts/deploy-identity.sh cluster --namespace trading-model --environment production | base64 -w0 | gh secret set KUBECONFIG_PRODUCTION_CLUSTER --env production
 ```
 
-**Upgrading to 3.1.0** (existing environment): run both commands again, not only `cluster`. The Role `deploy-app` gained `leases` (collector Lease, ADR-0057) and `delete` on `pods` (rollback of a stuck Redis pod, issue #1142), and the identity cannot grant itself rights. The step "Check deploy-app Role" (`deploy/k8s/scripts/check-app-rbac.sh`) compares the live Role with `app-role.yaml` before any apply and stops with the command when they differ (staging-local: `bash deploy/staging-local/bootstrap.sh identities`).
+**Upgrading to 3.1.0** (existing environment): run both commands again, not only `cluster`. The Role `deploy-app` gained `leases` (collector Lease, ADR-0057) and `delete` on `pods` (rollback of a stuck Redis pod, issue #1142), and the identity cannot grant itself rights. The step "Check deploy-app Role" (`deploy/k8s/scripts/check-app-rbac.sh`) checks before any apply that the live Role holds every right of `app-role.yaml` (a superset passes, so a return to N-1 works) and stops with the command when one is missing (staging-local: `bash deploy/staging-local/bootstrap.sh identities`).
 
 | Identity | Rights | Used by |
 |----------|--------|---------|

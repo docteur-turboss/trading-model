@@ -88,14 +88,14 @@ const CALLERS = {
 	"discovery-server POST /heartbeat": { caller: "packages/address-manager", call: /_url\("\/heartbeat"\)/ },
 	"discovery-server POST /token/rotate": { caller: "packages/address-manager", call: /\/token\/rotate`/ },
 	"discovery-server POST /unregister": { caller: "packages/address-manager", call: /_url\("\/unregister"\)/ },
-	"trader-trainer GET /models/:symbol/:version/weights": { caller: "services/model-evaluator", call: /\/weights`/ },
+	"trader-trainer GET /models/:symbol/:version/weights": { caller: "packages/http", call: /\/weights`/ },
+	"risk-execution POST /intents": { caller: "services/decision-consumer", call: /\/intents`/ },
 };
 
 /** Service-to-service routes kept without a caller, each with its reason. */
 const AWAITING_CALLER = {
-	// The decision consumer (ADR-0049 option C) does not exist yet: nothing may send an intent before it does (ADR-0064 §9).
-	"risk-execution POST /intents": "no decision consumer yet",
-	"risk-execution POST /orders/:clientOrderId/cancel": "no decision consumer yet",
+	// The decision consumer (ADR-0087) sends intents and never cancels: an order ends by its own expiry or by the operator.
+	"risk-execution POST /orders/:clientOrderId/cancel": "no decision consumer cancel yet",
 	// The operator calls them from the pod (kubectl exec, docs/operations/runbook-risk-execution.md), not from the repository.
 	"risk-execution GET /admin/status": "operator, from the pod",
 	"risk-execution POST /admin/kill-switch": "operator, from the pod",

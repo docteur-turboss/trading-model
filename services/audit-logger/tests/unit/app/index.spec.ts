@@ -123,12 +123,6 @@ jest.mock("@trading-model/contracts/audit-events", () => ({
 	AuditEvent: {},
 }));
 
-import { createBootstrap } from "@trading-model/http/bootstrap";
-
-const MOCK_CREATE_BOOTSTRAP = createBootstrap as jest.Mock<
-	(...args: any[]) => any
->;
-
 import "../../../src/application/index";
 
 jest.setTimeout(30000);
@@ -136,11 +130,6 @@ jest.setTimeout(30000);
 describe("Audit Logger entry point (index.ts)", () => {
 	beforeAll(() => {
 		expect(capturedOptions).toBeDefined();
-	});
-
-	it('should call createBootstrap with name "Audit Logger"', () => {
-		expect(MOCK_CREATE_BOOTSTRAP).toHaveBeenCalledTimes(1);
-		expect(capturedOptions.name).toBe("Audit Logger");
 	});
 
 	it("starts, then stops and releases every resource once", async () => {

@@ -30,6 +30,8 @@ images:
     newTag: latest
   - name: ghcr.io/trading-model/risk-execution
     newTag: latest
+  - name: ghcr.io/trading-model/decision-consumer
+    newTag: latest
   - name: ghcr.io/trading-model/spire-tools
     newTag: latest
   - name: ghcr.io/trading-model/backup-tools

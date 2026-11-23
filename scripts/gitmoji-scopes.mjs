@@ -12,6 +12,7 @@ export const SCOPES = [
   'core',
   'crypto',
   'database',
+  'decision-consumer',
   'deps',
   'discovery',
   'discovery-server',

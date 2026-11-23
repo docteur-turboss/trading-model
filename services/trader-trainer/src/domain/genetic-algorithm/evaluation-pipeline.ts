@@ -137,13 +137,19 @@ export function evaluateGenomeAllWindows(
  * Evaluates items one after the other on the calling thread. `fn` is CPU-bound,
  * so there is no parallelism: a generation costs the sum of its genomes, and
  * `TRAINER_TIME_BUDGET_MS` is the real limit on the generations reached.
+ * `shouldStop` is tested between two items (never before the first): the
+ * results so far are returned, so a budget overrun is bounded to one item.
  */
 export async function sequentialEval<TItem, TResult>(
 	items: TItem[],
-	fn: (item: TItem) => Promise<TResult>
+	fn: (item: TItem) => Promise<TResult>,
+	shouldStop?: () => boolean
 ): Promise<TResult[]> {
 	const results: TResult[] = [];
 	for (const item of items) {
+		if (results.length > 0 && shouldStop?.()) {
+			break;
+		}
 		results.push(await fn(item));
 		// Without a macrotask yield a whole training session starves heartbeats,
 		// /metrics and incoming candles.
@@ -158,6 +164,8 @@ interface EvaluateFitnessContext {
 	backendFactory: BackendFactory;
 	telemetry?: GaTelemetry;
 	rng?: () => number;
+	/** Tested between two genomes: the generation then keeps those evaluated. */
+	shouldStop?: () => boolean;
 }
 
 function _makeEvalFn(
@@ -187,10 +195,12 @@ export async function evaluateFitness(ctx: EvaluateFitnessContext): Promise<{
 	objectives: { avgPnl: number; sharpe: number; negFlops: number }[];
 	metas: GenomeFitnessMeta[];
 }> {
-	const { population, windowSets, backendFactory, telemetry, rng } = ctx;
+	const { population, windowSets, backendFactory, telemetry, rng, shouldStop } =
+		ctx;
 	const evalResults = await sequentialEval(
 		population,
-		_makeEvalFn(windowSets, backendFactory, telemetry, rng)
+		_makeEvalFn(windowSets, backendFactory, telemetry, rng),
+		shouldStop
 	);
 
 	return {

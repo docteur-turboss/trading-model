@@ -126,6 +126,12 @@ spec:
                   name: trading-model-secrets
                   key: REDIS_RISK_EXECUTION_PASSWORD
                   optional: true
+            - name: REDIS_DECISION_CONSUMER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_DECISION_CONSUMER_PASSWORD
+                  optional: true
             - name: REDIS_MODEL_EVALUATOR_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -535,6 +541,7 @@ spec:
                   - audit-logger
                   - trader-trainer
                   - risk-execution
+                  - decision-consumer
                   - model-evaluator
                   # N-1 pods, kept one release (ADR-0040); removed in N+1.
                   - message-manager

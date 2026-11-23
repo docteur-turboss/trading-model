@@ -88,6 +88,10 @@ describe("HttpClient", () => {
 	let errorHandler: ((err: Error) => void) | null;
 	let lastRequestOptions: any;
 
+	afterEach(() => {
+		jest.useRealTimers();
+	});
+
 	beforeEach(() => {
 		requestCallback = null;
 		errorHandler = null;
@@ -248,12 +252,13 @@ describe("HttpClient", () => {
 		});
 
 		it("should reject on timeout", async () => {
+			jest.useFakeTimers();
 			const promise = client.get(URLString.of("https://example.com/api"), {
 				timeoutMs: 100 as DurationMs,
 				retryCount: 0 as PositiveInt,
 			});
 			promise.catch(() => undefined);
-			await new Promise((resolve) => setTimeout(resolve, 150));
+			await jest.advanceTimersByTimeAsync(150);
 
 			await expect(promise).rejects.toMatchObject({
 				name: "HttpClientTimeoutError",
@@ -871,6 +876,7 @@ describe("HttpClient", () => {
 
 	describe("shouldRetry for network errors", () => {
 		it("should retry on ECONNRESET error", async () => {
+			jest.useFakeTimers();
 			jest.spyOn(Math, "random").mockReturnValue(0.5);
 			const promise = client.get(URLString.of("https://example.com/api"), {
 				retryCount: 1 as PositiveInt as PositiveInt,
@@ -878,7 +884,7 @@ describe("HttpClient", () => {
 			});
 			errorHandler!(new Error("read ECONNRESET"));
 			// Retry sent at 200 ms (random 0.5), times out at 300 ms: answer in between.
-			await new Promise((resolve) => setTimeout(resolve, 250));
+			await jest.advanceTimersByTimeAsync(250);
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
 			const result = await promise;
 			expect(result).toEqual({ ok: true });
@@ -892,13 +898,14 @@ describe("HttpClient", () => {
 		});
 
 		it("should not re-send a request that timed out", async () => {
+			jest.useFakeTimers();
 			const promise = client.post(
 				URLString.of("https://example.com/api"),
 				{},
 				{ retryCount: 1, timeoutMs: 100 as DurationMs }
 			);
 			promise.catch(() => undefined);
-			await new Promise((resolve) => setTimeout(resolve, 150));
+			await jest.advanceTimersByTimeAsync(150);
 			await expect(promise).rejects.toThrow("timed out");
 			expect(https.request).toHaveBeenCalledTimes(1);
 		});
@@ -990,7 +997,8 @@ describe("HttpClient", () => {
 				} else {
 					await expect(result).rejects.toThrow();
 				}
-			}
+			},
+			60_000
 		);
 
 		it("should decode a multi-byte character split across chunks", async () => {

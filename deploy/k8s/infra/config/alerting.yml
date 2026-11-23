@@ -33,7 +33,7 @@ groups:
           severity: critical
           slo: latency
         annotations:
-          summary: 'Latency SLO fast burn rate exceeded'
+          summary: 'Latency SLO: p95 latency above 5 s'
           description: 'P95 latency > 5s over 5m — exceeding 2s SLO target.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slolatencyfastburn'
 
@@ -44,7 +44,7 @@ groups:
           severity: warning
           slo: latency
         annotations:
-          summary: 'Latency SLO slow burn rate exceeded'
+          summary: 'Latency SLO: p95 latency above 3 s'
           description: 'P95 latency > 3s over 1h — approaching 2s SLO target breach.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#which-alert-tells-what'
 
@@ -145,7 +145,7 @@ groups:
         expr: 'time() - backup_last_run_timestamp > 93600'
         for: 1h
         labels:
-          severity: critical
+          severity: warning
         annotations:
           summary: 'Backup job has not run for more than 26 hours'
           description: 'The db-backup CronJob stopped running (suspended, failing to start or stuck): no new backup is being taken.'
@@ -320,6 +320,15 @@ groups:
           description: 'risk-execution rejected over 50% of the intents for 15 min. A limit is close or the decision consumer sends bad intents (price band, exposure, stale price); repeated rejects also engage the kill switch.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskrejectratiohigh'
 
+      - alert: DecisionIntentsRejected
+        expr: 'sum by (job, reason) (increase(decision_intents_total{outcome="rejected"}[1h])) >= 3'
+        labels:
+          severity: warning
+        annotations:
+          summary: 'risk-execution rejected 3 or more intents of the decision consumer in 1 hour ({{ $labels.reason }})'
+          description: 'The promoted models decide once per closed bar, so three rejections with the same reason code in an hour are not noise: the consumer sends a price or a size the limits refuse (ADR-0087).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#decisionintentsrejected'
+
       # -- Authentication failures and ACL denials -------------------
 
       - alert: ApiAuthFailuresHigh
@@ -356,7 +365,7 @@ groups:
         expr: 'time() - max by (job) (audit_chain_last_verification_timestamp) > 2700'
         for: 15m
         labels:
-          severity: critical
+          severity: warning
         annotations:
           summary: 'Audit trail no longer verified'
           description: 'audit-logger has not completed an audit chain verification for more than 45 minutes (MongoDB unreachable, or the cycle fails): a broken chain would go unnoticed (runbook-audit-chain-broken).'
@@ -366,7 +375,7 @@ groups:
         expr: 'max by (job) (audit_chain_anchoring_enabled) == 1 and time() - max by (job) (audit_chain_last_anchor_timestamp) > 2700'
         for: 15m
         labels:
-          severity: critical
+          severity: warning
         annotations:
           summary: 'Audit trail no longer anchored'
           description: 'audit-logger has not anchored the audit chain head for more than 45 minutes: check the anchor bucket credentials (audit-anchor-s3) and its logs (runbook-audit-chain-broken).'
@@ -446,16 +455,6 @@ groups:
           description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 12h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
-      - alert: TrainerEventLoopBlocked
-        expr: histogram_quantile(0.99, sum by (job, le) (rate(tt_genome_evaluation_seconds_bucket[15m]))) > 5
-        for: 15m
-        labels:
-          severity: warning
-        annotations:
-          summary: 'trader-trainer event loop blocked for several seconds'
-          description: 'p99 genome evaluation is {{ $value | humanizeDuration }} over 15m (threshold 5 s). Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventloopblocked'
-
       - alert: TrainerEventLoopLagHigh
         expr: max by (job) (nodejs_eventloop_lag_max_seconds{job="trader-trainer"}) > 10
         for: 5m
@@ -482,7 +481,7 @@ groups:
         expr: max(tt_training_leader) < 1
         for: 30m
         labels:
-          severity: critical
+          severity: warning
         annotations:
           summary: 'No trader-trainer pod has held the Lease for 30 minutes'
           description: 'No pod has trained for 30 minutes, far beyond a rollout handover (end of a generation plus a few seconds, ADR-0058): no trainer pod holds the Lease trader-trainer. No new model is produced.'
@@ -590,7 +589,7 @@ groups:
         expr: min(tt_last_candle_age_seconds) > 900
         for: 5m
         labels:
-          severity: critical
+          severity: warning
         annotations:
           summary: 'trader-trainer reads no fresh candle'
           description: 'At its last session the newest stored candle of every symbol was over 15 minutes old: the scraper no longer feeds MySQL or the trainer cannot read it.'
@@ -715,21 +714,21 @@ groups:
   - name: trading-model-slo-recording
     interval: 1m
     rules:
+      # No requests (service down: up 0 and probes failing) falls back to the blackbox failure rate (short windows: 1 only if every probe failed, so a restart does not page); the numerator is guarded so a job with no 5xx series has a ratio of 0, not no data.
       - record: slo:sli_error:ratio_rate5m
-        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[5m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[5m]))
+        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[5m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[5m])) or 1 - avg by (job) (label_replace(max_over_time(probe_success[5m]), "job", "$1", "service", "(.*)")) and on (job) min_over_time(up[5m]) == 0
       - record: slo:sli_error:ratio_rate1h
-        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[1h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[1h]))
+        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[1h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[1h])) or 1 - avg by (job) (label_replace(avg_over_time(probe_success[1h]), "job", "$1", "service", "(.*)")) and on (job) min_over_time(up[1h]) == 0 or sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[1h])) * 0
       - record: slo:sli_error:ratio_rate30m
-        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[30m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30m]))
+        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[30m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30m])) or 1 - avg by (job) (label_replace(max_over_time(probe_success[30m]), "job", "$1", "service", "(.*)")) and on (job) min_over_time(up[30m]) == 0
       - record: slo:sli_error:ratio_rate6h
-        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[6h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[6h]))
-      # Numerator guarded: a job with no 5xx series yet has a ratio of 0, not no data.
-      - record: slo:sli_error:ratio_rate30d
-        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[30d])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30d])) or sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30d])) * 0
+        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[6h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[6h])) or 1 - avg by (job) (label_replace(avg_over_time(probe_success[6h]), "job", "$1", "service", "(.*)")) and on (job) min_over_time(up[6h]) == 0
 
   - name: trading-model-slo-budget
     interval: 5m
     rules:
+      - record: slo:sli_error:ratio_rate30d
+        expr: avg_over_time(slo:sli_error:ratio_rate1h[30d])
       - alert: SLOErrorBudgetLow
         expr: (1 - slo:sli_error:ratio_rate30d / 0.001) * 100 < 20
         for: 1h

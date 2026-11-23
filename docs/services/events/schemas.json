@@ -29,6 +29,7 @@
 				"enum": [
 					"api-gateway",
 					"audit-logger",
+					"decision-consumer",
 					"discovery-server",
 					"financial-scraper",
 					"model-evaluator",
@@ -272,6 +273,33 @@
 			"clientOrderId",
 			"symbol",
 			"status"
+		]
+	},
+	"risk.promotion.loaded": {
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"type": "object",
+		"properties": {
+			"eventId": {
+				"type": "string",
+				"minLength": 1
+			},
+			"symbol": {
+				"type": "string",
+				"minLength": 1
+			},
+			"version": {
+				"type": "string",
+				"minLength": 1
+			},
+			"sha256": {
+				"type": "string",
+				"pattern": "^[0-9a-f]{64}$"
+			}
+		},
+		"required": [
+			"symbol",
+			"version",
+			"sha256"
 		]
 	},
 	"training.model.published": {

@@ -27,7 +27,8 @@ trading-model/
 │   ├── api-gateway/
 │   ├── audit-logger/
 │   ├── model-evaluator/
-│   └── risk-execution/
+│   ├── risk-execution/
+│   └── decision-consumer/
 ├── .github/workflows/  # CI/CD
 ├── docs/               # Centralized documentation
 ├── scripts/            # Utilities (commit, release, migrations)
@@ -82,6 +83,7 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 | discovery-server | common, contracts, crypto, http, persistence, primitives |
 | model-evaluator | address-manager, broker-message, common, contracts, http, model-runtime, persistence, primitives |
 | risk-execution | address-manager, broker-message, common, contracts, http, model-runtime, persistence, primitives |
+| decision-consumer | address-manager, broker-message, common, contracts, http, model-runtime, persistence, primitives |
 | financial-scraper | address-manager, common, contracts, crypto, http, persistence, primitives, reliability |
 | trader-trainer | address-manager, broker-message, common, contracts, crypto, http, model-runtime, persistence, primitives, reliability |
 
@@ -112,6 +114,7 @@ Each service exposes an HTTPS server with mTLS enabled. The internal container p
 | audit-logger      | 8450            | 3000           |               |
 | model-evaluator   | 8453            | 3000           |               |
 | risk-execution    | 8454            | 3000           |               |
+| decision-consumer | none            | 3000           | no host port  |
 | api-gateway       | 8448            | 3000           |               |
 
 ### Service Structure
@@ -154,7 +157,7 @@ Rules:
 
 - `index.ts` and `server.ts` are the **only** files of `application/` allowed to touch adapters/infrastructure, and only for startup concerns. They obtain their collaborators from `config/container.ts` and never `new` an adapter themselves.
 - Every other file of `application/` depends on ports only.
-- **Ports**: type `XxxPort` (never an `I` prefix), file `xxx.port.ts` (never `-port.ts` / `.ports.ts`), located in `domain/ports/` (several ports of one concern may share a file). Non-port interfaces: `xxx.interface.ts`; MySQL schemas: `xxx.schema.ts`.
+- **Ports**: type `XxxPort` (never an `I` prefix), file `xxx.port.ts` (never `-port.ts` / `.ports.ts`), located in `domain/ports/` (several ports of one concern may share a file; a small service may use a single `domain/ports.ts`). MySQL schemas: `xxx.schema.ts`.
 - Containers take environment values **as parameters** (`createDiscoveryApp(ENV)`, `createScrapeScheduler(ENV)`) rather than importing `ENV`, so they can be imported by tests without environment validation.
 
 ### Entry Point (`src/application/index.ts`)

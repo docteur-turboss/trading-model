@@ -60,6 +60,7 @@ stringData:
   REDIS_DISCOVERY_PASSWORD: dev-redis-discovery-password
   REDIS_AUDIT_LOGGER_PASSWORD: dev-redis-audit-logger-password
   REDIS_RISK_EXECUTION_PASSWORD: dev-redis-risk-execution-password
+  REDIS_DECISION_CONSUMER_PASSWORD: dev-redis-decision-consumer-password
   REDIS_TRADER_TRAINER_PASSWORD: dev-redis-trader-trainer-password
   REDIS_MODEL_EVALUATOR_PASSWORD: dev-redis-model-evaluator-password
   REDIS_EXPORTER_PASSWORD: dev-redis-exporter-password

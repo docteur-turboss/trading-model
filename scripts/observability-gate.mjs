@@ -161,9 +161,9 @@ function alertRules(yamlText) {
 const k8sConfigFile = (name) => readFileSync(join(ROOT, "deploy", "k8s", "infra", "config", name), "utf-8");
 
 const PROMQL_WORDS = new Set([
-  "abs", "absent", "and", "avg", "bool", "by", "ceil", "clamp_max", "clamp_min", "count", "delta", "deriv", "group_left",
+  "abs", "absent", "and", "avg", "avg_over_time", "bool", "by", "ceil", "clamp_max", "clamp_min", "count", "delta", "deriv", "group_left",
   "group_right", "histogram_quantile", "humanizePercentage", "ignoring", "increase",
-  "irate", "max", "max_over_time", "min", "min_over_time", "offset", "on", "or", "rate", "sum", "time", "topk", "unless", "vector",
+  "irate", "label_replace", "max", "max_over_time", "min", "min_over_time", "offset", "on", "or", "rate", "sum", "time", "topk", "unless", "vector",
   "without",
 ]);
 
@@ -300,13 +300,13 @@ let allEmitted = new Set(); // emitted metrics + recording rules, reused by chec
   //    exports never fires (ca_certificate_last_renewed outlived the CA).
   const emitted = emittedMetricNames();
   // Recording rules emit their own series; the metrics they read must exist too.
-  const recorded = new Set();
-  for (const group of Bun.YAML.parse(k8sConfigFile("alerting.yml")).groups ?? []) {
+  const groups = Bun.YAML.parse(k8sConfigFile("alerting.yml")).groups ?? [];
+  const recorded = new Set(groups.flatMap((group) => (group.rules ?? []).map((rule) => rule.record).filter(Boolean)));
+  for (const group of groups) {
     for (const rule of group.rules ?? []) {
       if (!rule.record) continue;
-      recorded.add(rule.record);
       for (const metric of promqlMetricNames(rule.expr)) {
-        if (!isEmitted(metric, emitted)) errors.push(`Recording rule ${rule.record}: metric ${metric} is emitted by no service, script or exporter`);
+        if (!recorded.has(metric) && !isEmitted(metric, emitted)) errors.push(`Recording rule ${rule.record}: metric ${metric} is emitted by no service, script or exporter`);
       }
     }
   }

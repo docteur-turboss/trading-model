@@ -9,7 +9,7 @@ overlay `production`.
 |-------|-------|
 | Cluster `trading-staging` (kind v0.27.0, as the CI `k8s` job) | `deploy/staging-local/kind.yaml` |
 | MinIO (audit anchors, off-site backups) and the runner | `deploy/staging-local/docker-compose.yml`, project `trading-staging`, both on the Docker network `kind` |
-| Overlay | `deploy/k8s/overlays/staging-local`: `staging` + self-signed TLS (`selfsigned-local`), Ingress allow-list `172.18.0.0/16`, audit-logger egress to MinIO `172.18.0.200:9000`, SealedSecret sealed for the kind controller, data StatefulSets held by a partition ([below](#database-pods-across-releases)) |
+| Overlay | `deploy/k8s/overlays/staging-local`: `staging` + self-signed TLS (`selfsigned-local`), Ingress allow-list `172.18.0.0/16`, audit-logger and backup CronJobs egress to MinIO `172.18.0.200:9000`, SealedSecret sealed for the kind controller, data StatefulSets held by a partition ([below](#database-pods-across-releases)) |
 | Local secrets | `~/.trading-staging/env` (MinIO root, S3 users) and `~/.trading-staging/backup-age-identity.txt` (private age key of the staging backups): never committed |
 
 The Ingress answers on `https://localhost:9443` (self-signed certificate).
@@ -158,8 +158,12 @@ The staging overlay runs one pod per data StatefulSet (`mysql`, `redis`,
 before its replacement starts, so a release that changes their pod template
 (3.1.0: exporter sidecars) would cut the database for the stop, the image pull
 and the start (up to 30 min for MySQL here). The `staging-local` overlay sets
-`updateStrategy.rollingUpdate.partition: 1` on these nine (issues #700, #709,
-enforced by `tests/k8s/check-overlays.mjs`):
+`updateStrategy.rollingUpdate.partition: 1` on seven of them (issues #700, #709,
+enforced by `tests/k8s/check-overlays.mjs`). `prometheus` and `alertmanager` keep
+partition 0 (issue #2323): held, they kept the rules and scrape jobs of the
+release that created them (no `risk-execution` job, no risk alerts). A deploy
+that changes their config restarts them: alerts and metrics pause for the
+restart, the services do not.
 
 - a deploy never restarts them: their pods keep UID, restart count and the pod
   template of their revision; `kubectl rollout status` reports the partitioned
@@ -169,17 +173,7 @@ enforced by `tests/k8s/check-overlays.mjs`):
 - a pod deleted, evicted or restarted comes back with the template of its
   revision, not the newest one, but a ConfigMap it mounts by a bare name
   (no hash suffix) is read as the last deploy left it (issues #1456, #1460; enforced
-  for every partitioned StatefulSet by `tests/k8s/check-overlays.mjs`). The 3.0.0 `mysql`
-  template mounts `mysql-group-replication-config`, which the overlay renders
-  with the 3.0.0 content (no TLS); if mysql-0 refuses every client
-  (`require_secure_transport=ON` without TLS), apply it again and restart the
-  pod:
-
-  ```bash
-  kubectl apply -f deploy/k8s/overlays/staging-local/mysql-group-replication-config.yaml
-  kubectl -n trading-model-staging delete pod mysql-0
-  ```
-
+  for every partitioned StatefulSet by `tests/k8s/check-overlays.mjs`);
 - the Redis ACL written by `redis-ha.sh` reaches a partitioned `redis-0` only
   with the planned `redis` / `redis-sentinel` restart: code must not need a
   new Redis command in the release that grants it;
@@ -195,7 +189,7 @@ alone waits for the master its sentinel still names, the dead pod (PR #579).
 
 ```bash
 NS=trading-model-staging
-for sts in redis redis-sentinel; do   # or: mysql, mongo-audit, alertmanager, grafana, loki, prometheus (one at a time)
+for sts in redis redis-sentinel; do   # or: mysql, mongo-audit, grafana, loki (one at a time)
   kubectl -n "$NS" patch sts "$sts" -p '{"spec":{"updateStrategy":{"rollingUpdate":{"partition":0}}}}'
 done
 for sts in redis redis-sentinel; do kubectl -n "$NS" rollout status "sts/$sts" --timeout=1800s; done
@@ -205,41 +199,62 @@ done
 ```
 
 The next deploy sets the partition back to 1 anyway (it is in the overlay).
-Check the result: `kubectl -n "$NS" get sts <x> -o jsonpath='{.status.currentRevision} {.status.updateRevision}'`
-prints the same revision twice.
+Check the result on the pod, not on the StatefulSet status: with the partition at
+or above the replica count, `currentRevision` equals `updateRevision` even when the
+pod still runs an older template. `kubectl -n "$NS" get pod <x>-0 -o jsonpath='{.metadata.labels.controller-revision-hash}'`
+must print the `updateRevision` of `kubectl -n "$NS" get sts <x> -o jsonpath='{.status.updateRevision}'`.
 
-### TLS and keyFile switch
+If the restarted pod never turns ready, the controller does not replace it
+(`OrderedReady`): after fixing the template, delete the pod. If `redis-0` waits
+for a master, restart the sentinels too (`kubectl -n "$NS" rollout restart sts/redis-sentinel`):
+they still name the IP of the dead pod.
 
-The pods of `mysql`, `mongo-dlq` and `mongo-audit` still run the 3.0.0 template
-(3.1.0-rc.1 added the partition without restarting them): no `mysql-tls`, no
-MongoDB `--tlsMode` nor `--keyFile`, no exporter. Until they restart, the
-overlay keeps their clients on what that template accepts (issue #1066):
-financial-scraper without `DB_SSL_*`, MongoDB URIs without `tls=true`, the
-MySQL jobs unverified (`mysql-client-tls`), and `run-migrations.sh` and
-`deploy-k8s.sh migrate-down` read pod `mysql-0` (users left unbound).
-Switch them in a planned window, outside a deploy. Steps 1 and 2 fall between
-the same two deploys: a deploy between them brings the outage back.
+A failed deploy rolls `redis` back to the revision its pod ran (`deploy-release.sh
+rollback`), which can be an older template than the last release: check the
+image of `sts/redis` before a planned restart, and bring the release template back
+with `kubectl -n "$NS" rollout undo sts/redis --to-revision=<n>` (revisions:
+`kubectl -n "$NS" get controllerrevision | grep ^redis-`).
 
-1. Merge the removal of the three `configMapGenerator` entries and of the
-   `mysql-client-tls` patch of issue #1066 from
-   `overlays/staging-local/kustomization.yaml`, and of
-   `mysql-group-replication-config.yaml` (issue #1456): the next deploy must
-   not bring them back.
-2. Restart `mongo-dlq`, then `mongo-audit`, then `mysql` with the loop above.
-   MongoDB then takes `--keyFile` and still accepts clear text (`preferTLS`,
-   `--transitionToAuth`); the users exist (the `mongo-*-users` Jobs created
-   them). MySQL requires TLS: financial-scraper is refused until step 3.
-3. Point financial-scraper at the cert-manager CA and bind the MySQL users:
+### Redis 7.4 to 8.x: rewrite the AOF first
+
+Redis 8.10.3 (3.1.0) stops on an assertion (`listpack.c:1788
+'lpValidateNext(lp, &p, lpbytes)' is not true`) while it replays an AOF
+increment written by Redis 7.4.11 (3.0.0); 7.4.11 replays the same files. The
+base RDB loads. Rewrite the AOF with 7.4 before the first start on 8.x, so the
+increment is empty. No user may run `BGREWRITEAOF` (ACL of `redis-ha.sh`), so on
+staging-local it was done offline on 2026-11-23 (issue #1982): `redis` scaled to
+0, `appendonlydir` copied out of the PVC (`/var/local-path-provisioner/<pvc>` in
+node `trading-staging-control-plane`), loaded in a throwaway `redis:7.4.11` with
+`--appendonly yes`, `BGREWRITEAOF`, `SHUTDOWN`, checked in a throwaway
+`redis:8.10.3` (same key count), copied back (owner 999; the old directory kept
+as `appendonlydir.bak-7.4-20261123`), template set to 8.10.3, scaled to 1. Once
+8.x has written its files, 7.4 cannot read them: a rollback of `redis` to the
+3.0.0 template then fails the same way.
+
+### Data tier switch (done 2026-11-23, issue #1982)
+
+The pods of `mysql`, `mongo-audit`, `redis` and `redis-sentinel`
+run the 3.1.0 templates: MySQL requires TLS with the cert-manager CA and its
+users are bound to their client certificates (`run-migrations.sh "$NS"
+user-only`), MongoDB runs with `--keyFile` and `--tlsMode`, `redis-0` has the
+bus ACL users. The overlay no longer overrides any client (`DB_SSL_*`, MongoDB
+URIs, `mysql-client-tls`, `BUS_TRANSPORT=http`). Until the first release that
+contains this overlay is deployed, a deploy of an older tag brings the overrides
+back: financial-scraper then loses `DB_SSL_*` and MySQL refuses it. Patch its
+ConfigMap again:
 
 ```bash
 cm=$(kubectl -n "$NS" get deploy financial-scraper -o jsonpath='{.spec.template.spec.containers[0].envFrom[0].configMapRef.name}')
 kubectl -n "$NS" patch configmap "$cm" --type merge -p '{"data":{"DB_SSL_CA":"/etc/mysql-tls/ca.crt","DB_SSL_CERT":"/etc/mysql-tls/tls.crt","DB_SSL_KEY":"/etc/mysql-tls/tls.key"}}'
 kubectl -n "$NS" rollout restart deploy/financial-scraper deploy/financial-scraper-collector
 bash deploy/k8s/scripts/run-migrations.sh "$NS" user-only   # prints no "auto-generated certificate" line
-for d in financial-scraper financial-scraper-collector; do kubectl -n "$NS" rollout status "deploy/$d" --timeout=600s; done
 ```
 
-The MongoDB clients move to TLS with the next deploy (step 1).
+Check that model-evaluator reads its topic in process:
+
+```bash
+kubectl -n "$NS" exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli --user message-manager XINFO CONSUMERS trading-model:message-manager:journal:training.model.published model-evaluator' | grep '^model-evaluator-'
+```
 
 ## Between deploys
 

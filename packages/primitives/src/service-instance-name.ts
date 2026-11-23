@@ -2,6 +2,7 @@
 export enum ServiceInstanceName {
 	ApiGatewayService = "api-gateway",
 	AuditLoggerService = "audit-logger",
+	DecisionConsumerService = "decision-consumer",
 	DiscoveryService = "discovery-server",
 	FinancialScraperService = "financial-scraper",
 	ModelEvaluatorService = "model-evaluator",

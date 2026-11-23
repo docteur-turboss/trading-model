@@ -26,6 +26,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Check the environment protection
         env:
           GH_TOKEN: ${{ secrets.ENVIRONMENT_READ_TOKEN }}
@@ -62,6 +64,7 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           ref: refs/tags/${{ inputs.tag }}
 
       - name: Log in to GitHub Container Registry
@@ -79,9 +82,9 @@ jobs:
       - name: Resolve image digests
         shell: bash
         run: |
-          map="discovery-server:discovery-server financial-scraper:financial-scraper
-            trader-trainer:trader-trainer api-gateway:api-gateway audit-logger:audit-logger
-            model-evaluator:model-evaluator risk-execution:risk-execution spire-bootstrap:spire-tools migrate:db-migrate"
+          map="discovery-server:discovery-server:message-manager financial-scraper:financial-scraper
+            trader-trainer:trader-trainer api-gateway:api-gateway audit-logger:audit-logger:dlq-service
+            model-evaluator:model-evaluator risk-execution:risk-execution decision-consumer:decision-consumer spire-bootstrap:spire-tools migrate:db-migrate"
           { echo "services:"; } > "$RUNNER_TEMP/next.yml"
           missing=""; unsigned=""
           for p in $map; do
