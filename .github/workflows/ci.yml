@@ -282,6 +282,7 @@ jobs:
       # Compose names the images <project>-<service>; the bake step below tags them the same way.
       COMPOSE_PROJECT_NAME: trading-e2e
       MYSQL_ROOT_PASSWORD: ci-password
+      MYSQL_PASSWORD: ci-mysql-app-password
       GRAFANA_PASSWORD: ci-grafana-password
       MYSQL_EXPORTER_PASSWORD: ci-mysql-exporter-password
       MONGO_ROOT_PASSWORD: ci-mongo-root
