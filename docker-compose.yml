@@ -435,7 +435,7 @@ services:
       TRAINER_SEED_OFFSET: ${TRAINER_SEED_OFFSET:-0}
       # Model artifacts (ADR-0022)
       TRAINER_MODEL_DIR: /data/checkpoints/models
-      MODEL_DOWNLOAD_CALLERS: ${MODEL_DOWNLOAD_CALLERS:-model-evaluator}
+      MODEL_DOWNLOAD_CALLERS: ${MODEL_DOWNLOAD_CALLERS:-model-evaluator,decision-consumer}
     volumes:
       - svid-trainer:/run/spire/svid
       - trainer-checkpoints:/data/checkpoints
@@ -599,6 +599,38 @@ services:
       retries: 3
     depends_on:
       spiffe-helper-risk:
+        condition: service_started
+      discovery-server:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  #  Decision Consumer — paper decisions of the promoted models, intents to risk-execution (ADR-0049 option C, ADR-0087)
+  # ---------------------------------------------------------------------------
+  decision-consumer:
+    logging: *default-logging
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/decision-consumer:${IMAGE_TAG:-latest}
+    container_name: trading-decision-consumer
+    restart: unless-stopped
+    stop_grace_period: 30s
+    mem_limit: 256m
+    environment:
+      <<: *message-env
+      APP_NAME: decision-consumer
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+      SERVICE_NAME: decision-consumer
+      INSTANCE_ID: decision-consumer-1
+      PROMOTED_MODELS: ${PROMOTED_MODELS:-}
+    volumes:
+      - svid-decision:/run/spire/svid
+    networks:
+      - backend-net
+    healthcheck:
+      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      spiffe-helper-decision:
         condition: service_started
       discovery-server:
         condition: service_healthy
@@ -771,6 +803,21 @@ services:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-risk:/run/spire/svid
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+
+  spiffe-helper-decision:
+    logging: *default-logging
+    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
+    container_name: trading-helper-decision
+    restart: unless-stopped
+    network_mode: none
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    volumes:
+      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
+      - spire-agent-sockets:/run/spire/agent-sockets:ro
+      - svid-decision:/run/spire/svid
     depends_on:
       spire-agent:
         condition: service_healthy
@@ -1194,6 +1241,7 @@ volumes:
   svid-dlq:
   svid-evaluator:
   svid-risk:
+  svid-decision:
   svid-edge:
   svid-prometheus:
   svid-blackbox:

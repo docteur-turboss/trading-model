@@ -601,7 +601,7 @@ upgrade() {
 		log "migrations of release N-1 no longer applied after the rollback: $missing"
 		return 1
 	}
-	SMOKE_SKIP="model-evaluator risk-execution" deploy_script smoke-test # new in N: deleted by the rollback
+	SMOKE_SKIP="model-evaluator risk-execution decision-consumer" deploy_script smoke-test # new in N: deleted by the rollback
 	log "  rollback: every Deployment back on its N-1 pod template (image digests, $marked N-1 ConfigMaps), N-1 migrations applied"
 
 	log "migrate-down 1, then the migrations again"

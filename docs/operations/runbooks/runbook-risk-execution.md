@@ -48,6 +48,14 @@ More than 50% of the intents were rejected over 15 min (no alert without traffic
 2. `global_exposure`, `instrument_exposure`, `loss_limit_*`: a limit is close (panels "Exposure" and "Daily loss"); this is the limit working, check the strategy.
 3. `not_reconciled`, `kill_switch`: see the sections above.
 
+## DecisionIntentsRejected
+
+Three or more intents of the decision consumer rejected in an hour with the same `reason` label (`decision_intents_total{outcome="rejected"}`; the reasons are those of risk-execution, `risk_orders_total`). The consumer decides once per closed bar, so this is a pattern, not noise.
+
+1. Read the `Intent rejected by risk-execution` log lines of `decision-consumer` (symbol, model, reason).
+2. `price_band`, `price_gap`, `stale_intent`: the bar read from financial-scraper is far from the price risk-execution reads, or old; check the feed ([runbook-market-data-stale](runbook-market-data-stale.md)).
+3. `instrument_exposure`, `global_exposure`, `max_quantity`: the size of the model exceeds a limit of risk-execution; the limit stays, lower `PROMOTED_MODELS` by a PR if the model is the cause.
+
 ## RiskMarketDataStale
 
 A price older than 15 min on an allowed instrument that already had one: that symbol is switched off, the global switch when every priced symbol is stale. An instrument never priced (financial-scraper has no candle of it) is not stale. Intents decided on a price older than 1 min are rejected without engaging anything.
