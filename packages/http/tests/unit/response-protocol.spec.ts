@@ -104,6 +104,31 @@ describe("ResponseProtocol", () => {
 		}
 	);
 
+	it("logs a warn with correlationId and path on a 4xx, nothing on a 404", () => {
+		const spy = jest.spyOn(logger, "warn").mockImplementation(() => {});
+		req.correlationId = "corr-4xx";
+		req.originalUrl = "/v1/x?token=abc";
+		ResponseProtocol(
+			makeErrorCode(ErrorCode.Agent, 400)("bad input"),
+			req,
+			res,
+			next
+		);
+		expect(spy).toHaveBeenCalledWith("Client error", {
+			context: {
+				message: "bad input",
+				correlationId: "corr-4xx",
+				url: "/v1/x",
+				method: "GET",
+				status: 400,
+			},
+		});
+		spy.mockClear();
+		ResponseProtocol(serviceNotFoundError("nope"), req, res, next);
+		expect(spy).not.toHaveBeenCalled();
+		spy.mockRestore();
+	});
+
 	it("should send the message of an anticipated error as an ErrorResponse", () => {
 		ResponseProtocol(serviceNotFoundError("Service not found"), req, res, next);
 		expect(res.json).toHaveBeenCalledWith({ error: "Service not found" });
