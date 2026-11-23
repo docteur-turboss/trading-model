@@ -17,7 +17,9 @@ metadata:
 spec:
   ttlSecondsAfterFinished: 600
   backoffLimit: 2
-  activeDeadlineSeconds: 180
+  # 012 copies market_trades by batches: ~135 s per 3 M rows on the CI SSD, several times
+  # that on the staging-local HDD (issue #2377). run-migrations.sh waits as long.
+  activeDeadlineSeconds: 900
   template:
     metadata:
       labels:
