@@ -14,13 +14,12 @@ const Scope = z.object({
 	scope: z.enum(["global", "symbol"]),
 	symbol: z.string().min(1).optional(),
 	reason: z.string().min(1),
-	/** Who acts: recorded with the engagement or the re-arming (audit trail). */
-	actor: z.string().min(1),
 });
 
 /**
- * Service-to-service API of risk-execution, never in PUBLIC_ROUTES (ADR-0064 §1).
- * `intents` and `cancel`: the decision consumer only; `admin*`: the operator, from the pod.
+ * Service-to-service API of risk-execution. `intents` and `cancel` never go in
+ * PUBLIC_ROUTES (ADR-0064 §1); `adminEngage` and `adminRearm` do, scope `risk:admin`, and the
+ * actor is the API key name the gateway sets in `x-actor` (ADR-0059). `adminStatus`: the pod.
  */
 export const RISK_API = {
 	intent: defineRoute({
@@ -66,7 +65,7 @@ export const RISK_API = {
 	}),
 	adminEngage: defineRoute({
 		method: "POST",
-		path: "/admin/kill-switch",
+		path: "/v1/admin/kill-switch",
 		summary: "Engage the global or a per-symbol kill switch",
 		body: Scope,
 		responses: {
@@ -77,7 +76,7 @@ export const RISK_API = {
 	}),
 	adminRearm: defineRoute({
 		method: "POST",
-		path: "/admin/kill-switch/rearm",
+		path: "/v1/admin/kill-switch/rearm",
 		summary: "Re-arm by hand: the only way to switch it off",
 		body: Scope,
 		responses: {
