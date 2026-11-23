@@ -118,7 +118,14 @@ build_images() {
 	export IMAGE_TAG="$tag"
 	retry 3 docker compose $f build $have spire-bootstrap
 	# shellcheck disable=SC2086
-	[ -z "$missing" ] || retry 3 docker compose -f "$ROOT/docker-compose.yml" -f "$ROOT/docker-compose.build.yml" build $missing
+	# Not built by its compose file: its own Dockerfile if it has one (N-1 probes may need what N dropped, e.g. curl), else this checkout's.
+	for svc in $missing; do
+		if [ -f "$root/services/$svc/Dockerfile" ]; then
+			retry 3 docker build -q -t "ghcr.io/trading-model/$svc:$tag" -f "$root/services/$svc/Dockerfile" "$root"
+		else
+			retry 3 docker compose -f "$ROOT/docker-compose.yml" -f "$ROOT/docker-compose.build.yml" build "$svc"
+		fi
+	done
 	retry 3 docker build -q -t "ghcr.io/trading-model/backup-tools:$tag" "$root/deploy/backup"
 	# N-1 may predate the image: its digest entry is a stand-in built from this checkout.
 	local mroot="$root"
