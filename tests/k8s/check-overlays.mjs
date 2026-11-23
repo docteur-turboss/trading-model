@@ -60,7 +60,7 @@ const DATA_STATEFULSETS = [...DATABASES, "grafana", "loki"];
 const BUS_USERS = ["audit-logger", "trader-trainer", "model-evaluator", "risk-execution"];
 // Bus users allowed on the sentinels in staging-local: those redis-0 knows after the
 // planned switch of docs/deployment/STAGING_LOCAL.md, "Bus switch".
-const BUS_ON_PARTITIONED_REDIS = new Set([]);
+const BUS_ON_PARTITIONED_REDIS = new Set(["audit-logger", "trader-trainer", "model-evaluator"]);
 // Bare names a database may mount: also applied by name outside kustomize (run-migrations.sh), read by the exporter sidecar only.
 const BARE_CONFIGMAPS = new Set(["mysql-client-tls"]);
 const IMAGE = /image: ghcr\.io\/trading-model\/([a-z0-9-]+)/g;
