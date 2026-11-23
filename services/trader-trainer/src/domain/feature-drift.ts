@@ -1,6 +1,6 @@
 import { NormalizationStats } from "@trading-model/model-runtime/features/normalization-stats";
+import { candleHandler } from "./data-handlers/candle-handler";
 import type { BaseSymbolState } from "./market-data-types";
-import { NormalizationManager } from "./normalization-manager";
 
 interface StoredStats {
 	count: number;
@@ -29,11 +29,10 @@ export function featureDriftScore(
 	modelNormalization: Record<string, unknown>,
 	since: number
 ): number | undefined {
-	const manager = new NormalizationManager();
-	const live = { norm: manager.createNormStats() };
+	const live = { norm: candleHandler.createNorms() };
 	for (const item of state.candles) {
 		if (item.timestamp >= since) {
-			manager.updateNorms(live, item);
+			candleHandler.updateNorms(live, item);
 		}
 	}
 	let score: number | undefined;
