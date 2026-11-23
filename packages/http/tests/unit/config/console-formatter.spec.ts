@@ -30,6 +30,24 @@ describe("formatLogEntry", () => {
 		);
 	});
 
+	it("flattens a nested context object, top-level keys win, undefined dropped, redacted", () => {
+		const out = JSON.parse(
+			formatLogEntry({
+				label: "INFO",
+				timestamp,
+				message: "m",
+				context: {
+					id: 1,
+					context: { id: 2, a: "x", b: undefined, password: "p" },
+				} as never,
+			})
+		);
+		expect(out).toMatchObject({ id: 1, a: "x" });
+		expect(out).not.toHaveProperty("context");
+		expect(out).not.toHaveProperty("b");
+		expect(out.password).not.toBe("p");
+	});
+
 	describe("ambient fields", () => {
 		const base = { label: "INFO", timestamp, message: "m" };
 		const parse = (c?: Record<string, string>) =>
