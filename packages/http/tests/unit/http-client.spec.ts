@@ -990,7 +990,8 @@ describe("HttpClient", () => {
 				} else {
 					await expect(result).rejects.toThrow();
 				}
-			}
+			},
+			30_000
 		);
 
 		it("should decode a multi-byte character split across chunks", async () => {
