@@ -147,11 +147,10 @@ describe("kill switch drill (policy §7)", () => {
 		const body = {
 			scope: "global" as const,
 			reason: "cause understood",
-			actor: "operator",
 		};
 		const refused = await h.adminRearm(
 			{ params: undefined, query: undefined, body },
-			asCaller("trader-trainer")
+			asCaller("api-gateway")
 		);
 		expect(refused.status).toBe(403);
 		expect(svc.status().killSwitch.global).toBe("drill");
@@ -159,7 +158,10 @@ describe("kill switch drill (policy §7)", () => {
 		// 6. Manual re-arming (the per-symbol switch of BTCUSDT too).
 		const ok = await h.adminRearm(
 			{ params: undefined, query: undefined, body },
-			asCaller("risk-execution")
+			{
+				...(asCaller("api-gateway") as object),
+				headers: { "x-actor": "operator" },
+			} as never
 		);
 		expect(ok.status).toBe(200);
 		await svc.rearm(
@@ -169,7 +171,7 @@ describe("kill switch drill (policy §7)", () => {
 		);
 		expect(svc.status().killSwitch).toEqual({ global: null, symbols: {} });
 		expect((await svc.submitIntent(intent("BTCUSDT"))).status).toBe("filled");
-		expect(RISK_API.adminRearm.path).toBe("/admin/kill-switch/rearm");
+		expect(RISK_API.adminRearm.path).toBe("/v1/admin/kill-switch/rearm");
 
 		// 7. Each automatic trigger in turn, from a fresh state and a fresh paper ledger.
 		const fresh = async () => {
