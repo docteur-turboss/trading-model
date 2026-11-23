@@ -3,3 +3,6 @@ GET /v2/financial-scraper/signals/assets/{assetId} added `subschema #1, subschem
 GET /v1/discovery-server/services api path removed without deprecation
 GET /v1/discovery-server/services/{serviceName} api path removed without deprecation
 GET /v1/discovery-server/services/{serviceName}/{instanceId} api path removed without deprecation
+GET /v2/financial-scraper/candles/sources/{source} api path removed without deprecation
+GET /v2/financial-scraper/ticker/sources/{source} api path removed without deprecation
+GET /v2/financial-scraper/trade/sources/{source} api path removed without deprecation

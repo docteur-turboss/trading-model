@@ -18,16 +18,13 @@ import express from "express";
 const selectTradesBy = {
 	symbol: jest.fn<(...args: any[]) => any>(),
 	timestamp: jest.fn<(...args: any[]) => any>(),
-	source: jest.fn<(...args: any[]) => any>(),
 };
 const selectTickerBy = {
 	symbol: jest.fn<(...args: any[]) => any>(),
 	timestamp: jest.fn<(...args: any[]) => any>(),
-	source: jest.fn<(...args: any[]) => any>(),
 };
 const selectCandlesBy = {
 	symbol: jest.fn<(...args: any[]) => any>(),
-	source: jest.fn<(...args: any[]) => any>(),
 	timestamp: { after: jest.fn<(...args: any[]) => any>() },
 };
 
@@ -156,20 +153,6 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			});
 		});
 
-		it("queries a source", async () => {
-			selectTradesBy.source.mockResolvedValue([]);
-
-			const { status } = await get(
-				SCRAPER_API.tradesBySource,
-				"/v2/trade/sources/binance"
-			);
-
-			expect(status).toBe(200);
-			expect(selectTradesBy.source).toHaveBeenCalledWith("binance", {
-				limit: DEFAULT_PAGE_LIMIT + 1,
-			});
-		});
-
 		it("queries an exact instant given as an ISO date-time", async () => {
 			selectTradesBy.timestamp.mockResolvedValue([]);
 
@@ -186,7 +169,6 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 	describe("tickers", () => {
 		it.each([
-			[SCRAPER_API.tickersBySource, "/v2/ticker/sources/binance", "source"],
 			[SCRAPER_API.tickersBySymbol, "/v2/ticker/symbols/BTCUSDT", "symbol"],
 			[SCRAPER_API.tickersAt, "/v2/ticker/timestamp/2026-10-28", "timestamp"],
 		] as const)("%#: %s answers documented rows", async (route, path, by) => {
@@ -200,10 +182,8 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 	describe("candles", () => {
 		it.each([
-			[SCRAPER_API.candlesBySource, "/v2/candles/sources/binance"],
 			[SCRAPER_API.candlesBySymbol, "/v2/candles/symbols/BTCUSDT"],
 		] as const)("%#: %s answers documented rows", async (route, path) => {
-			selectCandlesBy.source.mockResolvedValue([CANDLE]);
 			selectCandlesBy.symbol.mockResolvedValue([
 				{ ...CANDLE, trades: undefined },
 			]);
@@ -305,15 +285,15 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			["an empty window", "from=2026-10-29&to=2026-10-28", "query.to"],
 		])("answers 400 for %s", async (_label, search, field) => {
 			const { status, body } = await get(
-				SCRAPER_API.candlesBySource,
-				`/v2/candles/sources/binance?${search}`
+				SCRAPER_API.candlesBySymbol,
+				`/v2/candles/symbols/BTCUSDT?${search}`
 			);
 
 			expect(status).toBe(400);
 			expect(body.details).toEqual(
 				expect.arrayContaining([expect.objectContaining({ field })])
 			);
-			expect(selectCandlesBy.source).not.toHaveBeenCalled();
+			expect(selectCandlesBy.symbol).not.toHaveBeenCalled();
 		});
 	});
 
@@ -545,7 +525,6 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 	describe("invalid parameters: 400 before any query", () => {
 		it.each([
-			[SCRAPER_API.tradesBySource, "/v2/trade/sources/unknown-exchange"],
 			[SCRAPER_API.tradesAt, "/v2/trade/timestamp/yesterday"],
 			[SCRAPER_API.tradesAt, "/v2/trade/timestamp/1761652800000"],
 			[SCRAPER_API.candlesSince, "/v2/candles/timestamp/1960-01-01"],

@@ -28,18 +28,9 @@ Lightweight health check.
 }
 ```
 
-**`GET /health`**
+**`GET /health/ready`**
 
-Liveness for admin/debug. Readiness (MongoDB ping) is `GET /health/ready`.
-
-**Response:** `200 OK`
-
-```json
-{
-  "status": "ok",
-  "timestamp": "2025-01-15T10:30:00Z"
-}
-```
+Readiness (MongoDB ping).
 
 ### Audit Events
 
@@ -152,5 +143,6 @@ Event Bus (Message Manager) ──POST /message──→ Audit Logger ──→ 
 | --------------------------- | ---------------------------------------- | ----------------------------- |
 | `PORT`                      | `3000`                                   | Service listen port           |
 | `MONGODB_URI`               | `mongodb://localhost:27017/audit-logger` | MongoDB connection            |
-| `SERVICE_NAME`              | `audit-logger`                   | Service name                  |
+| `SERVICE_NAME`              | `audit-logger`                   | Discovery service name        |
+| `ADDRESS_MANAGER_URL`       | `https://localhost:8443`                 | Discovery server URL          |
 | `AUDIT_RETENTION_DAYS`      | `1827`                                   | Audit event retention in days (5 years) |

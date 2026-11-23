@@ -37,7 +37,6 @@ Services with additional health endpoints:
 
 | Service               | Endpoint       | Returns                                          |
 | --------------------- | -------------- | ------------------------------------------------ |
-| Audit Logger          | `GET /health`  | `{"status":"ok","timestamp":"..."}`               |
 
 ## Implementation
 

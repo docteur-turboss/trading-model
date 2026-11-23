@@ -284,7 +284,28 @@ Persistent volumes: **418 GiB**, in the same rendering (`volumeClaimTemplates` �
 
 ### External dependencies
 
-No price is stated: it depends on the provider, which is not chosen.
+Monthly cost and minimal return (project owner, 2026-11-23, issue #2219). Production
+runs on a server at home (no cloud provider, no exposed IP: Ingress via
+Cloudflare DNS-01). Figures marked *estimate*: the server is estimated from the
+current stack, and the S3 price is a list price, not a quote.
+
+| Item | Basis | € / month |
+| ---- | ----- | --------- |
+| Server (*estimate*, sized on the current stack) | 4 000 € over 36 months | 111.11 |
+| Electricity (upper bound) | 1 000 W at high load × 730 h = 730 kWh × 0.25 €/kWh | 182.50 |
+| Off-site backup and audit anchor buckets, S3 Object Lock (*estimate*) | ≤ 100 GB stored (staging holds 5.8 GB on 2026-11-23) × about 0.007-0.015 €/GB (Backblaze B2 6.95 $/TB, Scaleway Multi-AZ about 0.0146 €/GB) | ≤ 2 |
+| **Total** | | **about 296** |
+
+Allocated capital of the first live tier: 10 000 USDT (`RISK_ALLOCATED_CAPITAL`),
+about 9 000 € at 1 USDT ≈ 0.90 € (*estimate*). Minimal return to pay the
+infrastructure: 296 / 9 000 ≈ **3.3 % per month** net of fees, about 47 % per
+year compounded. The electricity line is an upper bound (1 000 W is the high
+load, not the average): measure the average draw to lower it. The threshold
+falls in proportion to the capital, and more symbols share the same fixed cost.
+Compare it with the walk-forward returns net of fees of model-evaluator
+(ADR-0030, ADR-0066, `executionCostPaid`) before going live.
+
+The other external dependencies are free under the conditions below.
 
 | Dependency | Free only if | Where |
 | ---------- | ------------ | ----- |

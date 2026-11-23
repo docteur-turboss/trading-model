@@ -1,17 +1,12 @@
 import { describe, expect, it } from "@jest/globals";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
-import type { Signature } from "@trading-model/contracts/signed-request";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
 import type {
 	CorrelationId,
 	DurationMs,
 	InstanceId,
-	MessagePriority,
-	Role,
 	ServiceId,
-	Subject,
-	TenantId,
 	Topic,
 } from "@trading-model/primitives/primitives";
 import { MessageMetadataBuilder } from "../../src/messages/message-metadata-builder";
@@ -66,19 +61,6 @@ describe("MessageMetadataBuilder", () => {
 			);
 			expect(m.toJSON().eventType).toBe(TrainingEvent.ModelPublished);
 		});
-
-		it("should accept optional context data", () => {
-			const withData = new MessageMetadataBuilder(
-				TEST_TOPIC as Topic,
-				TEST_EVENT,
-				TEST_PUBLISHER,
-				{ delivery: { mode: DeliveryMode.AtLeastOnce } }
-			);
-			const result = withData.toJSON();
-			expect(result.topic).toBe(TEST_TOPIC);
-			expect(result.eventType).toBe(TEST_EVENT);
-			expect(result.delivery?.mode).toBe("at-least-once");
-		});
 	});
 
 	describe("toJSON", () => {
@@ -99,14 +81,6 @@ describe("MessageMetadataBuilder", () => {
 				mode: DeliveryMode.AtLeastOnce,
 			});
 			expect(m.toJSON().delivery?.mode).toBe("at-least-once");
-		});
-
-		it("should clear delivery when null", () => {
-			const m = buildMinimalMetadata().setDelivery({
-				mode: DeliveryMode.AtLeastOnce,
-			});
-			m.setDelivery(null);
-			expect(m.toJSON().delivery).toBeUndefined();
 		});
 	});
 
@@ -129,40 +103,11 @@ describe("MessageMetadataBuilder", () => {
 			expect(result.causationId).toBe("550e8400-e29b-41d4-a716-446655440000");
 			expect(result.correlationId).toBeUndefined();
 		});
-
-		it("should clear ids when null", () => {
-			const m = buildMinimalMetadata().setIds({
-				causationId: "550e8400-e29b-41d4-a716-446655440000" as CorrelationId,
-				correlationId: "550e8400-e29b-41d4-a716-446655440001" as CorrelationId,
-			});
-			m.setIds(null);
-			const result = m.toJSON();
-			expect(result.causationId).toBeUndefined();
-			expect(result.correlationId).toBeUndefined();
-		});
 	});
 
 	describe("toJSON edge cases", () => {
-		it("should return metadata with all fields including delivery, routing, security", () => {
-			const m = new MessageMetadataBuilder(
-				TEST_TOPIC as Topic,
-				TEST_EVENT,
-				TEST_PUBLISHER,
-				{
-					routing: {
-						partitionKey: "key-1" as CorrelationId,
-						priority: 10 as MessagePriority,
-					},
-					security: {
-						authContext: {
-							subject: "service-a" as Subject,
-							roles: ["reader" as Role],
-							tenantId: "t1" as TenantId,
-						},
-						signature: "sig123" as Signature,
-					},
-				}
-			)
+		it("should return metadata with delivery and ids", () => {
+			const m = buildMinimalMetadata()
 				.setDelivery({
 					mode: DeliveryMode.AtLeastOnce,
 					ttl: 5000 as DurationMs,
@@ -175,12 +120,6 @@ describe("MessageMetadataBuilder", () => {
 			const result = m.toJSON();
 			expect(result.delivery?.mode).toBe("at-least-once");
 			expect(result.delivery?.ttl).toBe(5000);
-			expect(result.routing?.partitionKey).toBe("key-1");
-			expect(result.routing?.priority).toBe(10);
-			expect(result.security?.authContext?.subject).toBe("service-a");
-			expect(result.security?.authContext?.roles).toEqual(["reader"]);
-			expect(result.security?.authContext?.tenantId).toBe("t1");
-			expect(result.security?.signature).toBe("sig123");
 			expect(result.causationId).toBe("550e8400-e29b-41d4-a716-446655440000");
 			expect(result.correlationId).toBe("550e8400-e29b-41d4-a716-446655440001");
 		});

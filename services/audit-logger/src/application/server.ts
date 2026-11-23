@@ -6,7 +6,6 @@ import type { Application } from "express";
 import { Router } from "express";
 import { AUDIT_API } from "../adapters/inbound/http/api-routes";
 import { eventsRoutes } from "../adapters/inbound/http/events.routes";
-import { healthRoutes } from "../adapters/inbound/http/health.routes";
 import type { createMessageHandler } from "../adapters/inbound/subscription/audit-subscriber";
 import type { AuditRepository } from "../adapters/outbound/persistence/audit-repository";
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
@@ -48,7 +47,6 @@ function _registerRoutes(
 	auditRepo: AuditRepository,
 	messageHandler: MessageHandler
 ): void {
-	app.use("/", healthRoutes());
 	app.use("/", eventsRoutes(auditRepo));
 	const broker = Router();
 	mountRoute(broker, AUDIT_API.receive, messageHandler);

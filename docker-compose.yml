@@ -131,8 +131,11 @@ services:
     restart: unless-stopped
     mem_limit: 2g
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-financial_scraper}
+      # Application user: all privileges on MYSQL_DATABASE only (created at first init)
+      MYSQL_USER: ${MYSQL_USER:-scraper}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
     volumes:
       - mysql-data:/var/lib/mysql
     networks:
@@ -162,14 +165,36 @@ services:
     environment:
       DB_HOST: mysql
       DB_PORT: "3306"
-      DB_USER: ${MYSQL_USER:-root}
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      # root assumed: the migrator may need privileges beyond one database
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
       DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
     networks:
       - data-net
     depends_on:
       mysql:
         condition: service_healthy
+
+  # Paged read indexes (ADR-0088): built apart from `migrate`, nothing waits for it.
+  index-build:
+    logging: *default-logging
+    build:
+      context: .
+      dockerfile: deploy/migrate/Dockerfile
+    container_name: trading-index-build
+    restart: "no"
+    command: ["index-build"]
+    environment:
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_USER: ${MYSQL_USER:-root}
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
+    networks:
+      - data-net
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
   # ---------------------------------------------------------------------------
   #  SPIRE Server — workload identity issuance (ADR-0011)
@@ -321,8 +346,8 @@ services:
       # Same file as the K8s ConfigMap financial-scraper-signal-registry (issue #1308).
       SIGNAL_REGISTRY_FILE: /etc/signal-registry/signal-registry.json
       SIGNAL_NON_COMMERCIAL_ACCEPTED: ${SIGNAL_NON_COMMERCIAL_ACCEPTED:-}
-      DB_USER: ${MYSQL_USER:-root}
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_USER: ${MYSQL_USER:-scraper}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
       DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
       DB_HOST: mysql
       DB_PORT: '3306'
@@ -553,7 +578,7 @@ services:
         condition: service_started
 
   # ---------------------------------------------------------------------------
-  #  Decision Consumer — paper decisions of the promoted models, intents to risk-execution (ADR-0049 option C, ADR-0087)
+  #  Decision Consumer — paper decisions of the promoted models, intents to risk-execution (ADR-0049 option C, ADR-0088)
   # ---------------------------------------------------------------------------
   decision-consumer:
     logging: *default-logging
@@ -987,6 +1012,7 @@ services:
       # One file per key (SLACK_WEBHOOK_URL, PUSHOVER_USER_KEY, PUSHOVER_TOKEN, DEADMAN_URL),
       # see deploy/k8s/infra/config/alertmanager.yml. Missing files: notifications fail.
       - ${ALERTMANAGER_CREDENTIALS_DIR:-./observability/alertmanager-credentials}:/etc/alertmanager-credentials:ro
+      - alertmanager-data:/alertmanager
     networks:
       - backend-net
     command:
@@ -1092,6 +1118,12 @@ services:
   # path and any non-GET answer 403. Remaining limits: inspect returns the Env of any
   # container of the daemon (unavoidable for the attestor) and the logs of another
   # project's container stay readable (promtail needs them).
+  # Accepted risk (project owner, 2026-11-23, issue #2184), only until issue #2409 (PR #2419)
+  # (option 2 of #2184) replaces this proxy with an nginx + njs proxy of the Docker socket
+  # that hides Config.Env and other projects' containers: on a
+  # Docker host shared with other projects (no other production runs on it today), a
+  # compromised promtail or spire-agent reads their Env and logs. Run it there only for
+  # development or a drill, then `docker compose down`. PR #2419 removes this note.
   # No shell in the image, so no healthcheck: dependants start with it and retry.
   docker-socket-proxy:
     logging: *default-logging
@@ -1178,4 +1210,5 @@ volumes:
   promtail-positions:
   prometheus-data:
   grafana-data:
+  alertmanager-data:
   loki-data:
