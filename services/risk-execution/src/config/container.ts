@@ -120,8 +120,10 @@ export async function createRiskExecutionApp() {
 	}, ENV.RISK_TICK_MS);
 	timer.unref();
 
-	const handlers = createHandlers(risk, (outcome) =>
-		RISK_ORDERS_TOTAL.inc({ mode, outcome })
+	const handlers = createHandlers(
+		risk,
+		(outcome) => RISK_ORDERS_TOTAL.inc({ mode, outcome }),
+		["decision-consumer"]
 	);
 	const server = await createServiceServer({
 		env: ENV,
@@ -130,6 +132,7 @@ export async function createRiskExecutionApp() {
 			const router = Router();
 			mountRoute(router, RISK_API.intent, handlers.intent);
 			mountRoute(router, RISK_API.cancel, handlers.cancel);
+			mountRoute(router, RISK_API.position, handlers.position);
 			mountRoute(router, RISK_API.adminStatus, handlers.adminStatus);
 			mountRoute(router, RISK_API.adminEngage, handlers.adminEngage);
 			mountRoute(router, RISK_API.adminRearm, handlers.adminRearm);

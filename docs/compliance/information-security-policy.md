@@ -48,7 +48,7 @@ The trading-model platform processes machine-generated financial market data and
 |---|---|---|
 | **Critical** | Compromise would severely impact platform operations | SPIRE CA keys, HMAC master secrets, database credentials |
 | **High** | Compromise would impact service availability or data integrity | SVIDs / trust bundle, Redis subscription data, MongoDB audit logs |
-| **Medium** | Compromise would cause limited operational impact | Market data (candles, trades, tickers), training checkpoints |
+| **Medium** | Compromise would cause limited operational impact | Market data (candles, trades, tickers), training checkpoints, risk-execution state, model evaluations |
 | **Low** | Compromise has negligible impact | Public documentation, TypeDoc output, example configurations |
 
 ### 4.2 Asset Inventory
@@ -64,7 +64,7 @@ All platform assets are documented in:
 ### 5.1 Network Access Control
 
 - **mTLS mandatory:** All service-to-service HTTP communication requires mutual TLS 1.3 with X.509 SVIDs issued by SPIRE after workload attestation (ADR-0011)
-- **Databases, not encrypted in transit:** client connections to MongoDB, Redis and Sentinel are plain TCP inside the cluster, credentials included. Protection: NetworkPolicies, per-service credentials, LUKS2 on data disks. Residual risk accepted by the owner (ADR-0060); TLS is planned (issues #930, #769). MySQL client connections are TLS-verified with per-service client certificates and `require_secure_transport=ON` (issue #767, `docs/deployment/MYSQL_TLS.md`)
+- **Redis, TLS offered but not yet required:** `REDIS_TLS_MODE=optional`, so clients may still connect without TLS until `required` (#1580). MongoDB requires TLS and authentication (`requireTLS`, ADR-0060, ADR-0067). Protection meanwhile: NetworkPolicies, per-service credentials, LUKS2 on data disks (ADR-0047). MySQL client connections are TLS-verified with per-service client certificates and `require_secure_transport=ON` (issue #767, `docs/deployment/MYSQL_TLS.md`)
 - **Service identity:** Extracted from the certificate SAN (SPIFFE ID `spiffe://...`) via `@trading-model/http/mtls-auth.ts`
 - **Authorization:** ACL-based service-to-service access control via `@trading-model/http/mtls-authorization.ts`
 
@@ -114,7 +114,7 @@ The platform is deployed as a containerised microservice architecture. Physical 
 | Structured application logs | stdout → Promtail → Loki | 31 days (`744h`) |
 | Audit events | MongoDB (audit-logger) | 1827 days (5 years) |
 | Service metrics | Prometheus → Grafana | 30 days |
-| Distributed traces | OpenTelemetry → Jaeger | 7 days |
+| Distributed traces | OpenTelemetry → Jaeger | 72 hours |
 | SVID lifecycle events | SPIRE + audit-logger | 1827 days (5 years) |
 
 ### 8.2 Log Redaction
@@ -131,7 +131,7 @@ Implementation: `@trading-model/http/sensitive-data-sanitizer.ts`
 | Requirement | Implementation |
 |---|---|
 | **Network segmentation** | Docker Compose networks (`backend-net`, internal `data-net`). K8s Network Policies |
-| **mTLS enforcement** | TLS 1.3 mutual authentication mandatory between services (not toward databases, ADR-0060). ACL enforced on attested SVID identities |
+| **mTLS enforcement** | TLS 1.3 mutual authentication mandatory between services (databases: TLS offered, not yet required, #1580). ACL enforced on attested SVID identities |
 | **Service mesh** | Not deployed; mTLS handled at application layer via Express middleware |
 | **API gateway isolation** | External traffic enters only through api-gateway (port 8448). All other ports are internal |
 

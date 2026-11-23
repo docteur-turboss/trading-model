@@ -32,7 +32,7 @@ import { parseRequestPath } from "../../shared/path-parser";
 import { matchPublicRoute } from "../../shared/public-routes";
 import { forwardRequest } from "../outbound/proxy-handler";
 import { authOf, createAuthMiddleware } from "./auth";
-import { createRateLimiter } from "./rate-limiter";
+import { createAuthFailureLimiter, createRateLimiter } from "./rate-limiter";
 
 /** Every service listens on HTTPS port 3000 behind its DNS name. */
 const SERVICE_PORT = Port.of(3000);
@@ -61,6 +61,19 @@ function _search(req: Request): string {
 	const url = req.originalUrl ?? req.url;
 	const index = url.indexOf("?");
 	return index === -1 ? "" : url.slice(index);
+}
+
+/** Logs, counts and answers one of the router's 503s. */
+function _unavailable(
+	serviceName: ServiceId,
+	level: "warn" | "error",
+	message: string,
+	context?: Record<string, unknown>,
+	error = "Service unavailable"
+) {
+	logger[level](message, context ? { context } : undefined);
+	SERVICE_ERRORS_TOTAL.inc({ service: serviceName });
+	return sendResponse({ error }, HTTP_STATUS.SERVICE_UNAVAILABLE);
 }
 
 const createCatchAllRoute = (env: Env) => {
@@ -97,7 +110,7 @@ const createCatchAllRoute = (env: Env) => {
 
 		res.locals.routeLabel = pattern;
 
-		const scope = requiredScope(req.method);
+		const scope = requiredScope(req.method, pattern);
 		if (!authOf(req).apiKeyScopes.includes(scope)) {
 			return sendResponse(
 				{ error: "Forbidden", reason: `API key lacks the ${scope} scope` },
@@ -118,24 +131,24 @@ const createCatchAllRoute = (env: Env) => {
 
 		const target = await _resolve(serviceName);
 		if (!target) {
-			logger.warn("Service name does not resolve", {
-				context: { serviceName, majorVersion },
-			});
-			SERVICE_ERRORS_TOTAL.inc({ service: serviceName });
-			return sendResponse(
-				{ error: "Service unavailable" },
-				HTTP_STATUS.SERVICE_UNAVAILABLE
+			return _unavailable(
+				serviceName,
+				"warn",
+				"Service name does not resolve",
+				{
+					serviceName,
+					majorVersion,
+				}
 			);
 		}
 
 		if (allowedProxyRanges.length === 0 && env.NODE_ENV === "production") {
-			logger.error(
-				"Proxy target IP validation disabled — ALLOWED_PROXY_CIDRS is empty in production"
-			);
-			SERVICE_ERRORS_TOTAL.inc({ service: serviceName });
-			return sendResponse(
-				{ error: "Service unavailable — server misconfiguration" },
-				HTTP_STATUS.SERVICE_UNAVAILABLE
+			return _unavailable(
+				serviceName,
+				"error",
+				"Proxy target IP validation disabled — ALLOWED_PROXY_CIDRS is empty in production",
+				undefined,
+				"Service unavailable — server misconfiguration"
 			);
 		}
 
@@ -143,13 +156,11 @@ const createCatchAllRoute = (env: Env) => {
 			allowedProxyRanges.length > 0 &&
 			!isAllowedProxyIP(target.host, allowedProxyRanges)
 		) {
-			logger.warn("Proxy target IP not in allowed range", {
-				context: { serviceName, host: target.host },
-			});
-			SERVICE_ERRORS_TOTAL.inc({ service: serviceName });
-			return sendResponse(
-				{ error: "Service unavailable" },
-				HTTP_STATUS.SERVICE_UNAVAILABLE
+			return _unavailable(
+				serviceName,
+				"warn",
+				"Proxy target IP not in allowed range",
+				{ serviceName, host: target.host }
 			);
 		}
 
@@ -175,6 +186,7 @@ const createCatchAllRoute = (env: Env) => {
 export function createRouter(env: Env): Router {
 	const router = Router();
 	router.get("/metrics", metricsHandler);
+	router.use(createAuthFailureLimiter(env));
 	router.use(createAuthMiddleware(env));
 	router.use(createRateLimiter(env));
 	router.use(createCatchAllRoute(env));

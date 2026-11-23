@@ -17,7 +17,7 @@ info:
 
     Privacy: the truncated caller IP is logged for 31 days, see the Art. 13
     notice, https://github.com/docteur-turboss/trading-model/blob/main/docs/compliance/privacy-notice.md
-  version: "audit-logger v1, discovery-server v1, dlq-service v1, financial-scraper v2, trader-trainer v1"
+  version: "audit-logger v1, discovery-server v1, dlq-service v1, financial-scraper v2, risk-execution v1, trader-trainer v1"
 servers:
   - url: http://localhost:8449
     description: Development (compose) — edge-proxy, which forwards /v{major} to the gateway over mTLS
@@ -891,6 +891,124 @@ paths:
                   - "failed"
                   - "auditRecorded"
                 additionalProperties: false
+  /v1/risk-execution/admin/kill-switch:
+    post:
+      operationId: "postV1RiskExecutionAdminKillSwitch"
+      tags:
+        - "risk-execution"
+      summary: "Engage the global or a per-symbol kill switch"
+      x-registry-entry: "adminEngage"
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: "object"
+              properties:
+                scope:
+                  type: "string"
+                  enum:
+                    - "global"
+                    - "symbol"
+                symbol:
+                  type: "string"
+                  minLength: 1
+                reason:
+                  type: "string"
+                  minLength: 1
+              required:
+                - "scope"
+                - "reason"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  status:
+                    type: "string"
+                    enum:
+                      - "engaged"
+                required:
+                  - "status"
+                additionalProperties: false
+        "400":
+          description: "Invalid request"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "Caller not allowed"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/risk-execution/admin/kill-switch/rearm:
+    post:
+      operationId: "postV1RiskExecutionAdminKillSwitchRearm"
+      tags:
+        - "risk-execution"
+      summary: "Re-arm by hand: the only way to switch it off"
+      x-registry-entry: "adminRearm"
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: "object"
+              properties:
+                scope:
+                  type: "string"
+                  enum:
+                    - "global"
+                    - "symbol"
+                symbol:
+                  type: "string"
+                  minLength: 1
+                reason:
+                  type: "string"
+                  minLength: 1
+              required:
+                - "scope"
+                - "reason"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  status:
+                    type: "string"
+                    enum:
+                      - "rearmed"
+                required:
+                  - "status"
+                additionalProperties: false
+        "400":
+          description: "Invalid request"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "Caller not allowed"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /v1/trader-trainer/best-agent:
     get:
       operationId: "getV1TraderTrainerBestAgent"
@@ -1939,130 +2057,6 @@ paths:
                 required:
                   - "data"
                 additionalProperties: false
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
-        "404":
-          $ref: "#/components/responses/NotFound"
-  /v2/financial-scraper/candles/sources/{source}:
-    get:
-      operationId: "getV2FinancialScraperCandlesSourcesSource"
-      tags:
-        - "financial-scraper"
-      summary: "Candles of a source"
-      x-registry-entry: "candlesBySource"
-      parameters:
-        - name: "source"
-          in: "path"
-          required: true
-          schema:
-            type: "string"
-            enum:
-              - "bloomberg"
-              - "binance"
-              - "nyse"
-        - name: "limit"
-          in: "query"
-          required: false
-          schema:
-            default: 500
-            type: "integer"
-            minimum: 1
-            maximum: 5000
-        - name: "after"
-          in: "query"
-          required: false
-          schema:
-            type: "string"
-        - name: "from"
-          in: "query"
-          required: false
-          schema:
-            anyOf:
-              - type: "string"
-                format: "date-time"
-              - type: "string"
-                format: "date"
-                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-        - name: "to"
-          in: "query"
-          required: false
-          schema:
-            anyOf:
-              - type: "string"
-                format: "date-time"
-              - type: "string"
-                format: "date"
-                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-      responses:
-        "200":
-          description: "OK"
-          content:
-            "application/json":
-              schema:
-                type: "object"
-                properties:
-                  rows:
-                    type: "array"
-                    items:
-                      type: "object"
-                      properties:
-                        symbol:
-                          type: "string"
-                        market:
-                          type: "string"
-                        source:
-                          type: "string"
-                        interval:
-                          type: "string"
-                        open:
-                          type: "number"
-                        high:
-                          type: "number"
-                        low:
-                          type: "number"
-                        close:
-                          type: "number"
-                        volume:
-                          type: "number"
-                        trades:
-                          type: "integer"
-                        timestamp:
-                          type: "string"
-                          format: "date-time"
-                        closeTimestamp:
-                          type: "string"
-                          format: "date-time"
-                      required:
-                        - "symbol"
-                        - "market"
-                        - "source"
-                        - "interval"
-                        - "open"
-                        - "high"
-                        - "low"
-                        - "close"
-                        - "volume"
-                        - "timestamp"
-                        - "closeTimestamp"
-                      additionalProperties: false
-                  nextCursor:
-                    nullable: true
-                    type: "string"
-                  truncated:
-                    type: "boolean"
-                required:
-                  - "rows"
-                  - "nextCursor"
-                  - "truncated"
-                additionalProperties: false
-        "400":
-          description: "Invalid request"
-          content:
-            "application/json":
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -3418,125 +3412,6 @@ paths:
           description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
         "404":
           $ref: "#/components/responses/NotFound"
-  /v2/financial-scraper/ticker/sources/{source}:
-    get:
-      operationId: "getV2FinancialScraperTickerSourcesSource"
-      tags:
-        - "financial-scraper"
-      summary: "24h tickers of a source"
-      x-registry-entry: "tickersBySource"
-      parameters:
-        - name: "source"
-          in: "path"
-          required: true
-          schema:
-            type: "string"
-            enum:
-              - "bloomberg"
-              - "binance"
-              - "nyse"
-        - name: "limit"
-          in: "query"
-          required: false
-          schema:
-            default: 500
-            type: "integer"
-            minimum: 1
-            maximum: 5000
-        - name: "after"
-          in: "query"
-          required: false
-          schema:
-            type: "string"
-        - name: "from"
-          in: "query"
-          required: false
-          schema:
-            anyOf:
-              - type: "string"
-                format: "date-time"
-              - type: "string"
-                format: "date"
-                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-        - name: "to"
-          in: "query"
-          required: false
-          schema:
-            anyOf:
-              - type: "string"
-                format: "date-time"
-              - type: "string"
-                format: "date"
-                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-      responses:
-        "200":
-          description: "OK"
-          content:
-            "application/json":
-              schema:
-                type: "object"
-                properties:
-                  rows:
-                    type: "array"
-                    items:
-                      type: "object"
-                      properties:
-                        symbol:
-                          type: "string"
-                        market:
-                          type: "string"
-                        source:
-                          type: "string"
-                        open:
-                          type: "number"
-                        high:
-                          type: "number"
-                        low:
-                          type: "number"
-                        last:
-                          type: "number"
-                        volume:
-                          type: "number"
-                        timestamp:
-                          type: "string"
-                          format: "date-time"
-                        closeTimestamp:
-                          type: "string"
-                          format: "date-time"
-                      required:
-                        - "symbol"
-                        - "market"
-                        - "source"
-                        - "open"
-                        - "high"
-                        - "low"
-                        - "last"
-                        - "volume"
-                        - "timestamp"
-                        - "closeTimestamp"
-                      additionalProperties: false
-                  nextCursor:
-                    nullable: true
-                    type: "string"
-                  truncated:
-                    type: "boolean"
-                required:
-                  - "rows"
-                  - "nextCursor"
-                  - "truncated"
-                additionalProperties: false
-        "400":
-          description: "Invalid request"
-          content:
-            "application/json":
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
-        "404":
-          $ref: "#/components/responses/NotFound"
   /v2/financial-scraper/ticker/symbols/{symbol}:
     get:
       operationId: "getV2FinancialScraperTickerSymbolsSymbol"
@@ -3750,119 +3625,6 @@ paths:
                         - "volume"
                         - "timestamp"
                         - "closeTimestamp"
-                      additionalProperties: false
-                  nextCursor:
-                    nullable: true
-                    type: "string"
-                  truncated:
-                    type: "boolean"
-                required:
-                  - "rows"
-                  - "nextCursor"
-                  - "truncated"
-                additionalProperties: false
-        "400":
-          description: "Invalid request"
-          content:
-            "application/json":
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          description: "API key without the scope of the route (read for GET, dlq:write otherwise)"
-        "404":
-          $ref: "#/components/responses/NotFound"
-  /v2/financial-scraper/trade/sources/{source}:
-    get:
-      operationId: "getV2FinancialScraperTradeSourcesSource"
-      tags:
-        - "financial-scraper"
-      summary: "Trades of a source"
-      x-registry-entry: "tradesBySource"
-      parameters:
-        - name: "source"
-          in: "path"
-          required: true
-          schema:
-            type: "string"
-            enum:
-              - "bloomberg"
-              - "binance"
-              - "nyse"
-        - name: "limit"
-          in: "query"
-          required: false
-          schema:
-            default: 500
-            type: "integer"
-            minimum: 1
-            maximum: 5000
-        - name: "after"
-          in: "query"
-          required: false
-          schema:
-            type: "string"
-        - name: "from"
-          in: "query"
-          required: false
-          schema:
-            anyOf:
-              - type: "string"
-                format: "date-time"
-              - type: "string"
-                format: "date"
-                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-        - name: "to"
-          in: "query"
-          required: false
-          schema:
-            anyOf:
-              - type: "string"
-                format: "date-time"
-              - type: "string"
-                format: "date"
-                pattern: "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
-      responses:
-        "200":
-          description: "OK"
-          content:
-            "application/json":
-              schema:
-                type: "object"
-                properties:
-                  rows:
-                    type: "array"
-                    items:
-                      type: "object"
-                      properties:
-                        symbol:
-                          type: "string"
-                        market:
-                          type: "string"
-                        source:
-                          type: "string"
-                        side:
-                          type: "string"
-                        price:
-                          type: "number"
-                        quantity:
-                          type: "number"
-                        tradeId:
-                          type: "string"
-                          pattern: "^\\d+$"
-                        timestamp:
-                          type: "string"
-                          format: "date-time"
-                      required:
-                        - "symbol"
-                        - "market"
-                        - "source"
-                        - "side"
-                        - "price"
-                        - "quantity"
-                        - "tradeId"
-                        - "timestamp"
                       additionalProperties: false
                   nextCursor:
                     nullable: true
