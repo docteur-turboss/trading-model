@@ -32,6 +32,12 @@ function broker() {
 	});
 }
 
+async function until(check: () => boolean): Promise<void> {
+	for (let i = 0; i < 100 && !check(); i++) {
+		await new Promise((resolve) => setTimeout(resolve, 10));
+	}
+}
+
 describe("BrokerMessage on the bus (ADR-0073)", () => {
 	it("should publish with an XADD, not over HTTP, and consume what it subscribed to", async () => {
 		const bus = broker();
@@ -106,7 +112,7 @@ describe("BrokerMessage on the bus (ADR-0073)", () => {
 		).toJSON();
 		const payload = { entryId: "e2", topic: null, reason: null, actor: null };
 		await bus.post.indirect(payload, metadata);
-		await new Promise((resolve) => setTimeout(resolve, 100));
+		await until(() => received.length === 1);
 		await bus.stopMessageManager();
 
 		expect(received).toEqual([[payload, topic]]);
