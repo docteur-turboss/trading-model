@@ -51,6 +51,7 @@ PREVIOUS="$WORK/previous"
 IMAGE_ARCHIVE="${KIND_IMAGE_ARCHIVE:-$WORK/images.tar}"
 export COMPOSE_PROJECT_NAME="tmk8s"
 export MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-kind-ci}"
+export MYSQL_PASSWORD="${MYSQL_PASSWORD:-kind-ci}"
 export GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-kind-ci}"
 export MYSQL_EXPORTER_PASSWORD="${MYSQL_EXPORTER_PASSWORD:-kind-ci}"
 export DLQ_AUTH_HMAC_SECRET="${DLQ_AUTH_HMAC_SECRET:-kind-ci-dlq-hmac-0123456789abcdefghij}"
@@ -128,7 +129,8 @@ build_images() {
 	[ -f "$root/deploy/migrate/Dockerfile" ] || mroot="$ROOT"
 	retry 3 docker build -q -t "ghcr.io/trading-model/db-migrate:$tag" -f "$mroot/deploy/migrate/Dockerfile" "$mroot"
 	# N-1 (no `image:` in compose) builds as <project>-<svc>; N builds straight to ghcr.io/trading-model/<svc>:$tag.
-	tag_built() { ! docker image inspect "$1" >/dev/null 2>&1 || docker tag "$1" "$2"; }
+	# The source name is dropped once tagged: left over, it would overwrite the direct build of the next release.
+	tag_built() { ! docker image inspect "$1" >/dev/null 2>&1 || { docker tag "$1" "$2" && docker rmi "$1" >/dev/null; }; }
 	tag_built "${COMPOSE_PROJECT_NAME}-spire-bootstrap" "ghcr.io/trading-model/spire-tools:$tag"
 	for svc in $SERVICES; do
 		tag_built "${COMPOSE_PROJECT_NAME}-${svc}" "ghcr.io/trading-model/${svc}:$tag"
@@ -644,7 +646,7 @@ upgrade() {
 		log "migrations of release N-1 no longer applied after the rollback: $missing"
 		return 1
 	}
-	SMOKE_SKIP="model-evaluator risk-execution" deploy_script smoke-test # new in N: deleted by the rollback
+	SMOKE_SKIP="model-evaluator risk-execution decision-consumer" deploy_script smoke-test # new in N: deleted by the rollback
 	log "  rollback: every Deployment back on its N-1 pod template (image digests, $marked N-1 ConfigMaps), N-1 migrations applied"
 
 	log "migrate-down 1, then the migrations again"
@@ -663,13 +665,37 @@ upgrade() {
 	}
 	log "  $last rolled back and applied again, same checksums"
 
+	# Issue #2377: the widening of market_trades.id (012) runs inside the probed window,
+	# on a table of staging size, back on INT as release N-1 left it.
+	log "market_trades: id back to INT, 3 M rows, 012 pending again for the upgrade under probe"
+	local chunk widen="012_widen_market_trades_id_online"
+	mysql_root "DELETE FROM financial_scraper._migrations WHERE id = '$widen'; ALTER TABLE financial_scraper.market_trades MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT" || return 1
+	for chunk in 0 1 2 3 4 5; do
+		mysql_root "INSERT /*+ SET_VAR(cte_max_recursion_depth = 500000) */ INTO financial_scraper.market_trades (symbol, market, source, trade_id, price, quantity, side, timestamp) WITH RECURSIVE n (i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 500000) SELECT 'FILLUSDT', 'crypto', 'binance', $chunk * 500000 + i, 1, 1, 'buy', UTC_TIMESTAMP(3) - INTERVAL 1 DAY FROM n" || return 1
+	done
+
 	log "upgrade N-1 → N, availability probed through edge-proxy"
 	verify_collection_gap "upgrade N-1 → N" release_under_probe || {
 		log "the upgrade to release N failed, dropped requests, or stopped the market data 30 s or more"
 		return 1
 	}
+	local widened
+	widened="$(mysql_root "SELECT CONCAT(COLUMN_TYPE, ' ', (SELECT COUNT(*) FROM financial_scraper.market_trades WHERE symbol = 'FILLUSDT'), ' ', (SELECT COUNT(*) FROM financial_scraper._migrations WHERE id = '$widen')) FROM information_schema.columns WHERE table_schema = 'financial_scraper' AND table_name = 'market_trades' AND column_name = 'id'" | tr -d '\r')"
+	[ "$widened" = "bigint unsigned 3000000 1" ] || {
+		log "market_trades after $widen under the probe: '$widened', expected 'bigint unsigned 3000000 1'"
+		return 1
+	}
+	# Issue #2057 (ADR-0088): the db-index-build Job reaches MySQL (NetworkPolicy) and builds the indexes; deploy does not wait for it.
+	log "db-index-build: idx_*_symbol_ts built, idx_*_symbol dropped"
+	wait_for 600 '[ "$(symbol_ts_indexes)" = "3 0" ]' || {
+		$K -n "$NS" logs job/db-index-build --tail=30 || true
+		log "db-index-build left '$(symbol_ts_indexes)' (built, old) instead of '3 0'"
+		return 1
+	}
 	log "collector handover on release N: rolling restart, the Lease goes to the new pod (ADR-0057)"
 	verify_collection_gap "restart N → N" collector_handover || return 1
+	# The restore drill dumps market_trades: back to the collector's rows only.
+	mysql_root "DELETE FROM financial_scraper.market_trades WHERE symbol = 'FILLUSDT'" || return 1
 	# Every exporter reaches its database, so neither MySQLDown nor RedisDown
 	# (critical, verify-release rolls back on them) fires (issue #698).
 	# mongodb_up = 1 means the `exporter` user (clusterMonitor, ADR-0067) exists on
@@ -1246,6 +1272,11 @@ mongo_eval() {
 
 mysql_root() {
 	$K -n "$NS" exec mysql-0 -c mysql -- sh -c "MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\" mysql -uroot -N -e \"$1\""
+}
+
+# "<idx_*_symbol_ts count> <idx_*_symbol count>" on the three market tables (ADR-0088).
+symbol_ts_indexes() {
+	mysql_root "SELECT CONCAT(COUNT(DISTINCT CASE WHEN index_name IN ('idx_candles_symbol_ts','idx_trades_symbol_ts','idx_tickers_symbol_ts') THEN index_name END), ' ', COUNT(DISTINCT CASE WHEN index_name IN ('idx_candles_symbol','idx_trades_symbol','idx_tickers_symbol') THEN index_name END)) FROM information_schema.statistics WHERE table_schema = 'financial_scraper'" | tr -d '\r'
 }
 
 # sha256 of the SPIRE trust bundle: unchanged as long as the CA keys are.

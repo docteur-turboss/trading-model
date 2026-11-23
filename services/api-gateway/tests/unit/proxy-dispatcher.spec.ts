@@ -44,15 +44,18 @@ describe("proxyAndCache", () => {
 		);
 	});
 
-	it("observes once with 502 (too large) and once with 503 (other)", async () => {
+	it("observes 502 (too large), 503 (other) and 504 (timeout)", async () => {
 		const d = deps();
 		d.forward.mockRejectedValueOnce(new UpstreamResponseTooLargeError(8));
 		await proxyAndCache(GET, TARGET, CTX, d);
 		d.forward.mockRejectedValueOnce(new Error("boom"));
 		await proxyAndCache(GET, TARGET, CTX, d);
+		d.forward.mockRejectedValueOnce(new UpstreamTimeoutError(10));
+		await proxyAndCache(GET, TARGET, CTX, d);
 		expect(d.observeDuration.mock.calls.map(([labels]) => labels)).toEqual([
 			{ service: "svc", status: "502" },
 			{ service: "svc", status: "503" },
+			{ service: "svc", status: "504" },
 		]);
 	});
 

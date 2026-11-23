@@ -205,7 +205,7 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
 		await expect(tables()).resolves.toEqual(ALL_TABLES);
 
-		// 011 (trades id), 010 (index), 009 (signals.area), 008 (market_order_books).
+		// 012 (trades id, down is a no-op), 010 (index), 009 (signals.area), 008 (market_order_books).
 		migrate("down", "4");
 		await expect(appliedMigrations()).resolves.toEqual(
 			MIGRATION_IDS.slice(0, -4)
@@ -316,9 +316,10 @@ describe("market_candles — real MySQL", () => {
 		]);
 
 		await expect(count("market_candles")).resolves.toBe(3);
-		await expect(
-			selectCandlesBy.source(SourceType.Nyse, PAGE)
-		).resolves.toHaveLength(1);
+		const [nyse] = await DATABASE.promise().query(
+			"SELECT 1 FROM market_candles WHERE source = 'nyse'"
+		);
+		expect(nyse).toHaveLength(1);
 	});
 
 	it("should store a candle without a trade count", async () => {
@@ -404,6 +405,39 @@ describe("market_trades — real MySQL", () => {
 
 		const [row] = await selectTradesBy.symbol(SYMBOL, PAGE);
 		expect(row.id).toBeGreaterThan(2_147_483_647);
+	});
+
+	it("should move INT trades into the BIGINT table in batches, keeping their ids (issue #2377)", async () => {
+		const db = DATABASE.promise();
+		migrate("down", "1");
+		await db.query(
+			"ALTER TABLE market_trades MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT, AUTO_INCREMENT = 1"
+		);
+		// More rows than one batch of the migration (20 000).
+		await db.query(
+			`INSERT /*+ SET_VAR(cte_max_recursion_depth = 50000) */ INTO market_trades (symbol, market, source, trade_id, price, quantity, side, timestamp)
+			 WITH RECURSIVE n (i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 45000)
+			 SELECT 'BTCUSDT', 'crypto', 'binance', i, 1, 1, 'buy', '2026-01-02 03:04:05' + INTERVAL i SECOND FROM n`
+		);
+
+		migrate("up");
+
+		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
+		const [[ids]] = (await db.query(
+			"SELECT COUNT(*) AS n, COUNT(DISTINCT id) AS distinctIds, SUM(id = trade_id) AS kept FROM market_trades"
+		)) as unknown as [{ n: number; distinctIds: number; kept: string }[]];
+		expect(ids).toEqual({ n: 45000, distinctIds: 45000, kept: "45000" });
+		const [[column]] = (await db.query(
+			"SELECT COLUMN_TYPE AS type FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'market_trades' AND column_name = 'id'"
+		)) as unknown as [{ type: string }[]];
+		expect(column.type).toBe("bigint unsigned");
+		await expect(tables()).resolves.not.toContain("market_trades_old");
+		await insertTrades([trade({ tradeId: 77n })]);
+		const [[latest]] = (await db.query(
+			"SELECT id FROM market_trades WHERE trade_id = 77 AND timestamp = ?",
+			[new Date(T0)]
+		)) as unknown as [{ id: number }[]];
+		expect(latest.id).toBeGreaterThan(45000);
 	});
 
 	it("should reject a side outside the column enum", async () => {
@@ -677,4 +711,30 @@ describe("timestamp queries — real MySQL (issue #555)", () => {
 			expect(row.key).toBe(index);
 		}
 	);
+});
+
+describe("index-build — paged symbol reads (ADR-0088)", () => {
+	const TABLES = ["market_candles", "market_trades", "market_tickers"];
+
+	async function explain(table: string) {
+		const [rows] = await DATABASE.promise().query(
+			`EXPLAIN SELECT * FROM ${table} WHERE symbol = 'BTCUSDT' ORDER BY timestamp, id LIMIT 100`
+		);
+		return (rows as { key: string; Extra: string }[])[0];
+	}
+
+	it("should serve a symbol page from the index without filesort, and be idempotent", async () => {
+		migrate("index-build");
+		migrate("index-build");
+
+		for (const table of TABLES) {
+			const plan = await explain(table);
+			expect(plan.key).toMatch(/^idx_\w+_symbol_ts$/);
+			expect(plan.Extra ?? "").not.toContain("filesort");
+			const [redundant] = await DATABASE.promise().query(
+				`SHOW INDEX FROM ${table} WHERE Key_name = '${plan.key.replace("_ts", "")}'`
+			);
+			expect(redundant).toHaveLength(0);
+		}
+	});
 });
