@@ -143,20 +143,8 @@ jobs:
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock', '.bun-version') }}
           restore-keys: bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
-      - name: Build packages (dependency order)
-        run: bun run build
-      - name: Type-check services
-        run: |
-          bun run --filter message-manager build
-          bun run --filter discovery-server build
-          bun run --filter financial-scraper build
-          bun run --filter trader-trainer build
-          bun run --filter api-gateway build
-          bun run --filter audit-logger build
-          bun run --filter dlq-service build
-          bun run --filter model-evaluator build
-          bun run --filter risk-execution build
-          bun run --filter decision-consumer build
+      - name: Build packages and services
+        run: bun run build:ts
       - name: Type-check the test files of every workspace
         run: bun run typecheck:tests
 
