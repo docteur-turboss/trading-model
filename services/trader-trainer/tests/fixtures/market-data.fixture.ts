@@ -40,7 +40,7 @@ export function makeCandle(
 
 export function feedCandles(
 	buffer: {
-		addData(dataType: string, symbol: TradingSymbol, data: CandleData): void;
+		addCandle(symbol: TradingSymbol, candle: CandleData): void;
 	},
 	symbol: string,
 	count: number,
@@ -51,8 +51,7 @@ export function feedCandles(
 	const now = Date.now();
 	for (let i = 0; i < count; i++) {
 		const p = offset(i);
-		buffer.addData(
-			"candle",
+		buffer.addCandle(
 			sym,
 			makeCandle({
 				symbol: sym,
