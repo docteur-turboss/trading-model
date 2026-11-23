@@ -32,7 +32,7 @@ run_job() { # <job> <manifest>
       -e "s#^\( *\)- name: MYSQL_HOME\$#\1- name: TLS_BIND\n\1  value: '${TLS_VERIFY:-true}'\n&#" |
     awk -v f="${DEPLOY_TIMEOUT_FACTOR:-1}" '/^ *activeDeadlineSeconds: *[0-9]+ *$/ { sub(/[0-9]+ *$/, $2 * f) } 1' |
     kubectl apply -n "$NS" -f -
-  bash "$(dirname "${BASH_SOURCE[0]}")/wait-job.sh" "$NS" "$1" 180
+  bash "$(dirname "${BASH_SOURCE[0]}")/wait-job.sh" "$NS" "$1" "$(awk '$1 == "activeDeadlineSeconds:" { print $2; exit }' "$2")"
 }
 
 # Prints the requested field of trading-model-secrets. A missing Secret prints nothing;
