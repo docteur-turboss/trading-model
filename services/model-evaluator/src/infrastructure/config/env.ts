@@ -7,6 +7,8 @@ import { z } from "zod";
 const MODEL_EVALUATOR_ENV_SHAPE = {
 	/** Directory of the evaluation records (a PVC in K8s): one file per (symbol, version). */
 	EVALUATIONS_DIR: z.string().min(1).default("/data/evaluations"),
+	/** Model artifacts of the trainer, mounted read-only (ADR-0022, ADR-0087). */
+	TRAINER_MODEL_DIR: z.string().min(1).default("/data/checkpoints/models"),
 };
 
 export const ENV = validateEnv(

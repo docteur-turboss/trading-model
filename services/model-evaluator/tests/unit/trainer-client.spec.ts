@@ -110,30 +110,90 @@ describe("TrainerClient", () => {
 	});
 });
 
+const VERSION = "20261101T000000Z-aaaaaaaaaaaa";
+
+/** A manifest that passes the shared schema (`ModelManifestSchema`). */
+function manifest(admissible?: boolean) {
+	return {
+		formatVersion: 1,
+		symbol: "BTCUSDT",
+		version: VERSION,
+		createdAt: "2026-11-01T00:00:00.000Z",
+		producedBy: { instanceId: "t1" },
+		weights: {
+			file: "weights.f32",
+			dtype: "float32-le",
+			length: 1,
+			sha256: "a".repeat(64),
+		},
+		genome: {
+			id: "g",
+			gaControl: {
+				population: { size: 1, elitismFraction: 0, survivorFraction: 1 },
+				evaluation: { episodesPerIndividual: 1 },
+				selectionType: "s",
+				fitnessType: "f",
+			},
+			network: {
+				inputDim: 1,
+				outputDim: 3,
+				hiddenLayers: [],
+				normalization: "z-score",
+			},
+			rl: {
+				gamma: 1,
+				learningRate: 1,
+				discretePolicy: { epsilonStart: 1, epsilonMin: 0, epsilonDecay: 1 },
+				horizon: { frameSkip: 1 },
+			},
+		},
+		features: { dim: 1, fields: ["x"] },
+		normalization: {},
+		metrics: {
+			generation: 1,
+			fitness: 1,
+			sharpe: 1,
+			avgPnl: 1,
+			maxDrawdown: 0,
+		},
+		...(admissible !== undefined && {
+			admission: {
+				admissible,
+				evaluatedOn: "test",
+				criteria: { sharpe: 1, sortino: 1, calmar: 1, buyAndHoldSharpe: 1 },
+				thresholds: { minSharpe: 1, minSortino: 1, minCalmar: 1 },
+			},
+		}),
+	};
+}
+
+function writeModel(content: unknown, weights?: Buffer): string {
+	const root = mkdtempSync(join(tmpdir(), "models-"));
+	const dir = join(root, "BTCUSDT", VERSION);
+	mkdirSync(dir, { recursive: true });
+	writeFileSync(
+		join(dir, "manifest.json"),
+		typeof content === "string" ? content : JSON.stringify(content)
+	);
+	if (weights) {
+		writeFileSync(join(dir, "weights.f32"), weights);
+	}
+	return root;
+}
+
 describe("TrainerClient on the artifact store", () => {
 	it("reads manifest and weights from the store with the trainer unreachable", async () => {
-		const root = mkdtempSync(join(tmpdir(), "models-"));
-		const version = "20261101T000000Z-aaaaaaaaaaaa";
-		const dir = join(root, "BTCUSDT", version);
-		mkdirSync(dir, { recursive: true });
-		const manifest = {
-			symbol: "BTCUSDT",
-			version,
-			weights: { length: 1, sha256: "a".repeat(64) },
-			genome: {},
-		};
-		writeFileSync(join(dir, "manifest.json"), JSON.stringify(manifest));
-		writeFileSync(join(dir, "weights.f32"), Buffer.from([1, 2, 3, 4]));
+		const root = writeModel(manifest(true), Buffer.from([1, 2, 3, 4]));
 		manifestGet.mockReset();
 		jest.spyOn(https, "get").mockImplementation((() => {
 			throw new Error("trainer down");
 		}) as never);
 		const client = new TrainerClient(TLS, root);
 
-		await expect(client.manifest("BTCUSDT", version)).resolves.toEqual(
-			manifest
-		);
-		const { bytes } = await client.weights("BTCUSDT", version);
+		await expect(client.manifest("BTCUSDT", VERSION)).resolves.toMatchObject({
+			version: VERSION,
+		});
+		const { bytes } = await client.weights("BTCUSDT", VERSION);
 		expect([...bytes]).toEqual([1, 2, 3, 4]);
 		expect(manifestGet).not.toHaveBeenCalled();
 	});

@@ -26,7 +26,7 @@ export async function createModelEvaluatorApp() {
 	const tls = buildTlsFromEnv(ENV);
 	const evaluate = createEvaluateModel({
 		store: new FileEvaluationStore(ENV.EVALUATIONS_DIR),
-		trainer: new TrainerClient(tls),
+		trainer: new TrainerClient(tls, ENV.TRAINER_MODEL_DIR),
 		scraper: new ScraperClient(tls),
 	});
 	const server = await createServer(createMessageHandler(evaluate));

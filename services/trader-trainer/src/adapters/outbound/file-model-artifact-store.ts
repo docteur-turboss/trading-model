@@ -3,13 +3,13 @@ import {
 	mkdir,
 	mkdtemp,
 	readdir,
-	readFile,
 	rename,
 	rm,
 	stat,
 	writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
+import { readModelFile } from "@trading-model/model-runtime/model-artifact-reader";
 import {
 	buildModelManifest,
 	MANIFEST_FILE,
@@ -165,11 +165,7 @@ export class FileModelArtifactStore implements ModelArtifactStorePort {
 		version: string,
 		file: string
 	): Promise<Buffer | undefined> {
-		const symbolDir = this._symbolDir(symbol);
-		if (!(symbolDir && MODEL_VERSION_PATTERN.test(version))) {
-			return;
-		}
-		return await unlessMissing(readFile(join(symbolDir, version, file)));
+		return await readModelFile(this._options.root, symbol, version, file);
 	}
 
 	/** Another replica may have written the same version (same weights, same second). */
