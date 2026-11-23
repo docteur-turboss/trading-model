@@ -28,10 +28,8 @@ export function mountRoute<Route extends ApiRoute>(
 	handler: ApiRouteHandler<Route>,
 	options: MountRouteOptions = {}
 ): void {
-	const unversioned = route.path.replace(/^\/v\d+(?=\/)/, "");
 	router[route.method.toLowerCase() as Lowercase<typeof route.method>](
-		// shortcut: release N also mounts a public route without /v<major> for N-1 gateways; removed in N+1 (ADR-0072).
-		unversioned === route.path ? route.path : [route.path, unversioned],
+		route.path,
 		...(options.middlewares ?? []),
 		catchSync((req) => {
 			const parsed = parseRequest(route, req);
