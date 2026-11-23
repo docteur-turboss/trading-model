@@ -3,13 +3,14 @@ import path from "node:path";
 import { describe, expect, it, jest } from "@jest/globals";
 import { TradingSymbol } from "@trading-model/primitives/primitives";
 import { createWorkerRunner } from "../../../../../src/adapters/outbound/training-worker/worker-training-runner";
-import { Trainer } from "../../../../../src/application/trainer";
+import type { Trainer } from "../../../../../src/application/trainer";
 import { runInProcess } from "../../../../../src/application/training-session";
 import { FitnessType } from "../../../../../src/domain/genetic-algorithm/genome";
 import { MarketDataBuffer } from "../../../../../src/domain/market-data-buffer";
 import { validateTrainingPrerequisites } from "../../../../../src/domain/training-prerequisite-validator";
 import type { TrainingSettings } from "../../../../../src/domain/training-settings";
 import { feedCandles } from "../../../../fixtures/market-data.fixture";
+import { makeTrainer as makeBaseTrainer } from "../../../../fixtures/trainer-deps.fixture";
 
 jest.mock("../../../../../src/config/metrics", () => {
 	const metric = {
@@ -50,10 +51,10 @@ const workerRunner = createWorkerRunner({
 function makeTrainer(runner: typeof runInProcess, telemetry?: object): Trainer {
 	const buffer = new MarketDataBuffer({ maxSize: 600 } as never);
 	feedCandles(buffer, "BTCUSDT", 500);
-	return new Trainer(buffer, {
+	return makeBaseTrainer(buffer, {
 		settings: SETTINGS,
 		runner,
-		telemetry: telemetry as never,
+		...(telemetry && { telemetry: telemetry as never }),
 	});
 }
 

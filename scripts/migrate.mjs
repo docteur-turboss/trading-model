@@ -16,10 +16,19 @@ const STEPS_TABLE = '_migration_steps';
 const LOCK_NAME = 'schema_migrations';
 const LOCK_TIMEOUT_SECONDS = 120;
 
+// Built by `index-build`, not by a migration: on ~10 M rows the build outlasts the db-migrate Job
+// (issue #1473, ADR-0088). [table, index, index it replaces]; every index is (symbol, timestamp, id).
+const PAGED_READ_INDEXES = [
+  ['market_candles', 'idx_candles_symbol_ts', 'idx_candles_symbol'],
+  ['market_trades', 'idx_trades_symbol_ts', 'idx_trades_symbol'],
+  ['market_tickers', 'idx_tickers_symbol_ts', 'idx_tickers_symbol'],
+];
+const INDEX_LOCK_NAME = 'index_build';
+
 const [, , command, ...restArgs] = process.argv;
 
-if (!command || !['up', 'down', 'status', 'create'].includes(command)) {
-  console.error('Usage: bun scripts/migrate.mjs <up|down|status|create> [name]');
+if (!command || !['up', 'down', 'status', 'create', 'index-build'].includes(command)) {
+  console.error('Usage: bun scripts/migrate.mjs <up|down|status|create|index-build> [name]');
   process.exit(1);
 }
 
@@ -124,24 +133,32 @@ async function runSteps(connection, id, direction, file) {
     console.log(`  resuming at statement ${done.length + 1}/${statements.length}`);
   }
   for (let i = done.length; i < statements.length; i++) {
-    await connection.beginTransaction();
-    try {
-      await connection.query(statements[i]);
-      await connection.execute(
-        `INSERT INTO \`${STEPS_TABLE}\` (migration_id, direction, step, checksum) VALUES (?, ?, ?, ?)`,
-        [id, direction, i, sha256(statements[i])]
-      );
-      await connection.commit();
-    } catch (err) {
-      await connection.rollback().catch(rollbackErr => {
-        err.message += ` (rollback failed: ${rollbackErr.message})`;
-      });
-      throw new Error(
-        `${id} (${direction}) statement ${i + 1}/${statements.length} failed: ${err.message}; ` +
-          'fix it and rerun, the statements before it are not replayed',
-        { cause: err }
-      );
-    }
+    // Batched data moves: a statement marked so runs again, one transaction each, until it changes no row.
+    const repeat = /^-- repeat until no row changes$/m.test(statements[i]);
+    let changed = 0;
+    do {
+      await connection.beginTransaction();
+      try {
+        const [result] = await connection.query(statements[i]);
+        changed = repeat ? result.affectedRows : 0;
+        if (changed === 0) {
+          await connection.execute(
+            `INSERT INTO \`${STEPS_TABLE}\` (migration_id, direction, step, checksum) VALUES (?, ?, ?, ?)`,
+            [id, direction, i, sha256(statements[i])]
+          );
+        }
+        await connection.commit();
+      } catch (err) {
+        await connection.rollback().catch(rollbackErr => {
+          err.message += ` (rollback failed: ${rollbackErr.message})`;
+        });
+        throw new Error(
+          `${id} (${direction}) statement ${i + 1}/${statements.length} failed: ${err.message}; ` +
+            'fix it and rerun, the statements before it are not replayed',
+          { cause: err }
+        );
+      }
+    } while (changed > 0);
   }
 }
 
@@ -341,11 +358,51 @@ async function migrate(connection) {
   }
 }
 
+/**
+ * Builds the paged read indexes online and drops the `symbol` index each one
+ * makes redundant, in the same ALTER (one pass over the table). Idempotent: a
+ * rerun after a failure or a kill (the server rolls the ALTER back) starts the
+ * table again and skips what exists.
+ *
+ * @param {import('mysql2/promise').Connection} connection
+ */
+async function indexBuild(connection) {
+  for (const [table, index, redundant] of PAGED_READ_INDEXES) {
+    const [rows] = await connection.execute(
+      'SELECT DISTINCT index_name AS name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name IN (?, ?)',
+      [table, index, redundant]
+    );
+    const have = new Set(rows.map(r => r.name));
+    const changes = [];
+    if (!have.has(index)) changes.push(`ADD INDEX \`${index}\` (\`symbol\`, \`timestamp\`, \`id\`)`);
+    if (have.has(redundant)) changes.push(`DROP INDEX \`${redundant}\``);
+    if (changes.length === 0) {
+      console.log(`${table}: up to date`);
+      continue;
+    }
+    const start = Date.now();
+    console.log(`${table}: ${changes.join(', ')}...`);
+    await connection.query(`ALTER TABLE \`${table}\` ${changes.join(', ')}, ALGORITHM=INPLACE, LOCK=NONE`);
+    console.log(`  OK (${Date.now() - start}ms)`);
+  }
+}
+
 async function run() {
   const connection = await mysql.createConnection(getDbConfig());
   try {
     if (command === 'status') {
       await migrate(connection);
+      return;
+    }
+    if (command === 'index-build') {
+      // Own lock, not schema_migrations: a build of hours must not stop a migration, and two builds must not overlap.
+      const [[{ locked }]] = await connection.query('SELECT GET_LOCK(?, 0) AS locked', [INDEX_LOCK_NAME]);
+      if (locked !== 1) throw new Error('another index-build is running');
+      try {
+        await indexBuild(connection);
+      } finally {
+        await connection.query('SELECT RELEASE_LOCK(?)', [INDEX_LOCK_NAME]);
+      }
       return;
     }
     const [[{ locked }]] = await connection.query('SELECT GET_LOCK(?, ?) AS locked', [

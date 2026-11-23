@@ -247,10 +247,12 @@ export class TrainingLoop {
 		const group = this._sharedTrunk?.includes(symbol)
 			? await this._eligibleGroup(symbol, maxDataAgeMs)
 			: [symbol];
-		for (const member of group) {
-			if (this._signals?.assets.has(member)) {
-				await this._observeSignals(member);
-			}
+		const observed = group
+			.filter((member) => this._signals?.assets.has(member))
+			.map((member) => this._observeSignals(member));
+		// No await without a signal: an extra tick would let stop() overtake train().
+		if (observed.length > 0) {
+			await Promise.all(observed);
 		}
 		const bars = group.map((member) =>
 			this._dataBuffer.getLastCandleCloseTime(member)
@@ -279,17 +281,18 @@ export class TrainingLoop {
 		symbol: TradingSymbol,
 		maxDataAgeMs: number
 	): Promise<TradingSymbol[]> {
-		const group = [symbol];
-		for (const other of this._sharedTrunk ?? []) {
-			if (
-				other !== symbol &&
-				(await this._loadStoredCandles(other)) &&
-				this._isReady(other, maxDataAgeMs)
-			) {
-				group.push(other);
-			}
-		}
-		return group;
+		const others = (this._sharedTrunk ?? []).filter(
+			(member) => member !== symbol
+		);
+		const loaded = await Promise.all(
+			others.map((other) => this._loadStoredCandles(other))
+		);
+		return [
+			symbol,
+			...others.filter(
+				(other, index) => loaded[index] && this._isReady(other, maxDataAgeMs)
+			),
+		];
 	}
 
 	/**
