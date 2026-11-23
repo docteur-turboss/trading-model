@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+    # edited: a corrected or degraded PR title is checked again (it becomes the squash message).
+    types: [opened, synchronize, reopened, edited]
   # Merge commits to main get verified too, not only at release time.
   # development: the push of a PR merge made by GitHub is skipped (its PR already ran pull_request,
   # see the job conditions); a direct push, any other committer, gets its own run.
