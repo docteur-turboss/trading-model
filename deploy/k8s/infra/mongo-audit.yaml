@@ -188,7 +188,9 @@ spec:
                 - "try { rs.status().ok } catch (e) { if (e.codeName === 'InvalidReplicaSetConfig') quit(1) }"
             initialDelaySeconds: 30
             periodSeconds: 15
-            timeoutSeconds: 5
+            # mongosh starts slowly under the 1 CPU limit: a timeout is not a dead mongod.
+            timeoutSeconds: 15
+            failureThreshold: 6
           readinessProbe:
             exec:
               command:
