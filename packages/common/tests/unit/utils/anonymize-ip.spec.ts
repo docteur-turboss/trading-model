@@ -12,14 +12,14 @@ describe("anonymizeIp", () => {
 		expect(anonymizeIp("::ffff:203.0.113.7")).toBe("203.0.113.0");
 	});
 
-	it("zeroes IPv6 groups beyond the /64 prefix", () => {
-		expect(anonymizeIp("2001:db8:85a3:0:0:8a2e:370:7334")).toBe(
-			"2001:db8:85a3:0:0:0:0:0"
-		);
-	});
-
-	it("keeps short IPv6 addresses unchanged", () => {
-		expect(anonymizeIp("a:b:c:d:e")).toBe("a:b:c:d:e");
+	it.each([
+		["2001:db8:85a3:0:0:8a2e:370:7334", "2001:db8:85a3::"],
+		["2a01:e0a:1:2:3:4:5:6", "2a01:e0a:1::"],
+		["2001:db8::1", "2001:db8:0::"],
+		["fe80::1234:5678", "fe80:0:0::"],
+		["::1", "0:0:0::"],
+	])("truncates IPv6 %s to its /48", (input, expected) => {
+		expect(anonymizeIp(input)).toBe(expected);
 	});
 
 	it("zeroes the last octet of a plain IPv4 address", () => {
