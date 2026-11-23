@@ -1,4 +1,3 @@
-import { anonymizeIp } from "@trading-model/common/utils/anonymize-ip";
 import { isAppError } from "@trading-model/common/utils/errors";
 import {
 	HTTP_STATUS,
@@ -52,21 +51,28 @@ function logServerError(
 	req: Request,
 	response: ResponseObject
 ): void {
-	if (response.status < 500) {
+	if (response.status === HTTP_STATUS.NOT_FOUND || response.status < 400) {
 		return;
 	}
+	const serverError = response.status >= 500;
 	const originalError = err instanceof Error ? err : undefined;
-	logger.error("Server error", {
-		context: {
-			message: originalError?.message,
-			stack: originalError?.stack,
-			correlationId: req.correlationId,
-			// path only: the query string may carry secrets
-			url: req.originalUrl.split("?")[0],
-			method: req.method,
-			ip: anonymizeIp(req.ip),
-		},
-	});
+	const context = {
+		// a body-parser message can echo the body: warn lines only get an AppError's
+		message:
+			serverError || isAppError(err) ? originalError?.message : undefined,
+		correlationId: req.correlationId,
+		// path only: the query string may carry secrets
+		url: req.originalUrl.split("?")[0],
+		method: req.method,
+		status: response.status,
+	};
+	if (serverError) {
+		logger.error("Server error", {
+			context: { ...context, stack: originalError?.stack },
+		});
+	} else {
+		logger.warn("Client error", { context });
+	}
 }
 
 /** Maps an error to the HTTP response sent to the client. */

@@ -122,7 +122,11 @@ describe("tryServeFromCache", () => {
 			get: jest.fn().mockReturnValue({ data: { a: 1 }, status: 200 }),
 			set: jest.fn(),
 		};
-		expect(tryServeFromCache("GET", "k", cache)?.status).toBe(200);
-		expect(tryServeFromCache("POST", "k", cache)).toBeNull();
+		const count = jest.fn();
+		expect(tryServeFromCache("GET", "k", cache, count)?.status).toBe(200);
+		expect(tryServeFromCache("POST", "k", cache, count)).toBeNull();
+		cache.get.mockReturnValue(undefined);
+		expect(tryServeFromCache("GET", "k", cache, count)).toBeNull();
+		expect(count.mock.calls).toEqual([["hit"], ["miss"]]);
 	});
 });
