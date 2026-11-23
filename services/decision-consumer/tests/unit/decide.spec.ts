@@ -25,7 +25,7 @@ function manifest(admissible: boolean, intervalMs = 60_000) {
 		weights: { sha256: SHA, length: 2 },
 		genome: {},
 		admission: { admissible },
-		replay: { intervalMs, simulator: { initialCash: 1 } },
+		replay: { intervalMs, simulator: { initialCash: 1_000_000 } },
 	} as never;
 }
 
@@ -133,6 +133,20 @@ describe("decision tick", () => {
 		flat.risk.position.mockResolvedValueOnce(0);
 		await flat.tick();
 		expect(flat.risk.send).not.toHaveBeenCalled();
+	});
+
+	it("bounds a buy by the room left under the exposure cap", async () => {
+		// cap = 1_000_000 x 0.3 / 60_000 = 5 coin; 4.99 already held
+		const { tick, risk } = build();
+		risk.position.mockResolvedValue(4.99);
+		await tick();
+		expect(risk.send).toHaveBeenCalledWith(
+			expect.objectContaining({ side: "buy", quantity: 0.00999999 })
+		);
+		const full = build();
+		full.risk.position.mockResolvedValue(5);
+		await full.tick();
+		expect(full.risk.send).not.toHaveBeenCalled();
 	});
 
 	it("sends one intent per bar with a decision id fixed by model and bar", async () => {

@@ -1,6 +1,7 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { CandleData } from "@trading-model/contracts/market-data.types";
+import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
 import { DAY_MS } from "@trading-model/model-runtime/features/feature-builder";
 import { decideOnLastBar } from "@trading-model/model-runtime/replay";
 import {
@@ -54,6 +55,20 @@ interface Loaded {
 	manifest: ModelManifest;
 	weights: Float32Array;
 	intervalMs: number;
+}
+
+/** Order quantity bounded by the real position (sale) or the room left under the exposure cap (buy), 8 decimals. */
+function sized(
+	order: { side: string; quantity: number },
+	held: number,
+	price: number,
+	manifest: ModelManifest
+): number {
+	const cap =
+		(manifest.replay?.simulator.initialCash ?? 0) *
+		(manifest.riskLimits?.maxExposureFraction ?? DEFAULT_MAX_EXPOSURE_FRACTION);
+	const room = order.side === "buy" ? Math.max(0, cap / price - held) : held;
+	return Math.floor(Math.min(order.quantity, room) * 1e8) / 1e8;
 }
 
 /** Records why a model did not decide this time; logged once per change by the caller's tick. */
@@ -146,13 +161,11 @@ export function createDecisionTick(deps: {
 			skip(model, "missing-bar");
 			return;
 		}
-		// A sale never exceeds the real position (ADR-0087 §3); a failed read throws: no intent, retried next pass.
-		const held =
-			decision.order?.side === "sell"
-				? await deps.risk.position(model.symbol)
-				: Number.POSITIVE_INFINITY;
+		// Sized on the real position (ADR-0087 §3): a sale never exceeds it, a buy fits in what is left of
+		// the model's exposure cap. A failed read throws: no intent, retried next pass.
+		const held = decision.order ? await deps.risk.position(model.symbol) : 0;
 		const quantity = decision.order
-			? Math.floor(Math.min(decision.order.quantity, held) * 1e8) / 1e8
+			? sized(decision.order, held, decision.price, manifest)
 			: 0;
 		if (decision.order && quantity > 0) {
 			const result = await deps.risk.send({
@@ -176,7 +189,10 @@ export function createDecisionTick(deps: {
 				});
 			}
 		} else {
-			DECISION_INTENTS_TOTAL.inc({ outcome: "hold", reason: "" });
+			DECISION_INTENTS_TOTAL.inc({
+				outcome: "hold",
+				reason: decision.order ? "no-room" : "",
+			});
 		}
 		decided.set(model.symbol, bar);
 	}
