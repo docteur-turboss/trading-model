@@ -1184,6 +1184,12 @@ services:
   # path and any non-GET answer 403. Remaining limits: inspect returns the Env of any
   # container of the daemon (unavoidable for the attestor) and the logs of another
   # project's container stay readable (promtail needs them).
+  # Accepted risk (project owner, 2026-11-23, issue #2184), only until issue #2409 (PR #2419)
+  # (option 2 of #2184) replaces this proxy with an nginx + njs proxy of the Docker socket
+  # that hides Config.Env and other projects' containers: on a
+  # Docker host shared with other projects (no other production runs on it today), a
+  # compromised promtail or spire-agent reads their Env and logs. Run it there only for
+  # development or a drill, then `docker compose down`. PR #2419 removes this note.
   # No shell in the image, so no healthcheck: dependants start with it and retry.
   docker-socket-proxy:
     logging: *default-logging
