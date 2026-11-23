@@ -132,6 +132,8 @@ Order of milestones: ADR-0049 option B (offline inference, no order) → paper t
 | `algorithmic-trading-compliance.md` §6 prerequisites (Binance terms, annual review…) | — | Required |
 | This ADR Accepted with a `**Verified by:**` line | — | Required |
 
+**Deployed everywhere before it has a caller** (decision of the project owner, 2026-11-23, issue #1995). `risk-execution` stays in every overlay, production included, while no decision consumer calls `POST /intents`, `POST /prices` or `POST /orders/:clientOrderId/cancel` (`AWAITING_CALLER` in `scripts/api-contract.mjs`). The "Before paper" column requires the kill switch, reconciliation and stale-data drills on the deployed service, with its state backup and alerts. Removing it from production until the consumer exists would leave these requirements unproven where paper trading will run. The cost (one pod, one PVC, its alerts and backup) is accepted. An architecture audit must not report the missing caller as an anomaly while this paragraph stands.
+
 ## Consequences
 
 - Accepting this ADR changes nothing in the code or the manifests by itself. `algorithmic-trading-compliance.md` §6 and `bounded-contexts.md` point here instead of suggesting controls in the api-gateway.

@@ -53,8 +53,9 @@ const SINGLETONS = {
 	"financial-scraper-collector": { adr: "ADR-0057", lease: "financial-scraper-collector", env: "COLLECTOR_LEASE_NAME" },
 };
 // Data and observability StatefulSets of staging-local held by a partition (issue #700).
+// Not prometheus nor alertmanager: a held pod keeps the rules and scrape jobs of an old release (issue #2323).
 const DATABASES = ["mysql", "redis", "redis-sentinel", "mongo-dlq", "mongo-audit"];
-const DATA_STATEFULSETS = [...DATABASES, "alertmanager", "grafana", "loki", "prometheus"];
+const DATA_STATEFULSETS = [...DATABASES, "grafana", "loki"];
 // Bus ACL users (redis-ha.sh) a partitioned redis-0 learns only when restarted (issue #1931).
 const BUS_USERS = ["audit-logger", "trader-trainer", "model-evaluator", "risk-execution"];
 // Bus users allowed on the sentinels in staging-local: those redis-0 knows after the
