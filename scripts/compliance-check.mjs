@@ -59,7 +59,7 @@ const CHECKS = [
 ];
 
 // Last three: database TLS that does not exist (ADR-0060).
-const TLS_CLAIMS = 'mTLS everywhere|[|] TLS connection [|]|All inter-service communication';
+const TLS_CLAIMS = 'plain TCP (in|inside) the cluster|not toward databases|mTLS everywhere|[|] TLS connection [|]|All inter-service communication';
 const FORBIDDEN = new RegExp(`message-manager memory|not bounded|pino|in-memory dispatch|triple-layer|quadruple-layer|SecureKeyStore|AES-256-GCM|${TLS_CLAIMS}`, 'i');
 // The README is prose: only the database TLS claims apply to it.
 const README_FORBIDDEN = new RegExp('mTLS everywhere|[|] TLS connection [|]', 'i');
