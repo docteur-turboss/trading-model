@@ -177,11 +177,13 @@ function summarise(results: SeedResult[]): void {
 			(verdict) => verdict !== null
 		)
 	);
-	const admissionOk = verdictKnown && sharedAdmitted >= singleAdmitted;
+	// 0 admissible on both sides tells nothing: inconclusive, never "not worse"
+	const conclusive = verdictKnown && singleAdmitted + sharedAdmitted > 0;
+	const admissionOk = conclusive && sharedAdmitted >= singleAdmitted;
 	const fitnessOk = shared >= single - FITNESS_TOLERANCE * Math.abs(single);
 	const timeOk = ratio <= TIME_SHARE;
 	console.log(
-		`\n${results.length} graines, ${results[0].symbols.length} symboles. Médiane des graines: fitness ${single.toFixed(3)} % contre ${shared.toFixed(3)} % (à 5 % près: ${fitnessOk ? "oui" : "non"}), temps ${ratio.toFixed(2)} de 10 sessions (au plus ${TIME_SHARE.toFixed(2)}: ${timeOk ? "oui" : "non"}), modèles admissibles ${singleAdmitted} contre ${sharedAdmitted} (ADR-0069, pas pire: ${admissionOk ? "oui" : verdictKnown ? "non" : "segment de test trop court"}).`
+		`\n${results.length} graines, ${results[0].symbols.length} symboles. Médiane des graines: fitness ${single.toFixed(3)} % contre ${shared.toFixed(3)} % (à 5 % près: ${fitnessOk ? "oui" : "non"}), temps ${ratio.toFixed(2)} de 10 sessions (au plus ${TIME_SHARE.toFixed(2)}: ${timeOk ? "oui" : "non"}), modèles admissibles ${singleAdmitted} contre ${sharedAdmitted} (ADR-0069, pas pire: ${admissionOk ? "oui" : conclusive ? "non" : verdictKnown ? "non concluant: aucun modèle admissible" : "segment de test trop court"}).`
 	);
 	console.log(
 		`Critère ADR-0076 étape 1 : ${fitnessOk && timeOk && admissionOk && results.length >= 3 ? "atteint" : "non atteint"}`
