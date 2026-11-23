@@ -1057,6 +1057,7 @@ services:
       # One file per key (SLACK_WEBHOOK_URL, PUSHOVER_USER_KEY, PUSHOVER_TOKEN, DEADMAN_URL),
       # see deploy/k8s/infra/config/alertmanager.yml. Missing files: notifications fail.
       - ${ALERTMANAGER_CREDENTIALS_DIR:-./observability/alertmanager-credentials}:/etc/alertmanager-credentials:ro
+      - alertmanager-data:/alertmanager
     networks:
       - backend-net
     command:
@@ -1249,4 +1250,5 @@ volumes:
   promtail-positions:
   prometheus-data:
   grafana-data:
+  alertmanager-data:
   loki-data:
