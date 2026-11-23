@@ -72,7 +72,7 @@ const SERVICE_TO_SERVICE = {
 		"POST /token/rotate",
 		"POST /unregister",
 	],
-	"risk-execution": ["POST /intents", "POST /orders/:clientOrderId/cancel", "GET /admin/status", "POST /admin/kill-switch", "POST /admin/kill-switch/rearm"],
+	"risk-execution": ["POST /intents", "POST /orders/:clientOrderId/cancel", "GET /positions/:symbol", "GET /admin/status"],
 	// Model weights: never through the gateway (ADR-0022).
 	"trader-trainer": ["GET /models/:symbol/:version/weights"],
 };
@@ -90,6 +90,7 @@ const CALLERS = {
 	"discovery-server POST /unregister": { caller: "packages/address-manager", call: /_url\("\/unregister"\)/ },
 	"trader-trainer GET /models/:symbol/:version/weights": { caller: "packages/http", call: /\/weights`/ },
 	"risk-execution POST /intents": { caller: "services/decision-consumer", call: /\/intents`/ },
+	"risk-execution GET /positions/:symbol": { caller: "services/decision-consumer", call: /\/positions\// },
 };
 
 /** Service-to-service routes kept without a caller, each with its reason. */
@@ -98,8 +99,6 @@ const AWAITING_CALLER = {
 	"risk-execution POST /orders/:clientOrderId/cancel": "no decision consumer cancel yet",
 	// The operator calls them from the pod (kubectl exec, docs/operations/runbook-risk-execution.md), not from the repository.
 	"risk-execution GET /admin/status": "operator, from the pod",
-	"risk-execution POST /admin/kill-switch": "operator, from the pod",
-	"risk-execution POST /admin/kill-switch/rearm": "operator, from the pod",
 };
 
 /** A WebSocket server needs a client in the repository; none exists (ADR-0029). */

@@ -22,6 +22,7 @@ describe("DEFAULT_ACL", () => {
 	it("should let only the decision consumer (and the operator) send intents to risk-execution", () => {
 		expect(DEFAULT_ACL[ServiceInstanceName.RiskExecutionService]).toEqual([
 			"risk-execution",
+			"api-gateway",
 			"decision-consumer",
 		]);
 		for (const target of [

@@ -1,8 +1,9 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
 const post = jest.fn<(...args: any[]) => any>();
+const get = jest.fn<(...args: any[]) => any>();
 jest.mock("@trading-model/http/http-client", () => ({
-	HttpClient: { createWithTls: () => ({ post }) },
+	HttpClient: { createWithTls: () => ({ post, get }) },
 }));
 jest.mock("../../src/config/address-manager", () => ({
 	FIND_A_SERVICE: async () => ({ host: "risk", port: 3000 }),
@@ -34,6 +35,12 @@ describe("RiskClient", () => {
 		const result = await new RiskClient({} as never).send(INTENT);
 		expect(result.status).toBe("accepted");
 		expect(post.mock.calls[0][0]).toBe("https://risk:3000/intents");
+	});
+
+	it("reads the real position from /positions/:symbol", async () => {
+		get.mockResolvedValueOnce({ symbol: "BTCUSDT", quantity: 0.5 });
+		expect(await new RiskClient({} as never).position("BTCUSDT")).toBe(0.5);
+		expect(get.mock.calls[0][0]).toBe("https://risk:3000/positions/BTCUSDT");
 	});
 
 	it("throws on an empty answer and on a malformed intent", async () => {

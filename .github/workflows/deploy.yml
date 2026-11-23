@@ -1,46 +1,6 @@
 name: Deploy
 
 on:
-  workflow_call:
-    inputs:
-      environment:
-        description: 'Target environment'
-        required: true
-        type: string
-      image_tag:
-        description: 'Image tag to deploy (e.g. latest, v1.2.3)'
-        required: true
-        type: string
-      version_number:
-        description: 'Version number for audit annotations (defaults to image_tag)'
-        required: false
-        type: string
-        default: ''
-      canary:
-        description: 'Enable canary deployment'
-        required: false
-        type: boolean
-        default: false
-      staging_namespace:
-        description: 'Kubernetes namespace for staging'
-        required: false
-        type: string
-        default: 'trading-model-staging'
-      production_namespace:
-        description: 'Kubernetes namespace for production'
-        required: false
-        type: string
-        default: 'trading-model'
-      preflight_only:
-        description: 'Preflight: run every guard and a server-side dry-run, change nothing (docs/deployment/DEPLOY.md)'
-        required: false
-        type: boolean
-        default: false
-      allow_firing_alerts:
-        description: 'Production: deploy even if critical alerts fire before it (hotfix); they stop failing verify-release'
-        required: false
-        type: boolean
-        default: false
   workflow_dispatch:
     inputs:
       environment:
@@ -637,7 +597,7 @@ jobs:
             *" $AUDIT_ANCHOR_REGION "*) [ -n "$AUDIT_ANCHOR_REGION" ] && exit 0 ;;
           esac
           msg="AUDIT_ANCHOR_REGION '${AUDIT_ANCHOR_REGION}' is empty or not in the allowed EU regions (${allowed}): anchors must stay in the EU (docs/compliance/third-party-dpas.md)"
-          if [ "${{ inputs.environment }}" = "production" ]; then
+          if [ "$DEPLOY_ENVIRONMENT" = "production" ]; then
             echo "::error::$msg"
             exit 1
           fi
@@ -695,14 +655,17 @@ jobs:
           NS="$NAMESPACE"
           [ -n "$AUDIT_ANCHOR_BUCKET" ] || exit 0
           # An empty endpoint would override the SDK default (AWS): left out.
-          endpoint=()
-          [ -z "$AUDIT_ANCHOR_ENDPOINT" ] || endpoint=(--from-literal=AUDIT_ANCHOR_ENDPOINT="$AUDIT_ANCHOR_ENDPOINT")
+          # Secrets go through a private env file, never kubectl arguments (visible in /proc).
+          umask 077
+          envfile="$(mktemp)"
+          trap 'rm -f "$envfile"' EXIT
+          {
+            printf '%s\n' "AUDIT_ANCHOR_BUCKET=$AUDIT_ANCHOR_BUCKET" "AUDIT_ANCHOR_REGION=$AUDIT_ANCHOR_REGION" \
+              "AWS_ACCESS_KEY_ID=$AUDIT_ANCHOR_ACCESS_KEY_ID" "AWS_SECRET_ACCESS_KEY=$AUDIT_ANCHOR_SECRET_ACCESS_KEY"
+            [ -z "$AUDIT_ANCHOR_ENDPOINT" ] || echo "AUDIT_ANCHOR_ENDPOINT=$AUDIT_ANCHOR_ENDPOINT"
+          } >"$envfile"
           kubectl -n "$NS" create secret generic audit-anchor-s3 \
-            --from-literal=AUDIT_ANCHOR_BUCKET="$AUDIT_ANCHOR_BUCKET" \
-            --from-literal=AUDIT_ANCHOR_REGION="$AUDIT_ANCHOR_REGION" \
-            --from-literal=AWS_ACCESS_KEY_ID="$AUDIT_ANCHOR_ACCESS_KEY_ID" \
-            --from-literal=AWS_SECRET_ACCESS_KEY="$AUDIT_ANCHOR_SECRET_ACCESS_KEY" \
-            "${endpoint[@]}" \
+            --from-env-file="$envfile" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       # The off-site backup copy must survive a compromised cluster, which holds
@@ -826,18 +789,22 @@ jobs:
           PUSHOVER_TOKEN: ${{ secrets.ALERTMANAGER_PUSHOVER_TOKEN }}
         run: |
           NS="$NAMESPACE"
-          keys=()
-          [ -z "$SLACK" ] || keys+=(--from-literal=SLACK_WEBHOOK_URL="$SLACK")
-          [ -z "$DEADMAN" ] || keys+=(--from-literal=DEADMAN_URL="$DEADMAN")
-          [ -z "$PUSHOVER_USER" ] || keys+=(--from-literal=PUSHOVER_USER_KEY="$PUSHOVER_USER")
-          [ -z "$PUSHOVER_TOKEN" ] || keys+=(--from-literal=PUSHOVER_TOKEN="$PUSHOVER_TOKEN")
-          if [ "${#keys[@]}" -eq 0 ]; then
+          # Secrets go through a private env file, never kubectl arguments (visible in /proc).
+          umask 077
+          envfile="$(mktemp)"
+          trap 'rm -f "$envfile"' EXIT
+          [ -z "$SLACK" ] || echo "SLACK_WEBHOOK_URL=$SLACK" >>"$envfile"
+          [ -z "$DEADMAN" ] || echo "DEADMAN_URL=$DEADMAN" >>"$envfile"
+          [ -z "$PUSHOVER_USER" ] || echo "PUSHOVER_USER_KEY=$PUSHOVER_USER" >>"$envfile"
+          [ -z "$PUSHOVER_TOKEN" ] || echo "PUSHOVER_TOKEN=$PUSHOVER_TOKEN" >>"$envfile"
+          if [ ! -s "$envfile" ]; then
             echo "::warning::No alert notification secret set: alertmanager-credentials left as it is"
             exit 0
           fi
           # Before the overlay: an Alertmanager started without them counts
           # failed notifications, and AlertmanagerNotificationsFailing fires.
-          kubectl -n "$NS" create secret generic alertmanager-credentials "${keys[@]}" \
+          kubectl -n "$NS" create secret generic alertmanager-credentials \
+            --from-env-file="$envfile" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       # Contact e-mail sent in the User-Agent of the signal sources (ADR-0036;
@@ -1076,22 +1043,25 @@ jobs:
             exit 0
           fi
           # An empty endpoint would override rclone's default (AWS): left out.
-          endpoint=()
-          [ -z "$BACKUP_S3_ENDPOINT" ] || endpoint=(--from-literal=S3_ENDPOINT="$BACKUP_S3_ENDPOINT")
-          # Optional second off-site bucket: the keys the job reads as BACKUP_S3_SECONDARY_*.
-          if [ -n "$BACKUP_S3_SECONDARY_BUCKET" ]; then
-            for k in BUCKET REGION ENDPOINT PROVIDER ACCESS_KEY_ID SECRET_ACCESS_KEY; do
-              v="BACKUP_S3_SECONDARY_$k"
-              [ -z "${!v}" ] || endpoint+=(--from-literal="$v=${!v}")
-            done
-          fi
+          # Secrets go through a private env file, never kubectl arguments (visible in /proc).
+          umask 077
+          envfile="$(mktemp)"
+          trap 'rm -f "$envfile"' EXIT
+          {
+            printf '%s\n' "BACKUP_S3_BUCKET=$BACKUP_S3_BUCKET" "AWS_REGION=$BACKUP_S3_REGION" \
+              "S3_PROVIDER=${BACKUP_S3_PROVIDER:-AWS}" "AWS_ACCESS_KEY_ID=$BACKUP_S3_ACCESS_KEY_ID" \
+              "AWS_SECRET_ACCESS_KEY=$BACKUP_S3_SECRET_ACCESS_KEY"
+            [ -z "$BACKUP_S3_ENDPOINT" ] || echo "S3_ENDPOINT=$BACKUP_S3_ENDPOINT"
+            # Optional second off-site bucket: the keys the job reads as BACKUP_S3_SECONDARY_*.
+            if [ -n "$BACKUP_S3_SECONDARY_BUCKET" ]; then
+              for k in BUCKET REGION ENDPOINT PROVIDER ACCESS_KEY_ID SECRET_ACCESS_KEY; do
+                v="BACKUP_S3_SECONDARY_$k"
+                [ -z "${!v}" ] || echo "$v=${!v}"
+              done
+            fi
+          } >"$envfile"
           kubectl -n "$NS" create secret generic trading-model-backup-s3 \
-            --from-literal=BACKUP_S3_BUCKET="$BACKUP_S3_BUCKET" \
-            --from-literal=AWS_REGION="$BACKUP_S3_REGION" \
-            --from-literal=S3_PROVIDER="${BACKUP_S3_PROVIDER:-AWS}" \
-            --from-literal=AWS_ACCESS_KEY_ID="$BACKUP_S3_ACCESS_KEY_ID" \
-            --from-literal=AWS_SECRET_ACCESS_KEY="$BACKUP_S3_SECRET_ACCESS_KEY" \
-            "${endpoint[@]}" \
+            --from-env-file="$envfile" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Run first-deploy database migrations

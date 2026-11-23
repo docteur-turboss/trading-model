@@ -12,6 +12,7 @@ import * as backoff from "../../../src/bus/backoff";
 import { BusConsumer } from "../../../src/bus/consumer";
 import { DeadStreams } from "../../../src/bus/dead-streams";
 import {
+	JOURNAL_PENDING_ENTRIES,
 	MESSAGES_DELIVERED_TOTAL,
 	MESSAGES_DLQ_TOTAL,
 	PUBLISHER_REJECTED_TOTAL,
@@ -441,6 +442,23 @@ describe("BusConsumer", () => {
 		await c.stop();
 
 		expect(pendingOf(redis)).toBe(1);
+	});
+
+	it("should publish the backlog of the topics it consumes only, not of a group of a dropped topic (issue #2479)", async () => {
+		const { consumer: c, journal, streams } = consumer(async () => undefined);
+		const lag = { pending: 2, oldestPendingAgeMs: 60_000 };
+		jest.spyOn(journal, "lag").mockResolvedValue([
+			{ ...GROUP, ...lag },
+			{ ...GROUP, topic: "market.trade.recent.fetch" as never, ...lag },
+		]);
+		jest.spyOn(streams, "length").mockResolvedValue(0);
+
+		await (
+			c as unknown as { _publishLag(topics: string[]): Promise<void> }
+		)._publishLag([TOPIC]);
+
+		const series = (await JOURNAL_PENDING_ENTRIES.get()).values;
+		expect(series.map((value) => value.labels.topic)).toEqual([TOPIC]);
 	});
 });
 

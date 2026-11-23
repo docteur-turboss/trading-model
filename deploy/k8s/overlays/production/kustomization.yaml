@@ -69,6 +69,15 @@ patches:
         value:
           name: BACKUP_SEALED_KEY_CHECK
           value: "true"
+  # Checkpoints measure ~28 KB per model (1.1 MB for 2 symbols x 20 models). 1Gi
+  # here only: a bound PVC cannot shrink, and staging keeps its 50Gi (issue #2393).
+  - target:
+      kind: PersistentVolumeClaim
+      name: trainer-checkpoints-pvc
+    patch: |-
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi
   # Alerting path in HA (issue #809, ADR-0062): 2 Alertmanagers gossiping on
   # 9094 (the notification is deduplicated by the cluster) and 2 identical
   # Prometheus, each sending to every Alertmanager pod. Spread over two nodes.

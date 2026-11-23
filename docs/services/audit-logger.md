@@ -28,18 +28,9 @@ Lightweight health check.
 }
 ```
 
-**`GET /health`**
+**`GET /health/ready`**
 
-Liveness for admin/debug. Readiness (MongoDB ping, registered with discovery once) is `GET /health/ready`.
-
-**Response:** `200 OK`
-
-```json
-{
-  "status": "ok",
-  "timestamp": "2025-01-15T10:30:00Z"
-}
-```
+Readiness (MongoDB ping, registered with discovery once).
 
 ### Audit Events
 

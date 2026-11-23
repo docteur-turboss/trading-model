@@ -101,6 +101,21 @@ services:
   mongodb-exporter:
     container_name: !reset null
     ports: !reset []
+  mongo-users:
+    container_name: !reset null
+    ports: !reset []
+  model-evaluator:
+    container_name: !reset null
+    ports: !reset []
+  risk-execution:
+    container_name: !reset null
+    ports: !reset []
+  spiffe-helper-evaluator:
+    container_name: !reset null
+    ports: !reset []
+  spiffe-helper-risk:
+    container_name: !reset null
+    ports: !reset []
   edge-proxy:
     container_name: !reset null
     ports: !override ['127.0.0.1:18449:8080']

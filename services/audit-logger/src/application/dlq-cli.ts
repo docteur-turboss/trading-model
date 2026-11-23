@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { runCli } from "@trading-model/common/utils/run-cli";
 import {
 	DlqEvent,
 	type DlqEventMap,
 } from "@trading-model/contracts/dlq-events";
 import { openDlqCli } from "../config/dlq-cli";
 import type { MongoDlqImportReport } from "../domain/mongo-dlq-import-report";
-import { runCli } from "./run-cli";
 
 const USAGE = `Dead letters of the bus (ADR-0073), run inside an audit-logger pod:
   node services/audit-logger/dist/application/dlq-cli.js <operator> list <topic>

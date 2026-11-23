@@ -36,8 +36,16 @@ describe("parseApiKey", () => {
 });
 
 describe("requiredScope", () => {
-	it("needs read: every public route is a GET", () => {
-		expect(requiredScope()).toBe("read");
-		expect(PUBLIC_ROUTES.every((route) => route.startsWith("GET "))).toBe(true);
+	it("needs read for GET and risk:admin otherwise", () => {
+		expect(requiredScope("GET")).toBe("read");
+		expect(requiredScope("POST")).toBe("risk:admin");
+	});
+
+	it("only kill switch routes are public writes", () => {
+		const writes = PUBLIC_ROUTES.filter((route) => !route.startsWith("GET "));
+
+		expect(writes.every((route) => route.includes("/risk-execution/"))).toBe(
+			true
+		);
 	});
 });

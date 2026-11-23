@@ -14,6 +14,7 @@
     "./utils/backoff-config": "./dist/utils/backoff-config.js",
     "./utils/comma-separated": "./dist/utils/comma-separated.js",
     "./utils/errors": "./dist/utils/errors.js",
+    "./utils/run-cli": "./dist/utils/run-cli.js",
     "./utils/retry": "./dist/utils/retry.js",
     "./utils/safe-stringify": "./dist/utils/safe-stringify.js",
     "./utils/sanitize": "./dist/utils/sanitize.js",

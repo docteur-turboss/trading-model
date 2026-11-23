@@ -268,22 +268,45 @@ kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/k8s/overlays/pro
       | [$n,$r,.name,.resources.requests.cpu,.resources.requests.memory,.resources.limits.cpu,.resources.limits.memory] | @tsv'
 ```
 
-Persistent volumes: **418 GiB**, in the same rendering (`volumeClaimTemplates` × replicas, plus PVC manifests).
+Persistent volumes: **369 GiB**, in the same rendering (`volumeClaimTemplates` × replicas, plus PVC manifests).
 
 | Component             | Volumes          | GiB |
 | --------------------- | ---------------- | --- |
 | Prometheus            | 2 × 50           | 100 |
 | `backup-data`         | 1 × 100          | 100 |
-| Trainer checkpoints   | 1 × 50           | 50  |
+| Trainer checkpoints   | 1 × 1            | 1   |
 | MongoDB DLQ           | 3 × 20           | 60  |
 | MongoDB audit, Redis  | 3 × 10 each      | 60  |
 | MySQL                 | 1 × 20           | 20  |
 | Grafana, Loki         | 10 each          | 20  |
 | Jaeger, Alertmanager (2 × 1), SPIRE | 5 + 2 + 1 | 8 |
 
+Trainer checkpoints: measured 2026-11-23 in staging, about 28 KB per model (1.1 MB for 2 symbols × 20 models, `TRAINER_MODEL_RETENTION=20`); 100 symbols stay under 60 MB. The production overlay requests 1Gi (about 17× margin over 100 symbols). Staging keeps its 50Gi: a bound PVC cannot shrink, so `kubectl apply` would fail (issue #2393).
+
 ### External dependencies
 
-No price is stated: it depends on the provider, which is not chosen.
+Monthly cost and minimal return (project owner, 2026-11-23, issue #2219). Production
+runs on a server at home (no cloud provider, no exposed IP: Ingress via
+Cloudflare DNS-01). Figures marked *estimate*: the server is estimated from the
+current stack, and the S3 price is a list price, not a quote.
+
+| Item | Basis | € / month |
+| ---- | ----- | --------- |
+| Server (*estimate*, sized on the current stack) | 4 000 € over 36 months | 111.11 |
+| Electricity (upper bound) | 1 000 W at high load × 730 h = 730 kWh × 0.25 €/kWh | 182.50 |
+| Off-site backup and audit anchor buckets, S3 Object Lock (*estimate*) | ≤ 100 GB stored (staging holds 5.8 GB on 2026-11-23) × about 0.007-0.015 €/GB (Backblaze B2 6.95 $/TB, Scaleway Multi-AZ about 0.0146 €/GB) | ≤ 2 |
+| **Total** | | **about 296** |
+
+Allocated capital of the first live tier: 10 000 USDT (`RISK_ALLOCATED_CAPITAL`),
+about 9 000 € at 1 USDT ≈ 0.90 € (*estimate*). Minimal return to pay the
+infrastructure: 296 / 9 000 ≈ **3.3 % per month** net of fees, about 47 % per
+year compounded. The electricity line is an upper bound (1 000 W is the high
+load, not the average): measure the average draw to lower it. The threshold
+falls in proportion to the capital, and more symbols share the same fixed cost.
+Compare it with the walk-forward returns net of fees of model-evaluator
+(ADR-0030, ADR-0066, `executionCostPaid`) before going live.
+
+The other external dependencies are free under the conditions below.
 
 | Dependency | Free only if | Where |
 | ---------- | ------------ | ----- |

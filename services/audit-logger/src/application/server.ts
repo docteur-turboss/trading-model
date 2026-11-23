@@ -3,7 +3,6 @@ import type { MongoConnectionManager } from "@trading-model/persistence/mongo-co
 import { ServiceId } from "@trading-model/primitives/primitives";
 import type { Application } from "express";
 import { eventsRoutes } from "../adapters/inbound/http/events.routes";
-import { healthRoutes } from "../adapters/inbound/http/health.routes";
 import type { AuditRepository } from "../adapters/outbound/persistence/audit-repository";
 import {
 	ADDRESS_MANAGER_ROUTES,
@@ -41,7 +40,6 @@ export function createServer(
 }
 
 function _registerRoutes(app: Application, auditRepo: AuditRepository): void {
-	app.use("/", healthRoutes());
 	app.use("/", eventsRoutes(auditRepo));
 	app.get("/metrics", metricsHandler);
 	ADDRESS_MANAGER_ROUTES(app);

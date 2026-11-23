@@ -1,8 +1,8 @@
 /**
  * Scopes of an API key (ADR-0059): `read` for the GET routes of
- * `PUBLIC_ROUTES`, which are all of them.
+ * `PUBLIC_ROUTES`, `risk:admin` for the risk-execution kill switch (engage, re-arm).
  */
-const API_SCOPES = ["read"] as const;
+const API_SCOPES = ["read", "risk:admin"] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 
 /** A key of `AUTH_TOKENS`. Only `name` leaves the gateway, never `secret`. */
@@ -45,7 +45,7 @@ export function parseApiKey(entry: string): ApiKey | { error: string } {
 	return { name, scopes, secret };
 }
 
-/** Scope every public route needs. */
-export function requiredScope(): ApiScope {
-	return "read";
+/** Scope a public route needs: `read` for GET, `risk:admin` otherwise (the kill switch is the only public write). */
+export function requiredScope(method: string): ApiScope {
+	return method === "GET" ? "read" : "risk:admin";
 }
