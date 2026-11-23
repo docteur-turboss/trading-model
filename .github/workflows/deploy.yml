@@ -626,6 +626,7 @@ jobs:
             exit 1
           fi
           # Same EU list as the backup bucket: variable, else the default of backup-bucket-check.sh.
+          # shellcheck disable=SC2016 # the ${...} is text for sed to match, not an expansion
           allowed="${BACKUP_S3_ALLOWED_REGIONS:-$(sed -n 's/^ALLOWED_REGIONS="${BACKUP_S3_ALLOWED_REGIONS:-\(.*\)}"$/\1/p' scripts/backup-bucket-check.sh)}"
           case " $allowed " in
             *" $AUDIT_ANCHOR_REGION "*) [ -n "$AUDIT_ANCHOR_REGION" ] && exit 0 ;;
@@ -984,6 +985,7 @@ jobs:
           TAG="$RESOLVED_TAG"
           # Created in parallel, observed over one CANARY_GATE_SECONDS window.
           # No singleton here (trader-trainer ADR-0058, collector ADR-0057): a canary is a second pod.
+          # shellcheck disable=SC2086 # CANARY_SERVICES is a space-separated list
           ./deploy/k8s/scripts/deploy-k8s.sh canary-all "$TAG" 10 $CANARY_SERVICES
 
       # Revision each Deployment runs before the overlay: "Rollback on failure"
