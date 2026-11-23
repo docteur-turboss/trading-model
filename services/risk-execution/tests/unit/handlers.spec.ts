@@ -22,6 +22,7 @@ function build() {
 		status: jest.fn<(...args: any[]) => any>(() => ({
 			mode: "paper",
 			ready: true,
+			positions: { BTCUSDT: 0.4 },
 		})),
 		engage: jest.fn<(...args: any[]) => any>(async () => undefined),
 		rearm: jest.fn<(...args: any[]) => any>(async () => undefined),
@@ -110,6 +111,20 @@ describe("risk-execution routes: each caller only reaches its own routes (ADR-00
 				)
 			).status
 		).toBe(200);
+	});
+
+	it("position: the consumer only, 0 when flat", async () => {
+		const { h } = build();
+		const read = (symbol: string, who: string) =>
+			h.position(input(undefined, { symbol }), as(who)) as Promise<any>;
+		expect((await read("BTCUSDT", "risk-execution")).status).toBe(403);
+		expect((await read("BTCUSDT", "api-gateway")).status).toBe(403);
+		const ok = await read("BTCUSDT", "decision-consumer");
+		expect([ok.status, ok.data]).toEqual([
+			200,
+			{ symbol: "BTCUSDT", quantity: 0.4 },
+		]);
+		expect((await read("ETHUSDT", "decision-consumer")).data.quantity).toBe(0);
 	});
 
 	it("cancel: the consumer or the operator, 404 for an unknown order", async () => {
