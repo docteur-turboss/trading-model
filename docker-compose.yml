@@ -356,7 +356,7 @@ services:
   #  Financial Scraper — Real-time market data ingestion
   # ---------------------------------------------------------------------------
   financial-scraper:
-    # Waits for its publishes in flight on stop (PUBLISH_ACCEPT_TIMEOUT_MS + 5s).
+    # Waits for the running scrape cycle, then hands the collector lease over (ADR-0057).
     stop_grace_period: 1m
     logging: *default-logging
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/financial-scraper:${IMAGE_TAG:-latest}
