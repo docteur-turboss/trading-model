@@ -146,7 +146,7 @@ The following alerts are configured in `deploy/k8s/infra/config/alerting.yml`:
 - `SLOLatencyFastBurn`, `SLOLatencySlowBurn`: P95 ≤ 2s SLO, 5m and 1h windows.
 - `MessageDeliveryLowSuccessRate`, `TrainingCompletionRateLow`: one alert per SLI.
 
-The burn-rate rules and the budget read the recording rules `slo:sli_error:ratio_rate{5m,30m,1h,6h,30d}`, which exclude `/ping`, `/health/ready` and `/metrics`.
+The burn-rate rules and the budget read the recording rules `slo:sli_error:ratio_rate{5m,30m,1h,6h,30d}`, which exclude `/ping`, `/health/ready` and `/metrics` and fall back to the blackbox probe failure rate of the same `job` when a service receives no requests (full outage); `ratio_rate30d` is the 30-day mean of `ratio_rate1h`, not weighted by traffic.
 
 ## Dashboard Alignment
 

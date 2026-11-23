@@ -120,8 +120,10 @@ export async function createRiskExecutionApp() {
 	}, ENV.RISK_TICK_MS);
 	timer.unref();
 
-	const handlers = createHandlers(risk, (outcome) =>
-		RISK_ORDERS_TOTAL.inc({ mode, outcome })
+	const handlers = createHandlers(
+		risk,
+		(outcome) => RISK_ORDERS_TOTAL.inc({ mode, outcome }),
+		["decision-consumer"]
 	);
 	const server = await createServiceServer({
 		env: ENV,
