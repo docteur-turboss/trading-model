@@ -15,6 +15,7 @@ import { TradingAgent, type TradingAgentConfig } from "./agent/trading-agent";
 import { DEFAULT_MAX_EXPOSURE_FRACTION } from "./env/wallet-config";
 import { EpisodeScores } from "./episode-scores";
 import {
+	type CandleStep,
 	candleSteps,
 	contiguousCandles,
 	isConsistentCandle,
@@ -118,6 +119,35 @@ function emptyLayer(fanIn: number, fanOut: number): LayerMemory {
 	};
 }
 
+/** A greedy agent on the published weights; throws when they do not fit the network. */
+function greedyAgent(
+	genome: PolicyGenome,
+	weights: Float32Array,
+	simulator: SimulatorParams
+): TradingAgent {
+	const config = mergeConfig(policyNetworkConfig(genome.network));
+	const sizes = config.neuronsByLayer;
+	const layers = sizes
+		.slice(1)
+		.map((fanOut, idx) => emptyLayer(sizes[idx], fanOut));
+	setWeights(layers, weights);
+	return new TradingAgent(
+		{
+			...policyAgentConfig(genome.network, simulator),
+			stateManagerCfg: { epsilonStart: 0, epsilonMin: 0 },
+		},
+		new FeedForwardEngine(config, layers)
+	);
+}
+
+const stepOf = (agent: TradingAgent, step: CandleStep, barsSince?: number) =>
+	agent.step(
+		step.features.toFloat32Array(),
+		step.price,
+		step.fillPrice,
+		barsSinceInput(barsSince)
+	);
+
 /**
  * Replays a published model greedily (epsilon 0, ADR-0079 §3) on the candles
  * of its window, cleaned as the trainer does (consistent OHLC, last gap-free
@@ -137,31 +167,13 @@ export function replayModel(input: {
 	const test = candleSteps(
 		contiguousCandles(input.candles.filter(isConsistentCandle))
 	).filter((step) => step.timestamp >= input.testFrom);
-	const config = mergeConfig(policyNetworkConfig(genome.network));
-	const sizes = config.neuronsByLayer;
-	const layers = sizes
-		.slice(1)
-		.map((fanOut, idx) => emptyLayer(sizes[idx], fanOut));
-	setWeights(layers, input.weights);
-	const agent = new TradingAgent(
-		{
-			...policyAgentConfig(genome.network, input.simulator),
-			stateManagerCfg: { epsilonStart: 0, epsilonMin: 0 },
-		},
-		new FeedForwardEngine(config, layers)
-	);
+	const agent = greedyAgent(genome, input.weights, input.simulator);
 	const curve: number[] = [];
 	playEpisode(
 		test,
 		genome.rl.horizon,
 		{
-			step: (step, barsSince) =>
-				agent.step(
-					step.features.toFloat32Array(),
-					step.price,
-					step.fillPrice,
-					barsSinceInput(barsSince)
-				),
+			step: (step, barsSince) => stepOf(agent, step, barsSince),
 			pnl: () => Number(agent.wallet.getPnL()),
 		},
 		curve
@@ -169,5 +181,60 @@ export function replayModel(input: {
 	return {
 		...segmentRatios(new EpisodeScores(curve), barsPerYear(test) ?? 1, test),
 		...agent.wallet.getCostsPaid(),
+	};
+}
+
+/** The order a model wants on the last closed bar of a window (ADR-0087). */
+export interface LastBarDecision {
+	/** Open time of the bar decided on: the caller checks it is the bar it expects. */
+	barTimestamp: number;
+	/** Close of that bar. */
+	price: number;
+	/** Undefined when the model holds, does not decide on this bar, or cannot trade. */
+	order?: { side: "buy" | "sell"; quantity: number };
+}
+
+/**
+ * Plays the model greedily over `candles` (cleaned as in the replay) on a
+ * simulated wallet and returns what it does on the last bar: the quantity is
+ * the wallet's move, so `share` and the exposure cap of the genome apply. The
+ * wallet starts at the window's first bar, so the same window gives the same
+ * answer. Undefined when the window has no step.
+ */
+export function decideOnLastBar(input: {
+	genome: PolicyGenome;
+	weights: Float32Array;
+	simulator: SimulatorParams;
+	candles: CandleData[];
+}): LastBarDecision | undefined {
+	const steps = candleSteps(
+		contiguousCandles(input.candles.filter(isConsistentCandle))
+	);
+	const last = steps[steps.length - 1];
+	if (!last) {
+		return undefined;
+	}
+	const agent = greedyAgent(input.genome, input.weights, input.simulator);
+	let delta = 0;
+	playEpisode(
+		steps,
+		input.genome.rl.horizon,
+		{
+			step: (step, barsSince) => {
+				const before = Number(agent.wallet.getPosition());
+				stepOf(agent, step, barsSince);
+				delta = step === last ? Number(agent.wallet.getPosition()) - before : 0;
+			},
+			pnl: () => Number(agent.wallet.getPnL()),
+		},
+		[]
+	);
+	return {
+		barTimestamp: last.timestamp,
+		price: Number(last.price),
+		order:
+			delta === 0
+				? undefined
+				: { side: delta > 0 ? "buy" : "sell", quantity: Math.abs(delta) },
 	};
 }

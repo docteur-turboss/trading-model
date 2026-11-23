@@ -49,6 +49,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 | `edge-proxy`            | 8449 | nginx: external HTTP entry, `/v1` → api-gateway over mTLS      |
 | `risk-execution`        | 8454 | Order flow owner of ADR-0064: pre-trade checks, kill switch, lifecycle, simulated broker (paper only, no live adapter) |
 | `model-evaluator`       | 8453 | Offline check of trained models on each `training.model.published` (ADR-0049); records one evaluation per model, never promotes |
+| `decision-consumer`     | —    | Paper decisions of the promoted models (`PROMOTED_MODELS`) on each closed bar, intents to `risk-execution` (ADR-0087) |
 
 ### Shared Packages
 
