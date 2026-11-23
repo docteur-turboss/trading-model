@@ -84,9 +84,9 @@ grep -q "api-gateway-canary error rate 90%" "$WORK/out" && pass "reports the err
 deleted_all && pass "every canary removed" || failed "canary left behind"
 
 echo "verified digests file"
-metrics api-gateway 100 0; metrics audit-logger 50 0; rm -f "$WORK/metrics/financial-scraper"
+metrics api-gateway 100 0; metrics audit-logger 50 0; rm -f "$WORK/metrics/model-evaluator"
 printf 'api-gateway sha256:aaa
-financial-scraper sha256:bbb
+model-evaluator sha256:bbb
 ' >"$WORK/digests"
 export CANARY_DIGESTS_FILE="$WORK/digests"
 if run; then failed "service missing from the digests file should fail"; else pass "gate fails"; fi
