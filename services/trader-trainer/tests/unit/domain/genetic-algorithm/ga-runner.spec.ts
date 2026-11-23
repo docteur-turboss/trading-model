@@ -441,6 +441,17 @@ describe("GeneticAlgorithmRunner", () => {
 		expect(ctx.population.length).toBe(5);
 	});
 
+	it("should evaluate one genome only when the time budget is already spent mid-generation", async () => {
+		const countCalls = async (startTime?: number) => {
+			const factory = jest.fn((..._a: any[]) => makeBackend());
+			const runner = initRunner(4, 0.2, { backendFactory: factory as any });
+			await runner.processor.runGeneration(startTime);
+			return factory.mock.calls.length;
+		};
+		const full = await countCalls();
+		expect(await countCalls(0)).toBe(full / 4);
+	});
+
 	it("should run a single generation and produce a context", async () => {
 		const features = FeatureVector.fromFloat32Array(
 			new Float32Array([0.5, 0.5, 0.5])

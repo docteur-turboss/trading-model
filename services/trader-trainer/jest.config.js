@@ -7,4 +7,6 @@ module.exports = jestConfig(__dirname, {
     // Runs in a worker thread that Jest does not instrument (exercised by worker-training-runner.spec.ts).
     '!src/adapters/outbound/training-worker/training-worker.ts',
   ],
+  // Process wiring (bootstrap, server, container): exercised by the E2E and k8s jobs.
+  coveragePathIgnorePatterns: ['/node_modules/', 'src/application/(index|server|telemetry)\.ts', 'src/config/container\.ts'],
 });
