@@ -196,6 +196,9 @@ jobs:
       # silent) on the scenarios of tests/alerts/alerting.test.yml.
       - name: Alert rule tests
         run: bash tests/alerts/run.sh
+      # Pinned Grafana image on an existing volume (Loki without uid), issue #2414.
+      - name: Grafana upgrade on an existing database
+        run: bash tests/observability/grafana-upgrade.test.sh
 
   # The k8s job only deploys staging: production is checked by rendering.
   k8s-overlays:
