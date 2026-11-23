@@ -8,7 +8,7 @@
 
 ## Operate the service
 
-The admin routes accept only the service's own identity, so `scripts/risk-admin.sh` runs them from the pod (the `kubectl exec` right is the authentication). The logged actor is your Kubernetes identity (`kubectl auth whoami`); `ACTOR=<name>` forces it (owner name for a `drawdown` re-arm, or kubectl < 1.28).
+`GET /admin/status` accepts only the service's own identity: `scripts/risk-admin.sh status` runs it from the pod. Engaging and re-arming go through the gateway with an API key of scope `risk:admin` (`RISK_ADMIN_URL` = edge-proxy base URL, `RISK_ADMIN_KEY`): the key name is the actor recorded in the audit trail, and the owner is the key named `RISK_OWNER_ACTOR` (default `owner`). With the gateway down, no one can engage or re-arm.
 
 ```bash
 bash scripts/risk-admin.sh status
@@ -54,7 +54,7 @@ Three or more intents of the decision consumer rejected in an hour with the same
 
 1. Read the `Intent rejected by risk-execution` log lines of `decision-consumer` (symbol, model, reason).
 2. `price_band`, `price_gap`, `stale_intent`: the bar read from financial-scraper is far from the price risk-execution reads, or old; check the feed ([runbook-market-data-stale](runbook-market-data-stale.md)).
-3. A sell with no position or a buy at the cap (`insufficient_balance`, `instrument_exposure`, `global_exposure`) is expected at times: the consumer sizes on a simulated wallet that drifts from the real paper position (ADR-0087 §3). Only a steady stream of them is a finding.
+3. A rejected buy (`instrument_exposure`, `global_exposure`) is a finding: the consumer bounds buys and sales on the real position (`GET /positions/:symbol`, ADR-0087 §3), so risk-execution limits tighter than the model's cap are the usual cause.
 4. `instrument_exposure`, `global_exposure`, `max_quantity`: the size of the model exceeds a limit of risk-execution; the limit stays, lower `PROMOTED_MODELS` by a PR if the model is the cause.
 
 ## RiskMarketDataStale

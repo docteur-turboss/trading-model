@@ -2,11 +2,10 @@
 # Kill switch of risk-execution, from the operator's machine (runbook-risk-execution.md).
 # Usage: bash scripts/risk-admin.sh status
 #        bash scripts/risk-admin.sh engage|rearm --reason "<text>" [--symbol BTCUSDT]
-# Scope is global without --symbol, symbol with it. The admin routes accept only the service's own SVID,
-# so the call runs from the pod (`kubectl exec` right = authentication); the JSON goes through stdin.
-# Actor = `kubectl auth whoami` (kubectl >= 1.28). ACTOR=<name> forces it (e.g. RISK_OWNER_ACTOR for a
-# `drawdown` re-arm, when it differs from the Kubernetes name).
-# Env: ACTOR, NAMESPACE, DRY_RUN=true (prints the request, calls nothing). Needs kubectl and jq.
+# Scope is global without --symbol, symbol with it. `status` accepts only the service's own SVID, so it runs
+# from the pod (kubectl exec). `engage`/`rearm` go through the gateway (scope risk:admin, ADR-0059): the
+# API key name is the actor. Env: RISK_ADMIN_URL (edge-proxy base URL), RISK_ADMIN_KEY (API key),
+# NAMESPACE, DRY_RUN=true (prints the request, calls nothing). Needs jq; kubectl for status.
 
 set -euo pipefail
 
@@ -29,19 +28,16 @@ done
 
 case "$cmd" in
   status) method=GET; path=/admin/status ;;
-  engage) method=POST; path=/admin/kill-switch ;;
-  rearm) method=POST; path=/admin/kill-switch/rearm ;;
+  engage) method=POST; path=/v1/risk-execution/admin/kill-switch ;;
+  rearm) method=POST; path=/v1/risk-execution/admin/kill-switch/rearm ;;
   *) usage ;;
 esac
 if [ "$cmd" != status ] && [ -z "$reason" ]; then usage; fi
 
 body=""
 if [ "$method" = POST ]; then
-  actor=${ACTOR:-$(kubectl auth whoami -o jsonpath='{.status.userInfo.username}' 2>/dev/null)} ||
-    die "kubectl auth whoami failed (kubectl < 1.28?): set ACTOR=<name>"
-  [ -n "$actor" ] || die "empty actor: set ACTOR=<name>"
-  body=$(jq -n --arg r "$reason" --arg a "$actor" --arg s "$symbol" \
-    'if $s == "" then {scope:"global"} else {scope:"symbol",symbol:$s} end + {reason:$r,actor:$a}')
+  body=$(jq -n --arg r "$reason" --arg s "$symbol" \
+    'if $s == "" then {scope:"global"} else {scope:"symbol",symbol:$s} end + {reason:$r}')
 fi
 
 if [ "$DRY_RUN" = true ]; then
@@ -50,13 +46,15 @@ if [ "$DRY_RUN" = true ]; then
   exit 0
 fi
 
+if [ "$method" = POST ]; then
+  : "${RISK_ADMIN_URL:?set RISK_ADMIN_URL}" "${RISK_ADMIN_KEY:?set RISK_ADMIN_KEY}"
+  printf '%s' "$body" | curl -s -H "x-api-key: $RISK_ADMIN_KEY" -H content-type:application/json --data-binary @- "$RISK_ADMIN_URL$path"
+  echo
+  exit 0
+fi
+
 pod=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/component=risk-execution -o jsonpath='{.items[0].metadata.name}')
 [ -n "$pod" ] || die "no risk-execution pod in $NAMESPACE"
-# node -e: the image has no curl; stdin carries the POST body.
-req=(node -e 'const f=require("fs"),d="/run/spire/svid/",[m,u]=process.argv.slice(1);const q=require("https").request(u,{method:m,headers:{"content-type":"application/json"},cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>r.pipe(process.stdout));q.on("error",()=>process.exit(1));process.stdin.pipe(q)')
-if [ "$method" = POST ]; then
-  printf '%s' "$body" | kubectl exec -i -n "$NAMESPACE" "$pod" -c risk-execution -- "${req[@]}" POST "https://localhost:3000$path"
-else
-  kubectl exec -n "$NAMESPACE" "$pod" -c risk-execution -- "${req[@]}" GET "https://localhost:3000$path" </dev/null
-fi
+# node -e: the image has no curl.
+kubectl exec -n "$NAMESPACE" "$pod" -c risk-execution -- node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>r.pipe(process.stdout)).on("error",()=>process.exit(1))' "https://localhost:3000$path"
 echo

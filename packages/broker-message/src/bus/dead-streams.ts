@@ -1,7 +1,7 @@
 import type { Message } from "@trading-model/contracts/message-types";
 import { messageManagerError } from "../shared/errors";
 import type { JournalGroup } from "./journal.port";
-import type { RedisMessageJournal } from "./redis-journal";
+import { isRedisError, type RedisMessageJournal } from "./redis-journal";
 
 /** One dead letter: what a group could not process, kept until an operator replays or deletes it. */
 export interface DeadLetter {
@@ -98,7 +98,7 @@ export class DeadStreams {
 			)) as unknown[];
 			return Number(flat[flat.indexOf("length") + 1]);
 		} catch (err) {
-			if (err instanceof Error && err.message.includes("no such key")) {
+			if (isRedisError(err, "no such key")) {
 				return 0;
 			}
 			throw err;

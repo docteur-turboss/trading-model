@@ -48,6 +48,7 @@ PREVIOUS="$WORK/previous"
 IMAGE_ARCHIVE="${KIND_IMAGE_ARCHIVE:-$WORK/images.tar}"
 export COMPOSE_PROJECT_NAME="tmk8s"
 export MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-kind-ci}"
+export MYSQL_PASSWORD="${MYSQL_PASSWORD:-kind-ci}"
 export GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-kind-ci}"
 export MYSQL_EXPORTER_PASSWORD="${MYSQL_EXPORTER_PASSWORD:-kind-ci}"
 export DLQ_AUTH_HMAC_SECRET="${DLQ_AUTH_HMAC_SECRET:-kind-ci-dlq-hmac-0123456789abcdefghij}"
@@ -648,6 +649,13 @@ upgrade() {
 		log "market_trades after $widen under the probe: '$widened', expected 'bigint unsigned 3000000 1'"
 		return 1
 	}
+	# Issue #2057 (ADR-0088): the db-index-build Job reaches MySQL (NetworkPolicy) and builds the indexes; deploy does not wait for it.
+	log "db-index-build: idx_*_symbol_ts built, idx_*_symbol dropped"
+	wait_for 600 '[ "$(symbol_ts_indexes)" = "3 0" ]' || {
+		$K -n "$NS" logs job/db-index-build --tail=30 || true
+		log "db-index-build left '$(symbol_ts_indexes)' (built, old) instead of '3 0'"
+		return 1
+	}
 	log "collector handover on release N: rolling restart, the Lease goes to the new pod (ADR-0057)"
 	verify_collection_gap "restart N → N" collector_handover || return 1
 	# The restore drill dumps market_trades: back to the collector's rows only.
@@ -1228,6 +1236,11 @@ mongo_eval() {
 
 mysql_root() {
 	$K -n "$NS" exec mysql-0 -c mysql -- sh -c "MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\" mysql -uroot -N -e \"$1\""
+}
+
+# "<idx_*_symbol_ts count> <idx_*_symbol count>" on the three market tables (ADR-0088).
+symbol_ts_indexes() {
+	mysql_root "SELECT CONCAT(COUNT(DISTINCT CASE WHEN index_name IN ('idx_candles_symbol_ts','idx_trades_symbol_ts','idx_tickers_symbol_ts') THEN index_name END), ' ', COUNT(DISTINCT CASE WHEN index_name IN ('idx_candles_symbol','idx_trades_symbol','idx_tickers_symbol') THEN index_name END)) FROM information_schema.statistics WHERE table_schema = 'financial_scraper'" | tr -d '\r'
 }
 
 # sha256 of the SPIRE trust bundle: unchanged as long as the CA keys are.
