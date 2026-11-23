@@ -182,13 +182,15 @@ export class StreamRedis implements BusRedis {
 	}
 
 	private _claim(key: string, rest: string[]): unknown {
-		const [group = "", consumer = "", , id = ""] = rest;
-		const entry = this._stream(key).groups.get(group)?.pending.get(id);
-		if (entry) {
-			entry.consumer = consumer;
-			entry.deliveries += 1;
+		const [group = "", consumer = "", , ...ids] = rest;
+		for (const id of ids) {
+			const entry = this._stream(key).groups.get(group)?.pending.get(id);
+			if (entry) {
+				entry.consumer = consumer;
+				entry.deliveries += 1;
+			}
 		}
-		return this._range(key, [id, id]);
+		return ids.flatMap((id) => this._range(key, [id, id]) as unknown[]);
 	}
 
 	private _range(key: string, rest: string[]): unknown {
