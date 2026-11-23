@@ -114,13 +114,16 @@ app_check staging
 [ $rc = 1 ] && [[ $out == *"is missing"* ]] && ok "app: missing Role refused" || ko "app missing: rc=$rc $out"
 jq 'del(.rules[0]) | .metadata += {uid: "u3"}' <<<"$APP_ROLE" >"$WORK/live/role_deploy-app.json"
 app_check staging
-[ $rc = 1 ] && [[ $out == *"::error::"*"differs"*"bash scripts/deploy-identity.sh app --namespace trading-model-staging | base64 -w0 | gh secret set KUBECONFIG_STAGING_APP --env staging"* ]] && ok "app: Role without leases refused, gives the deploy-identity.sh app command" || ko "app differs: rc=$rc $out"
+[ $rc = 1 ] && [[ $out == *"::error::"*"lacks rights"*"bash scripts/deploy-identity.sh app --namespace trading-model-staging | base64 -w0 | gh secret set KUBECONFIG_STAGING_APP --env staging"* ]] && ok "app: Role without leases refused, gives the deploy-identity.sh app command" || ko "app differs: rc=$rc $out"
 no_write && ok "app: nothing written" || ko "write attempted: $(cat "$STUB_LOG")"
 app_check staging-local
 [[ $out == *"bash deploy/staging-local/bootstrap.sh identities"* ]] && ok "app staging-local: gives bootstrap.sh identities" || ko "app staging-local: $out"
 jq '.metadata += {uid: "u3", resourceVersion: "9"}' <<<"$APP_ROLE" >"$WORK/live/role_deploy-app.json"
 app_check production
 [ $rc = 0 ] && [[ $out == *"up to date"* ]] && ok "app: identical Role passes" || ko "app identical: rc=$rc $out"
+jq '.rules += [{apiGroups: ["apps"], resources: ["deployments"], verbs: ["get"]}] | .rules |= reverse' <<<"$APP_ROLE" >"$WORK/live/role_deploy-app.json"
+app_check production
+[ $rc = 0 ] && [[ $out == *"up to date"* ]] && ok "app: superset Role (return to N-1) passes" || ko "app superset: rc=$rc $out"
 STUB_GET_ERROR='error: You must be logged in to the server (Unauthorized)' app_check production
 [ $rc = 2 ] && [[ $out != *"missing"* ]] && ok "app: API error surfaced" || ko "app API error: rc=$rc $out"
 exit $FAILED
