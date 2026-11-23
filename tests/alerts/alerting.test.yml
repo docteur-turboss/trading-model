@@ -2170,7 +2170,29 @@ tests:
               description: 'risk-execution rejected over 50% of the intents for 15 min. A limit is close or the decision consumer sends bad intents (price band, exposure, stale price); repeated rejects also engage the kill switch.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskrejectratiohigh'
 
-  # Deployed with no decision consumer: no price ever received, the service publishes age 0 and no switch, so nothing pages.
+  - name: decision-consumer rejected intents
+    interval: 1m
+    input_series:
+      - series: 'decision_intents_total{job="decision-consumer",outcome="rejected",reason="price_band"}'
+        values: '0+1x90'
+      - series: 'decision_intents_total{job="decision-consumer",outcome="rejected",reason="stale_price"}'
+        values: '0+0x90'
+      - series: 'decision_intents_total{job="decision-consumer",outcome="hold",reason=""}'
+        values: '0+1x90'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: DecisionIntentsRejected
+        exp_alerts: []
+      - eval_time: 80m
+        alertname: DecisionIntentsRejected
+        exp_alerts:
+          - exp_labels: {severity: warning, job: decision-consumer, reason: price_band}
+            exp_annotations:
+              summary: 'risk-execution rejected 3 or more intents of the decision consumer in 1 hour (price_band)'
+              description: 'The promoted models decide once per closed bar, so three rejections with the same reason code in an hour are not noise: the consumer sends a price or a size the limits refuse (ADR-0087).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#decisionintentsrejected'
+
+  # Deployed with no promoted model: no price ever received, the service publishes age 0 and no switch, so nothing pages.
   - name: risk-execution without a price flow
     interval: 1m
     input_series:

@@ -84,7 +84,7 @@ jobs:
         run: |
           map="discovery-server:discovery-server message-manager:message-manager financial-scraper:financial-scraper
             trader-trainer:trader-trainer api-gateway:api-gateway audit-logger:audit-logger dlq-service:dlq-service
-            model-evaluator:model-evaluator risk-execution:risk-execution spire-bootstrap:spire-tools migrate:db-migrate"
+            model-evaluator:model-evaluator risk-execution:risk-execution decision-consumer:decision-consumer spire-bootstrap:spire-tools migrate:db-migrate"
           { echo "services:"; } > "$RUNNER_TEMP/next.yml"
           missing=""; unsigned=""
           for p in $map; do

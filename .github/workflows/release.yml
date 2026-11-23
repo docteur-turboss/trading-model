@@ -117,6 +117,7 @@ jobs:
           - dlq-service
           - model-evaluator
           - risk-execution
+          - decision-consumer
 
     steps:
       - name: Checkout repository
@@ -291,6 +292,7 @@ jobs:
           - dlq-service
           - model-evaluator
           - risk-execution
+          - decision-consumer
           - spire-tools
           - backup-tools
           - db-migrate

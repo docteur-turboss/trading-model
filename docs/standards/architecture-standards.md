@@ -29,6 +29,7 @@ trading-model/
 │   ├── audit-logger/
 │   ├── model-evaluator/
 │   ├── risk-execution/
+│   ├── decision-consumer/
 │   └── dlq-service/
 ├── .github/workflows/  # CI/CD
 ├── docs/               # Centralized documentation
@@ -85,6 +86,7 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 | dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability |
 | model-evaluator | address-manager, broker-message, common, contracts, http, model-runtime, persistence, primitives |
 | risk-execution | address-manager, broker-message, common, contracts, http, model-runtime, primitives |
+| decision-consumer | address-manager, broker-message, common, contracts, http, model-runtime, primitives |
 | financial-scraper | address-manager, common, contracts, crypto, http, persistence, primitives, reliability |
 | message-manager | address-manager, broker-message, common, contracts, http, persistence, primitives, reliability |
 | trader-trainer | address-manager, broker-message, common, contracts, crypto, http, model-runtime, persistence, primitives, reliability |
@@ -118,6 +120,7 @@ Each service exposes an HTTPS server with mTLS enabled. The internal container p
 | dlq-service       | 8452            | 3000           |               |
 | model-evaluator   | 8453            | 3000           |               |
 | risk-execution    | 8454            | 3000           |               |
+| decision-consumer | none            | 3000           | no host port  |
 | api-gateway       | 8448            | 3000           |               |
 
 ### Service Structure
