@@ -14,6 +14,9 @@
 # trading-model-ci), KEEP_CLUSTER=1 (`all` keeps the cluster afterwards),
 # KIND_PREVIOUS_REF (release N-1, default HEAD^1: the base branch of a PR merge
 # commit, the commit before on a push; locally e.g. origin/development),
+# KIND_PREVIOUS_REGISTRY (set: N-1 is the release tag KIND_PREVIOUS_REF, its
+# signed images pulled from this registry instead of built; needs cosign; CI
+# sets both to the last stable tag),
 # KIND_OVERLAY (overlay of both releases, default staging; staging-local keeps
 # the data StatefulSets partitioned, issue #1066, e.g. with KIND_PREVIOUS_REF=v3.1.0-rc.1).
 # Needs docker, git, kubectl, node, jq.
@@ -165,11 +168,34 @@ node_digests() {
 	done
 }
 
+# Pulls the release images of tag $PREVIOUS_REF from $KIND_PREVIOUS_REGISTRY by
+# digest, each verified as signed by release.yml (as deploy.yml does), as
+# ghcr.io/trading-model/<image>:previous.
+pull_previous_images() {
+	local img ref digest repo="${GITHUB_REPOSITORY:-docteur-turboss/trading-model}"
+	for img in $IMAGES; do
+		ref="$KIND_PREVIOUS_REGISTRY/$img"
+		digest="$(docker buildx imagetools inspect "$ref:${PREVIOUS_REF#v}" --format '{{.Manifest.Digest}}')"
+		cosign verify "$ref@$digest" --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+			--certificate-identity-regexp "^https://github\.com/${repo}/\.github/workflows/release\.yml@refs/tags/v" >/dev/null || {
+			log "$ref@$digest: no valid release.yml signature"
+			return 1
+		}
+		retry 3 docker pull -q "$ref@$digest" >/dev/null
+		docker tag "$ref@$digest" "ghcr.io/trading-model/$img:previous"
+	done
+}
+
 images() {
 	local started=$SECONDS img
 	previous_checkout
-	log "building the images of release N-1"
-	build_images "$PREVIOUS" previous
+	if [ -n "${KIND_PREVIOUS_REGISTRY:-}" ]; then
+		log "pulling the signed images of release N-1 from $KIND_PREVIOUS_REGISTRY"
+		pull_previous_images
+	else
+		log "building the images of release N-1"
+		build_images "$PREVIOUS" previous
+	fi
 	# Same sources build the same image: a label keeps N-1 digests apart from N.
 	for img in $IMAGES; do
 		echo "FROM ghcr.io/trading-model/$img:previous" |
