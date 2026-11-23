@@ -6,6 +6,7 @@ kind: Kustomization
 # the GitHub environment `staging` sets K8S_OVERLAY=staging-local.
 resources:
   - ../staging
+  - backup-minio-network-policy.yaml
 
 patches:
   # No public DNS name for Let's Encrypt: self-signed certificates
