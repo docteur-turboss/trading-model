@@ -13,8 +13,9 @@ spec:
   selector:
     app.kubernetes.io/component: decision-consumer
 ---
-# One replica, no HPA, no state: a rollout stops the old pod first (Recreate), so two
-# pods never decide on the same bar (ADR-0087; risk-execution deduplicates anyway).
+# One replica, no HPA: RollingUpdate keeps the old pod until the new one is Ready, so no bar
+# is missed during a rollout. Two pods may decide the same bar meanwhile: the decisionId is
+# the same (ADR-0087 §5) and risk-execution rejects the second intent (ADR-0064 §2).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -25,7 +26,10 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app.kubernetes.io/component: decision-consumer
