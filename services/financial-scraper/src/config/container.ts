@@ -19,7 +19,7 @@ import { insertTrades } from "../adapters/outbound/persistence/schema/trades.sch
 import { MySqlSignalStore } from "../adapters/outbound/persistence/signal-store";
 import { createProtocolWorkers } from "../adapters/outbound/signal-sources/protocol-workers";
 import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adapters";
-import { createMarketDataController } from "../application/market-data.controller";
+import { createMarketDataPersister } from "../application/persist-market-data";
 import {
 	recordSourceTerms,
 	restoreFreshness,
@@ -38,7 +38,7 @@ const QUARANTINE_ANNOTATION = "trading-model/source-quarantine";
 const QUARANTINE_RESTORE_RETRY_MS = 2000;
 
 /** Market data persistence use case backed by the MySQL repository. */
-export const MarketDataController = createMarketDataController({
+export const MarketDataPersister = createMarketDataPersister({
 	insertCandles,
 	insertTrades,
 	insertOrderBook: (data) => insertOrderBook([data]),
@@ -57,7 +57,7 @@ async function createWorkerOrchestratorDeps(
 	);
 	return {
 		source: new BinanceMarketDataSource(store),
-		persist: (snapshot) => MarketDataController.persist(snapshot),
+		persist: (snapshot) => MarketDataPersister.persist(snapshot),
 		lastCandleOpenTime,
 	};
 }

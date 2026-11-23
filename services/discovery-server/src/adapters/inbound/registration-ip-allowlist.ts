@@ -1,4 +1,3 @@
-import { anonymizeIp } from "@trading-model/common/utils/anonymize-ip";
 import { logger } from "@trading-model/http/logger";
 import {
 	isAllowedProxyIP,
@@ -35,9 +34,7 @@ export const REGISTRATION_IP_ALLOWLIST: RequestHandler = (req, _res, next) => {
 	}
 	const normalized = ip.startsWith("::ffff:") ? ip.slice(7) : ip;
 	if (!isAllowedProxyIP(normalized, ALLOWED_RANGES)) {
-		logger.warn("Registration rejected: client IP not in allowed CIDR ranges", {
-			context: { ip: anonymizeIp(normalized) },
-		});
+		logger.warn("Registration rejected: client IP not in allowed CIDR ranges");
 		_res.status(403).json({ error: "Registration not allowed from this IP" });
 		return;
 	}
