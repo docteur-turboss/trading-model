@@ -84,18 +84,17 @@ export class ModelArtifactService {
 	): Promise<RehydratedModel[]> {
 		const models = this._deps.models;
 		const found: RehydratedModel[] = [];
+		const layouts = [
+			JSON.stringify(networkInputLayout(this._dataBuffer.signalKeys)),
+			JSON.stringify(eventInputLayout(this._dataBuffer.signalKeys)),
+		];
 		for (const symbol of symbols) {
 			try {
 				const manifest = await models.latest(String(symbol));
 				if (!manifest) {
 					continue;
 				}
-				if (
-					JSON.stringify(manifest.features) !==
-						JSON.stringify(networkInputLayout(this._dataBuffer.signalKeys)) &&
-					JSON.stringify(manifest.features) !==
-						JSON.stringify(eventInputLayout(this._dataBuffer.signalKeys))
-				) {
+				if (!layouts.includes(JSON.stringify(manifest.features))) {
 					// Published before the 18-input layout (ADR-0078): retrained, not served.
 					getLogger().warn("Stored model has another feature layout, skipped", {
 						context: { symbol, version: manifest.version },

@@ -301,6 +301,7 @@ spec:
           - db-migrate
           - db-migrate-down
           - db-migrate-user
+          - db-index-build
           - retention
           - mongodb-init
           - mongodb-audit-init

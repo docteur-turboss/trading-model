@@ -76,7 +76,7 @@ const SERVICE_TO_SERVICE = {
 	],
 	"audit-logger": ["POST /message"],
 	"model-evaluator": ["POST /message"],
-	"risk-execution": ["POST /intents", "POST /orders/:clientOrderId/cancel", "GET /admin/status", "POST /admin/kill-switch", "POST /admin/kill-switch/rearm"],
+	"risk-execution": ["POST /intents", "POST /orders/:clientOrderId/cancel", "GET /positions/:symbol", "GET /admin/status", "POST /admin/kill-switch", "POST /admin/kill-switch/rearm"],
 	"message-manager": ["POST /message", "POST /message/replay", "POST /subscribe", "DELETE /subscribe"],
 	// Model weights: never through the gateway (ADR-0022).
 	"trader-trainer": ["GET /models/:symbol/:version/weights"],
@@ -103,6 +103,7 @@ const CALLERS = {
 	"trader-trainer GET /models/:symbol/:version/weights": { caller: "packages/http", call: /\/weights`/ },
 	"financial-scraper GET /v2/candles/latest": { caller: "services/risk-execution", call: /\/v2\/candles\/latest/ },
 	"risk-execution POST /intents": { caller: "services/decision-consumer", call: /\/intents`/ },
+	"risk-execution GET /positions/:symbol": { caller: "services/decision-consumer", call: /\/positions\// },
 };
 
 /** Service-to-service routes kept without a caller, each with its reason. */

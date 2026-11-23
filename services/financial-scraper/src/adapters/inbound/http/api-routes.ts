@@ -1,4 +1,3 @@
-import { SourceType } from "@trading-model/contracts/market-data.types";
 import { brand } from "@trading-model/contracts/wire/brand";
 import {
 	Asset,
@@ -24,10 +23,6 @@ import { Source } from "../../../domain/signals";
  * mounts its route (`routes.ts`), validates its parameters and documents it
  * in the OpenAPI.
  */
-
-const BY_SOURCE = z.object({
-	source: z.enum(SourceType.values() as [SourceType, ...SourceType[]]),
-});
 
 const BY_SYMBOL = z.object({
 	symbol: z.string().min(1).transform(brand<string, TradingSymbol>(toSymbol)),
@@ -169,12 +164,6 @@ function query<
 }
 
 export const SCRAPER_API = {
-	tradesBySource: query(
-		"/v2/trade/sources/:source",
-		"Trades of a source",
-		BY_SOURCE,
-		Trade
-	),
 	tradesBySymbol: query(
 		"/v2/trade/symbols/:symbol",
 		"Trades of a symbol",
@@ -187,12 +176,6 @@ export const SCRAPER_API = {
 		AT_DATE,
 		Trade
 	),
-	tickersBySource: query(
-		"/v2/ticker/sources/:source",
-		"24h tickers of a source",
-		BY_SOURCE,
-		Ticker
-	),
 	tickersBySymbol: query(
 		"/v2/ticker/symbols/:symbol",
 		"24h tickers of a symbol",
@@ -204,12 +187,6 @@ export const SCRAPER_API = {
 		"24h tickers opened at exactly this instant",
 		AT_DATE,
 		Ticker
-	),
-	candlesBySource: query(
-		"/v2/candles/sources/:source",
-		"Candles of a source",
-		BY_SOURCE,
-		Candle
 	),
 	candlesBySymbol: query(
 		"/v2/candles/symbols/:symbol",

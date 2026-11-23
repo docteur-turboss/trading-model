@@ -336,6 +336,7 @@ spec:
                   - db-migrate
                   - db-migrate-down
                   - db-migrate-user
+                  - db-index-build
                   - retention
                   - mysql
       ports:
