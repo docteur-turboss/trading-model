@@ -145,7 +145,7 @@ groups:
         expr: 'time() - backup_last_run_timestamp > 93600'
         for: 1h
         labels:
-          severity: critical
+          severity: warning
         annotations:
           summary: 'Backup job has not run for more than 26 hours'
           description: 'The db-backup CronJob stopped running (suspended, failing to start or stuck): no new backup is being taken.'
@@ -365,7 +365,7 @@ groups:
         expr: 'time() - max by (job) (audit_chain_last_verification_timestamp) > 2700'
         for: 15m
         labels:
-          severity: critical
+          severity: warning
         annotations:
           summary: 'Audit trail no longer verified'
           description: 'audit-logger has not completed an audit chain verification for more than 45 minutes (MongoDB unreachable, or the cycle fails): a broken chain would go unnoticed (runbook-audit-chain-broken).'
@@ -375,7 +375,7 @@ groups:
         expr: 'max by (job) (audit_chain_anchoring_enabled) == 1 and time() - max by (job) (audit_chain_last_anchor_timestamp) > 2700'
         for: 15m
         labels:
-          severity: critical
+          severity: warning
         annotations:
           summary: 'Audit trail no longer anchored'
           description: 'audit-logger has not anchored the audit chain head for more than 45 minutes: check the anchor bucket credentials (audit-anchor-s3) and its logs (runbook-audit-chain-broken).'
@@ -506,7 +506,7 @@ groups:
         expr: max(tt_training_leader) < 1
         for: 30m
         labels:
-          severity: critical
+          severity: warning
         annotations:
           summary: 'No trader-trainer pod has held the Lease for 30 minutes'
           description: 'No pod has trained for 30 minutes, far beyond a rollout handover (end of a generation plus a few seconds, ADR-0058): no trainer pod holds the Lease trader-trainer. No new model is produced.'
@@ -614,7 +614,7 @@ groups:
         expr: min(tt_last_candle_age_seconds) > 900
         for: 5m
         labels:
-          severity: critical
+          severity: warning
         annotations:
           summary: 'trader-trainer reads no fresh candle'
           description: 'At its last session the newest stored candle of every symbol was over 15 minutes old: the scraper no longer feeds MySQL or the trainer cannot read it.'

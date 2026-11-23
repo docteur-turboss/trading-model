@@ -6,7 +6,7 @@ target in [slo.md](../slo.md#5-training-completion-rate)),
 `TrainerNoModelStored` (critical),
 `ModelArtifactWriteFailing` (warning),
 `TrainerEventLoopLagHigh` (warning),
-`TrainerNoLeader` (warning), `TrainerNoLeaderProlonged` (critical, 30 min),
+`TrainerNoLeader` (warning), `TrainerNoLeaderProlonged` (warning, 30 min),
 `ModelBelowBuyAndHold` (warning), `TrainerFeatureDrift` (warning).
 
 No market data reaching the trainer is a different alert,
