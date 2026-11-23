@@ -612,16 +612,18 @@ jobs:
           NS="$NAMESPACE"
           if [ -z "$AUDIT_ANCHOR_BUCKET" ]; then
             if kubectl -n "$NS" get secret audit-anchor-s3 >/dev/null 2>&1; then
-              exit 0
-            fi
-            if [ "$DEPLOY_ENVIRONMENT" = "production" ]; then
+              # Existing Secret kept: its region goes through the same check below.
+              AUDIT_ANCHOR_REGION="$(kubectl -n "$NS" get secret audit-anchor-s3 -o jsonpath='{.data.AUDIT_ANCHOR_REGION}' | base64 -d)"
+              existing=1
+            elif [ "$DEPLOY_ENVIRONMENT" = "production" ]; then
               echo "::error::AUDIT_ANCHOR_BUCKET is not set for production: audit-logger refuses to start without an anchor store (ADR-0027)"
               exit 1
+            else
+              echo "::warning::AUDIT_ANCHOR_BUCKET is not set for $DEPLOY_ENVIRONMENT: the audit chain is verified but not anchored"
+              exit 0
             fi
-            echo "::warning::AUDIT_ANCHOR_BUCKET is not set for $DEPLOY_ENVIRONMENT: the audit chain is verified but not anchored"
-            exit 0
           fi
-          if [ -z "$AUDIT_ANCHOR_ACCESS_KEY_ID" ] || [ -z "$AUDIT_ANCHOR_SECRET_ACCESS_KEY" ]; then
+          if [ -z "$existing" ] && { [ -z "$AUDIT_ANCHOR_ACCESS_KEY_ID" ] || [ -z "$AUDIT_ANCHOR_SECRET_ACCESS_KEY" ]; }; then
             echo "::error::AUDIT_ANCHOR_BUCKET is set but AUDIT_ANCHOR_ACCESS_KEY_ID / AUDIT_ANCHOR_SECRET_ACCESS_KEY are not"
             exit 1
           fi
