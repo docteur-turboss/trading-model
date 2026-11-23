@@ -40,7 +40,7 @@ Authentication (ADR-0067): a `keyFile` per replica set, and one user per client,
 
 mongod enforces authentication and `requireTLS`: anonymous and clear-text clients are refused (3.1.0 ran `--transitionToAuth` and `preferTLS`). `packages/persistence/tests/db/mongo-users.db.spec.ts` proves each user gets `Unauthorized` outside its scope.
 
-Redis and Sentinel TLS (K8s, issue #930): listeners on 6380 / 26380 from release N, clear text closed (`REDIS_TLS_MODE=required`, `REDIS_TLS_MODE`, `docs/deployment/REDIS_TLS.md`).
+Redis and Sentinel TLS (K8s, issue #930): listeners on 6380 / 26380 from release N, clear text closed from N+1 (`REDIS_TLS_MODE`, `docs/deployment/REDIS_TLS.md`).
 
 > SPIRE Server (ADR-0011) keeps its datastore in SQLite on its own volume (`spire-server-data`, ADR-0065), not in MySQL: losing `mysql-0` stops market data ingestion only, SVIDs keep being issued. The `spire` database of the releases before ADR-0065 stays in MySQL, read by nothing but a rollback of the SPIRE server; it goes with the contract step.
 

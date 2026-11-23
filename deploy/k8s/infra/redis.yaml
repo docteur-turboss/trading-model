@@ -133,7 +133,7 @@ spec:
             # TLS step of the expand/contract (redis-ha.sh, ADR-0047): optional =
             # clear text and TLS (release N); required = TLS only (release N+1).
             - name: REDIS_TLS_MODE
-              value: required
+              value: optional
             - name: SENTINEL_HOSTS
               value: "redis-sentinel-0.redis-sentinel-headless redis-sentinel-1.redis-sentinel-headless redis-sentinel-2.redis-sentinel-headless"
           ports:
@@ -174,7 +174,6 @@ spec:
                 - probe
                 - server
             periodSeconds: 5
-            timeoutSeconds: 5
             failureThreshold: 30
           livenessProbe:
             exec:
@@ -184,7 +183,7 @@ spec:
                 - probe
                 - server
             periodSeconds: 10
-            timeoutSeconds: 5
+            timeoutSeconds: 3
           readinessProbe:
             exec:
               command:
@@ -193,14 +192,14 @@ spec:
                 - probe
                 - server
             periodSeconds: 5
-            timeoutSeconds: 5
+            timeoutSeconds: 2
         # Exporter of this node (issue #601, ADR-0056), as ACL user `exporter`:
         # INFO and read-only commands, no key, no CONFIG GET (masterauth).
         - name: redis-exporter
           image: oliver006/redis_exporter:v1.97.0@sha256:f5f903fbe77571d455ede0453b084d6840bc62fc105efac001034421cab83b99
           env:
             - name: REDIS_ADDR
-              value: rediss://127.0.0.1:6380
+              value: redis://127.0.0.1:6379
             - name: REDIS_USER
               value: exporter
             - name: REDIS_PASSWORD
@@ -351,13 +350,13 @@ spec:
             # TLS step of the expand/contract (redis-ha.sh, ADR-0047): optional =
             # clear text and TLS (release N); required = TLS only (release N+1).
             - name: REDIS_TLS_MODE
-              value: required
+              value: optional
             - name: SENTINEL_HOSTS
               value: "redis-sentinel-0.redis-sentinel-headless redis-sentinel-1.redis-sentinel-headless redis-sentinel-2.redis-sentinel-headless"
             - name: SENTINEL_CONF
               value: /sentinel/sentinel.conf
             - name: REDIS_TLS_MODE
-              value: required
+              value: optional
             # ACL user of the exporter sidecar (user exporter of sentinel.conf, redis-ha.sh).
             - name: REDIS_EXPORTER_PASSWORD
               valueFrom:
@@ -403,7 +402,6 @@ spec:
                 - probe
                 - sentinel
             periodSeconds: 5
-            timeoutSeconds: 5
             failureThreshold: 30
           livenessProbe:
             exec:
@@ -413,7 +411,7 @@ spec:
                 - probe
                 - sentinel
             periodSeconds: 10
-            timeoutSeconds: 5
+            timeoutSeconds: 3
           readinessProbe:
             exec:
               command:
@@ -422,14 +420,14 @@ spec:
                 - probe
                 - sentinel
             periodSeconds: 5
-            timeoutSeconds: 5
+            timeoutSeconds: 2
         # Exporter of this sentinel (issue #601, ADR-0056), as ACL user `exporter`:
         # INFO and read-only commands, no key, no CONFIG GET (masterauth).
         - name: redis-exporter
           image: oliver006/redis_exporter:v1.97.0@sha256:f5f903fbe77571d455ede0453b084d6840bc62fc105efac001034421cab83b99
           env:
             - name: REDIS_ADDR
-              value: rediss://127.0.0.1:26380
+              value: redis://127.0.0.1:26379
             - name: REDIS_USER
               value: exporter
             - name: REDIS_PASSWORD

@@ -26,7 +26,7 @@
 #       restarts under the pods of this release only: those of a release older
 #       than issue #1112 lose the registry when Redis restarts under them (ADR-0045,
 #       issue #1156). Clients of this release run against the previous Redis meanwhile
-#       (REDIS_TLS_MODE=required, same ACL users).
+#       (REDIS_TLS_MODE=optional, same ACL users).
 #   deploy-release.sh dry-run <namespace> <node-agents-dir> < rendered.yaml
 #       Preflight (issue #805): `kubectl apply --dry-run=server` of the render
 #       on stdin, cluster scope + node agents with CLUSTER_KUBECONFIG, the rest

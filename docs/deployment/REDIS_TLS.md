@@ -11,7 +11,7 @@ Sentinel announces one port per master, the one of `sentinel monitor`. With `tls
 | `optional` | N (this one) | clear text `6379` / `26379` and TLS `6380` / `26380`; replication and Sentinel in clear text, Sentinel announces `6379` | know TLS (`REDIS_TLS_CA`) but stay in clear text |
 | `required` | N+1 | `port 0`, `tls-replication yes`, Sentinel `port 0` and `tls-port`, `sentinel monitor … 6380` | `REDIS_TLS_MODE=required`, `REDIS_SENTINELS` on `26380` |
 
-Until `required` the client traffic of Redis stays in clear text, so the `docs/compliance/*` line is **not** corrected yet (issue #930 stays open for it).
+Until N+1 the client traffic of Redis stays in clear text, so the `docs/compliance/*` line is **not** corrected yet (issue #930 stays open for it).
 
 ## What exists
 
@@ -22,7 +22,7 @@ Until `required` the client traffic of Redis stays in clear text, so the `docs/c
 
 Nodes are reached by the IP Sentinel announces, which no certificate lists: clients set `servername` to `redis` (`REDIS_TLS_SERVERNAME`), and Node checks that name, so the chain and the name are both verified. The pods mount the whole Secret; the exporter sidecars and the services mount `ca.crt` only.
 
-## Switch to `required` (done after 3.1.0)
+## Switch to `required` (release N+1)
 
 1. Check release N runs everywhere (`kubectl get pods`, no N-1 pod left).
 2. In `redis.yaml` set `REDIS_TLS_MODE=required` on both StatefulSets; in the three `*.properties` set `REDIS_TLS_MODE=required` and the sentinel ports to `26380`; exporters: `REDIS_ADDR=rediss://127.0.0.1:6380` / `26380`.
