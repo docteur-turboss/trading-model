@@ -42,10 +42,10 @@ Add one entry per drill, newest first, in the pull request that follows it. Neve
 
 | Field | Value |
 |---|---|
-| **Scenario** | Policy § 7: switch, pod restart with the PVC, admin routes through `kubectl exec`. Alerts, reconciliation and stale-data steps: see below |
+| **Scenario** | Policy § 7: switch, pod restart with the PVC, admin routes through `kubectl exec`. `KillSwitchEngaged` replayed on 2026-11-23. Reconciliation and stale-data steps: see below |
 | **Environment** | Staging on local kind (`kind-trading-staging`, namespace `trading-model-staging`), `EXECUTION_MODE=paper`, PVC `risk-execution-pvc`. Image `risk-execution@sha256:7dc9032d…`: a build of `development`, not a tagged release |
 | **Operator** | Agent session of issue #1733, for the project owner (`kubernetes-admin`) |
-| **Result** | **Partial**: restart and admin routes passed; the three alerts did not fire; reconciliation and stale-data steps not run |
+| **Result** | **Partial**: restart, admin routes and `KillSwitchEngaged` (replayed 2026-11-23) passed; `ReconciliationMismatch`, `RiskMarketDataStale` and the two-symbol order flow not run |
 
 | Step (UTC) | Expected | Observed |
 |---|---|---|
@@ -55,8 +55,20 @@ Add one entry per drill, newest first, in the pull request that follows it. Neve
 | 22:17:58 `engage --symbol BTCUSDT` | symbol switch added | `engaged`, both switches in `/admin/status` |
 | 22:19:06 `rearm` (symbol, then global) | initial state back | `rearmed` twice; no switch; both gauges 0 |
 
-**Alerts: not observed.** The running `prometheus-0` has no `risk-execution` scrape job and no risk rule (`risk_kill_switch` query empty, no `KillSwitchEngaged` in Prometheus or Alertmanager). The StatefulSet is partitioned in staging-local (`partition: 1`), so the pod still mounts the 14-day-old `prometheus-config`, not `prometheus-config-t87mgk944d` which has the job (`StatefulSetStuckOnOldRevision` fires). Prometheus was not rolled during the drill. The gauges the alerts read are exposed by the service (`/metrics` from the pod at 22:13:35 and 22:19:06).
+**Alerts, first pass (2026-11-22): not observed.** The running `prometheus-0` had no `risk-execution` scrape job and no risk rule: the StatefulSet was partitioned (`partition: 1`) on the 14-day-old `prometheus-config` (`StatefulSetStuckOnOldRevision` firing). Prometheus was not rolled during the drill.
 
-**Not run.** `ReconciliationMismatch` and `RiskMarketDataStale` (would need a hand edit of the ledger on the PVC and 15 min without prices). Policy § 7 is not satisfied until a re-run with Prometheus on the current config.
+**Alert replay (2026-11-23, by hand, project owner session, `kind-trading-staging`).** Prometheus had since been rolled: `prometheus-0` on `prometheus-64877f66c8`, job `risk-execution` and rules `KillSwitchEngaged`, `ReconciliationMismatch`, `RiskMarketDataStale`, `RiskRejectRatioHigh` loaded.
+
+| Step (UTC) | Expected | Observed |
+|---|---|---|
+| 04:18:16 Baseline (`risk-admin.sh status`) | no switch | `killSwitch.global` null, `ready: true`, `mode: paper` |
+| 04:18:36 `risk-admin.sh engage` (global) | switch on | `{"status":"engaged"}`; log `kill_switch.engaged` 04:18:50.141Z; audit chain `chainSequence` 117123 (receivedAt 04:18:50.174Z) |
+| 04:20:00 Alert | `KillSwitchEngaged` firing and in Alertmanager | Prometheus `firing` (`scope="global"`, `severity="critical"`); Alertmanager `active`, startsAt 04:20:00.022Z, receivers `critical-receiver` and `default-receiver` (1 min 24 s after the engagement, `for: 1m`) |
+| 04:22:28 `risk-admin.sh rearm` | switch off | `{"status":"rearmed"}`; log `kill_switch.rearmed` 04:22:37.194Z; audit chain `chainSequence` 117126 |
+| 04:23:11 Resolution | alert resolved | no `KillSwitchEngaged` active in Alertmanager; `max(risk_kill_switch)` = 0 |
+
+Restart and admin routes passed on the first pass. `KillSwitchEngaged` reaches Alertmanager, and the audit chain keeps the engagement and the re-arm.
+
+**Not run (Partial).** The automatic triggers of policy step 7 with their alerts `ReconciliationMismatch` and `RiskMarketDataStale`, and the two-symbol order flow (steps 1 to 3). risk-execution has no position and no order (`openOrders` 0, `positions` {}, `oldestPriceAgeSeconds` 0): no paper flow arrives yet (decision consumer #2318). Policy § 7 is not satisfied; re-run once the paper flow is wired.
 
 **Other observations.** After the restart the pod stayed 1/2 Ready: registration to `discovery-server` was refused (`ECONNREFUSED`), while `redis-0` was in `CrashLoopBackOff` and `discovery-server` and `message-manager` were 1/2. The admin routes answered regardless.
