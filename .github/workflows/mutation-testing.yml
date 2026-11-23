@@ -6,8 +6,7 @@ name: Mutation Testing
 # risk-execution `src/domain/**` (issue #2103).
 # `break` 60 per shard, 50 for the two GA shards (MUTATION_BREAK, read by
 # services/trader-trainer/stryker.config.mjs; model-runtime sets 60 and
-# risk-execution 80 in their config). A push to `development` that changes
-# risk-execution `src/domain/**` runs the `risk-execution-domain` shard only. A single run over all of `src/domain` stalled at 38 %
+# risk-execution 80 in their config). A single run over all of `src/domain` stalled at 38 %
 # after 1 h (genetic-algorithm / neural-network mutants are slow), so the
 # domain is sharded: one job, and one time budget, per shard.
 # Incremental (issue #1813): each shard caches its Stryker incremental file and
@@ -16,9 +15,6 @@ name: Mutation Testing
 on:
   schedule:
     - cron: '0 3 * * 0'  # Weekly: Sunday 3 AM UTC
-  push:
-    branches: [development]
-    paths: ['services/risk-execution/src/domain/**']
   workflow_dispatch:
     inputs:
       full:
@@ -71,28 +67,22 @@ jobs:
             break: 80
             mutate: 'src/domain/**/*.ts'
     steps:
-      - if: github.event_name != 'push' || matrix.name == 'risk-execution-domain'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - if: github.event_name != 'push' || matrix.name == 'risk-execution-domain'
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
-      - if: github.event_name != 'push' || matrix.name == 'risk-execution-domain'
-        run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile
       # The TypeScript checker resolves @trading-model/* through the built packages
-      - if: github.event_name != 'push' || matrix.name == 'risk-execution-domain'
-        run: bun run build
+      - run: bun run build
       - name: Restore incremental file
-        if: github.event_name != 'push' || matrix.name == 'risk-execution-domain'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ matrix.dir }}/.stryker-incremental
           key: stryker-incremental-${{ matrix.name }}-${{ github.run_id }}
           restore-keys: stryker-incremental-${{ matrix.name }}-
       - name: Stryker
-        if: github.event_name != 'push' || matrix.name == 'risk-execution-domain'
         working-directory: ${{ matrix.dir }}
         env:
           MUTATE: ${{ matrix.mutate }}
@@ -102,13 +92,13 @@ jobs:
           # shellcheck disable=SC2086 # FORCE is empty or a flag
           bun run stryker --incremental --incrementalFile ".stryker-incremental/${{ matrix.name }}.json" $FORCE --mutate "$MUTATE,!src/**/*.spec.ts,!src/**/*.d.ts"
       - name: Save incremental file
-        if: always() && (github.event_name != 'push' || matrix.name == 'risk-execution-domain')
+        if: always()
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ matrix.dir }}/.stryker-incremental
           key: stryker-incremental-${{ matrix.name }}-${{ github.run_id }}
       - name: Upload mutation report
-        if: always() && (github.event_name != 'push' || matrix.name == 'risk-execution-domain')
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: mutation-report-${{ matrix.name }}

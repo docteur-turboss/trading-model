@@ -8,9 +8,9 @@ jest.setTimeout(15000);
 const ENV: any = {
 	NODE_ENV: "test",
 	PORT: 0,
-	TLS_KEY_PATH: "",
-	TLS_CERT_PATH: "",
-	TLS_CA_PATH: "",
+	TLS_KEY_PATH: "/k",
+	TLS_CERT_PATH: "/c",
+	TLS_CA_PATH: "/a",
 	RATE_LIMIT_WINDOW_MS: 60000,
 	RATE_LIMIT_MAX: 2,
 	CACHE_TTL_MS: 30000,
