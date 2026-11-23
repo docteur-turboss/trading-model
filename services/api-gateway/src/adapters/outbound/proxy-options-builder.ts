@@ -45,9 +45,10 @@ function _resolveSvidTls(
 	settings: Env,
 	serviceName: string
 ): https.AgentOptions {
-	const env = settings as TlsEnvVars;
-	if (!(env.TLS_KEY_PATH && env.TLS_CERT_PATH && env.TLS_CA_PATH)) {
-		return {};
-	}
-	return buildHttpsAgentOptions(buildTlsFromEnv(env), serviceName) ?? {};
+	return (
+		buildHttpsAgentOptions(
+			buildTlsFromEnv(settings as TlsEnvVars),
+			serviceName
+		) ?? {}
+	);
 }
