@@ -7,6 +7,7 @@
  *
  *   bun scripts/shared-trunk-bench.ts --data a.json,b.json,... --out seed0.json [--seed 0] [--k <symbols per generation, default all>]
  *     [--window 500] [--test 1500: ADR-0069 needs 1440 bars] [--population 20] [--generations 30]
+ *     [--passes 1: timed passes per seed, the verdict reads the median time, the table shows the spread]
  *   bun scripts/shared-trunk-bench.ts --merge seed0.json,seed1.json,seed2.json
  */
 import { readFileSync, writeFileSync } from "node:fs";
@@ -35,8 +36,9 @@ interface SeedResult {
 	/** ADR-0069 verdict per symbol (the trainer's `assessAdmission`); null: test segment too short for one. */
 	singleAdmissible: (boolean | null)[];
 	groupAdmissible: (boolean | null)[];
-	singleSeconds: number;
-	groupSeconds: number;
+	/** Seconds of each timed pass (same seed, same data, same models). */
+	singleSeconds: number[];
+	groupSeconds: number[];
 }
 
 const arg = (name: string, fallback?: string): string => {
@@ -104,70 +106,90 @@ async function measure(seed: number): Promise<SeedResult> {
 		);
 	};
 
-	let t0 = Date.now();
-	const single: number[] = [];
-	const singleAdmissible: (boolean | null)[] = [];
-	for (const { symbol: _s, ...window } of sets) {
-		// the test segment goes through the session, as in the trainer, for its test metrics
-		const { bestGenome, bestFitnessMeta } = await runInProcess(
-			[window],
-			settings
+	const singleSeconds: number[] = [];
+	const groupSeconds: number[] = [];
+	let single: number[] = [];
+	let singleAdmissible: (boolean | null)[] = [];
+	let group: number[] = [];
+	let groupAdmissible: (boolean | null)[] = [];
+	for (let pass = 0; pass < Number(arg("passes", "1")); pass++) {
+		let t0 = Date.now();
+		single = [];
+		singleAdmissible = [];
+		for (const { symbol: _s, ...window } of sets) {
+			// the test segment goes through the session, as in the trainer, for its test metrics
+			const { bestGenome, bestFitnessMeta } = await runInProcess(
+				[window],
+				settings
+			);
+			single.push(score(bestGenome as never, window.test));
+			singleAdmissible.push(
+				assessAdmission(bestFitnessMeta, window.test)?.admissible ?? null
+			);
+		}
+		singleSeconds.push((Date.now() - t0) / 1000);
+
+		t0 = Date.now();
+		const { bestGenome, symbols } = await runInProcess(sets, {
+			...settings,
+			symbolsPerGeneration: Number(arg("k", String(sets.length))),
+		});
+		groupSeconds.push((Date.now() - t0) / 1000);
+		group = sets.map((ws) =>
+			score(
+				{
+					...bestGenome,
+					trainedWeights: weightsOf(bestGenome, ws.symbol),
+				} as never,
+				ws.test
+			)
 		);
-		single.push(score(bestGenome as never, window.test));
-		singleAdmissible.push(
-			assessAdmission(bestFitnessMeta, window.test)?.admissible ?? null
+		groupAdmissible = sets.map(
+			(ws) =>
+				assessAdmission(symbols?.[ws.symbol]?.bestFitnessMeta, ws.test)
+					?.admissible ?? null
 		);
 	}
-	const singleSeconds = (Date.now() - t0) / 1000;
-
-	t0 = Date.now();
-	const { bestGenome, symbols } = await runInProcess(sets, {
-		...settings,
-		symbolsPerGeneration: Number(arg("k", String(sets.length))),
-	});
-	const groupSeconds = (Date.now() - t0) / 1000;
-	const group = sets.map((ws) =>
-		score(
-			{
-				...bestGenome,
-				trainedWeights: weightsOf(bestGenome, ws.symbol),
-			} as never,
-			ws.test
-		)
-	);
 	return {
 		seed,
 		symbols: sets.map((ws) => ws.symbol),
 		single,
 		group,
 		singleAdmissible,
-		groupAdmissible: sets.map(
-			(ws) =>
-				assessAdmission(symbols?.[ws.symbol]?.bestFitnessMeta, ws.test)
-					?.admissible ?? null
-		),
+		groupAdmissible,
 		singleSeconds,
 		groupSeconds,
 	};
 }
 
+/** Median group / per-symbol time ratio of a seed, and the lowest and highest ratio over its passes. */
+const timeRatio = (row: SeedResult) => {
+	const ratios = row.groupSeconds.map(
+		(time, pass) => time / row.singleSeconds[pass]
+	);
+	return {
+		median: median(row.groupSeconds) / median(row.singleSeconds),
+		min: Math.min(...ratios),
+		max: Math.max(...ratios),
+	};
+};
+
 function summarise(results: SeedResult[]): void {
 	console.log(
-		"| graine | fitness test par symbole (médiane, %) | fitness test tronc partagé (médiane, %) | écart | temps 10 sessions (s) | temps session de groupe (s) | rapport | admissibles par symbole / tronc partagé |"
+		"| graine | fitness test par symbole (médiane, %) | fitness test tronc partagé (médiane, %) | écart | temps 10 sessions (s, médiane) | temps session de groupe (s, médiane) | rapport (médiane, min à max sur les passages) | admissibles par symbole / tronc partagé |"
 	);
 	console.log("| --- | --- | --- | --- | --- | --- | --- | --- |");
 	for (const row of results) {
 		const single = median(row.single);
 		const shared = median(row.group);
+		const ratio = timeRatio(row);
 		console.log(
-			`| ${row.seed} | ${single.toFixed(3)} | ${shared.toFixed(3)} | ${(shared - single).toFixed(3)} | ${row.singleSeconds.toFixed(0)} | ${row.groupSeconds.toFixed(0)} | ${(row.groupSeconds / row.singleSeconds).toFixed(2)} | ${row.singleAdmissible.filter(Boolean).length} / ${row.groupAdmissible.filter(Boolean).length} (sur ${row.symbols.length}) |`
+			`| ${row.seed} | ${single.toFixed(3)} | ${shared.toFixed(3)} | ${(shared - single).toFixed(3)} | ${median(row.singleSeconds).toFixed(0)} | ${median(row.groupSeconds).toFixed(0)} | ${ratio.median.toFixed(2)} (${ratio.min.toFixed(2)} à ${ratio.max.toFixed(2)}) | ${row.singleAdmissible.filter(Boolean).length} / ${row.groupAdmissible.filter(Boolean).length} (sur ${row.symbols.length}) |`
 		);
 	}
 	const single = median(results.map((row) => median(row.single)));
 	const shared = median(results.map((row) => median(row.group)));
-	const ratio = median(
-		results.map((row) => row.groupSeconds / row.singleSeconds)
-	);
+	const ratio = median(results.map((row) => timeRatio(row).median));
 	const admitted = (pick: (row: SeedResult) => (boolean | null)[]) =>
 		results.flatMap(pick).filter(Boolean).length;
 	const singleAdmitted = admitted((row) => row.singleAdmissible);
