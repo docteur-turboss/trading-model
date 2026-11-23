@@ -113,6 +113,10 @@ export class BusConsumer {
 		JOURNAL_OLDEST_PENDING_AGE_SECONDS.reset();
 		try {
 			for (const lag of await journal.lag(service)) {
+				// Only the topics this service consumes: a group of a topic it dropped is never read again (issue #2479).
+				if (!topics.includes(lag.topic)) {
+					continue;
+				}
 				const labels = { topic: lag.topic, service };
 				JOURNAL_PENDING_ENTRIES.set(labels, lag.pending);
 				JOURNAL_OLDEST_PENDING_AGE_SECONDS.set(
