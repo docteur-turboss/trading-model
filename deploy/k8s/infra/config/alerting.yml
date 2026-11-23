@@ -744,7 +744,7 @@ groups:
       - record: slo:sli_error:ratio_rate5m
         expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[5m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[5m])) or 1 - avg by (job) (label_replace(max_over_time(probe_success[5m]), "job", "$1", "service", "(.*)")) and on (job) min_over_time(up[5m]) == 0
       - record: slo:sli_error:ratio_rate1h
-        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[1h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[1h])) or sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[1h])) * 0 or 1 - avg by (job) (label_replace(avg_over_time(probe_success[1h]), "job", "$1", "service", "(.*)")) and on (job) min_over_time(up[1h]) == 0
+        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[1h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[1h])) or 1 - avg by (job) (label_replace(avg_over_time(probe_success[1h]), "job", "$1", "service", "(.*)")) and on (job) min_over_time(up[1h]) == 0 or sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[1h])) * 0
       - record: slo:sli_error:ratio_rate30m
         expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[30m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30m])) or 1 - avg by (job) (label_replace(max_over_time(probe_success[30m]), "job", "$1", "service", "(.*)")) and on (job) min_over_time(up[30m]) == 0
       - record: slo:sli_error:ratio_rate6h

@@ -1524,6 +1524,12 @@ tests:
         exp_samples:
           - labels: '{job="api-gateway"}'
             value: 0
+      # Old samples still in the window: the 0 guard must not mask the fallback.
+      - expr: round(slo:sli_error:ratio_rate1h)
+        eval_time: 100m
+        exp_samples:
+          - labels: '{job="api-gateway"}'
+            value: 1
       - expr: round(slo:sli_error:ratio_rate5m)
         eval_time: 200m
         exp_samples:
