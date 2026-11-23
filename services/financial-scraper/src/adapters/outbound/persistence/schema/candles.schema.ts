@@ -125,6 +125,28 @@ export const selectCandlesBy = {
 		),
 };
 
+interface LatestRow extends RowDataPacket {
+	symbol: string;
+	close: number;
+	closeTimestamp: Date;
+}
+
+/** Newest candle closed by `now` of each symbol, whatever its source and interval (one row per symbol). */
+export async function selectLatestClosedCandles(
+	symbols: readonly string[],
+	now: Date
+): Promise<LatestRow[]> {
+	const [rows] = await DATABASE.promise().query<LatestRow[]>(
+		`SELECT symbol, close, close_timestamp AS closeTimestamp FROM market_candles c
+		 WHERE symbol IN (?) AND close_timestamp = (
+		   SELECT MAX(close_timestamp) FROM market_candles WHERE symbol = c.symbol AND close_timestamp <= ?)
+		 ORDER BY id DESC`,
+		[symbols, now]
+	);
+	const seen = new Set<string>();
+	return rows.filter((row) => !seen.has(row.symbol) && seen.add(row.symbol));
+}
+
 interface LastRow extends RowDataPacket {
 	last: Date | null;
 }

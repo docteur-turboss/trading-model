@@ -11,6 +11,7 @@ import type { MarketPrice, PricePort } from "../../domain/ports";
 const Page = z.object({
 	rows: z.array(
 		z.object({
+			symbol: z.string(),
 			close: z.number().positive(),
 			closeTimestamp: z.iso.datetime(),
 		})
@@ -19,9 +20,9 @@ const Page = z.object({
 
 /**
  * Last closed candle of each symbol from financial-scraper
- * (`GET /v2/candles/symbols/:symbol`, ADR-0064 §7): its close is the price,
- * its close time the age. Only candles opened within the longest halt
- * threshold are read: an older price is stale anyway.
+ * (`GET /v2/candles/latest`, one call for all symbols, ADR-0064 §7): its close
+ * is the price, its close time the age. A candle closed before the longest
+ * halt threshold is dropped: an older price is stale anyway.
  */
 export class ScraperPrices implements PricePort {
 	private readonly _http: HttpClient;
@@ -39,27 +40,24 @@ export class ScraperPrices implements PricePort {
 		const target = await FIND_A_SERVICE(
 			ServiceInstanceName.FinancialScraperService
 		);
-		const now = this._now();
-		const from = new Date(now - HARD_CEILINGS.haltAgeMs).toISOString();
 		const prices: Record<string, MarketPrice> = {};
-		await Promise.all(
-			symbols.map(async (symbol) => {
-				const page = await this._http.get(
-					URLString.of(
-						`https://${HostPort.toAddress(target)}/v2/candles/symbols/${encodeURIComponent(symbol)}?from=${from}`
-					),
-					{ serviceName: ServiceId.of("financial-scraper") },
-					Page
-				);
-				for (const row of page?.rows ?? []) {
-					const at = Date.parse(row.closeTimestamp);
-					// A candle still open has a close time in the future: not a price yet.
-					if (at <= now && at > (prices[symbol]?.at ?? 0)) {
-						prices[symbol] = { price: row.close, at };
-					}
-				}
-			})
+		if (symbols.length === 0) {
+			return prices;
+		}
+		const page = await this._http.get(
+			URLString.of(
+				`https://${HostPort.toAddress(target)}/v2/candles/latest?symbols=${encodeURIComponent(symbols.join(","))}`
+			),
+			{ serviceName: ServiceId.of("financial-scraper") },
+			Page
 		);
+		const oldest = this._now() - HARD_CEILINGS.haltAgeMs;
+		for (const row of page?.rows ?? []) {
+			const at = Date.parse(row.closeTimestamp);
+			if (at >= oldest) {
+				prices[row.symbol] = { price: row.close, at };
+			}
+		}
 		return prices;
 	}
 }

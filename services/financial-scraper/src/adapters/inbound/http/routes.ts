@@ -5,7 +5,10 @@ import { sendResponse } from "@trading-model/http/response-exception";
 import { Router } from "express";
 import { SIGNAL_REGISTRY } from "../../../config/signal-registry";
 import type { MarketDataPage } from "../../../domain/market-data.types";
-import { selectCandlesBy } from "../../outbound/persistence/schema/candles.schema";
+import {
+	selectCandlesBy,
+	selectLatestClosedCandles,
+} from "../../outbound/persistence/schema/candles.schema";
 import { selectTickerBy } from "../../outbound/persistence/schema/ticker24h.schema";
 import { selectTradesBy } from "../../outbound/persistence/schema/trades.schema";
 import { MySqlSignalStore } from "../../outbound/persistence/signal-store";
@@ -78,6 +81,9 @@ function _registerCandleRoutes(router: Router): void {
 	);
 	mountRoute(router, SCRAPER_API.candlesBySymbol, ({ params, query }) =>
 		page((window) => selectCandlesBy.symbol(params.symbol, window), query)
+	);
+	mountRoute(router, SCRAPER_API.candlesLatest, async ({ query }) =>
+		json({ rows: await selectLatestClosedCandles(query.symbols, new Date()) })
 	);
 	mountRoute(router, SCRAPER_API.candlesSince, ({ params, query }) =>
 		page(

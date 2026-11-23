@@ -80,6 +80,7 @@ const SERVICE_TO_SERVICE = {
 	"message-manager": ["POST /message", "POST /message/replay", "POST /subscribe", "DELETE /subscribe"],
 	// Model weights: never through the gateway (ADR-0022).
 	"trader-trainer": ["GET /models/:symbol/:version/weights"],
+	"financial-scraper": ["GET /v2/candles/latest"],
 };
 
 /**
@@ -100,6 +101,7 @@ const CALLERS = {
 	"audit-logger POST /message": { caller: "services/audit-logger", call: /\.intents\(/ },
 	"model-evaluator POST /message": { caller: "services/model-evaluator", call: /\.intents\(/ },
 	"trader-trainer GET /models/:symbol/:version/weights": { caller: "packages/http", call: /\/weights`/ },
+	"financial-scraper GET /v2/candles/latest": { caller: "services/risk-execution", call: /\/v2\/candles\/latest/ },
 	"risk-execution POST /intents": { caller: "services/decision-consumer", call: /\/intents`/ },
 };
 
