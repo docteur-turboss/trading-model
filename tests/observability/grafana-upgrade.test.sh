@@ -12,6 +12,7 @@ sed '/^deleteDatasources:/,/^datasources:/{/^datasources:/!d}' "$SRC" > "$T/node
 sed '/uid: loki/d' "$T/nodelete.yml" > "$T/old.yml"
 cp "$SRC" "$T/new.yml"
 docker volume create "$N" >/dev/null
+AUTH="Authorization: Basic $(printf %s admin:admin | base64)"
 
 # run <file>: start Grafana on the shared volume. 0 once provisioning listed Loki
 # (/api/health answers earlier), 1 if the container exits first.
@@ -21,7 +22,7 @@ run() {
     -v "$(cygpath -m "$T" 2>/dev/null || echo "$T")/$1:/etc/grafana/provisioning/datasources/ds.yml:ro" "$IMAGE" >/dev/null
   PORT=$(docker port $N 3000/tcp | head -1 | sed 's/.*://')
   for _ in $(seq 300); do
-    [[ "$(curl -s -u admin:admin "http://127.0.0.1:$PORT/api/datasources")" == *'"name":"Loki"'* ]] && return 0
+    [[ "$(curl -s -H "$AUTH" "http://127.0.0.1:$PORT/api/datasources")" == *'"name":"Loki"'* ]] && return 0
     [ "$(docker inspect -f '{{.State.Running}}' $N)" = true ] || return 1
     sleep 2
   done
@@ -32,11 +33,11 @@ run old.yml || { docker logs $N 2>&1 | tail -5; echo "FAIL: old provisioning doe
 docker stop $N >/dev/null
 
 if run nodelete.yml; then echo "FAIL: control without deleteDatasources started: cause not reproduced"; exit 1; fi
-docker logs $N 2>&1 | grep -q "data source not found" || { docker logs $N 2>&1 | tail -5; echo "FAIL: control failed for another reason"; exit 1; }
+[[ "$(docker logs $N 2>&1)" == *"data source not found"* ]] || { docker logs $N 2>&1 | tail -5; echo "FAIL: control failed for another reason"; exit 1; }
 echo "ok: without deleteDatasources Grafana fails with 'data source not found'"
 
 run new.yml || { docker logs $N 2>&1 | tail -5; echo "FAIL: new datasources.yml does not start on the existing volume"; exit 1; }
 for uid in loki jaeger; do
-  curl -fs -u admin:admin "http://127.0.0.1:$PORT/api/datasources/uid/$uid" >/dev/null || { echo "FAIL: uid $uid missing"; exit 1; }
+  curl -fs -H "$AUTH" "http://127.0.0.1:$PORT/api/datasources/uid/$uid" >/dev/null || { echo "FAIL: uid $uid missing"; exit 1; }
 done
 echo "ok: Grafana starts on the existing volume, uid loki and jaeger present"

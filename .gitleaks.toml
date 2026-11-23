@@ -12,6 +12,7 @@ stopwords = [
   "long-secret", # fixture secret
   "dGVzdA", # base64 of "test"
   "STUB_", # stub token prefix
+  "admin:admin", # default login of the throwaway Grafana in tests/observability
   "YC.B.U2.EUR", # public ECB series key, older registry format
   "CRL/revocation", # ADR-0011 prose matched as a key
 ]
