@@ -622,9 +622,10 @@ sealed_write() {
 # rclone remote of the off-site bucket `$1` (s3://bucket/prefix), shared by
 # upload_offsite and fetch-offsite.sh. `:s3:` is an on-the-fly remote:
 # credentials from AWS_* (with RCLONE_S3_ENV_AUTH=true), endpoint and provider
-# from RCLONE_S3_*.
+# from RCLONE_S3_*. rclone ignores AWS_REGION and signs for us-east-1, which a
+# store in another region rejects: the region goes in the remote itself.
 offsite_remote() {
-	echo ":s3:${1#s3://}"
+	echo ":s3${AWS_REGION:+,region=${AWS_REGION}}:${1#s3://}"
 }
 
 # Copies this run's files to bucket `$1`; its metric is component `$2`.

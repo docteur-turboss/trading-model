@@ -73,6 +73,7 @@ Proxies the public routes listed in `PUBLIC_ROUTES` (`services/api-gateway/src/s
 - In-memory GET response cache (status 200 only)
 - Upstream answers capped at `PROXY_MAX_RESPONSE_BYTES`: larger ones are cut and answered 502 (ADR-0054)
 - Default TTL: 30s (configurable via `CACHE_TTL_MS`)
+- Metric `gateway_response_cache_lookups_total{result="hit"|"miss"}`: one count per cache read of a GET (an expired entry is a miss)
 
 ## Architecture
 
