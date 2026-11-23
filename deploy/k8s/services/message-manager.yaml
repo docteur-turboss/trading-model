@@ -169,7 +169,7 @@ spec:
                 - https://localhost:3000/ping
             initialDelaySeconds: 20
             periodSeconds: 15
-            timeoutSeconds: 5
+            timeoutSeconds: 10
             failureThreshold: 3
           readinessProbe:
             exec:
@@ -181,7 +181,7 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 10
             # Two ping attempts of connectTimeout 2 s (issue #725): 4 s < 5 s.
-            timeoutSeconds: 5
+            timeoutSeconds: 10
             successThreshold: 1
           startupProbe:
             exec:
