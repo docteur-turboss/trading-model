@@ -36,7 +36,7 @@ Primary texts were fetched on 2026-11-15. A page that could not be read is marke
 | Step | Change | Touches a contract |
 | --- | --- | --- |
 | 1 | Owner reads the Binance terms, requests the Bitstamp licence | No |
-| 2 | Add `Bitstamp` to `SourceType` (`@trading-model/contracts`), **readers first**: release N ships readers (API validation, trainer, evaluator) that accept the value, nothing produces it | Yes: bus schema snapshot (`contracts:write`) and OpenAPI enum of `/sources/:source`; additive (ADR-0061) |
+| 2 | Add `Bitstamp` to `SourceType` (`@trading-model/contracts`), **readers first**: release N ships readers (API validation, trainer, evaluator) that accept the value, nothing produces it | Yes: bus schema snapshot (`contracts:write`) and OpenAPI enums; additive (ADR-0061) |
 | 3 | Release N+1: `BitstampMarketDataSource` implementing `MarketDataSourcePort`, symbol mapping, rate-limit settings; disabled by default | No (adapter inside financial-scraper) |
 | 4 | Enable it beside Binance by configuration, compare candles for a week | No |
 | 5 | Switch the trainer's source by configuration; keep Binance as fallback or remove it | No |

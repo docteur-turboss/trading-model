@@ -1,4 +1,3 @@
-import { anonymizeIp } from "@trading-model/common/utils/anonymize-ip";
 import { normalizeServiceName } from "@trading-model/common/utils/spiffe";
 import { logger } from "@trading-model/http/logger";
 import { resolveMtlsIdentity } from "@trading-model/http/mtls-identity";
@@ -14,9 +13,7 @@ import type { RequestHandler } from "express";
 export const REGISTRATION_MTLS_AUTH: RequestHandler = (req, res, next) => {
 	const result = resolveMtlsIdentity(req);
 	if (!result) {
-		logger.warn("Registration rejected: mTLS identity missing", {
-			context: { ip: anonymizeIp(req.ip) },
-		});
+		logger.warn("Registration rejected: mTLS identity missing");
 		res.status(401).json({
 			error: "Client certificate required for registration",
 		});

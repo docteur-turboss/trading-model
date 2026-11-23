@@ -2,6 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "module": "node16",
+    "lib": ["es2022"],
     "outDir": "./dist",
     "rootDir": "./src",
     "moduleResolution": "node16",
