@@ -1,6 +1,5 @@
 import type { CandleData } from "@trading-model/contracts/market-data.types";
 import type { Signal } from "@trading-model/contracts/wire/signals";
-import type { DataType } from "./data-handlers/data-types";
 import { EvictionPolicy } from "./eviction-policy";
 import type { WindowSet } from "./genetic-algorithm/generation-types";
 import type { MarketStep } from "./genetic-algorithm/genome";
@@ -55,8 +54,8 @@ export class MarketDataBuffer {
 		return this._stateManager.getMaxSize();
 	}
 
-	addData(dataType: DataType, symbol: TradingSymbol, data: unknown): void {
-		this._stateManager.addData(dataType, symbol, data);
+	addCandle(symbol: TradingSymbol, candle: CandleData): void {
+		this._stateManager.addCandle(symbol, candle);
 		this._onDataAdded?.(
 			symbol,
 			this.getCandleCount(symbol),

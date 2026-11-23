@@ -12,6 +12,7 @@ import * as backoff from "../../../src/bus/backoff";
 import { BusConsumer } from "../../../src/bus/consumer";
 import { DeadStreams } from "../../../src/bus/dead-streams";
 import {
+	JOURNAL_PENDING_ENTRIES,
 	MESSAGES_DELIVERED_TOTAL,
 	MESSAGES_DLQ_TOTAL,
 	PUBLISHER_REJECTED_TOTAL,
@@ -266,10 +267,17 @@ describe("BusConsumer", () => {
 			calls++;
 			await slow;
 		});
+		const claims = jest.spyOn(journal, "claimDue");
 		await c.start([TOPIC]);
 		await publishToBus(journal, "slow", METADATA);
-		// The fake Redis reports every pending entry as due; claims run every 2 s.
-		await new Promise((resolve) => setTimeout(resolve, 2500));
+		await until(() => calls === 1);
+		// The fake Redis reports every pending entry as due: jump past the 2 s claim period.
+		const before = claims.mock.calls.length;
+		const now = Date.now();
+		jest.spyOn(Date, "now").mockImplementation(() => now + 3000);
+		await until(() => claims.mock.calls.length > before);
+		expect(claims.mock.calls.length).toBeGreaterThan(before);
+		jest.spyOn(Date, "now").mockRestore();
 		const stopped = c.stop();
 		release();
 		await stopped;
@@ -453,6 +461,23 @@ describe("BusConsumer", () => {
 		await c.stop();
 
 		expect(pendingOf(redis)).toBe(1);
+	});
+
+	it("should publish the backlog of the topics it consumes only, not of a group of a dropped topic (issue #2479)", async () => {
+		const { consumer: c, journal, streams } = consumer(async () => undefined);
+		const lag = { pending: 2, oldestPendingAgeMs: 60_000 };
+		jest.spyOn(journal, "lag").mockResolvedValue([
+			{ ...GROUP, ...lag },
+			{ ...GROUP, topic: "market.trade.recent.fetch" as never, ...lag },
+		]);
+		jest.spyOn(streams, "length").mockResolvedValue(0);
+
+		await (
+			c as unknown as { _publishLag(topics: string[]): Promise<void> }
+		)._publishLag([TOPIC]);
+
+		const series = (await JOURNAL_PENDING_ENTRIES.get()).values;
+		expect(series.map((value) => value.labels.topic)).toEqual([TOPIC]);
 	});
 });
 

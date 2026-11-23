@@ -115,3 +115,36 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "mysql"
         update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "docker"
+    directory: "/services/model-evaluator"
+    target-branch: "development"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/services/risk-execution"
+    target-branch: "development"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/deploy/k8s/services"
+    target-branch: "development"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/deploy/k8s/node-agents"
+    target-branch: "development"
+    schedule:
+      interval: "weekly"
+    ignore:
+      # Keep the spire-agents one release behind the spire server (v3.1.0-rc.4): bump by hand.
+      - dependency-name: "ghcr.io/spiffe/spire-agent"
+
+  - package-ecosystem: "docker-compose"
+    directory: "/deploy/staging-local"
+    target-branch: "development"
+    schedule:
+      interval: "weekly"

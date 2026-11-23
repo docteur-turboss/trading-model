@@ -126,7 +126,7 @@ nodes pull credentials for the registry.
 | -------- | ---- | ------- | ------------ |
 | **CI** | `ci.yml` | `pull_request`, `push` to `main`/`development`, called by Release | Lint → Typecheck → Test → Observability → Overlay checks → Contract → E2E (Docker) → K8s (kind) |
 | **Release** | `release.yml` | `v*` tag push | CI → 10 Docker images (`X.Y.Z`, `latest` if highest) → GHCR |
-| **Deploy** | `deploy.yml` | manual, `workflow_call` | Staging/production deploy by digest (optional canary + smoke test + auto rollback) |
+| **Deploy** | `deploy.yml` | manual | Staging/production deploy by digest (optional canary + smoke test + auto rollback) |
 | **Backup Test** | `backup-test.yml` | weekly cron (Sun), PR touching backup scripts, manual | Validate backup/restore scripts, dry-run restore, K8s CronJob check |
 | **Backup Key Check** | `backup-key-check.yml` | weekly cron (Mon), manual | Prove the escrow age key decrypts the newest off-site backup ([ADR-0034](../adr/0034-backup-key-custody-and-weekly-escrow-check.md)) |
 | **Mutation Testing** | `mutation-testing.yml` | weekly cron (Sun), manual | Stryker on trader-trainer `src/domain` and dlq-service `src/application`; not a PR gate |
@@ -135,7 +135,7 @@ nodes pull credentials for the registry.
 
 All workflows run on `ubuntu-latest` with Bun. Failure in any workflow blocks merging.
 
-**Concurrency:** CI grouped by workflow + ref, cancel-in-progress on new push.
+**Concurrency:** CI grouped by workflow + ref; a new commit cancels the running run of a pull request only, push and tag runs always finish.
 
 ## Related Documentation
 

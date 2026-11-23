@@ -5,7 +5,6 @@ import {
 	UnixTimestamp,
 	Volume,
 } from "@trading-model/primitives/primitives";
-import { DataType } from "../../../src/domain/data-handlers/data-types";
 import { MarketDataBuffer } from "../../../src/domain/market-data-buffer";
 import { makeCandle } from "../../fixtures/market-data.fixture";
 
@@ -35,7 +34,7 @@ function candle(idx: number) {
 function bufferWith(candles: number): MarketDataBuffer {
 	const buffer = new MarketDataBuffer();
 	for (let idx = 0; idx < candles; idx++) {
-		buffer.addData(DataType.Candle, SYMBOL, candle(idx));
+		buffer.addCandle(SYMBOL, candle(idx));
 	}
 	return buffer;
 }
