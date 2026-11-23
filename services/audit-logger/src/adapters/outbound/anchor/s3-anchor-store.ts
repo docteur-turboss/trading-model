@@ -73,25 +73,31 @@ export class S3AnchorStore implements AnchorStorePort {
 	}
 
 	async acknowledgements(): Promise<ChainLossAcknowledgement[]> {
-		const acknowledgements: ChainLossAcknowledgement[] = [];
+		const reads: Promise<ChainLossAcknowledgement>[] = [];
 		for await (const object of this._list("acknowledgements/")) {
 			const match = ACK_KEY.exec(object.key);
-			if (!match) {
-				continue;
+			if (match) {
+				reads.push(this._readAcknowledgement(object, Number(match[1])));
 			}
-			const body = await this._options.client.send(
-				new GetObjectCommand({ Bucket: this._options.bucket, Key: object.key })
-			);
-			const { reason } = JSON.parse(
-				(await body.Body?.transformToString()) ?? "{}"
-			) as { reason?: string };
-			acknowledgements.push({
-				fromSequence: Number(match[1]),
-				reason: reason ?? "",
-				acknowledgedAt: object.lastModified,
-			});
 		}
-		return acknowledgements;
+		return Promise.all(reads);
+	}
+
+	private async _readAcknowledgement(
+		object: { key: string; lastModified: Date },
+		fromSequence: number
+	): Promise<ChainLossAcknowledgement> {
+		const body = await this._options.client.send(
+			new GetObjectCommand({ Bucket: this._options.bucket, Key: object.key })
+		);
+		const { reason } = JSON.parse(
+			(await body.Body?.transformToString()) ?? "{}"
+		) as { reason?: string };
+		return {
+			fromSequence,
+			reason: reason ?? "",
+			acknowledgedAt: object.lastModified,
+		};
 	}
 
 	async acknowledgeLoss(fromSequence: number, reason: string): Promise<void> {
