@@ -15,7 +15,7 @@ This document describes the neural network module (`src/domain/neural-network/`)
 | File                       | Responsibility                                                                                |
 | -------------------------- | --------------------------------------------------------------------------------------------- |
 | `neural-network.ts`        | Core network class: forward/backward pass, training, pooling                                  |
-| `network-serialization.ts` | Weight serialization: `getWeights`, `setWeights`, `parameterCount`, `distributeAroundWeights` |
+| `network-serialization.ts` | Weight serialization: `getWeights`, `setWeights`, `parameterCount` |
 | `activation.ts`            | Activation functions                                                                          |
 | `initializers.ts`          | Weight/bias initializers                                                                      |
 | `output-delta-computer.ts` | Mean squared error loss and output deltas                                                     |
@@ -72,7 +72,6 @@ Standard backpropagation via chain rule:
 
 - `getWeights()` → Flat `Float32Array` of all weights + biases
 - `setWeights(buffer)` → Load from flat array
-- `distributeAroundWeights(reference, sigma)` → Initialize around given mean with Gaussian noise
 
 ---
 

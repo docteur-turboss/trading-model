@@ -226,53 +226,6 @@ describe("NeuralNetwork", () => {
 		});
 	});
 
-	describe("distributeAroundWeights", () => {
-		it("should accept a scalar reference", () => {
-			const nn = new NeuralNetwork(makeConfig());
-
-			nn.distributeAroundWeights(0, 0.01);
-
-			expect(nn.parameterCount()).toBeGreaterThan(0);
-		});
-
-		it("should accept scalar reference with default sigma", () => {
-			const nn = new NeuralNetwork(makeConfig());
-
-			nn.distributeAroundWeights(0);
-
-			expect(nn.parameterCount()).toBeGreaterThan(0);
-		});
-
-		it("should accept a non-zero scalar reference", () => {
-			const nn = new NeuralNetwork(makeConfig());
-
-			nn.distributeAroundWeights(0.5, 0.01);
-
-			expect(nn.parameterCount()).toBeGreaterThan(0);
-		});
-
-		it("should accept a network reference", () => {
-			const nn = new NeuralNetwork(makeConfig());
-			const reference = new NeuralNetwork(makeConfig());
-
-			nn.distributeAroundWeights(reference, 0.01);
-
-			expect(nn.parameterCount()).toBeGreaterThan(0);
-		});
-
-		it("should throw when reference network has different parameter count", () => {
-			const nn = new NeuralNetwork(makeConfig());
-			const reference = new NeuralNetwork(
-				makeConfig({
-					neuronsByLayer: [4 as PositiveInt, 3 as PositiveInt],
-					activationType: [ActivationType.Relu],
-				})
-			);
-
-			expect(() => nn.distributeAroundWeights(reference, 0.01)).toThrow();
-		});
-	});
-
 	describe("single layer network", () => {
 		it("should handle input-to-output direct connection", () => {
 			const nn = new NeuralNetwork({
