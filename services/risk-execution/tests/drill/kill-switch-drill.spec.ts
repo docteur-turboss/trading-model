@@ -8,6 +8,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, jest } from "@jest/globals";
+import type { Intent } from "@trading-model/contracts/order-intent";
 import { RISK_API } from "../../src/adapters/inbound/api-routes";
 import { createHandlers } from "../../src/adapters/inbound/handlers";
 import { JsonFile } from "../../src/adapters/outbound/json-file";
@@ -15,7 +16,6 @@ import { PaperBroker } from "../../src/adapters/outbound/paper-broker";
 import { RiskExecution } from "../../src/application/risk-execution";
 import { RiskLimits } from "../../src/domain/limits";
 import type { BrokerPort } from "../../src/domain/ports";
-import type { Intent } from "../../src/domain/pre-trade";
 import type { RiskState } from "../../src/domain/state";
 import { RestingBroker } from "../resting-broker";
 

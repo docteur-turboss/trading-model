@@ -1,11 +1,11 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
+import { Intent } from "@trading-model/contracts/order-intent";
 import { HttpClient } from "@trading-model/http/http-client";
 import { ServiceId, URLString } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import { z } from "zod";
 import { FIND_A_SERVICE } from "../../config/address-manager";
-import { Intent } from "../../domain/decision";
 
 const Result = z.object({
 	status: z.string(),

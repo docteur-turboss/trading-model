@@ -1,3 +1,4 @@
+import { Intent } from "@trading-model/contracts/order-intent";
 import {
 	defineRoute,
 	ErrorResponse,
@@ -26,20 +27,7 @@ export const RISK_API = {
 		method: "POST",
 		path: "/intents",
 		summary: "Submit an order intent: pre-trade checks, then the broker",
-		body: z.object({
-			decisionId: z.string().min(1),
-			symbol: z.string().min(1),
-			side: z.enum(["buy", "sell"]),
-			quantity: z.number().positive(),
-			limitPrice: z.number().positive().optional(),
-			referencePrice: z.number().positive(),
-			referenceAt: z.number().int().positive(),
-			model: z.object({
-				symbol: z.string().min(1),
-				version: z.string().min(1),
-			}),
-			allowRepeat: z.boolean().optional(),
-		}),
+		body: Intent,
 		responses: { 200: Result, 400: ErrorResponse, 403: ErrorResponse },
 	}),
 	cancel: defineRoute({

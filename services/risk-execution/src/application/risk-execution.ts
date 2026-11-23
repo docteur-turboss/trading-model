@@ -1,4 +1,5 @@
 import { withTimeout } from "@trading-model/common/utils/retry";
+import type { Intent, Order } from "@trading-model/contracts/order-intent";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import {
 	applyFill,
@@ -8,7 +9,7 @@ import {
 	rollDay,
 } from "../domain/accounting";
 import type { RiskLimits } from "../domain/limits";
-import { FINAL, type Order, transition } from "../domain/order";
+import { FINAL, transition } from "../domain/order";
 import type {
 	AdmissionPort,
 	BrokerAccount,
@@ -18,7 +19,7 @@ import type {
 	PricePort,
 	StatePort,
 } from "../domain/ports";
-import { dailyLoss, type Intent, preTradeReject } from "../domain/pre-trade";
+import { dailyLoss, preTradeReject } from "../domain/pre-trade";
 import {
 	equity,
 	exposure,
