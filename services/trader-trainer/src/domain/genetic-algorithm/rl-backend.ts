@@ -85,7 +85,6 @@ function _buildNNConfig(
 	return {
 		...policyNetworkConfig(genome.network),
 		learningRate: genome.rl.learningRate,
-		enablePool: true,
 		poolMaxSize: genome.rl.replayBuffer.bufferSize,
 		perEnabled: genome.rl.replayBuffer.prioritized,
 		perAlpha: genome.rl.replayBuffer.alphaPER,
