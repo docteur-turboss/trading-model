@@ -1,10 +1,10 @@
 import { describe, expect, it } from "@jest/globals";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
-import { toSymbol } from "@trading-model/primitives/primitives";
+import { TradingSymbol } from "@trading-model/primitives/primitives";
 import { BINANCE_ENDPOINTS } from "../../../../../src/adapters/outbound/binance/endpoints";
 
-const BTC = toSymbol("BTCUSDT");
-const ETH = toSymbol("ETHUSDT");
+const BTC = TradingSymbol.of("BTCUSDT");
+const ETH = TradingSymbol.of("ETHUSDT");
 
 describe("BINANCE_ENDPOINTS", () => {
 	describe("depth", () => {

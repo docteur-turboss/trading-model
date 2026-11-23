@@ -67,9 +67,7 @@ const TEST_TRAINING_SETTINGS: TrainingSettings = {
 };
 
 let capturedOnGeneration: ((ctx: any) => void) | null = null;
-let capturedOnArchiveUpdate: ((archive: any[]) => void) | null = null;
 let mockRunImpl: (() => Promise<any>) | null = null;
-let mockArchiveData: any[] = [{ id: "best-archived" }];
 
 // The mocked GA returns a stub genome: the final test evaluation cannot run it.
 jest.mock("../../../src/domain/genetic-algorithm/evaluation-phase", () => ({
@@ -89,9 +87,6 @@ jest.mock("../../../src/domain/genetic-algorithm/ga-runner", () => {
 					elapsedMs: 1000,
 					bestGenome: { id: "gen-1" },
 				});
-			}
-			if (capturedOnArchiveUpdate) {
-				capturedOnArchiveUpdate(mockArchiveData);
 			}
 			if (mockRunImpl) {
 				return mockRunImpl();
@@ -179,7 +174,6 @@ jest.mock("../../../src/domain/genetic-algorithm/ga-runner", () => {
 			.fn<(...args: any[]) => any>()
 			.mockImplementation((opts: any) => {
 				capturedOnGeneration = opts.onGeneration || null;
-				capturedOnArchiveUpdate = opts.onArchiveUpdate || null;
 				return mockRunner;
 			}),
 		makeTradingAgentBackend: jest.fn<(...args: any[]) => any>(),
@@ -192,9 +186,7 @@ describe("Trainer", () => {
 	beforeEach(() => {
 		dataBuffer = new MarketDataBuffer({ maxSize: 500 });
 		capturedOnGeneration = null;
-		capturedOnArchiveUpdate = null;
 		mockRunImpl = null;
-		mockArchiveData = [{ id: "best-archived" }];
 	});
 
 	describe("initial state", () => {
@@ -499,18 +491,6 @@ describe("Trainer", () => {
 			expect(summary).not.toBeNull();
 			expect(summary!.id).toBe("mock-result");
 		});
-
-		it("should skip updating bestGenome when archive is empty", async () => {
-			mockArchiveData = [];
-			const trainer = makeTrainer(dataBuffer, {
-				settings: TEST_TRAINING_SETTINGS,
-			});
-			feedCandles(dataBuffer, "BTCUSDT", 130);
-
-			await trainer.train(TradingSymbol.of("BTCUSDT"));
-
-			expect(trainer.isTraining()).toBe(false);
-		});
 	});
 });
 
@@ -520,9 +500,7 @@ describe("Trainer — model publication", () => {
 	beforeEach(() => {
 		dataBuffer = new MarketDataBuffer({ maxSize: 500 });
 		capturedOnGeneration = null;
-		capturedOnArchiveUpdate = null;
 		mockRunImpl = null;
-		mockArchiveData = [{ id: "best-archived" }];
 		feedCandles(dataBuffer, "BTCUSDT", 130);
 	});
 

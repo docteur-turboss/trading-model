@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-import { Limit, toInstanceId } from "@trading-model/primitives/primitives";
+import { InstanceId, Limit } from "@trading-model/primitives/primitives";
 import {
 	type AutoRetryCycleDeps,
 	createAutoRetryCycle,
@@ -35,7 +35,7 @@ function makeDeps(overrides?: { autoRetryEnabled?: boolean }) {
 		audit: { notifyReplay: jest.fn<(...args: any[]) => any>() },
 		replayBatch: jest.fn<(...args: any[]) => any>(),
 		settings: {
-			instanceId: toInstanceId("test-instance"),
+			instanceId: InstanceId.of("test-instance"),
 			autoRetryEnabled: overrides?.autoRetryEnabled ?? true,
 			autoRetryLimit: Limit.of(50, 100),
 		},
