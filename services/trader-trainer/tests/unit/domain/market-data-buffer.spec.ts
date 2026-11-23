@@ -575,7 +575,7 @@ describe("MarketDataBuffer.replaceCandles", () => {
 	it("evicts once per replaced series", () => {
 		const sym = TradingSymbol.of("BTCUSDT");
 		const buffer = new MarketDataBuffer();
-		const evict = jest.spyOn(buffer._stateManager as any, "_evictIfNeeded");
+		const evict = jest.spyOn((buffer as any)._stateManager, "_evictIfNeeded");
 
 		feedCandles(buffer, "BTCUSDT", 1, (i) => i);
 		evict.mockClear();
