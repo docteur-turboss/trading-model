@@ -118,7 +118,7 @@ describe("trainer pod that does not hold the Lease", () => {
 	});
 
 	async function get(path: string) {
-		const res = await fetch(`${baseUrl}${path}`);
+		const res = await fetch(`${baseUrl}/v1${path}`);
 		return { status: res.status, body: (await res.json()) as any };
 	}
 
