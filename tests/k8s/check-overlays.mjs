@@ -53,8 +53,9 @@ const SINGLETONS = {
 	"financial-scraper-collector": { adr: "ADR-0057", lease: "financial-scraper-collector", env: "COLLECTOR_LEASE_NAME" },
 };
 // Data and observability StatefulSets of staging-local held by a partition (issue #700).
+// Not prometheus nor alertmanager: a held pod keeps the rules and scrape jobs of an old release (issue #2323).
 const DATABASES = ["mysql", "redis", "redis-sentinel", "mongo-dlq", "mongo-audit"];
-const DATA_STATEFULSETS = [...DATABASES, "alertmanager", "grafana", "loki", "prometheus"];
+const DATA_STATEFULSETS = [...DATABASES, "grafana", "loki"];
 // Bus ACL users (redis-ha.sh) a partitioned redis-0 learns only when restarted (issue #1931).
 const BUS_USERS = ["audit-logger", "trader-trainer", "model-evaluator", "risk-execution"];
 // Bus users allowed on the sentinels in staging-local: those redis-0 knows after the
@@ -404,6 +405,15 @@ for (const env of OVERLAYS) {
 		}
 		if (env !== "staging-local" && partition > 0) {
 			errors.push(`${env}: StatefulSet ${name} must not set a partition: its pods would keep the old template`);
+		}
+	}
+
+	// Issue #2378: default-deny-all cuts the local MinIO; only staging-local opens it, for backup and audit-logger.
+	for (const component of ["backup", "audit-logger"]) {
+		const opened = docs.some((doc) => doc.kind === "NetworkPolicy" && doc.text.includes(`app.kubernetes.io/component: ${component}
+  policyTypes`) && doc.text.includes("cidr: 172.18.0.200/32"));
+		if (opened !== (env === "staging-local")) {
+			errors.push(`${env}: ${component} pods ${env === "staging-local" ? "need" : "must not have"} a NetworkPolicy egress to the local MinIO 172.18.0.200/32:9000 (issue #2378)`);
 		}
 	}
 

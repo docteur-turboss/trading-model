@@ -1,0 +1,4 @@
+-- Migration: widen_market_trades_id_online
+-- Down: nothing. Narrowing back to INT would block writes for a copy of the table and fail
+-- above 2147483647; N-1 reads and writes the BIGINT column as it did the INT one, and `up`
+-- runs again on a BIGINT table.
