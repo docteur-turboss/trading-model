@@ -8,16 +8,17 @@
 
 ## Operate the service
 
-The admin routes accept only the service's own identity, so run them from the pod (the `kubectl exec` right is the authentication):
+`GET /admin/status` accepts only the service's own identity: run it from the pod. Engaging and re-arming go through the gateway with an API key of scope `risk:admin`: the key name is the actor recorded in the audit trail, and the owner is the key named `RISK_OWNER_ACTOR` (default `owner`). Without the gateway (down), no one can engage or re-arm.
 
 ```bash
 POD=$(kubectl get pods -n trading-model -l app.kubernetes.io/component=risk-execution -o jsonpath='{.items[0].metadata.name}')
 CURL="curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem -H content-type:application/json https://localhost:3000"
 kubectl exec -n trading-model "$POD" -c risk-execution -- sh -c "$CURL/admin/status"
 # Engage (scope global, or symbol + "symbol":"BTCUSDT"):
-kubectl exec -n trading-model "$POD" -c risk-execution -- sh -c "$CURL/admin/kill-switch -d '{\"scope\":\"global\",\"reason\":\"<why>\",\"actor\":\"<you>\"}'"
+API=https://<edge-proxy host>/v1/risk-execution/admin
+curl -s -H "x-api-key: <your risk:admin key>" -H content-type:application/json $API/kill-switch -d '{"scope":"global","reason":"<why>"}'
 # Re-arm, after checking that the cause is gone:
-kubectl exec -n trading-model "$POD" -c risk-execution -- sh -c "$CURL/admin/kill-switch/rearm -d '{\"scope\":\"global\",\"reason\":\"<what you checked>\",\"actor\":\"<you>\"}'"
+curl -s -H "x-api-key: <your risk:admin key>" -H content-type:application/json $API/kill-switch/rearm -d '{"scope":"global","reason":"<what you checked>"}'
 ```
 
 Service unreachable, last resort: revoke the broker API key at the exchange, or delete the SPIRE entry of `risk-execution` (ADR-0064 §5). Closing positions is never automatic: decide it explicitly.

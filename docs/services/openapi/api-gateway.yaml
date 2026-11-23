@@ -17,7 +17,7 @@ info:
 
     Privacy: the truncated caller IP is logged for 31 days, see the Art. 13
     notice, https://github.com/docteur-turboss/trading-model/blob/main/docs/compliance/privacy-notice.md
-  version: "audit-logger v1, discovery-server v1, dlq-service v1, financial-scraper v2, trader-trainer v1"
+  version: "audit-logger v1, discovery-server v1, dlq-service v1, financial-scraper v2, risk-execution v1, trader-trainer v1"
 servers:
   - url: http://localhost:8449
     description: Development (compose) — edge-proxy, which forwards /v{major} to the gateway over mTLS
@@ -891,6 +891,124 @@ paths:
                   - "failed"
                   - "auditRecorded"
                 additionalProperties: false
+  /v1/risk-execution/admin/kill-switch:
+    post:
+      operationId: "postV1RiskExecutionAdminKillSwitch"
+      tags:
+        - "risk-execution"
+      summary: "Engage the global or a per-symbol kill switch"
+      x-registry-entry: "adminEngage"
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: "object"
+              properties:
+                scope:
+                  type: "string"
+                  enum:
+                    - "global"
+                    - "symbol"
+                symbol:
+                  type: "string"
+                  minLength: 1
+                reason:
+                  type: "string"
+                  minLength: 1
+              required:
+                - "scope"
+                - "reason"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  status:
+                    type: "string"
+                    enum:
+                      - "engaged"
+                required:
+                  - "status"
+                additionalProperties: false
+        "400":
+          description: "Invalid request"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "Caller not allowed"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/risk-execution/admin/kill-switch/rearm:
+    post:
+      operationId: "postV1RiskExecutionAdminKillSwitchRearm"
+      tags:
+        - "risk-execution"
+      summary: "Re-arm by hand: the only way to switch it off"
+      x-registry-entry: "adminRearm"
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: "object"
+              properties:
+                scope:
+                  type: "string"
+                  enum:
+                    - "global"
+                    - "symbol"
+                symbol:
+                  type: "string"
+                  minLength: 1
+                reason:
+                  type: "string"
+                  minLength: 1
+              required:
+                - "scope"
+                - "reason"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  status:
+                    type: "string"
+                    enum:
+                      - "rearmed"
+                required:
+                  - "status"
+                additionalProperties: false
+        "400":
+          description: "Invalid request"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "Caller not allowed"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /v1/trader-trainer/best-agent:
     get:
       operationId: "getV1TraderTrainerBestAgent"

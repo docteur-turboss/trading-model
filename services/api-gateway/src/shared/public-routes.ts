@@ -23,6 +23,9 @@ export const PUBLIC_ROUTES = [
 	"GET /v1/discovery-server/services/:serviceName",
 	"GET /v1/discovery-server/services/:serviceName/:instanceId",
 	"POST /v1/dlq-service/dlq/replay",
+	// Scope risk:admin; the API key name is the actor (ADR-0059, ADR-0064 §5).
+	"POST /v1/risk-execution/admin/kill-switch",
+	"POST /v1/risk-execution/admin/kill-switch/rearm",
 	"GET /v2/financial-scraper/candles/sources/:source",
 	"GET /v2/financial-scraper/candles/symbols/:symbol",
 	"GET /v2/financial-scraper/candles/timestamp/:timestamp",
