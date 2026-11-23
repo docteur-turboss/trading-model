@@ -135,7 +135,7 @@ nodes pull credentials for the registry.
 
 All workflows run on `ubuntu-latest` with Bun. Failure in any workflow blocks merging.
 
-**Concurrency:** CI grouped by workflow + ref, cancel-in-progress on new push.
+**Concurrency:** CI grouped by workflow + ref; a new commit cancels the running run of a pull request only, push and tag runs always finish.
 
 ## Related Documentation
 

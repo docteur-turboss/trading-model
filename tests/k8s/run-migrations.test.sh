@@ -43,12 +43,12 @@ run() { : >"$STUB_LOG"; : >"$STUB_LOG.manifests"; set +e; OUT=$("$@" 2>&1); RC=$
 
 STUB_KEY=c2VjcmV0 run bash "$RUN" ns
 { [ $RC = 0 ] && grep -q 'job/db-migrate ' "$STUB_LOG" && grep -q 'job/db-migrate-user ' "$STUB_LOG"; } && ok "key present: both jobs run" || ko "key present"
-{ [ "$(grep -c 'activeDeadlineSeconds: 180$' "$STUB_LOG.manifests")" = 3 ] && grep -q 'image: ghcr.io/trading-model/db-migrate:latest' "$STUB_LOG.manifests"; } &&
+{ [ "$(grep -c 'activeDeadlineSeconds: 180$' "$STUB_LOG.manifests")" = 2 ] && grep -q 'activeDeadlineSeconds: 900$' "$STUB_LOG.manifests" && grep -q 'image: ghcr.io/trading-model/db-migrate:latest' "$STUB_LOG.manifests"; } &&
   ok "no DEPLOY_TIMEOUT_FACTOR: base Job deadline, manifest image" || ko "default deadline: $(grep activeDeadlineSeconds "$STUB_LOG.manifests")"
 
 # Issue #760: wait-job.sh waited 180 s x 4 but the Job died at its own 180 s deadline.
 STUB_KEY=c2VjcmV0 DEPLOY_TIMEOUT_FACTOR=4 MIGRATE_IMAGE=reg/db-migrate@sha256:abc run bash "$RUN" ns
-{ [ $RC = 0 ] && [ "$(grep -c 'activeDeadlineSeconds: 720$' "$STUB_LOG.manifests")" = 3 ] && grep -q 'image: reg/db-migrate@sha256:abc' "$STUB_LOG.manifests"; } &&
+{ [ $RC = 0 ] && [ "$(grep -c 'activeDeadlineSeconds: 720$' "$STUB_LOG.manifests")" = 2 ] && grep -q 'activeDeadlineSeconds: 3600$' "$STUB_LOG.manifests" && grep -q 'image: reg/db-migrate@sha256:abc' "$STUB_LOG.manifests"; } &&
   ok "DEPLOY_TIMEOUT_FACTOR=4: Job deadline 720 s like the wait, pinned image" || ko "scaled deadline: $(grep activeDeadlineSeconds "$STUB_LOG.manifests")"
 
 STUB_KEY= run bash "$RUN" ns
