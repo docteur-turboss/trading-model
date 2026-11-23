@@ -52,10 +52,11 @@ fi
 
 pod=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/component=risk-execution -o jsonpath='{.items[0].metadata.name}')
 [ -n "$pod" ] || die "no risk-execution pod in $NAMESPACE"
-curl_args=(curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem -H content-type:application/json)
+# node -e: the image has no curl; stdin carries the POST body.
+req=(node -e 'const f=require("fs"),d="/run/spire/svid/",[m,u]=process.argv.slice(1);const q=require("https").request(u,{method:m,headers:{"content-type":"application/json"},cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>r.pipe(process.stdout));q.on("error",()=>process.exit(1));process.stdin.pipe(q)')
 if [ "$method" = POST ]; then
-  printf '%s' "$body" | kubectl exec -i -n "$NAMESPACE" "$pod" -c risk-execution -- "${curl_args[@]}" --data-binary @- "https://localhost:3000$path"
+  printf '%s' "$body" | kubectl exec -i -n "$NAMESPACE" "$pod" -c risk-execution -- "${req[@]}" POST "https://localhost:3000$path"
 else
-  kubectl exec -n "$NAMESPACE" "$pod" -c risk-execution -- "${curl_args[@]}" "https://localhost:3000$path"
+  kubectl exec -n "$NAMESPACE" "$pod" -c risk-execution -- "${req[@]}" GET "https://localhost:3000$path" </dev/null
 fi
 echo
