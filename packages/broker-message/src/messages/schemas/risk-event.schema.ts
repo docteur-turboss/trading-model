@@ -33,4 +33,10 @@ export const RISK_EVENT_VALIDATORS = {
 		reason: z.string().min(1),
 		actor: z.string().min(1),
 	}),
+	[RiskEvent.PromotionLoaded]: z.object({
+		eventId: EVENT_ID,
+		symbol: z.string().min(1),
+		version: z.string().min(1),
+		sha256: z.string().regex(/^[0-9a-f]{64}$/),
+	}),
 };

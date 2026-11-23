@@ -46,6 +46,10 @@ services:
     build:
       context: .
       dockerfile: services/risk-execution/Dockerfile
+  decision-consumer:
+    build:
+      context: .
+      dockerfile: services/decision-consumer/Dockerfile
   dlq-service:
     build:
       context: .
