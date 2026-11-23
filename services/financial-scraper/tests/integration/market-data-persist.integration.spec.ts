@@ -23,9 +23,9 @@ import { insertCandles } from "../../src/adapters/outbound/persistence/schema/ca
 import { insertOrderBook } from "../../src/adapters/outbound/persistence/schema/order-book.schema";
 import { insertTicker } from "../../src/adapters/outbound/persistence/schema/ticker24h.schema";
 import { insertTrades } from "../../src/adapters/outbound/persistence/schema/trades.schema";
-import { MarketDataController } from "../../src/config/container";
+import { MarketDataPersister } from "../../src/config/container";
 
-describe("MarketDataController — persist integration", () => {
+describe("MarketDataPersister — persist integration", () => {
 	const mockCandles = [{ symbol: "BTCUSDT", interval: CandleInterval.Min1 }];
 	const mockTrades = [{ tradeId: 1n, symbol: "BTCUSDT" }];
 	const mockOrderBook = { symbol: "BTCUSDT" };
@@ -36,7 +36,7 @@ describe("MarketDataController — persist integration", () => {
 	});
 
 	it("should persist candles, trades, orderBook and ticker when all present", async () => {
-		await MarketDataController.persist({
+		await MarketDataPersister.persist({
 			candles: mockCandles as never,
 			recentTrades: mockTrades as never,
 			orderBook: mockOrderBook as never,
@@ -51,7 +51,7 @@ describe("MarketDataController — persist integration", () => {
 	});
 
 	it("should only persist which is truthy candles trades ticker", async () => {
-		await MarketDataController.persist({
+		await MarketDataPersister.persist({
 			candles: mockCandles as never,
 			recentTrades: mockTrades as never,
 			ticker24h: mockTicker24h as never,
@@ -63,7 +63,7 @@ describe("MarketDataController — persist integration", () => {
 	});
 
 	it("should skip empty arrays", async () => {
-		await MarketDataController.persist({
+		await MarketDataPersister.persist({
 			candles: [],
 			recentTrades: [],
 			fetchedAt: Date.now(),
@@ -74,7 +74,7 @@ describe("MarketDataController — persist integration", () => {
 	});
 
 	it("should handle empty payload gracefully", async () => {
-		await MarketDataController.persist({
+		await MarketDataPersister.persist({
 			fetchedAt: Date.now(),
 		});
 
@@ -100,7 +100,7 @@ describe("MarketDataController — persist integration", () => {
 			return Promise.resolve();
 		});
 
-		await MarketDataController.persist({
+		await MarketDataPersister.persist({
 			candles: mockCandles as never,
 			recentTrades: mockTrades as never,
 			ticker24h: mockTicker24h as never,

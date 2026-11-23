@@ -4,14 +4,8 @@ useDefault = true
 # [allowlist], not [[allowlists]]: gitleaks 8.24.3 (CI) did not apply this block as [[allowlists]]
 # (rc.3 back-merge #1674: 10 findings on these series keys and SealedSecret lines).
 [allowlist]
-description = "Test fixtures and SealedSecret ciphertext (no real credential)"
+description = "Public series keys, ADR prose and SealedSecret ciphertext (no real credential)"
 stopwords = [
-  "e2e-", # e2e fixture credentials
-  "0123456789abcdef", # hex placeholder
-  "my-signing-secret", # fixture signing secret
-  "long-secret", # fixture secret
-  "dGVzdA", # base64 of "test"
-  "STUB_", # stub token prefix
   "YC.B.U2.EUR", # public ECB series key, older registry format
   "CRL/revocation", # ADR-0011 prose matched as a key
 ]
@@ -37,4 +31,22 @@ paths = [
   '''packages/certificate-utils/tests/generate-key-pair\.spec\.ts$''',
   '''services/certificate-authority/tests/unit/ca\.spec\.ts$''',
   '''services/message-manager/tests/unit/messaging/core/dlq-client\.spec\.ts$''',
+]
+
+# Fixture placeholders: only in test paths, so a real secret elsewhere containing them is still reported
+[[allowlists]]
+description = "Test fixture placeholders"
+condition = "AND"
+paths = [
+  '''(^|/)tests?/''',
+  '''\.spec\.ts$''',
+  '''^\.github/workflows/ci\.yml$''',
+]
+stopwords = [
+  "e2e-", # e2e fixture credentials
+  "0123456789abcdef", # hex placeholder
+  "my-signing-secret", # fixture signing secret
+  "long-secret", # fixture secret
+  "dGVzdA", # base64 of "test"
+  "STUB_", # stub token prefix
 ]

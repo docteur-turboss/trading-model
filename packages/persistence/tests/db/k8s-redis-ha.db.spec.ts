@@ -26,6 +26,7 @@ const FAILOVER_DEADLINE_MS = 20_000;
 // ACL passwords, as the redis-credentials Secret gives them to the pods.
 const PASSWORDS = {
 	internal: "internal-pw",
+	discovery: "discovery-pw",
 	"message-manager": "message-manager-pw",
 	"dlq-service": "dlq-pw",
 	"audit-logger": "audit-pw",
@@ -33,9 +34,10 @@ const PASSWORDS = {
 	"model-evaluator": "evaluator-pw",
 	exporter: "exporter-pw",
 };
-const SPEC_KEY = "trading-model:message-manager:spec";
+const DISCOVERY_KEY = "trading-model:discovery:spec";
 const HA_ENV = {
 	REDIS_INTERNAL_PASSWORD: PASSWORDS.internal,
+	REDIS_DISCOVERY_PASSWORD: PASSWORDS.discovery,
 	REDIS_MESSAGE_MANAGER_PASSWORD: PASSWORDS["message-manager"],
 	REDIS_DLQ_PASSWORD: PASSWORDS["dlq-service"],
 	REDIS_AUDIT_LOGGER_PASSWORD: PASSWORDS["audit-logger"],
@@ -151,8 +153,7 @@ async function setDuringFailover(client: Redis, key: string): Promise<string> {
 	let result = "";
 	await eventually(async () => {
 		try {
-			await client.hset(key, "v", "1");
-			result = "OK";
+			result = (await client.set(key, "1")) as string;
 			return true;
 		} catch {
 			return false;
@@ -202,8 +203,8 @@ describe("K8s Redis HA start script — real failovers", () => {
 			REDIS_SENTINELS: sentinels
 				.map((s) => `localhost:${s.getMappedPort(SENTINEL_PORT)}`)
 				.join(","),
-			REDIS_USERNAME: "message-manager",
-			REDIS_PASSWORD: PASSWORDS["message-manager"],
+			REDIS_USERNAME: "discovery",
+			REDIS_PASSWORD: PASSWORDS.discovery,
 			REDIS_SENTINEL_PASSWORD: PASSWORDS.internal,
 		}) as RedisConnectionConfig;
 		client = createRedisClient(connection, { natMap });
@@ -234,37 +235,35 @@ describe("K8s Redis HA start script — real failovers", () => {
 			);
 		}
 
-		await client.hset(`${SPEC_KEY}:before-failover`, "v", "1");
+		await client.set(`${DISCOVERY_KEY}:before-failover`, "1");
 		await eventually(
 			async () =>
 				(
 					await asService(
 						redis[1],
-						"message-manager",
-						"HGETALL",
-						`${SPEC_KEY}:before-failover`
+						"discovery",
+						"GET",
+						`${DISCOVERY_KEY}:before-failover`
 					)
-				)[1] === "1"
+				)[0] === "1"
 		);
 	});
 
 	it("should keep each service on its own key prefix and commands", async () => {
 		const master = await masterNode();
 		const first = async (
-			service: "message-manager" | "dlq-service",
+			service: "discovery" | "message-manager" | "dlq-service",
 			...args: string[]
 		) => (await asService(master, service, ...args))[0];
-		const foreign = `${SPEC_KEY}:before-failover`;
+		const foreign = `${DISCOVERY_KEY}:before-failover`;
 
 		await expect(
-			first("message-manager", "HSET", `${SPEC_KEY}:own`, "v", "1")
-		).resolves.toBe("1");
-		await expect(
-			first("message-manager", "HSET", "other:key", "v", "1")
-		).resolves.toMatch(/^NOPERM/);
-		await expect(first("message-manager", "FLUSHALL")).resolves.toMatch(
+			first("discovery", "SET", `${DISCOVERY_KEY}:own`, "1")
+		).resolves.toBe("OK");
+		await expect(first("discovery", "SET", "other:key", "1")).resolves.toMatch(
 			/^NOPERM/
 		);
+		await expect(first("discovery", "FLUSHALL")).resolves.toMatch(/^NOPERM/);
 		await expect(first("message-manager", "GET", foreign)).resolves.toMatch(
 			/^NOPERM/
 		);
@@ -417,7 +416,7 @@ describe("K8s Redis HA start script — real failovers", () => {
 		);
 		await expect(exporter(master, "SLOWLOG", "LEN")).resolves.toMatch(/^\d+$/);
 		await expect(
-			exporter(master, "GET", `${SPEC_KEY}:before-failover`)
+			exporter(master, "GET", `${DISCOVERY_KEY}:before-failover`)
 		).resolves.toMatch(/^NOPERM/);
 		// CONFIG GET would hand out masterauth, the internal password.
 		await expect(
@@ -456,12 +455,12 @@ describe("K8s Redis HA start script — real failovers", () => {
 
 		const started = Date.now();
 		await expect(
-			setDuringFailover(client, `${SPEC_KEY}:after-failover`)
+			setDuringFailover(client, `${DISCOVERY_KEY}:after-failover`)
 		).resolves.toBe("OK");
 		expect(Date.now() - started).toBeLessThan(FAILOVER_DEADLINE_MS);
-		await expect(
-			client.hgetall(`${SPEC_KEY}:before-failover`)
-		).resolves.toEqual({ v: "1" });
+		await expect(client.get(`${DISCOVERY_KEY}:before-failover`)).resolves.toBe(
+			"1"
+		);
 
 		redis[0] = await startRedis(network, 0);
 		mapNode(redis[0]);
@@ -471,11 +470,11 @@ describe("K8s Redis HA start script — real failovers", () => {
 				(
 					await asService(
 						redis[0],
-						"message-manager",
-						"HGETALL",
-						`${SPEC_KEY}:after-failover`
+						"discovery",
+						"GET",
+						`${DISCOVERY_KEY}:after-failover`
 					)
-				)[1] === "1"
+				)[0] === "1"
 		);
 	});
 
@@ -515,7 +514,7 @@ describe("K8s Redis HA start script — real failovers", () => {
 		// No deadline here: under load a first attempt can still abort for
 		// lack of fresh replica INFO, and Sentinel retries after 2x the timeout.
 		await expect(
-			setDuringFailover(client, `${SPEC_KEY}:second-failover`)
+			setDuringFailover(client, `${DISCOVERY_KEY}:second-failover`)
 		).resolves.toBe("OK");
 		// The other sentinels learn of the switch from the one that failed over.
 		await eventually(async () => (await masterIp()) !== ipOf(master));
@@ -561,14 +560,7 @@ describe("K8s Redis HA start script — cold start", () => {
 		await cli(pods[1], "REPLICAOF", "NO", "ONE");
 		await cli(pods[0], "REPLICAOF", "redis-1", String(REDIS_PORT));
 		await eventually(async () => (await role(pods[0])) === "slave");
-		await asService(
-			pods[1],
-			"message-manager",
-			"HSET",
-			`${SPEC_KEY}:cold`,
-			"v",
-			"1"
-		);
+		await asService(pods[1], "discovery", "SET", `${DISCOVERY_KEY}:cold`, "1");
 		const marked = async (pod: StartedTestContainer) =>
 			(await pod.exec(["test", "-e", "/data/was-master"])).exitCode === 0;
 		await eventually(
@@ -583,13 +575,8 @@ describe("K8s Redis HA start script — cold start", () => {
 		await eventually(
 			async () =>
 				(
-					await asService(
-						pods[0],
-						"message-manager",
-						"HGETALL",
-						`${SPEC_KEY}:cold`
-					)
-				)[1] === "1",
+					await asService(pods[0], "discovery", "GET", `${DISCOVERY_KEY}:cold`)
+				)[0] === "1",
 			60_000
 		);
 	}, 240_000);
@@ -612,26 +599,12 @@ describe("K8s Redis HA start script — cold start", () => {
 			.withStartupTimeout(120_000)
 			.start();
 		pods.push(pod);
-		await asService(
-			pod,
-			"message-manager",
-			"HSET",
-			`${SPEC_KEY}:nomarker`,
-			"v",
-			"1"
-		);
+		await asService(pod, "discovery", "SET", `${DISCOVERY_KEY}:nomarker`, "1");
 		await pod.exec(["rm", "-f", "/data/was-master"]);
 		await pod.restart();
 		await eventually(async () => (await role(pod)) === "master", 60_000);
 		expect(
-			(
-				await asService(
-					pod,
-					"message-manager",
-					"HGETALL",
-					`${SPEC_KEY}:nomarker`
-				)
-			)[1]
+			(await asService(pod, "discovery", "GET", `${DISCOVERY_KEY}:nomarker`))[0]
 		).toBe("1");
 	}, 180_000);
 });

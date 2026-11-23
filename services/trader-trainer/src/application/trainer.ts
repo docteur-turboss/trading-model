@@ -44,26 +44,22 @@ import type {
 	TrainingSuccess,
 } from "../domain/training-types";
 import { ModelArtifactService } from "./model-artifact-service";
-import {
-	runInProcess,
-	type TrainingRunner,
-	type TrainingSessionResult,
-} from "./training-session";
+import type { TrainingRunner, TrainingSessionResult } from "./training-session";
 
 export type { BestAgentSummary };
 
 export interface TrainerDeps {
 	settings: TrainingSettings;
-	publisher?: ModelPublisherPort;
-	telemetry?: GaTelemetry;
+	publisher: ModelPublisherPort;
+	telemetry: GaTelemetry;
 	/** Keeps the best agent of each training as a versioned artifact (ADR-0022). */
-	models?: ModelArtifactStorePort;
+	models: ModelArtifactStorePort;
 	/** Instance written in the artifacts it produces. */
-	instanceId?: string;
-	/** Where the session runs; default: the calling thread. */
-	runner?: TrainingRunner;
+	instanceId: string;
+	/** Where the session runs. */
+	runner: TrainingRunner;
 	/** Costs of a daily asset (ADR-0083); undefined: a crypto symbol on one-minute candles. */
-	dailyCosts?: (symbol: TradingSymbol) => SimulatorCosts | undefined;
+	dailyCosts: (symbol: TradingSymbol) => SimulatorCosts | undefined;
 }
 
 enum TrainerStatus {
@@ -135,7 +131,7 @@ export class Trainer {
 			}
 			const summary = snapshot.buildBestAgentSummary();
 			// Reached the bus before the restart? Unknown: the leader publishes it once, model-evaluator deduplicates.
-			if (summary && this._deps.publisher && !this._unpublished.has(symbol)) {
+			if (summary && !this._unpublished.has(symbol)) {
 				this._unpublished.set(symbol, { summary, ref });
 			}
 			if (!this._symbolSnapshots.has(symbol)) {
@@ -176,7 +172,7 @@ export class Trainer {
 		// One simulator cost model serves the whole session (ADR-0083): a daily
 		// symbol next to a crypto one would be scored on the wrong costs.
 		const daily = symbols.map(
-			(symbol) => this._deps.dailyCosts?.(symbol) !== undefined
+			(symbol) => this._deps.dailyCosts(symbol) !== undefined
 		);
 		if (daily.some((isDaily) => isDaily !== daily[0])) {
 			return this._handleTrainingError(
@@ -294,10 +290,10 @@ export class Trainer {
 		windowSets: WindowSet[],
 		signal: AbortSignal
 	): Promise<TrainingSessionResult> {
-		const run: TrainingRunner = this._deps.runner ?? runInProcess;
+		const run: TrainingRunner = this._deps.runner;
 		const result = await run(
 			windowSets,
-			{ ...this._deps.settings, costs: this._deps.dailyCosts?.(symbol) },
+			{ ...this._deps.settings, costs: this._deps.dailyCosts(symbol) },
 			this._deps.telemetry,
 			signal
 		);
@@ -403,9 +399,6 @@ export class Trainer {
 		stored: StoredModelRef
 	): Promise<void> {
 		const publisher = this._deps.publisher;
-		if (!publisher) {
-			return;
-		}
 		try {
 			await publisher.publish(symbol, summary, stored);
 			// A slower call for an older version must not touch a newer entry.

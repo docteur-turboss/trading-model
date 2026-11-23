@@ -171,6 +171,30 @@ scrape_configs:
       - source_labels: [__meta_kubernetes_pod_name]
         target_label: pod
 
+  - job_name: 'decision-consumer'
+    scheme: https
+    tls_config:
+      ca_file: /run/spire/svid/bundle.pem
+      cert_file: /run/spire/svid/svid.pem
+      key_file: /run/spire/svid/svid_key.pem
+      server_name: decision-consumer
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          own_namespace: true
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+        regex: decision-consumer
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_phase]
+        regex: Running
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_container_port_number]
+        regex: '3000'
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+
   - job_name: 'financial-scraper'
     scheme: https
     tls_config:
@@ -283,6 +307,9 @@ scrape_configs:
       - targets: ['https://risk-execution:3000/ping']
         labels:
           service: risk-execution
+      - targets: ['https://decision-consumer:3000/ping']
+        labels:
+          service: decision-consumer
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target

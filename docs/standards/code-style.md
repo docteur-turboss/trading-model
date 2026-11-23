@@ -39,18 +39,12 @@ Run: `bunx @biomejs/biome check .` (CI) / `bunx @biomejs/biome check --write .` 
 | Types                  | `PascalCase`      | `export type TokenPayload = {}`        |
 | Enums                  | `PascalCase`      | `export enum AuthMethod {}`            |
 | Ports                  | `XxxPort`, no `I` prefix | `export interface InstanceStorePort` in `domain/ports/instance-store.port.ts` |
-| Non-port interfaces    | file `xxx.interface.ts` | `service-registry.interface.ts`  |
 | MySQL schemas          | file `xxx.schema.ts` | `candles.schema.ts`                |
-| Files and directories  | `kebab-case`      | `address-manager.service.ts`           |
+| Files and directories  | `kebab-case`      | `claim-manager.ts`                   |
 | Global constants       | `SCREAMING_SNAKE` | `export const DEFAULT_TIMEOUT = 30000` |
-| Service file suffix    | `.service.ts` (legacy) | `token-manager.service.ts`         |
-| Controller file suffix | `.controller.ts` (legacy) | `wallet-manager.controller.ts`   |
-| Middleware file suffix | `.middleware.ts` (legacy) | `auth.middleware.ts`            |
-| Repository file suffix | `.repository.ts` (legacy) | `user.repository.ts`            |
-| Utility file suffix    | `.util.ts` (legacy) | `string.util.ts`                       |
-| Test file suffix       | `.spec.ts`        | `user.service.spec.ts`                 |
+| Test file suffix       | `.spec.ts`        | `claim-manager.spec.ts`                 |
 
-> The `.service.ts`/`.controller.ts`/`.repository.ts`/`.util.ts` suffixes are a legacy convention. After the DDD/hexagonal migration, files use descriptive `kebab-case` names (`claim-manager.ts`, `replay-batch.ts`) placed in their architectural layer. The `.spec.ts` test suffix is enforced and required.
+> Files use descriptive `kebab-case` names (`claim-manager.ts`) placed in their architectural layer; the `.spec.ts` suffix is required.
 
 ### Correct vs Incorrect Examples
 

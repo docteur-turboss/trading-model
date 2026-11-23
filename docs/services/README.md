@@ -30,6 +30,7 @@ This directory documents every package and service in the **trading-model** mono
 | audit-logger          | `services/audit-logger/`          | [audit-logger.md](./audit-logger.md)               |
 | dlq-service           | `services/dlq-service/`           | [dlq-service.md](./dlq-service.md)                 |
 | model-evaluator       | `services/model-evaluator/`       | [model-evaluator.md](./model-evaluator.md)         |
+| decision-consumer     | `services/decision-consumer/`     | [ADR-0087](../adr/0087-paper-decision-consumer.md) |
 | risk-execution        | `services/risk-execution/`        | [risk-execution.md](./risk-execution.md)           |
 
 No frontend for now: `admin-interface` was removed ([ADR-0018](../adr/0018-temporary-frontend-removal.md)).

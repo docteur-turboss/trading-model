@@ -40,6 +40,7 @@ metadata:
 type: Opaque
 stringData:
   AUTH_TOKENS: dev:read+dlq:write:dev-token-0123456789abcdef0123456789abcdef
+  SIGNING_SECRET: dev-signing-0123456789abcdef0123456789abcdef
   SERVICE_BOOTSTRAP_TOKEN: dev-bootstrap-change-me
   MYSQL_ROOT_PASSWORD: dev-mysql-root
   MYSQL_PASSWORD: dev-mysql
@@ -48,12 +49,10 @@ stringData:
   MYSQL_EXPORTER_PASSWORD: dev-mysql-exporter
   # Read only by release N-1 (development carries #822) until ADR-0065 ships; drop with the N-1 that lacks it.
   MYSQL_SPIRE_PASSWORD: dev-mysql-spire
-  # Read only by the retired discovery-server of release N-1 (#1244); drop with the N-1 that lacks it.
-  SIGNING_SECRET: dev-signing-0123456789abcdef0123456789abcdef
-  REDIS_DISCOVERY_PASSWORD: dev-redis-discovery-password
   DLQ_AUTH_HMAC_SECRET: dev-dlq-hmac-0123456789abcdef0123456789abcdef
   GRAFANA_PASSWORD: dev-grafana
   REDIS_INTERNAL_PASSWORD: dev-redis-internal-password
+  REDIS_DISCOVERY_PASSWORD: dev-redis-discovery-password
   REDIS_MESSAGE_MANAGER_PASSWORD: dev-redis-message-manager-password
   REDIS_DLQ_PASSWORD: dev-redis-dlq-password
   REDIS_AUDIT_LOGGER_PASSWORD: dev-redis-audit-logger-password

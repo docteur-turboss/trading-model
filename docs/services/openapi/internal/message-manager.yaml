@@ -80,6 +80,7 @@ paths:
                           enum:
                             - "api-gateway"
                             - "audit-logger"
+                            - "decision-consumer"
                             - "dlq-service"
                             - "financial-scraper"
                             - "message-manager"
@@ -229,6 +230,7 @@ paths:
                               enum:
                                 - "api-gateway"
                                 - "audit-logger"
+                                - "decision-consumer"
                                 - "dlq-service"
                                 - "financial-scraper"
                                 - "message-manager"
@@ -405,6 +407,7 @@ paths:
                       enum:
                         - "api-gateway"
                         - "audit-logger"
+                        - "decision-consumer"
                         - "dlq-service"
                         - "financial-scraper"
                         - "message-manager"

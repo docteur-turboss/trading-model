@@ -45,6 +45,10 @@ configMapGenerator:
     envs: [model-evaluator.properties]
     options:
       labels: {app.kubernetes.io/component: model-evaluator, app.kubernetes.io/part-of: trading-model}
+  - name: decision-consumer-config
+    envs: [decision-consumer.properties]
+    options:
+      labels: {app.kubernetes.io/component: decision-consumer, app.kubernetes.io/part-of: trading-model}
   - name: risk-execution-config
     envs: [risk-execution.properties]
     options:

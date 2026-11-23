@@ -13,6 +13,7 @@ Service abbreviation legend:
 | DLQ   | dlq-service                                                                                         |
 | ME    | model-evaluator                                                                                     |
 | RX    | risk-execution                                                                                      |
+| DCN   | decision-consumer                                                                                   |
 | DC    | docker-compose.yml (host-side `.env` file)                                                          |
 
 ---
@@ -130,7 +131,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `TRAINER_MODEL_DIR`               | string       | `/data/checkpoints/models` | no | Model artifact directory (ADR-0022), on the checkpoint volume shared by the replicas | TT       |
 | `TRAINER_MODEL_RETENTION`         | number (≥1)  | `20`              | no       | Model versions kept per symbol           | TT       |
 | `TRAINER_LEASE_NAME` | string | (empty) | no | Kubernetes Lease the trainer pods compete for; only its holder trains, every pod serves the read routes (ADR-0058). Set on `trader-trainer` in K8s; empty (compose, dev): this instance trains | TT |
-| `MODEL_DOWNLOAD_CALLERS`          | string       | _(empty)_         | no       | Comma-separated services allowed to download model weights (ADR-0022). Empty: nobody; `model-evaluator` in compose and K8s (ADR-0049) | TT       |
+| `MODEL_DOWNLOAD_CALLERS`          | string       | _(empty)_         | no       | Comma-separated services allowed to download model weights (ADR-0022). Empty: nobody; `model-evaluator,decision-consumer` in compose and K8s (ADR-0049, ADR-0087) | TT       |
 
 ---
 
@@ -158,6 +159,16 @@ ADR-0064. Limits are validated at startup and refuse to start above their hard c
 | `RISK_LIMITS_JSON` | JSON | `{}` | no | Overrides of the other caps of ADR-0064 §2 (at or below their ceiling) | RX |
 | `RISK_OWNER_ACTOR` | string | `owner` | no | Only this actor re-arms after the drawdown stop (policy §4.4) | RX |
 | `RISK_TICK_MS` | number | `10000` | no | Period of expiry, stale-data, limit and reconciliation checks | RX |
+
+## Decision Consumer
+
+ADR-0087. Paper only: no broker key, no kill switch, no mode choice (ADR-0064 §1, §5, §6).
+
+| Variable | Type | Default | Required | Description | Services |
+| --- | --- | --- | --- | --- | --- |
+| `PROMOTED_MODELS` | string | _(empty)_ | no | Models promoted by hand, `symbol@version` separated by commas, one version per symbol (ADR-0049 §1.4). Empty: nothing decides. A promoted model that is not `admissible` (ADR-0069) decides nothing | DCN |
+| `DECISION_TICK_MS` | number | `10000` | no | Period of the pass over the promoted models; each decides once per closed bar of its manifest interval (1 min or 1 day) | DCN |
+| `DECISION_WINDOW_BARS` | number | `500` | no | Bars of the window a decision is computed on (at least 50): features normalise from its first bar | DCN |
 
 ## Financial Scraper — Market data
 

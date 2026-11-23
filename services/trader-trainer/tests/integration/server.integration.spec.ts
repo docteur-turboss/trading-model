@@ -69,10 +69,11 @@ jest.mock("../../src/config/message-manager", () => ({
 
 import { TRAINER_API } from "../../src/adapters/inbound/http/api-routes";
 import { TRAINER_ROUTES } from "../../src/adapters/inbound/http/routes";
-import { Trainer } from "../../src/application/trainer";
+import type { Trainer } from "../../src/application/trainer";
 import { FitnessType } from "../../src/domain/genetic-algorithm/genome-control";
 import { MarketDataBuffer } from "../../src/domain/market-data-buffer";
 import type { TrainingSettings } from "../../src/domain/training-settings";
+import { makeTrainer } from "../fixtures/trainer-deps.fixture";
 
 /** Mirrors the TRAINER_* values of the mocked ENV above. */
 const TEST_TRAINING_SETTINGS: TrainingSettings = {
@@ -168,7 +169,7 @@ describe("Server routes", () => {
 
 	beforeEach(() => {
 		dataBuffer = new MarketDataBuffer({ maxSize: 500 });
-		trainer = new Trainer(dataBuffer, { settings: TEST_TRAINING_SETTINGS });
+		trainer = makeTrainer(dataBuffer, { settings: TEST_TRAINING_SETTINGS });
 		const app = express();
 		app.use(
 			TRAINER_ROUTES(trainer, {

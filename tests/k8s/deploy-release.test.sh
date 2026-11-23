@@ -13,7 +13,7 @@ FAILED=0
 ok() { echo "  ✓ $*"; }
 ko() { echo "  ✗ $*"; FAILED=1; }
 
-IMAGES="message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator risk-execution spire-tools backup-tools"
+IMAGES="message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator risk-execution decision-consumer spire-tools backup-tools"
 for img in $IMAGES; do
 	echo "$img sha256:$(printf '%s' "$img" | sha256sum | cut -d' ' -f1)"
 done >"$WORK/digests"
@@ -77,8 +77,8 @@ export PATH="$WORK/bin:$PATH" STUB_LOG="$WORK/log" STUB_APPLIED="$WORK/applied"
 STUB_REVS="message-manager=4 api-gateway=7" bash "$SCRIPT" record ns "$WORK/revs" >/dev/null
 grep -qx "message-manager 4" "$WORK/revs" && grep -qx "api-gateway 7" "$WORK/revs" &&
 	grep -qx "edge-proxy none" "$WORK/revs" && grep -qx "statefulset/redis 3" "$WORK/revs" && grep -qx "statefulset/redis-sentinel none" "$WORK/revs" &&
-	[ "$(wc -l <"$WORK/revs")" -eq 12 ] &&
-	ok "record writes the Redis StatefulSets and the 10 Deployments, none when missing" || ko "record: $(cat "$WORK/revs")"
+	[ "$(wc -l <"$WORK/revs")" -eq 13 ] &&
+	ok "record writes the Redis StatefulSets and the 11 Deployments, none when missing" || ko "record: $(cat "$WORK/revs")"
 
 printf 'message-manager 4\napi-gateway 7\n' >"$WORK/revs"
 : >"$WORK/log"

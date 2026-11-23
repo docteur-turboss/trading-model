@@ -96,7 +96,7 @@ permissions:
 env:
   IMAGES: >-
     message-manager financial-scraper trader-trainer
-    api-gateway audit-logger dlq-service model-evaluator risk-execution spire-tools backup-tools db-migrate
+    api-gateway audit-logger dlq-service model-evaluator risk-execution decision-consumer spire-tools backup-tools db-migrate
 
 concurrency:
   group: deploy-${{ inputs.environment }}
@@ -120,6 +120,8 @@ jobs:
       protection: ${{ (inputs.environment != 'production' && steps.protection.outcome == 'failure') && 'warning' || steps.protection.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Check the environment protection
         id: protection
         # Only production blocks: staging gets warnings (a failing check there must not stop the deploy).
@@ -196,12 +198,12 @@ jobs:
     # (docs/deployment/STAGING_LOCAL.md). Production always runs on GitHub.
     runs-on: ${{ (inputs.environment == 'staging' && vars.STAGING_RUNNER) || 'ubuntu-latest' }}
     environment: ${{ inputs.environment }}
-    # Budget = 90 + 45 * DEPLOY_TIMEOUT_FACTOR min (135 at 1, 270 at 4), sum of the step caps:
+    # Budget = 90 + 60 * DEPLOY_TIMEOUT_FACTOR min (150 at 1, 330 at 4), sum of the step caps:
     # fixed 90 = checks 10 + pre-migrate backup 30 + canary 5 + smoke 5 + market data 10 + verify 10 + rollback 10 + margin 10;
-    # per factor 45 = migrations 3 + Redis TLS/sts 10 + rollouts 15 + API wait 5 + rollback rollouts 12.
+    # per factor 60 = migrations 18 (db-migrate 15, user jobs 3) + Redis TLS/sts 10 + rollouts 15 + API wait 5 + rollback rollouts 12.
     # A timeout cancels the job: "Rollback on failure" runs on cancelled(); the rollback share above keeps time for it.
-    # Expressions have no arithmetic (actionlint in ci.yml lint): budget looked up per factor 1-4, any other factor gets 270.
-    timeout-minutes: ${{ fromJSON('{"1":135,"2":180,"3":225,"4":270}')[vars.DEPLOY_TIMEOUT_FACTOR || '1'] || 270 }}
+    # Expressions have no arithmetic (actionlint in ci.yml lint): budget looked up per factor 1-4, any other factor gets 330.
+    timeout-minutes: ${{ fromJSON('{"1":150,"2":210,"3":270,"4":330}')[vars.DEPLOY_TIMEOUT_FACTOR || '1'] || 330 }}
     env:
       # DEPLOY_TIMEOUT_FACTOR (variable of the GitHub environment): integer the
       # MySQL, migration and rollout timeouts are multiplied by, for a slow
@@ -244,6 +246,7 @@ jobs:
       # Empty ref (non-release staging deploy): the dispatch ref.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           ref: ${{ steps.ref.outputs.ref }}
 
       - name: Show deployed commit
@@ -499,7 +502,7 @@ jobs:
           # Exporter users (ADR-0056): optional keys for the pods, but without
           # them MySQLDown / RedisDown fire and verify-release rolls back.
           missing=""
-          for key in REDIS_INTERNAL_PASSWORD REDIS_MESSAGE_MANAGER_PASSWORD REDIS_DLQ_PASSWORD REDIS_AUDIT_LOGGER_PASSWORD REDIS_TRADER_TRAINER_PASSWORD REDIS_MODEL_EVALUATOR_PASSWORD MYSQL_EXPORTER_PASSWORD REDIS_EXPORTER_PASSWORD MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD MONGO_AUDIT_KEYFILE MONGO_DLQ_KEYFILE; do
+          for key in REDIS_INTERNAL_PASSWORD REDIS_DISCOVERY_PASSWORD REDIS_MESSAGE_MANAGER_PASSWORD REDIS_DLQ_PASSWORD REDIS_AUDIT_LOGGER_PASSWORD REDIS_TRADER_TRAINER_PASSWORD REDIS_MODEL_EVALUATOR_PASSWORD MYSQL_EXPORTER_PASSWORD REDIS_EXPORTER_PASSWORD MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD MONGO_AUDIT_KEYFILE MONGO_DLQ_KEYFILE; do
             grep -qE "^ +$key: " <<<"$rendered" || missing="$missing $key"
           done
           if [ -n "$missing" ]; then
@@ -612,20 +615,23 @@ jobs:
           NS="$NAMESPACE"
           if [ -z "$AUDIT_ANCHOR_BUCKET" ]; then
             if kubectl -n "$NS" get secret audit-anchor-s3 >/dev/null 2>&1; then
-              exit 0
-            fi
-            if [ "$DEPLOY_ENVIRONMENT" = "production" ]; then
+              # Existing Secret kept: its region goes through the same check below.
+              AUDIT_ANCHOR_REGION="$(kubectl -n "$NS" get secret audit-anchor-s3 -o jsonpath='{.data.AUDIT_ANCHOR_REGION}' | base64 -d)"
+              existing=1
+            elif [ "$DEPLOY_ENVIRONMENT" = "production" ]; then
               echo "::error::AUDIT_ANCHOR_BUCKET is not set for production: audit-logger refuses to start without an anchor store (ADR-0027)"
               exit 1
+            else
+              echo "::warning::AUDIT_ANCHOR_BUCKET is not set for $DEPLOY_ENVIRONMENT: the audit chain is verified but not anchored"
+              exit 0
             fi
-            echo "::warning::AUDIT_ANCHOR_BUCKET is not set for $DEPLOY_ENVIRONMENT: the audit chain is verified but not anchored"
-            exit 0
           fi
-          if [ -z "$AUDIT_ANCHOR_ACCESS_KEY_ID" ] || [ -z "$AUDIT_ANCHOR_SECRET_ACCESS_KEY" ]; then
+          if [ -z "$existing" ] && { [ -z "$AUDIT_ANCHOR_ACCESS_KEY_ID" ] || [ -z "$AUDIT_ANCHOR_SECRET_ACCESS_KEY" ]; }; then
             echo "::error::AUDIT_ANCHOR_BUCKET is set but AUDIT_ANCHOR_ACCESS_KEY_ID / AUDIT_ANCHOR_SECRET_ACCESS_KEY are not"
             exit 1
           fi
           # Same EU list as the backup bucket: variable, else the default of backup-bucket-check.sh.
+          # shellcheck disable=SC2016 # the ${...} is text for sed to match, not an expansion
           allowed="${BACKUP_S3_ALLOWED_REGIONS:-$(sed -n 's/^ALLOWED_REGIONS="${BACKUP_S3_ALLOWED_REGIONS:-\(.*\)}"$/\1/p' scripts/backup-bucket-check.sh)}"
           case " $allowed " in
             *" $AUDIT_ANCHOR_REGION "*) [ -n "$AUDIT_ANCHOR_REGION" ] && exit 0 ;;
@@ -984,6 +990,7 @@ jobs:
           TAG="$RESOLVED_TAG"
           # Created in parallel, observed over one CANARY_GATE_SECONDS window.
           # No singleton here (trader-trainer ADR-0058, collector ADR-0057): a canary is a second pod.
+          # shellcheck disable=SC2086 # CANARY_SERVICES is a space-separated list
           ./deploy/k8s/scripts/deploy-k8s.sh canary-all "$TAG" 10 $CANARY_SERVICES
 
       # Revision each Deployment runs before the overlay: "Rollback on failure"

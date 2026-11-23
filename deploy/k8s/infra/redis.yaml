@@ -89,6 +89,11 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: REDIS_INTERNAL_PASSWORD
+            - name: REDIS_DISCOVERY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_DISCOVERY_PASSWORD
             - name: REDIS_MESSAGE_MANAGER_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -508,14 +513,16 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    # Clients of 6379 / 26379 (issue #747): the services that use Redis and the
-    # Redis pods themselves.
+    # Clients of 6379 / 26379 (issue #747): the services that use Redis, the
+    # ones that only read it while a rollback to N-1 is possible (expand/
+    # contract, ADR-0040) and the Redis pods themselves.
     - from:
         - podSelector:
             matchExpressions:
               - key: app.kubernetes.io/component
                 operator: In
                 values:
+                  - discovery-server
                   - message-manager
                   - dlq-service
                   - audit-logger

@@ -37,7 +37,7 @@ done
 # <compose helper service suffix>:<service name in the SPIFFE ID and ACL>
 for pair in \
   message:message-manager scraper:financial-scraper \
-  trainer:trader-trainer gateway:api-gateway audit:audit-logger dlq:dlq-service evaluator:model-evaluator risk:risk-execution \
+  trainer:trader-trainer gateway:api-gateway audit:audit-logger dlq:dlq-service evaluator:model-evaluator risk:risk-execution decision:decision-consumer \
   edge:edge-proxy prometheus:prometheus blackbox:blackbox-exporter; do
   helper=${pair%%:*}
   service=${pair#*:}
