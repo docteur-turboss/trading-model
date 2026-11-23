@@ -48,7 +48,7 @@ export async function publishJournalLag(
 	JOURNAL_PENDING_ENTRIES.reset();
 	JOURNAL_OLDEST_PENDING_AGE_SECONDS.reset();
 	for (const { topic, service, pending, oldestPendingAgeMs } of lags) {
-		if (!Object.hasOwn(EVENT_VALIDATORS, topic)) {
+		if (!(topic in EVENT_VALIDATORS)) {
 			continue;
 		}
 		JOURNAL_PENDING_ENTRIES.set({ topic, service }, pending);
