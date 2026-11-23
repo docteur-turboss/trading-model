@@ -36,7 +36,7 @@ The limits are checked on every fill and on every reference price update, and be
 
 | Cap | Value | Measured on | Effect |
 |---|---|---|---|
-| Global exposure (ADR-0064 §2) | 30 % of allocated capital | Sum of the notionals of all positions, open orders counted as filled | An intent that would cross it is rejected |
+| Global exposure (ADR-0064 §2) | 10 % of allocated capital (lowered from 30 % by the owner on 2026-11-23, issue #2194: §6) | Sum of the notionals of all positions, open orders counted as filled | An intent that would cross it is rejected |
 
 This cap is set here because it bounds the loss once the kill switch is on (§6). The other pre-trade caps of ADR-0064 §2 (size per order, price band, exposure per instrument, order rate) are not set by this policy: the project owner sets them in the Risk/Execution service configuration, with the same change process as below, at or below the global exposure cap.
 
@@ -84,14 +84,14 @@ The kill switch and the limits live in the Risk/Execution service, outside the m
 
 ## 6. Operator absent: worst case
 
-The automatic triggers stop new orders and cancel open orders; they do not close positions (§4.1). The loss of an unattended period is therefore the limit reached (2 % daily, 10 % drawdown, plus slippage between the trigger and the cancellation of open orders) **plus the loss of the positions still held**, which stay exposed to the market until an operator acts. Spot only, no leverage (ADR-0064 §2): those positions can lose at most their value at the trigger. The global exposure cap is checked on intents only (§3.1), so a price rise after the last intent can carry that value above 30 %. The bound depends on its reference:
+The automatic triggers stop new orders and cancel open orders; they do not close positions (§4.1). The loss of an unattended period is therefore the limit reached (2 % daily, 10 % drawdown, plus slippage between the trigger and the cancellation of open orders) **plus the loss of the positions still held**, which stay exposed to the market until an operator acts. Spot only, no leverage (ADR-0064 §2): those positions can lose at most their value at the trigger. The global exposure cap is checked on intents only (§3.1), so a price rise after the last intent can carry that value above 10 %. The bound depends on its reference:
 
-- **Against the allocated capital: up to 40 %** with these values (drawdown stop plus global exposure cap), plus slippage and fees. At the last intent, equity was at least the allocated capital minus 10 % (the high-water mark is never below the allocated capital) and positions at most 30 %, so cash was at least 60 % of the allocated capital; with no new intent, cash does not fall, and positions cannot go below zero.
-- **Against the high-water mark: no fixed percentage.** The loss is the drawdown stop plus the whole value held at the trigger, which gains since the last intent can push above the cap. Example with 100 allocated: 30 bought, the price doubles (equity 130), falls by a sixth (equity 120, drawdown stop), then to zero: equity 70, 60 below the high-water mark, 30 below the allocated capital.
+- **Against the allocated capital: up to 20 %** with these values (drawdown stop plus global exposure cap), plus slippage and fees. At the last intent, equity was at least the allocated capital minus 10 % (the high-water mark is never below the allocated capital) and positions at most 10 %, so cash was at least 80 % of the allocated capital; with no new intent, cash does not fall, and positions cannot go below zero.
+- **Against the high-water mark: no fixed percentage.** The loss is the drawdown stop plus the whole value held at the trigger, which gains since the last intent can push above the cap. Example with 100 allocated: 10 bought, the price triples (equity 120), falls until equity is 110 (drawdown stop: 20 held), then to zero: equity 90, 30 below the high-water mark, 10 below the allocated capital.
 
 The stale data, reconciliation and reject triggers cover the cases where the loss cannot be measured. If the Risk/Execution service itself is down, no new order is sent (it is the only holder of the broker keys), but open positions stay exposed the same way: the service must therefore hold no resting order without an expiry, and its down alert pages an operator (§2).
 
-A tighter bound needs positions reduced without an operator, for example stop orders resting at the exchange or a forced close on the drawdown stop. That would change §4.1 and ADR-0064 §5, and it trades the bound against a forced sale in a fast or illiquid market: it is a decision for the project owner, not taken by this policy. Until then, the owner sizes the allocated capital and the global exposure cap so that this worst case is acceptable.
+**Decision (project owner, 2026-11-23, issue #2194): option C, no automatic reduction, global exposure cap lowered to 10 % for the first live tier.** Positions are still never closed automatically (§4.1, ADR-0064 §5 unchanged), so the worst case of an unattended period is **about 20 % of the allocated capital** (10 % drawdown stop plus 10 % of positions, plus slippage and fees), 2 000 USDT with the 10 000 of `RISK_ALLOCATED_CAPITAL`; against the high-water mark it stays without a fixed percentage. Stop orders resting at the exchange or a forced close on the drawdown stop were not chosen: they would change §4.1 and ADR-0064 §5. Raising the cap above 10 % is a limit change (§3) that must recompute this section.
 
 ## 7. Drill
 
