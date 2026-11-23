@@ -74,7 +74,7 @@ export async function createRiskExecutionApp() {
 			limits.slippageBps
 		),
 		store: new JsonFile<RiskState>(join(ENV.RISK_STATE_DIR, "state.json")),
-		admission: new TrainerAdmission(tls),
+		admission: new TrainerAdmission(tls, ENV.TRAINER_MODEL_DIR),
 		prices: new ScraperPrices(tls),
 		emit: (event, fields) => {
 			getLogger().info(event, fields);

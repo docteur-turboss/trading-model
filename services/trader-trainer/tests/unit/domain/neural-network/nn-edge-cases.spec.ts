@@ -21,7 +21,6 @@ function makeConfig(
 		initialisationType: InitialisationType.Zeros,
 		normalisationType: NormalisationType.None,
 		connectionType: ConnectionType.FullyConnected,
-		enablePool: false,
 		...overrides,
 	};
 }
@@ -53,7 +52,7 @@ describe("NeuralNetwork - Edge Cases", () => {
 
 	describe("train with input/target mismatch", () => {
 		it("train should throw on input size mismatch", () => {
-			const nn = new NeuralNetwork(makeConfig({ enablePool: false }));
+			const nn = new NeuralNetwork(makeConfig());
 
 			expect(() => {
 				nn.trainFrom(
@@ -64,7 +63,7 @@ describe("NeuralNetwork - Edge Cases", () => {
 		});
 
 		it("train should throw on target size mismatch", () => {
-			const nn = new NeuralNetwork(makeConfig({ enablePool: false }));
+			const nn = new NeuralNetwork(makeConfig());
 
 			expect(() => {
 				nn.trainFrom(
@@ -83,7 +82,6 @@ describe("NeuralNetwork - Edge Cases", () => {
 				initialisationType: InitialisationType.Zeros,
 				normalisationType: NormalisationType.None,
 				connectionType: ConnectionType.DenseSkip,
-				enablePool: false,
 			});
 
 			const input = new Float32Array([1, 2, 3, 4]);

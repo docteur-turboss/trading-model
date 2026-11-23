@@ -4,7 +4,7 @@ import { getLogger } from "@trading-model/contracts/logger-registry";
 import { runJob } from "@trading-model/http/correlation-id";
 import { ScraperClient } from "@trading-model/http/model-api/scraper-client";
 import { TrainerClient } from "@trading-model/http/model-api/trainer-client";
-import { toInstanceId } from "@trading-model/primitives/primitives";
+import { InstanceId } from "@trading-model/primitives/primitives";
 import { PromotionAudit } from "../adapters/outbound/promotion-audit";
 import { RiskClient } from "../adapters/outbound/risk-client";
 import { createDecisionTick } from "../application/decide";
@@ -23,7 +23,7 @@ export async function createDecisionConsumerApp() {
 		risk: new RiskClient(tls),
 		audit: new PromotionAudit(
 			tls,
-			toInstanceId(ENV.INSTANCE_ID),
+			InstanceId.of(ENV.INSTANCE_ID),
 			ENV.MESSAGE_CALLBACK_PATH
 		),
 		windowBars: ENV.DECISION_WINDOW_BARS,

@@ -3,7 +3,7 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import type { HttpClient } from "@trading-model/http/http-client";
 import {
 	DurationMs,
-	toServiceId,
+	ServiceId,
 	URLString,
 } from "@trading-model/primitives/primitives";
 import { logger } from "../../config/logger";
@@ -40,7 +40,7 @@ async function _deliverMessage(
 		{ service: entry.service, message: entry.message },
 		{
 			timeoutMs: DurationMs.of(REPLAY_DELIVERY_TIMEOUT_MS),
-			serviceName: toServiceId(ServiceInstanceName.MessageManagerService),
+			serviceName: ServiceId.of(ServiceInstanceName.MessageManagerService),
 		}
 	);
 }
