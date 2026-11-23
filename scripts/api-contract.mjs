@@ -99,7 +99,7 @@ const CALLERS = {
 	"message-manager POST /message/replay": { caller: "services/dlq-service", call: /"\/message\/replay"/ },
 	"audit-logger POST /message": { caller: "services/audit-logger", call: /\.intents\(/ },
 	"model-evaluator POST /message": { caller: "services/model-evaluator", call: /\.intents\(/ },
-	"trader-trainer GET /models/:symbol/:version/weights": { caller: "packages/http/src/model-api", call: /\/weights`/ },
+	"trader-trainer GET /models/:symbol/:version/weights": { caller: "packages/http", call: /\/weights`/ },
 	"risk-execution POST /intents": { caller: "services/decision-consumer", call: /\/intents`/ },
 };
 
