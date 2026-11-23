@@ -133,6 +133,9 @@ spec:
               readOnly: true
             - name: evaluations
               mountPath: /data/evaluations
+            - name: trainer-models
+              mountPath: /data/checkpoints
+              readOnly: true
           livenessProbe:
             exec:
               command:
@@ -204,6 +207,10 @@ spec:
         - name: evaluations
           persistentVolumeClaim:
             claimName: model-evaluations-pvc
+        - name: trainer-models
+          persistentVolumeClaim:
+            claimName: trainer-checkpoints-pvc
+            readOnly: true
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

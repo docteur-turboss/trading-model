@@ -1,5 +1,8 @@
 import { EventEmitter } from "node:events";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import https from "node:https";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, jest } from "@jest/globals";
 
 const manifestGet = jest.fn<(...args: any[]) => any>();
@@ -56,7 +59,7 @@ describe("TrainerClient", () => {
 		};
 		manifestGet.mockResolvedValue({ data: manifest });
 		await expect(
-			new TrainerClient(TLS).manifest("BTCUSDT", "v1")
+			new TrainerClient(TLS, "/nonexistent").manifest("BTCUSDT", "v1")
 		).resolves.toEqual(manifest);
 		expect(String(manifestGet.mock.calls[0][0])).toBe(
 			"https://trainer:3000/models/BTCUSDT/v1"
@@ -65,10 +68,10 @@ describe("TrainerClient", () => {
 
 	it("returns the weights with their x-model-sha256 header", async () => {
 		answer(200, Buffer.from([1, 2, 3, 4]), { "x-model-sha256": "abc" });
-		const { bytes, sha256 } = await new TrainerClient(TLS).weights(
-			"BTCUSDT",
-			"v1"
-		);
+		const { bytes, sha256 } = await new TrainerClient(
+			TLS,
+			"/nonexistent"
+		).weights("BTCUSDT", "v1");
 		expect([...bytes]).toEqual([1, 2, 3, 4]);
 		expect(sha256).toBe("abc");
 	});
@@ -94,7 +97,7 @@ describe("TrainerClient", () => {
 			return req;
 		}) as never);
 		await expect(
-			new TrainerClient(TLS).weights("BTCUSDT", "v1")
+			new TrainerClient(TLS, "/nonexistent").weights("BTCUSDT", "v1")
 		).rejects.toThrow(/larger than/);
 		expect(req.destroy).toHaveBeenCalled();
 	});
@@ -102,8 +105,37 @@ describe("TrainerClient", () => {
 	it("fails on a 403 from the trainer", async () => {
 		answer(403, Buffer.from("{}"));
 		await expect(
-			new TrainerClient(TLS).weights("BTCUSDT", "v1")
+			new TrainerClient(TLS, "/nonexistent").weights("BTCUSDT", "v1")
 		).rejects.toThrow(/HTTP 403/);
+	});
+});
+
+describe("TrainerClient on the artifact store", () => {
+	it("reads manifest and weights from the store with the trainer unreachable", async () => {
+		const root = mkdtempSync(join(tmpdir(), "models-"));
+		const version = "20261101T000000Z-aaaaaaaaaaaa";
+		const dir = join(root, "BTCUSDT", version);
+		mkdirSync(dir, { recursive: true });
+		const manifest = {
+			symbol: "BTCUSDT",
+			version,
+			weights: { length: 1, sha256: "a".repeat(64) },
+			genome: {},
+		};
+		writeFileSync(join(dir, "manifest.json"), JSON.stringify(manifest));
+		writeFileSync(join(dir, "weights.f32"), Buffer.from([1, 2, 3, 4]));
+		manifestGet.mockReset();
+		jest.spyOn(https, "get").mockImplementation((() => {
+			throw new Error("trainer down");
+		}) as never);
+		const client = new TrainerClient(TLS, root);
+
+		await expect(client.manifest("BTCUSDT", version)).resolves.toEqual(
+			manifest
+		);
+		const { bytes } = await client.weights("BTCUSDT", version);
+		expect([...bytes]).toEqual([1, 2, 3, 4]);
+		expect(manifestGet).not.toHaveBeenCalled();
 	});
 });
 

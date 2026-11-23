@@ -564,9 +564,11 @@ services:
       SERVICE_NAME: model-evaluator
       INSTANCE_ID: model-evaluator-1
       EVALUATIONS_DIR: /data/evaluations
+      TRAINER_MODEL_DIR: /data/checkpoints/models
     volumes:
       - svid-evaluator:/run/spire/svid
       - model-evaluations:/data/evaluations
+      - trainer-checkpoints:/data/checkpoints:ro
     networks:
       - backend-net
     healthcheck:
@@ -602,9 +604,11 @@ services:
       EXECUTION_MODE: paper
       DEPLOYMENT_ENV: development
       RISK_STATE_DIR: /data/risk-execution
+      TRAINER_MODEL_DIR: /data/checkpoints/models
     volumes:
       - svid-risk:/run/spire/svid
       - risk-execution-data:/data/risk-execution
+      - trainer-checkpoints:/data/checkpoints:ro
     networks:
       - backend-net
     healthcheck:
