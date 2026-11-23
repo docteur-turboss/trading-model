@@ -1,4 +1,4 @@
-# ADR-0087: Paged Market Read Indexes Are Built Outside the Migration Job
+# ADR-0088: Paged Market Read Indexes Are Built Outside the Migration Job
 
 **Status:** Accepted
 **Date:** 2026-11

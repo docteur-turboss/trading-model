@@ -713,7 +713,7 @@ describe("timestamp queries — real MySQL (issue #555)", () => {
 	);
 });
 
-describe("index-build — paged symbol reads (ADR-0087)", () => {
+describe("index-build — paged symbol reads (ADR-0088)", () => {
 	const TABLES = ["market_candles", "market_trades", "market_tickers"];
 
 	async function explain(table: string) {

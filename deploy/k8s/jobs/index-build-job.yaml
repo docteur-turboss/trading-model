@@ -1,6 +1,6 @@
 # =============================================================================
 #  index-build-job.yaml — long online index builds, outside the db-migrate Job
-#  Builds the (symbol, timestamp, id) indexes of the market tables (ADR-0087):
+#  Builds the (symbol, timestamp, id) indexes of the market tables (ADR-0088):
 #  ~10 M rows take longer than the 720 s of db-migrate (issue #1473). Same
 #  image, user and ServiceAccount as db-migrate; run-migrations.sh applies it
 #  without waiting. Idempotent: a failed or killed build is retried from the

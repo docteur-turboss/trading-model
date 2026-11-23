@@ -48,7 +48,7 @@ The trading-model platform processes machine-generated financial market data and
 |---|---|---|
 | **Critical** | Compromise would severely impact platform operations | SPIRE CA keys, HMAC master secrets, database credentials |
 | **High** | Compromise would impact service availability or data integrity | SVIDs / trust bundle, Redis subscription data, MongoDB audit logs |
-| **Medium** | Compromise would cause limited operational impact | Market data (candles, trades, tickers), training checkpoints |
+| **Medium** | Compromise would cause limited operational impact | Market data (candles, trades, tickers), training checkpoints, risk-execution state, model evaluations |
 | **Low** | Compromise has negligible impact | Public documentation, TypeDoc output, example configurations |
 
 ### 4.2 Asset Inventory

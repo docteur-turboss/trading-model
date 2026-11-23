@@ -224,7 +224,7 @@ interface BaseMarketData {
 ## Index Conventions
 
 - All tables have a visible index on `timestamp` (`INVISIBLE` until migration `007_make_timestamp_indexes_visible`), so `timestamp` range queries use it
-- `market_candles`, `market_trades` and `market_tickers` have `(symbol, timestamp, id)` (`idx_*_symbol_ts`, built by `migrate.mjs index-build`, ADR-0087) for the paged symbol reads; it replaces `idx_*_symbol`, which the DDL above still shows (baseline 0000)
+- `market_candles`, `market_trades` and `market_tickers` have `(symbol, timestamp, id)` (`idx_*_symbol_ts`, built by `migrate.mjs index-build`, ADR-0088) for the paged symbol reads; it replaces `idx_*_symbol`, which the DDL above still shows (baseline 0000)
 
 ## Entity Types Not Yet Persisted
 
