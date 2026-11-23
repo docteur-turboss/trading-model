@@ -136,8 +136,11 @@ services:
     restart: unless-stopped
     mem_limit: 2g
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-financial_scraper}
+      # Application user: all privileges on MYSQL_DATABASE only (created at first init)
+      MYSQL_USER: ${MYSQL_USER:-scraper}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
     volumes:
       - mysql-data:/var/lib/mysql
     networks:
@@ -167,8 +170,9 @@ services:
     environment:
       DB_HOST: mysql
       DB_PORT: "3306"
-      DB_USER: ${MYSQL_USER:-root}
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      # root assumed: the migrator may need privileges beyond one database
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
       DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
     networks:
       - data-net
@@ -383,8 +387,8 @@ services:
       # Same file as the K8s ConfigMap financial-scraper-signal-registry (issue #1308).
       SIGNAL_REGISTRY_FILE: /etc/signal-registry/signal-registry.json
       SIGNAL_NON_COMMERCIAL_ACCEPTED: ${SIGNAL_NON_COMMERCIAL_ACCEPTED:-}
-      DB_USER: ${MYSQL_USER:-root}
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_USER: ${MYSQL_USER:-scraper}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
       DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
       DB_HOST: mysql
       DB_PORT: '3306'
