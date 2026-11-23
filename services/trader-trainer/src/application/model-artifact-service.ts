@@ -84,9 +84,6 @@ export class ModelArtifactService {
 	): Promise<RehydratedModel[]> {
 		const models = this._deps.models;
 		const found: RehydratedModel[] = [];
-		if (!models) {
-			return found;
-		}
 		for (const symbol of symbols) {
 			try {
 				const manifest = await models.latest(String(symbol));
@@ -145,9 +142,6 @@ export class ModelArtifactService {
 		components?: ModelComponent[]
 	): Promise<{ ref: StoredModelRef; lastModel: LastModel } | undefined> {
 		const models = this._deps.models;
-		if (!models) {
-			return;
-		}
 		const weights = result.bestGenome.trainedWeights;
 		if (!(summary && weights)) {
 			MODEL_ARTIFACTS_TOTAL.inc({ result: "skipped" });
@@ -170,7 +164,7 @@ export class ModelArtifactService {
 			);
 			const stored = await models.save({
 				symbol: result.symbol,
-				instanceId: this._deps.instanceId ?? "trader-trainer",
+				instanceId: this._deps.instanceId,
 				bestGenome: result.bestGenome,
 				weights: new Float32Array(weights),
 				features: isEventDriven(result.bestGenome.rl.horizon)
