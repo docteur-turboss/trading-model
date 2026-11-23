@@ -1,11 +1,11 @@
 import {
 	DurationMs,
+	Environment,
+	InstanceId,
 	IPAddress,
 	Port,
-	toEnvironment,
-	toInstanceId,
-	toRegion,
-	toServiceId,
+	Region,
+	ServiceId,
 	UnixTimestamp,
 	Version,
 } from "@trading-model/primitives/primitives";
@@ -20,8 +20,8 @@ import type { AcceptsContract, Assert, YieldsContract } from "./contract-shape";
  * included: clients validate what discovery sends instead of casting it.
  */
 export const ServiceInstanceWire = z.object({
-	instanceId: z.string().min(1).transform(brand(toInstanceId)),
-	serviceName: z.string().min(1).transform(brand(toServiceId)),
+	instanceId: z.string().min(1).transform(brand(InstanceId.of)),
+	serviceName: z.string().min(1).transform(brand(ServiceId.of)),
 	host: z.string().min(1).transform(brand(IPAddress.of)),
 	port: z.number().int().transform(brand(Port.of)),
 	version: z.string().min(1).transform(brand(Version.of)),
@@ -29,8 +29,8 @@ export const ServiceInstanceWire = z.object({
 	ttl: z.number().int().transform(brand(DurationMs.of)),
 	registeredAt: z.number().int().transform(brand(UnixTimestamp.of)),
 	lastHeartbeat: z.number().int().transform(brand(UnixTimestamp.of)),
-	env: z.string().transform(brand(toEnvironment)).optional(),
-	region: z.string().transform(brand(toRegion)).optional(),
+	env: z.string().transform(brand(Environment.of)).optional(),
+	region: z.string().transform(brand(Region.of)).optional(),
 });
 
 /** `POST /register`: the stored instance and its token, sent only there. */

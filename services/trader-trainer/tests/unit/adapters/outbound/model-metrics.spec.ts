@@ -13,9 +13,9 @@ import type {
 	Ratio,
 } from "@trading-model/primitives/primitives";
 import {
+	CorrelationId,
 	DurationMs,
 	Price,
-	toCorrelationId,
 } from "@trading-model/primitives/primitives";
 import { ModelPublisher } from "../../../../src/adapters/outbound/model-publisher";
 import { NETWORK_INPUT_LAYOUT } from "../../../../src/domain/agent/agent-state";
@@ -191,7 +191,7 @@ describe("training.model.published identity of the artifact", () => {
 
 	it("carries the caller's correlation id, or draws one outside a request", async () => {
 		const inRequest = await runWithCorrelationId(
-			toCorrelationId("550e8400-e29b-41d4-a716-446655440000"),
+			CorrelationId.of("550e8400-e29b-41d4-a716-446655440000"),
 			() => publishedMessage()
 		);
 

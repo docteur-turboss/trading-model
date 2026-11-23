@@ -10,7 +10,7 @@ import { NodeSDK } from "@opentelemetry/sdk-node";
 import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { toInstanceId } from "@trading-model/primitives/primitives";
+import { InstanceId } from "@trading-model/primitives/primitives";
 import { logger } from "./logger";
 
 let sdk: NodeSDK | null = null;
@@ -48,7 +48,7 @@ export function startTelemetry(serviceName: ServiceInstanceName): void {
 			[SemanticResourceAttributes.SERVICE_NAME]: serviceName,
 			[SemanticResourceAttributes.SERVICE_VERSION]:
 				process.env.APP_VERSION ?? "1.0.0",
-			[SemanticResourceAttributes.SERVICE_INSTANCE_ID]: toInstanceId(
+			[SemanticResourceAttributes.SERVICE_INSTANCE_ID]: InstanceId.of(
 				process.env.INSTANCE_ID ?? serviceName
 			),
 		}),

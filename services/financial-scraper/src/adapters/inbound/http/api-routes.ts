@@ -11,8 +11,7 @@ import {
 	ErrorResponse,
 } from "@trading-model/http/api-route/api-route";
 import {
-	type TradingSymbol,
-	toSymbol,
+	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import { z } from "zod";
@@ -30,7 +29,10 @@ const BY_SOURCE = z.object({
 });
 
 const BY_SYMBOL = z.object({
-	symbol: z.string().min(1).transform(brand<string, TradingSymbol>(toSymbol)),
+	symbol: z
+		.string()
+		.min(1)
+		.transform(brand<string, TradingSymbol>(TradingSymbol.of)),
 });
 
 /** An ISO date or date-time, to epoch milliseconds. */

@@ -4,7 +4,7 @@ import { ServiceInstanceName } from "@trading-model/common/config/services.types
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
 import { EVENT_SUBSCRIBERS } from "@trading-model/contracts/event-routes";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
-import { toInstanceId } from "@trading-model/primitives/primitives";
+import { InstanceId } from "@trading-model/primitives/primitives";
 import {
 	createMessageHandler,
 	createModelPublishedListener,
@@ -34,7 +34,7 @@ export async function createModelEvaluatorApp() {
 		journal: busJournalFromEnv(ENV),
 		addressManagerClient: AddressManager,
 		tlsPaths: tls,
-		instanceId: toInstanceId(ENV.INSTANCE_ID),
+		instanceId: InstanceId.of(ENV.INSTANCE_ID),
 		serviceName: ServiceInstanceName.ModelEvaluatorService,
 	});
 	brokerMessage.on(

@@ -10,7 +10,7 @@ import { SignalBarHistory } from "@trading-model/http/signals/signal-bar-history
 import { DAY_MS } from "@trading-model/model-runtime/features/feature-builder";
 import {
 	ServiceId,
-	toSymbol,
+	TradingSymbol,
 	URLString,
 } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
@@ -65,7 +65,7 @@ export class ScraperClient {
 		if (intervalMs === DAY_MS) {
 			// The history ends at `to`; its size only has to reach back to `from`.
 			const bars = await this._daily.loadWindow(
-				toSymbol(symbol),
+				TradingSymbol.of(symbol),
 				to,
 				Math.ceil((to - from) / DAY_MS) + 1
 			);
