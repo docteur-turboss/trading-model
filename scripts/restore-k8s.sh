@@ -186,7 +186,7 @@ replay_oplog() {
     open_backup "$archive" | gunzip || return 1
   done | kubectl exec -i -n "${K8S_NAMESPACE}" "${primary}" -- sh -c \
     "PWD_VAR=MONGO_ROOT_PASSWORD; ${MONGO_PWD_CFG}"'
-o=$(mktemp -d) && chmod 700 "$o" && cat > "$o/oplog.bson" && mongorestore --tls --tlsCAFile /keyfile/ca.crt --oplogReplay --oplogLimit "$1:0" --config "$d/c.yml" --username root --authenticationDatabase admin "$o"; rc=$?; rm -rf "$o"; exit $rc' \
+o=$(mktemp -d) && chmod 700 "$o" && cat > "$o/oplog.bson" && mongorestore --ssl --sslCAFile /keyfile/ca.crt --oplogReplay --oplogLimit "$1:0" --config "$d/c.yml" --username root --authenticationDatabase admin "$o"; rc=$?; rm -rf "$o"; exit $rc' \
     sh "$UNTIL_EPOCH"
 }
 
