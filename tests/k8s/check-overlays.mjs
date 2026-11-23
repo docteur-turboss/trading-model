@@ -407,6 +407,15 @@ for (const env of OVERLAYS) {
 		}
 	}
 
+	// Issue #2378: default-deny-all cuts the local MinIO; only staging-local opens it, for backup and audit-logger.
+	for (const component of ["backup", "audit-logger"]) {
+		const opened = docs.some((doc) => doc.kind === "NetworkPolicy" && doc.text.includes(`app.kubernetes.io/component: ${component}
+  policyTypes`) && doc.text.includes("cidr: 172.18.0.200/32"));
+		if (opened !== (env === "staging-local")) {
+			errors.push(`${env}: ${component} pods ${env === "staging-local" ? "need" : "must not have"} a NetworkPolicy egress to the local MinIO 172.18.0.200/32:9000 (issue #2378)`);
+		}
+	}
+
 	// Issue #2197: every Mongo pod adds itself to the replica set, with one script for both sets.
 	const [dlqBoot, auditBoot] = ["mongo-dlq", "mongo-audit"].map(
 		(name) => docs.find((doc) => doc.kind === "StatefulSet" && doc.name === name)?.text.match(/^ +M="mongosh [\s\S]*?exec sleep infinity$/m)?.[0],
