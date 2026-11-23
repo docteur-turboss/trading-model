@@ -84,6 +84,10 @@ jobs:
           echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $RUNNER_TEMP/actionlint.tgz" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/actionlint.tgz" -C "$RUNNER_TEMP" actionlint
           "$RUNNER_TEMP/actionlint" -shellcheck= .github/workflows/*.yml
+      # actionlint accepts arithmetic in timeout-minutes; GitHub refuses the file (run without jobs, #2111).
+      - name: No arithmetic in timeout-minutes expressions
+        run: |
+          if grep -hE '^\s*timeout-minutes:.*\$\{\{' .github/workflows/*.yml | sed -E "s/'[^']*'//g" | grep -E '[*+/%]|[0-9] - | - [0-9]'; then exit 1; fi
 
   security:
     # Not in pre-push: bun audit needs the network, gitleaks the full history.
