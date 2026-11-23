@@ -4,6 +4,17 @@ export interface ObjectiveVector {
 	negFlops: number;
 }
 
+export function sameVector(
+	first: ObjectiveVector,
+	second: ObjectiveVector
+): boolean {
+	return (
+		first.avgPnl === second.avgPnl &&
+		first.sharpe === second.sharpe &&
+		first.negFlops === second.negFlops
+	);
+}
+
 export function dominates(
 	first: ObjectiveVector,
 	second: ObjectiveVector
