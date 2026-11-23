@@ -266,10 +266,17 @@ describe("BusConsumer", () => {
 			calls++;
 			await slow;
 		});
+		const claims = jest.spyOn(journal, "claimDue");
 		await c.start([TOPIC]);
 		await publishToBus(journal, "slow", METADATA);
-		// The fake Redis reports every pending entry as due; claims run every 2 s.
-		await new Promise((resolve) => setTimeout(resolve, 2500));
+		await until(() => calls === 1);
+		// The fake Redis reports every pending entry as due: jump past the 2 s claim period.
+		const before = claims.mock.calls.length;
+		const now = Date.now();
+		jest.spyOn(Date, "now").mockImplementation(() => now + 3000);
+		await until(() => claims.mock.calls.length > before);
+		expect(claims.mock.calls.length).toBeGreaterThan(before);
+		jest.spyOn(Date, "now").mockRestore();
 		const stopped = c.stop();
 		release();
 		await stopped;
