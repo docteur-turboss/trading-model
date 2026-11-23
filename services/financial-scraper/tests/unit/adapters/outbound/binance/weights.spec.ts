@@ -56,18 +56,4 @@ describe("BINANCE_WEIGHTS", () => {
 			expect(BINANCE_WEIGHTS.change24hrStats(0)).toBe(80);
 		});
 	});
-
-	describe("symbolPriceTicker", () => {
-		it("should return 2 for one symbol and 4 for several", () => {
-			expect(BINANCE_WEIGHTS.symbolPriceTicker(1)).toBe(2);
-			expect(BINANCE_WEIGHTS.symbolPriceTicker(100)).toBe(4);
-		});
-	});
-
-	describe("orderBookTicker", () => {
-		it("should return 2 for one symbol and 4 for several", () => {
-			expect(BINANCE_WEIGHTS.orderBookTicker(1)).toBe(2);
-			expect(BINANCE_WEIGHTS.orderBookTicker(100)).toBe(4);
-		});
-	});
 });

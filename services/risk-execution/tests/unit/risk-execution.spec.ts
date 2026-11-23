@@ -897,7 +897,7 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		expect(await ctx.svc.submitIntent(intent())).toMatchObject({
 			reason: "kill_switch",
 		});
-		await ctx.svc.rearm("global", "fresh install checked", "ops");
+		await ctx.svc.rearm({ scope: "global" }, "fresh install checked", "ops");
 		expect((await ctx.svc.submitIntent(intent())).status).toBe("filled");
 	});
 

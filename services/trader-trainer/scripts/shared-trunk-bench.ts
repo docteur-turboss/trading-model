@@ -6,7 +6,7 @@
  * candles, which no training saw (ADR-0068). Seeds and data are paired.
  *
  *   bun scripts/shared-trunk-bench.ts --data a.json,b.json,... --out seed0.json [--seed 0] [--k <symbols per generation, default all>]
- *     [--window 500] [--test 100] [--population 20] [--generations 30]
+ *     [--window 500] [--test 1500: ADR-0069 needs 1440 bars] [--population 20] [--generations 30]
  *   bun scripts/shared-trunk-bench.ts --merge seed0.json,seed1.json,seed2.json
  */
 import { readFileSync, writeFileSync } from "node:fs";
@@ -18,6 +18,7 @@ import { FitnessType } from "../src/domain/genetic-algorithm/genome-control";
 import { makeSeededBackendFactory } from "../src/domain/genetic-algorithm/rl-backend";
 import { weightsOf } from "../src/domain/genetic-algorithm/shared-trunk";
 import { EMBARGO_STEPS } from "../src/domain/market-data/window-splitter";
+import { assessAdmission } from "../src/domain/model-admission";
 import { type Kline, marketSteps } from "./mt4-walk-forward";
 
 const INITIAL_CASH = 1000;
@@ -31,6 +32,9 @@ interface SeedResult {
 	/** Mean test PnL of each symbol, % of the initial cash. */
 	single: number[];
 	group: number[];
+	/** ADR-0069 verdict per symbol (the trainer's `assessAdmission`); null: test segment too short for one. */
+	singleAdmissible: (boolean | null)[];
+	groupAdmissible: (boolean | null)[];
 	singleSeconds: number;
 	groupSeconds: number;
 }
@@ -51,7 +55,7 @@ const median = (values: number[]) => {
 
 async function measure(seed: number): Promise<SeedResult> {
 	const window = Number(arg("window", "500"));
-	const test = Number(arg("test", "100"));
+	const test = Number(arg("test", "1500"));
 	const settings = {
 		validationSplit: 0.2,
 		testSplit: 0,
@@ -102,17 +106,25 @@ async function measure(seed: number): Promise<SeedResult> {
 
 	let t0 = Date.now();
 	const single: number[] = [];
-	for (const { symbol: _s, test: held, ...window } of sets) {
-		const { bestGenome } = await runInProcess([window], settings);
-		single.push(score(bestGenome as never, held));
+	const singleAdmissible: (boolean | null)[] = [];
+	for (const { symbol: _s, ...window } of sets) {
+		// the test segment goes through the session, as in the trainer, for its test metrics
+		const { bestGenome, bestFitnessMeta } = await runInProcess(
+			[window],
+			settings
+		);
+		single.push(score(bestGenome as never, window.test));
+		singleAdmissible.push(
+			assessAdmission(bestFitnessMeta, window.test)?.admissible ?? null
+		);
 	}
 	const singleSeconds = (Date.now() - t0) / 1000;
 
 	t0 = Date.now();
-	const { bestGenome } = await runInProcess(
-		sets.map(({ test: _t, ...ws }) => ws),
-		{ ...settings, symbolsPerGeneration: Number(arg("k", String(sets.length))) }
-	);
+	const { bestGenome, symbols } = await runInProcess(sets, {
+		...settings,
+		symbolsPerGeneration: Number(arg("k", String(sets.length))),
+	});
 	const groupSeconds = (Date.now() - t0) / 1000;
 	const group = sets.map((ws) =>
 		score(
@@ -128,6 +140,12 @@ async function measure(seed: number): Promise<SeedResult> {
 		symbols: sets.map((ws) => ws.symbol),
 		single,
 		group,
+		singleAdmissible,
+		groupAdmissible: sets.map(
+			(ws) =>
+				assessAdmission(symbols?.[ws.symbol]?.bestFitnessMeta, ws.test)
+					?.admissible ?? null
+		),
 		singleSeconds,
 		groupSeconds,
 	};
@@ -135,14 +153,14 @@ async function measure(seed: number): Promise<SeedResult> {
 
 function summarise(results: SeedResult[]): void {
 	console.log(
-		"| graine | fitness test par symbole (médiane, %) | fitness test tronc partagé (médiane, %) | écart | temps 10 sessions (s) | temps session de groupe (s) | rapport |"
+		"| graine | fitness test par symbole (médiane, %) | fitness test tronc partagé (médiane, %) | écart | temps 10 sessions (s) | temps session de groupe (s) | rapport | admissibles par symbole / tronc partagé |"
 	);
-	console.log("| --- | --- | --- | --- | --- | --- | --- |");
+	console.log("| --- | --- | --- | --- | --- | --- | --- | --- |");
 	for (const row of results) {
 		const single = median(row.single);
 		const shared = median(row.group);
 		console.log(
-			`| ${row.seed} | ${single.toFixed(3)} | ${shared.toFixed(3)} | ${(shared - single).toFixed(3)} | ${row.singleSeconds.toFixed(0)} | ${row.groupSeconds.toFixed(0)} | ${(row.groupSeconds / row.singleSeconds).toFixed(2)} |`
+			`| ${row.seed} | ${single.toFixed(3)} | ${shared.toFixed(3)} | ${(shared - single).toFixed(3)} | ${row.singleSeconds.toFixed(0)} | ${row.groupSeconds.toFixed(0)} | ${(row.groupSeconds / row.singleSeconds).toFixed(2)} | ${row.singleAdmissible.filter(Boolean).length} / ${row.groupAdmissible.filter(Boolean).length} (sur ${row.symbols.length}) |`
 		);
 	}
 	const single = median(results.map((row) => median(row.single)));
@@ -150,13 +168,25 @@ function summarise(results: SeedResult[]): void {
 	const ratio = median(
 		results.map((row) => row.groupSeconds / row.singleSeconds)
 	);
+	const admitted = (pick: (row: SeedResult) => (boolean | null)[]) =>
+		results.flatMap(pick).filter(Boolean).length;
+	const singleAdmitted = admitted((row) => row.singleAdmissible);
+	const sharedAdmitted = admitted((row) => row.groupAdmissible);
+	const verdictKnown = results.every((row) =>
+		[...row.singleAdmissible, ...row.groupAdmissible].every(
+			(verdict) => verdict !== null
+		)
+	);
+	// 0 admissible on both sides tells nothing: inconclusive, never "not worse"
+	const conclusive = verdictKnown && singleAdmitted + sharedAdmitted > 0;
+	const admissionOk = conclusive && sharedAdmitted >= singleAdmitted;
 	const fitnessOk = shared >= single - FITNESS_TOLERANCE * Math.abs(single);
 	const timeOk = ratio <= TIME_SHARE;
 	console.log(
-		`\n${results.length} graines, ${results[0].symbols.length} symboles. Médiane des graines: fitness ${single.toFixed(3)} % contre ${shared.toFixed(3)} % (à 5 % près: ${fitnessOk ? "oui" : "non"}), temps ${ratio.toFixed(2)} de 10 sessions (au plus ${TIME_SHARE.toFixed(2)}: ${timeOk ? "oui" : "non"}).`
+		`\n${results.length} graines, ${results[0].symbols.length} symboles. Médiane des graines: fitness ${single.toFixed(3)} % contre ${shared.toFixed(3)} % (à 5 % près: ${fitnessOk ? "oui" : "non"}), temps ${ratio.toFixed(2)} de 10 sessions (au plus ${TIME_SHARE.toFixed(2)}: ${timeOk ? "oui" : "non"}), modèles admissibles ${singleAdmitted} contre ${sharedAdmitted} (ADR-0069, pas pire: ${admissionOk ? "oui" : conclusive ? "non" : verdictKnown ? "non concluant: aucun modèle admissible" : "segment de test trop court"}).`
 	);
 	console.log(
-		`Critère ADR-0076 étape 1 : ${fitnessOk && timeOk && results.length >= 3 ? "atteint" : "non atteint"}`
+		`Critère ADR-0076 étape 1 : ${fitnessOk && timeOk && admissionOk && results.length >= 3 ? "atteint" : "non atteint"}`
 	);
 }
 
