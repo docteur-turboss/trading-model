@@ -1472,6 +1472,34 @@ tests:
               description: 'No successful db-retention run for more than 36 hours (it runs daily): suspended, failing to start or failing.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'
 
+  # Fully down service (up 0, probes fail; a failing probe alone, e.g. blocked by an ACL, does not count) -> SLI error 1 (not absent).
+  - name: availability SLI falls back to probes when a service receives no requests
+    interval: 1m
+    input_series:
+      - series: 'http_requests_total{job="api-gateway",instance="a",path="/a",status="200"}'
+        values: '0+1000x60 _x240'
+      - series: 'probe_success{job="blackbox-exporter",service="api-gateway",instance="a"}'
+        values: '1x60 0x240'
+      - series: 'up{job="api-gateway",instance="a"}'
+        values: '1x60 0x240'
+    promql_expr_test:
+      - expr: round(slo:sli_error:ratio_rate1h)
+        eval_time: 30m
+        exp_samples:
+          - labels: '{job="api-gateway"}'
+            value: 0
+      # Old samples still in the window: the 0 guard must not mask the fallback.
+      - expr: round(slo:sli_error:ratio_rate1h)
+        eval_time: 100m
+        exp_samples:
+          - labels: '{job="api-gateway"}'
+            value: 1
+      - expr: round(slo:sli_error:ratio_rate5m)
+        eval_time: 200m
+        exp_samples:
+          - labels: '{job="api-gateway"}'
+            value: 1
+
   # Budget remaining = (1 - error ratio / 0.001) * 100 over the window:
   # no 5xx = 100% (no alert; 5xx on /ping ignored), 0.09% of 5xx = 10% (fires, with the real job).
   - name: error budget alert fires below 20% remaining
