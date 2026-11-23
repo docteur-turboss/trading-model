@@ -87,6 +87,15 @@ export function createHandlers(
 			? sendResponse({ error: "Unknown order" }, HTTP_STATUS.NOT_FOUND)
 			: sendResponse({ status }, HTTP_STATUS.OK);
 	};
+	const position: Handler<"position"> = ({ params }, req) =>
+		forbidden(req, ...decisionConsumers) ??
+		sendResponse(
+			{
+				symbol: params.symbol,
+				quantity: risk.status().positions[params.symbol] ?? 0,
+			},
+			HTTP_STATUS.OK
+		);
 	const adminStatus: Handler<"adminStatus"> = (_in, req) =>
 		forbidden(req, OPERATOR) ?? sendResponse(risk.status(), HTTP_STATUS.OK);
 	const adminEngage: Handler<"adminEngage"> = async ({ body }, req) => {
@@ -132,5 +141,5 @@ export function createHandlers(
 		}
 		return sendResponse({ status: "rearmed" as const }, HTTP_STATUS.OK);
 	};
-	return { intent, cancel, adminStatus, adminEngage, adminRearm };
+	return { intent, cancel, position, adminStatus, adminEngage, adminRearm };
 }
