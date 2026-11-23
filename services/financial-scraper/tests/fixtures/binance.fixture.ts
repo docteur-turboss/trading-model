@@ -3,8 +3,6 @@ import type {
 	BinanceCandlestickData,
 	BinanceDepthEntry,
 	BinanceDepthResponse,
-	BinanceSymbolOrderBookTicker,
-	BinanceSymbolPriceTicker,
 	BinanceTradeResponse,
 } from "../../src/adapters/outbound/binance/binance.api";
 
@@ -94,22 +92,5 @@ export const mock24hrTickerResponse: Binance24hrTickerStats[] = [
 		firstId: 28385,
 		lastId: 28460,
 		count: 76,
-	},
-];
-
-export const mockPriceTickerResponse: BinanceSymbolPriceTicker[] = [
-	{
-		symbol: "BTCUSDT" as any,
-		price: "50000.00" as any,
-	},
-];
-
-export const mockBookTickerResponse: BinanceSymbolOrderBookTicker[] = [
-	{
-		symbol: "BTCUSDT" as any,
-		bidPrice: "49990.00" as any,
-		bidQty: "0.50000000" as any,
-		askPrice: "50010.00" as any,
-		askQty: "1.00000000" as any,
 	},
 ];

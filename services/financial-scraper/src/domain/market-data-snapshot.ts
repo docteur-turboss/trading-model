@@ -1,10 +1,8 @@
 import type { CandleInterval } from "@trading-model/contracts/market-data.types";
 import type {
 	Limit,
-	Price,
 	TradingSymbol,
 	UnixTimestamp,
-	Volume,
 } from "@trading-model/primitives/primitives";
 import type {
 	CandleData,
@@ -26,14 +24,6 @@ export interface SnapshotRequest {
 	signal?: AbortSignal;
 }
 
-interface BookTickerQuote {
-	symbol: TradingSymbol;
-	bid: Price;
-	ask: Price;
-	bidQty: Volume;
-	askQty: Volume;
-}
-
 /**
  * Normalized market data fetched for one symbol during a scrape cycle,
  * whatever the source. Candles hold closed candles only. A part the source
@@ -44,8 +34,6 @@ export interface MarketDataSnapshot {
 	recentTrades?: TradeData[];
 	candles?: CandleData[];
 	ticker24h?: TickerData[];
-	priceTicker?: Record<TradingSymbol, Price>;
-	bookTicker?: BookTickerQuote[];
 	fetchedAt: number;
 }
 

@@ -16,8 +16,6 @@ jest.mock("../../../../../src/adapters/outbound/binance/endpoints", () => ({
 		trades: jest.fn((..._args: any[]) => "/api/v3/trades"),
 		candlesticks: jest.fn((..._args: any[]) => "/api/v3/klines"),
 		change24hrStats: jest.fn((..._args: any[]) => "/api/v3/ticker/24hr"),
-		symbolPriceTicker: jest.fn((..._args: any[]) => "/api/v3/ticker/price"),
-		orderBookTicker: jest.fn((..._args: any[]) => "/api/v3/ticker/bookTicker"),
 	},
 }));
 
@@ -27,8 +25,6 @@ jest.mock("../../../../../src/adapters/outbound/binance/weights", () => ({
 		trades: jest.fn((..._args: any[]) => 25),
 		candlesticks: jest.fn((..._args: any[]) => 2),
 		change24hrStats: jest.fn((..._args: any[]) => 2),
-		symbolPriceTicker: jest.fn((..._args: any[]) => 4),
-		orderBookTicker: jest.fn((..._args: any[]) => 4),
 	},
 }));
 
@@ -36,9 +32,7 @@ import {
 	get24hrTickerStats,
 	getCandlestickData,
 	getOrderBook,
-	getOrderBookTicker,
 	getRecentTrades,
-	getSymbolPriceTicker,
 } from "../../../../../src/adapters/outbound/binance/binance.client";
 import { httpClients } from "../../../../../src/config/http";
 
@@ -115,34 +109,6 @@ describe("BinanceClient", () => {
 		await get24hrTickerStats();
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/ticker/24hr", {
 			weight: 2,
-		} as never);
-	});
-
-	it("getSymbolPriceTicker should call price endpoint with weight", async () => {
-		await getSymbolPriceTicker([BTC]);
-		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/ticker/price", {
-			weight: 4,
-		} as never);
-	});
-
-	it("getSymbolPriceTicker should handle undefined symbol", async () => {
-		await getSymbolPriceTicker();
-		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/ticker/price", {
-			weight: 4,
-		} as never);
-	});
-
-	it("getOrderBookTicker should call bookTicker endpoint with weight", async () => {
-		await getOrderBookTicker([BTC]);
-		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/ticker/bookTicker", {
-			weight: 4,
-		} as never);
-	});
-
-	it("getOrderBookTicker should handle undefined symbol", async () => {
-		await getOrderBookTicker();
-		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/ticker/bookTicker", {
-			weight: 4,
 		} as never);
 	});
 });

@@ -66,10 +66,4 @@ export const BINANCE_ENDPOINTS = {
 
 	change24hrStats: (symbol?: TradingSymbol[]): string =>
 		arraySymbolEndpoint("/api/v3/ticker/24hr", symbol),
-
-	symbolPriceTicker: (symbol?: TradingSymbol[]): string =>
-		arraySymbolEndpoint("/api/v3/ticker/price", symbol),
-
-	orderBookTicker: (symbol?: TradingSymbol[]): string =>
-		arraySymbolEndpoint("/api/v3/ticker/bookTicker", symbol),
 };

@@ -5,8 +5,6 @@ import type {
 	Binance24hrTickerStatsResponse,
 	BinanceCandlestickDataResponse,
 	BinanceDepthResponse,
-	BinanceSymbolOrderBookTickerResponse,
-	BinanceSymbolPriceTickerResponse,
 	BinanceTradeResponse,
 } from "./binance.api";
 import { parseCandlestick, type RawBinanceCandlestick } from "./binance.api";
@@ -58,23 +56,5 @@ export async function get24hrTickerStats(
 ): Promise<Binance24hrTickerStatsResponse> {
 	const weight = BINANCE_WEIGHTS.change24hrStats((symbol ?? []).length);
 	const url = BINANCE_ENDPOINTS.change24hrStats(symbol);
-	return (await BINANCE.get(url, { weight, signal })).data;
-}
-
-export async function getSymbolPriceTicker(
-	symbol?: TradingSymbol[],
-	signal?: AbortSignal
-): Promise<BinanceSymbolPriceTickerResponse> {
-	const weight = BINANCE_WEIGHTS.symbolPriceTicker((symbol ?? []).length);
-	const url = BINANCE_ENDPOINTS.symbolPriceTicker(symbol);
-	return (await BINANCE.get(url, { weight, signal })).data;
-}
-
-export async function getOrderBookTicker(
-	symbol?: TradingSymbol[],
-	signal?: AbortSignal
-): Promise<BinanceSymbolOrderBookTickerResponse> {
-	const weight = BINANCE_WEIGHTS.orderBookTicker((symbol ?? []).length);
-	const url = BINANCE_ENDPOINTS.orderBookTicker(symbol);
 	return (await BINANCE.get(url, { weight, signal })).data;
 }

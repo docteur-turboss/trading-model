@@ -106,15 +106,6 @@ const ROUTES = {
       Number(url.searchParams.get('startTime') ?? 0),
     ),
   '/api/v3/ticker/24hr': (url) => symbolsParam(url).map(ticker24h),
-  '/api/v3/ticker/price': (url) => symbolsParam(url).map((symbol) => ({ symbol, price: price(symbol, 5) })),
-  '/api/v3/ticker/bookTicker': (url) =>
-    symbolsParam(url).map((symbol) => ({
-      symbol,
-      bidPrice: price(symbol, -1),
-      bidQty: '0.50000000',
-      askPrice: price(symbol, 1),
-      askQty: '0.50000000',
-    })),
 };
 
 http
