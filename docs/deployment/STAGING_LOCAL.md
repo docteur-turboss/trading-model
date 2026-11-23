@@ -136,6 +136,22 @@ staging deploy (issue #842).
   with the arguments of `bootstrap.sh identities` (ADR-0041), then
   `bash deploy/staging-local/bootstrap.sh identities`.
 
+**Accepted risk (project owner, 2026-11-23, issue #2182).** The runner stays
+persistent: ephemeral mode needs a long-lived personal access token with
+"Administration: read and write" that GitHub cannot create by API, and runner
+groups need an organization. A runner compromised once stays compromised
+between jobs and can steal the secrets of the next one: `KUBECONFIG_STAGING_*`,
+the SealedSecrets backup kubeconfig and, while `BACKUP_KEY_CHECK_RUNNER` names
+this runner, the escrow age identity (`BACKUP_ESCROW_AGE_IDENTITY`, ADR-0034).
+The escrow check stays here only because the off-site store is the MinIO of
+this cluster, which no GitHub-hosted runner reaches (issue #1135). The barriers
+are the fork approval setting, checked before each of these jobs, and the purge
+above after any doubt. When a real off-site bucket exists, delete the repository
+variables `BACKUP_KEY_CHECK_RUNNER` (the escrow check then runs on
+`ubuntu-latest`) and, once a production cluster exists,
+`SEALED_SECRETS_BACKUP_RUNNER`. Never point `BACKUP_KEY_CHECK_RUNNER` at this
+runner for any other bucket.
+
 ## SealedSecrets key backup
 
 Until a production cluster exists, `sealed-secrets-key-backup.yml` (ADR-0035)
