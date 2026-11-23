@@ -69,6 +69,12 @@ jobs:
           restore-keys: bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
       - run: bun run lint
+      # The PR title becomes the squash message: release.mjs reads its gitmoji. Dependabot titles ("Bump x") have none.
+      - name: PR title follows commitlint
+        if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "$TITLE" | bunx --no commitlint --config commitlint.config.mjs
       - run: bun run deps:check
       - run: bun run deps:third-party
       - run: bun run api:check
