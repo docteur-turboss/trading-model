@@ -97,8 +97,7 @@ jobs:
         with:
           bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
-      # GHSA-fc5q-39xc-vjpf (picomatch ReDoS): no patched version exists (4.0.7 is the latest); dev tooling only (jest, knip), absent from --prod. Remove --ignore once picomatch-fix-check.yml fails (fix published).
-      - run: bun audit --audit-level=high --ignore=GHSA-fc5q-39xc-vjpf
+      - run: bun audit --audit-level=high
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
