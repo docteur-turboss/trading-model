@@ -175,7 +175,7 @@ node_digests() {
 # checkout, as build_images does: N-1 manifests never deploy it.
 pull_previous_images() {
 	local img ref digest repo="${GITHUB_REPOSITORY:-docteur-turboss/trading-model}" missing=""
-	local released=" $(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$PREVIOUS/deploy/k8s/services/kustomization.yaml" | tr '\n' ' ')spire-tools backup-tools "
+	local released=" $(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$PREVIOUS/deploy/k8s/services/kustomization.yaml" | tr '\n' ' ') spire-tools backup-tools "
 	[ ! -f "$PREVIOUS/deploy/migrate/Dockerfile" ] || released="${released}db-migrate "
 	for img in $IMAGES; do
 		[[ "$released" == *" $img "* ]] || {
