@@ -28,6 +28,8 @@ export const DEFAULT_ACL: Record<ServiceInstanceName, readonly ServiceId[]> = {
 		ServiceId.of("trader-trainer"),
 		// The replay of a published model reads its candle window (ADR-0079).
 		ServiceId.of("model-evaluator"),
+		// Risk/Execution marks its positions on the last closed candle (ADR-0064 §7).
+		ServiceId.of("risk-execution"),
 	],
 	[ServiceInstanceName.TraderTrainerService]: [
 		ServiceId.of("api-gateway"),

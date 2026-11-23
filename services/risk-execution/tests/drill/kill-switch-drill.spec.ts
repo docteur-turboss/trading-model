@@ -24,6 +24,9 @@ const LIMITS = RiskLimits.parse({
 	instruments: { BTCUSDT: { maxQuantity: 0.1 }, ETHUSDT: { maxQuantity: 5 } },
 });
 const PRICE = { BTCUSDT: 60_000, ETHUSDT: 3_000 } as const;
+/** The market the service reads: `PRICE` unless a step moves it, observed now unless the feed stops. */
+let market: Record<string, number> = { ...PRICE };
+let feedStoppedAt: number | null = null;
 let dir: string;
 let clock = Date.parse("2026-11-20T10:00:00Z");
 let seq = 0;
@@ -56,6 +59,15 @@ function boot(broker?: BrokerPort) {
 		broker: broker ?? ledger,
 		store: new JsonFile<RiskState>(join(dir, "state.json")),
 		admission: { isAdmissible: async () => true },
+		prices: {
+			latest: async (symbols) =>
+				Object.fromEntries(
+					symbols.map((sym) => [
+						sym,
+						{ price: market[sym], at: feedStoppedAt ?? clock },
+					])
+				),
+		},
 		mode: "paper",
 		ownerActor: "owner",
 		now: () => clock,
@@ -81,7 +93,7 @@ describe("kill switch drill (policy §7)", () => {
 	it("passes the seven steps, restart included", async () => {
 		let { svc, ledger } = boot();
 		await svc.start();
-		await svc.rearm("global", "fresh install", "operator"); // no state file yet: engaged (state_missing)
+		await svc.rearm({ scope: "global" }, "fresh install", "operator"); // no state file yet: engaged (state_missing)
 
 		// 1. An order flow on two symbols, with one resting order each.
 		for (const s of ["BTCUSDT", "ETHUSDT"] as const) {
@@ -163,9 +175,11 @@ describe("kill switch drill (policy §7)", () => {
 		const fresh = async () => {
 			await rm(join(dir, "state.json"), { force: true });
 			await rm(join(dir, "ledger.json"), { force: true });
+			market = { ...PRICE };
+			feedStoppedAt = null;
 			const booted = boot();
 			await booted.svc.start();
-			await booted.svc.rearm("global", "fresh state", "operator");
+			await booted.svc.rearm({ scope: "global" }, "fresh state", "operator");
 			for (let n = 0; n < 2; n++) {
 				await booted.svc.submitIntent(intent("BTCUSDT", { quantity: 0.05 }));
 			}
@@ -174,11 +188,13 @@ describe("kill switch drill (policy §7)", () => {
 
 		// 7a. Loss past the daily limit (fake prices).
 		({ svc } = await fresh());
-		await svc.observePrice("BTCUSDT", 20_000, clock);
+		market.BTCUSDT = 20_000;
+		await svc.tick();
 		expect(svc.status().killSwitch.global).toBe("daily_loss");
 
 		// 7b. Stale data (the feed stops).
 		({ svc } = await fresh());
+		feedStoppedAt = clock;
 		clock += 16 * 60_000;
 		await svc.tick();
 		expect(svc.status().killSwitch.global).toBe("stale_data");
@@ -219,7 +235,7 @@ describe("kill switch drill (policy §7)", () => {
 		await rm(join(dir, "state.json"), { force: true });
 		const { svc } = boot(rejecting);
 		await svc.start();
-		await svc.rearm("global", "fresh state", "operator");
+		await svc.rearm({ scope: "global" }, "fresh state", "operator");
 		for (let n = 0; n < 5; n++) {
 			await svc.submitIntent(intent("BTCUSDT", { quantity: 0.001 }));
 			clock += 13_000;

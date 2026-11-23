@@ -16,7 +16,6 @@ function build() {
 			reason: "kill_switch",
 			clientOrderId: "rx-1",
 		})),
-		observePrice: jest.fn<(...args: any[]) => any>(async () => undefined),
 		cancel: jest.fn<(...args: any[]) => any>(async (id: string) =>
 			id === "none" ? "not_found" : "cancelled"
 		),
@@ -38,35 +37,18 @@ function build() {
 }
 
 describe("risk-execution routes: each caller only reaches its own routes (ADR-0064 §1)", () => {
-	it("intents and prices: the decision consumer only", async () => {
+	it("intents: the decision consumer only", async () => {
 		const { h, risk, metrics } = build();
 		const body = { decisionId: "d" };
 		expect((await h.intent(input(body), as("api-gateway"))).status).toBe(403);
 		expect((await h.intent(input(body), as("risk-execution"))).status).toBe(
 			403
 		);
-		expect(
-			(
-				await h.price(
-					input({ symbol: "BTCUSDT", price: 1, at: 1 }),
-					as("model-evaluator")
-				)
-			).status
-		).toBe(403);
 		expect(risk.submitIntent).not.toHaveBeenCalled();
 		expect((await h.intent(input(body), as("decision-consumer"))).status).toBe(
 			200
 		);
 		expect(metrics).toHaveBeenCalledWith("rejected:kill_switch");
-		expect(
-			(
-				await h.price(
-					input({ symbol: "BTCUSDT", price: 1, at: 1 }),
-					as("decision-consumer")
-				)
-			).status
-		).toBe(200);
-		expect(risk.observePrice).toHaveBeenCalledWith("BTCUSDT", 1, 1);
 	});
 
 	it("a request without a SPIFFE identity is refused", async () => {
@@ -74,11 +56,10 @@ describe("risk-execution routes: each caller only reaches its own routes (ADR-00
 		expect((await h.intent(input({}), {} as never)).status).toBe(403);
 	});
 
-	it("no decision consumer exists yet: by default nobody sends intents or prices", async () => {
+	it("no decision consumer exists yet: by default nobody sends intents", async () => {
 		const { risk } = build();
 		const h = createHandlers(risk as unknown as RiskExecution, () => undefined);
 		expect((await h.intent(input({}), as("trader-trainer"))).status).toBe(403);
-		expect((await h.price(input({}), as("trader-trainer"))).status).toBe(403);
 		expect(risk.submitIntent).not.toHaveBeenCalled();
 	});
 

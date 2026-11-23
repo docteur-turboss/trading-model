@@ -49,7 +49,7 @@ type Handler<Key extends keyof typeof RISK_API> = ApiRouteHandler<
 >;
 
 /**
- * @param decisionConsumers identities allowed to send intents and prices: none until the
+ * @param decisionConsumers identities allowed to send intents: none until the
  * decision consumer exists, with its own identity and ACL entry (ADR-0049 §1.3).
  */
 export function createHandlers(
@@ -67,14 +67,6 @@ export function createHandlers(
 			result.status === "rejected" ? `rejected:${result.reason}` : result.status
 		);
 		return sendResponse(result, HTTP_STATUS.OK);
-	};
-	const price: Handler<"price"> = async ({ body }, req) => {
-		const denied = forbidden(req, ...decisionConsumers);
-		if (denied) {
-			return denied;
-		}
-		await risk.observePrice(body.symbol, body.price, body.at);
-		return sendResponse({ status: "recorded" as const }, HTTP_STATUS.OK);
 	};
 	const cancel: Handler<"cancel"> = async ({ params }, req) => {
 		const denied = forbidden(req, ...decisionConsumers, OPERATOR);
@@ -119,5 +111,5 @@ export function createHandlers(
 		}
 		return sendResponse({ status: "rearmed" as const }, HTTP_STATUS.OK);
 	};
-	return { intent, price, cancel, adminStatus, adminEngage, adminRearm };
+	return { intent, cancel, adminStatus, adminEngage, adminRearm };
 }

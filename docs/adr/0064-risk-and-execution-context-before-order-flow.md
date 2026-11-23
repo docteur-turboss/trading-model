@@ -27,7 +27,7 @@ Each control below states what it does, where it lives, what triggers it, and th
 | Aspect | Rule |
 | --- | --- |
 | Control | One component owns every order: it receives order intents, applies sections 2 to 7, talks to the broker, and keeps the order and position state. Nothing else holds broker credentials or sends an order. |
-| Location | Its own process (a service, `risk-execution`), its own SPIFFE identity and ACL (ADR-0011), its own durable store. The decision consumer (ADR-0049 option B or C) and the model never call the broker: they send an intent (instrument, side, quantity, limit price, reference price and its timestamp, decision id, source model symbol and version) to this service. The intent and order event types go in `@trading-model/contracts` (ADR-0016) and follow the N-1 rule (ADR-0061). |
+| Location | Its own process (a service, `risk-execution`), its own SPIFFE identity and ACL (ADR-0011), its own durable store. The decision consumer (ADR-0049 option B or C) and the model never call the broker: they send an intent (instrument, side, quantity, limit price, reference price and its timestamp, decision id, source model symbol and version) to this service. The intent's reference price is only compared with the price the service reads itself (section 7): no check, mark or fill uses it (issue #2185). The intent and order event types go in `@trading-model/contracts` (ADR-0016) and follow the N-1 rule (ADR-0061). |
 | Trigger | Every order, without exception. The service ACL accepts intents only from the decision consumer identity; the gateway never exposes its routes (`PUBLIC_ROUTES` excluded). |
 | Proof | Spec: an intent from any other SPIFFE ID gets 403. `api:check` keeps its routes out of `PUBLIC_ROUTES`. Review: no broker client or credential outside the service (`deps:check` and a grep gate on the broker host and key names). |
 
@@ -97,7 +97,7 @@ Every limit has a hard ceiling in code that configuration cannot raise, and a co
 
 | Case | Rule | Location and trigger | Proof |
 | --- | --- | --- | --- |
-| Stale data | An intent carries the timestamp of the price it was decided on; older than a maximum age, it is rejected. The service also checks the age of its own reference price. Beyond a longer threshold, new orders halt until fresh data returns (same idea as `TRAINER_MAX_DATA_AGE_MS` in the trainer). | Every intent; periodic check of the feed | Spec with a fake clock; drill: stop the market data feed on paper, check rejections then the halt and the `MarketDataStale` alert |
+| Stale data | An intent carries the timestamp of the price it was decided on; older than a maximum age, it is rejected. The service reads its own reference price, the last closed candle of the instrument from the financial-scraper API (`SCRAPER_API.candlesBySymbol`, mTLS, no internet egress), at every intent and every tick: it is the only source of the marks, the price age, the sizing checks of section 2 and the paper fills; a failed read, no price or a price older than the halt threshold rejects the intent (`stale_price`). Beyond a longer threshold, new orders halt until fresh data returns (same idea as `TRAINER_MAX_DATA_AGE_MS` in the trainer). | Every intent; periodic check of the feed | Spec with a fake clock; drill: stop the market data feed on paper, check rejections then the halt and the `MarketDataStale` alert |
 | Trading halt | Instrument not in trading status at the exchange: reject | Every intent, from the exchange instrument status | Spec with a halted symbol |
 | Gap | Reference price moved more than the band since the decision: reject (the price band of section 2) | Every intent | Spec |
 | Reject storm | N broker rejections or errors within a window: kill switch with the reason `rejects` | Every broker answer | Spec |
@@ -131,6 +131,8 @@ Order of milestones: ADR-0049 option B (offline inference, no order) → paper t
 | ADR-0030 walk-forward criteria met | — | Required, paper trading ≥ 30 days included |
 | `algorithmic-trading-compliance.md` §6 prerequisites (Binance terms, annual review…) | — | Required |
 | This ADR Accepted with a `**Verified by:**` line | — | Required |
+
+**Deployed everywhere before it has a caller** (decision of the project owner, 2026-11-23, issue #1995). `risk-execution` stays in every overlay, production included, while no decision consumer calls `POST /intents`, `POST /prices` or `POST /orders/:clientOrderId/cancel` (`AWAITING_CALLER` in `scripts/api-contract.mjs`). The "Before paper" column requires the kill switch, reconciliation and stale-data drills on the deployed service, with its state backup and alerts. Removing it from production until the consumer exists would leave these requirements unproven where paper trading will run. The cost (one pod, one PVC, its alerts and backup) is accepted. An architecture audit must not report the missing caller as an anomaly while this paragraph stands.
 
 ## Consequences
 

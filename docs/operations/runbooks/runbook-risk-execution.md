@@ -44,15 +44,15 @@ The service state and the broker differ (a position, an open order, or a balance
 
 More than 50% of the intents were rejected over 15 min (no alert without traffic). Dashboard `risk-execution`: panel "Rejects by reason" names the cause.
 
-1. `price_band`, `price_gap`, `stale_intent`: the decision consumer sends bad or old reference prices; check it and the feed ([runbook-market-data-stale](runbook-market-data-stale.md)).
+1. `price_band`, `price_gap`, `stale_intent`: the decision consumer sends prices far from the market or old decisions; check it. `stale_price`: the service cannot read a price newer than 15 min from financial-scraper; check the feed ([runbook-market-data-stale](runbook-market-data-stale.md)).
 2. `global_exposure`, `instrument_exposure`, `loss_limit_*`: a limit is close (panels "Exposure" and "Daily loss"); this is the limit working, check the strategy.
 3. `not_reconciled`, `kill_switch`: see the sections above.
 
 ## RiskMarketDataStale
 
-A price older than 15 min on an allowed instrument that already had one: that symbol is switched off, the global switch when every priced symbol is stale. An instrument never priced (no decision consumer yet) is not stale. Intents decided on a price older than 1 min are rejected without engaging anything.
+A price older than 15 min on an allowed instrument that already had one: that symbol is switched off, the global switch when every priced symbol is stale. An instrument never priced (financial-scraper has no candle of it) is not stale. Intents decided on a price older than 1 min are rejected without engaging anything.
 
-1. The decision consumer pushes prices (`POST /prices`) and sends reference prices with each intent: check it is running, then [runbook-market-data-stale](runbook-market-data-stale.md) for the feed.
+1. The service reads the last closed candle of each instrument from financial-scraper at every tick: check the `prices.error` log lines, then [runbook-market-data-stale](runbook-market-data-stale.md) for the feed.
 2. When fresh prices flow, re-arm the symbol (and the global switch if engaged).
 
 ## RiskTickFailing

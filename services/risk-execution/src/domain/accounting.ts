@@ -17,12 +17,11 @@ const WIRED_STATES: Order["status"][] = [
 	"cancel_requested",
 ];
 
-/** Books the delta of the broker's cumulative fills (cash, position, mark, day flow, order totals). Returns the filled delta. */
+/** Books the delta of the broker's cumulative fills (cash, position, day flow, order totals). Returns the filled delta. */
 export function applyFill(
 	state: RiskState,
 	order: Order,
-	view: BrokerOrderView,
-	now: number
+	view: BrokerOrderView
 ): number {
 	const dQty = view.filledQty - order.filledQty;
 	if (dQty <= 0) {
@@ -41,7 +40,6 @@ export function applyFill(
 	state.cash += -sign * dQuote - dFee;
 	state.positions[order.symbol] =
 		(state.positions[order.symbol] ?? 0) + sign * dQty;
-	state.marks[order.symbol] = { price: dQuote / dQty, at: now };
 	Object.assign(order, {
 		filledQty: view.filledQty,
 		quoteQty: view.quoteQty,

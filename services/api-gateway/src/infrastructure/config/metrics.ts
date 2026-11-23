@@ -19,4 +19,10 @@ export const SERVICE_ERRORS_TOTAL = new promClient.Counter({
 	labelNames: ["service"] as const,
 });
 
+export const CACHE_LOOKUPS_TOTAL = new promClient.Counter({
+	name: "gateway_response_cache_lookups_total",
+	help: "Response cache lookups by result (hit, miss)",
+	labelNames: ["result"] as const,
+});
+
 export { metricsHandler };
