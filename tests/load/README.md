@@ -127,7 +127,7 @@ Fill it from real runs only, never from estimates.
 |      |        |      | stress: max VUs under the stress thresholds | | |
 | 2026-11-08 | `6b4a625e` | dev host (Docker Desktop, Windows), isolated stack | soak 5 min, 2 VUs (short, not a capacity figure) | 3.82 req/s, 0 % failures, no 429 (`RATE_LIMIT_MAX=2000`); p95 12.1 ms start / 12.37 ms end; journal pending 0 | not committed |
 |      |        |      | soak: p95 start / end, error rate, RSS growth per container, journal max pending | | |
-|      |        |      | GA bench: median ms/generation, heap peak, generations | | |
+| 2026-11-23 | `2285c23de` | dev host (Windows, bun 1.4.4) | GA bench, `BENCH_GENERATIONS=2 BENCH_EPISODES=10 BENCH_STEPS=2000`, population 20 | median 2826 ms/generation (2707, 2826), heap peak sample 20.6 MiB, 2 generations; 50 generations ≈ 141 s of the 300 s budget, so no worker pool (#2061) | not committed |
 
 ## CI
 

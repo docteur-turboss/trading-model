@@ -331,6 +331,15 @@ describe("sequentialEval", () => {
 		expect(seen).toEqual([false, true]);
 	});
 
+	it("stops between two items once the budget is spent, after at least one", async () => {
+		const fn = jest.fn(async (x: number) => x);
+		const results = await sequentialEval([1, 2, 3], fn, () => true);
+		expect(results).toEqual([1]);
+		const calls = { n: 0 };
+		const mid = await sequentialEval([1, 2, 3], fn, () => ++calls.n > 1);
+		expect(mid).toEqual([1, 2]);
+	});
+
 	it("should keep input order", async () => {
 		const fn = jest.fn(async (x: number) => x);
 		const results = await sequentialEval([1, 2], fn);
