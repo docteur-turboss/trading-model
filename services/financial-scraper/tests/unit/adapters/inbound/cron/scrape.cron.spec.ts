@@ -225,6 +225,18 @@ describe("ScrapeCronOrchestrator", () => {
 			expect(task.stop).toHaveBeenCalled();
 		});
 
+		it("should fetch nothing more once stopped during a cycle", async () => {
+			MOCK_CRON_SCHEDULE.mockReturnValue({ stop: jest.fn() });
+			const orchestrator = new ScrapeCronOrchestrator(defaultConfig);
+			orchestrator.start();
+
+			const cycle = GET_CRON_HANDLER()();
+			await orchestrator.stop();
+			await cycle;
+
+			expect(MOCK_FETCH_SNAPSHOT).not.toHaveBeenCalled();
+		});
+
 		it("should resolve when the cron was never started", async () => {
 			await expect(
 				new ScrapeCronOrchestrator(defaultConfig).stop()

@@ -25,7 +25,7 @@ JOBS="$(dirname "${BASH_SOURCE[0]}")/../jobs"
 # The Job's activeDeadlineSeconds is multiplied by DEPLOY_TIMEOUT_FACTOR like the
 # wait-job.sh timeout: otherwise a slow cluster has the Job killed at its base
 # deadline while still waited for (issue #760).
-# `nowait` (db-index-build, ADR-0086): apply and go on, the build outlasts the deploy; a build still running is left alone.
+# `nowait` (db-index-build, ADR-0087): apply and go on, the build outlasts the deploy; a build still running is left alone.
 run_job() { # <job> <manifest> [nowait]
   if [ "${3:-}" = nowait ] && [ -n "$(kubectl get job "$1" -n "$NS" -o jsonpath='{.status.active}' --ignore-not-found)" ]; then
     echo "$1 is still running: left alone"

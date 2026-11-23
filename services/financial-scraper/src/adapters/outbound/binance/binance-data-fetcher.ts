@@ -8,24 +8,24 @@ import {
 	type TradingSymbol,
 } from "@trading-model/primitives/primitives";
 import type { AxiosError } from "axios";
-import { SNAPSHOT_PARTS_FAILED_TOTAL } from "../../../config/metrics";
+import {
+	CANDLES_REJECTED_TOTAL,
+	SNAPSHOT_PARTS_FAILED_TOTAL,
+} from "../../../config/metrics";
 import type {
 	MarketDataSnapshot,
 	SnapshotPart,
 	SnapshotRequest,
 } from "../../../domain/market-data-snapshot";
+import { dropPriceJumps } from "../../../domain/price-jump";
 import {
 	get24hrTickerStats,
 	getCandlestickData,
 	getOrderBook,
-	getOrderBookTicker,
 	getRecentTrades,
-	getSymbolPriceTicker,
 } from "./binance.client";
-import { normalizeBookTicker } from "./normalizers/book-ticker";
 import { normalizeCandles } from "./normalizers/candles";
 import { normalizeOrderBook } from "./normalizers/order-book";
-import { normalizePriceTicker } from "./normalizers/price-ticker";
 import { normalizeTicker24h } from "./normalizers/ticker";
 import { normalizeTrades } from "./normalizers/trades";
 
@@ -35,16 +35,16 @@ export interface RawBinanceData {
 	tradesRaw?: Awaited<ReturnType<typeof getRecentTrades>>;
 	candlesRaw?: Awaited<ReturnType<typeof getCandlestickData>>;
 	ticker24hRaw?: Awaited<ReturnType<typeof get24hrTickerStats>>;
-	priceTickerRaw?: Awaited<ReturnType<typeof getSymbolPriceTicker>>;
-	bookTickerRaw?: Awaited<ReturnType<typeof getOrderBookTicker>>;
 }
 
-/** HTTP status and `Retry-After` of a 418 (IP ban) or 451 (restricted location) error, else undefined: each further call extends a ban. */
+/** HTTP status and `Retry-After` of a 429 (weight limit), 418 (IP ban) or 451 (restricted location) error, else undefined: each further call extends a ban. */
 export function banOf(
 	error: unknown
 ): { status: number; retryAfter?: string } | undefined {
 	const response = (error as AxiosError | undefined)?.response;
-	return response?.status === 418 || response?.status === 451
+	return response?.status === 429 ||
+		response?.status === 418 ||
+		response?.status === 451
 		? { status: response.status, retryAfter: response.headers?.["retry-after"] }
 		: undefined;
 }
@@ -57,17 +57,16 @@ type RawKey = keyof RawBinanceData;
 /** One request per ticker endpoint for the whole cycle, shared by its symbols. */
 export interface TickerBatch {
 	ticker24hRaw: Promise<Awaited<ReturnType<typeof get24hrTickerStats>>>;
-	priceTickerRaw: Promise<Awaited<ReturnType<typeof getSymbolPriceTicker>>>;
-	bookTickerRaw: Promise<Awaited<ReturnType<typeof getOrderBookTicker>>>;
 }
 
-/** Starts the three ticker requests of a cycle; over 100 symbols asks for all (Binance caps `symbols` at 100). */
-export function fetchTickerBatch(symbols: TradingSymbol[]): TickerBatch {
+/** Starts the ticker request of a cycle; over 100 symbols asks for all (Binance caps `symbols` at 100). */
+export function fetchTickerBatch(
+	symbols: TradingSymbol[],
+	signal?: AbortSignal
+): TickerBatch {
 	const list = symbols.length > 100 ? undefined : symbols;
 	const batch = {
-		ticker24hRaw: get24hrTickerStats(list),
-		priceTickerRaw: getSymbolPriceTicker(list),
-		bookTickerRaw: getOrderBookTicker(list),
+		ticker24hRaw: get24hrTickerStats(list, signal),
 	};
 	// Each symbol reports the failure; none stays unhandled when no symbol reads it.
 	void Promise.allSettled(Object.values(batch));
@@ -91,15 +90,13 @@ const PART_OF: Record<RawKey, SnapshotPart> = {
 	tradesRaw: "recentTrades",
 	candlesRaw: "candles",
 	ticker24hRaw: "ticker24h",
-	priceTickerRaw: "priceTicker",
-	bookTickerRaw: "bookTicker",
 };
 
 /**
- * Fetches the six endpoints of one symbol. A failed endpoint only leaves its
+ * Fetches the four endpoints of one symbol. A failed endpoint only leaves its
  * part out of the snapshot (logged, counted): an order book error must not
  * cost the candles. Rejects when every endpoint failed, with the first error
- * (a 418 or 451 wins over the others). `onBan` is called on a 418 or 451
+ * (a 429, 418 or 451 wins over the others). `onBan` is called on a 429, 418 or 451
  * from any endpoint, so a partial snapshot still opens the quarantine.
  */
 export async function fetchAllRawData(
@@ -109,37 +106,39 @@ export async function fetchAllRawData(
 ): Promise<RawBinanceData> {
 	const { symbol, candleLimit, candleStartTime, tradeLimit, orderBookLimit } =
 		opts;
+	const { signal } = opts;
 	const interval = opts.interval ?? CandleInterval.Min1;
 	const requests: Record<RawKey, () => Promise<unknown>> = {
 		orderBookRaw: () =>
-			getOrderBook({
-				symbol,
-				limit: orderBookLimit ?? PositiveInt.of(100),
-			}),
+			getOrderBook(
+				{
+					symbol,
+					limit: orderBookLimit ?? PositiveInt.of(100),
+				},
+				signal
+			),
 		tradesRaw: () =>
-			getRecentTrades({
-				symbol,
-				limit: tradeLimit ?? PositiveInt.of(100),
-			}),
+			getRecentTrades(
+				{
+					symbol,
+					limit: tradeLimit ?? PositiveInt.of(100),
+				},
+				signal
+			),
 		candlesRaw: () =>
-			getCandlestickData({
-				symbol,
-				limit: candleLimit ?? (100 as Limit),
-				interval,
-				startTime: candleStartTime,
-			}),
+			getCandlestickData(
+				{
+					symbol,
+					limit: candleLimit ?? (100 as Limit),
+					interval,
+					startTime: candleStartTime,
+				},
+				signal
+			),
 		ticker24hRaw: () =>
 			tickers
 				? rowsOf(tickers.ticker24hRaw, symbol)
-				: get24hrTickerStats([symbol]),
-		priceTickerRaw: () =>
-			tickers
-				? rowsOf(tickers.priceTickerRaw, symbol)
-				: getSymbolPriceTicker([symbol]),
-		bookTickerRaw: () =>
-			tickers
-				? rowsOf(tickers.bookTickerRaw, symbol)
-				: getOrderBookTicker([symbol]),
+				: get24hrTickerStats([symbol], signal),
 	};
 
 	const keys = Object.keys(requests) as RawKey[];
@@ -154,6 +153,9 @@ export async function fetchAllRawData(
 			return;
 		}
 		errors.push(outcome.reason);
+		if (signal?.aborted) {
+			return; // cancelled by the stop, not a failed part
+		}
 		SNAPSHOT_PARTS_FAILED_TOTAL.inc({ part: PART_OF[key] });
 		logger.warn("Market data part fetch failed", {
 			context: { symbol, part: PART_OF[key] },
@@ -199,7 +201,7 @@ export function buildResponse(
 ): MarketDataSnapshot {
 	const fetchedAt = Date.now();
 	const { orderBookRaw, tradesRaw, candlesRaw } = raw;
-	const { ticker24hRaw, priceTickerRaw, bookTickerRaw } = raw;
+	const { ticker24hRaw } = raw;
 	return {
 		orderBook:
 			orderBookRaw &&
@@ -215,24 +217,26 @@ export function buildResponse(
 		// partial candle that the next cycle overwrites with other values.
 		candles:
 			candlesRaw &&
-			normalizePart(query, "candles", () =>
-				normalizeCandles(query, candlesRaw).filter(
-					(candle) => candle.closeTimestamp + CLOSE_MARGIN_MS < fetchedAt
-				)
-			),
+			normalizePart(query, "candles", () => {
+				const { kept, dropped } = dropPriceJumps(
+					normalizeCandles(query, candlesRaw).filter(
+						(candle) => candle.closeTimestamp + CLOSE_MARGIN_MS < fetchedAt
+					)
+				);
+				if (dropped.length > 0) {
+					CANDLES_REJECTED_TOTAL.inc({ reason: "price_jump" }, dropped.length);
+					logger.warn("Candles with a price jump dropped", {
+						context: {
+							symbol: query.symbol,
+							openTimes: dropped.map((candle) => candle.timestamp),
+						},
+					});
+				}
+				return kept;
+			}),
 		ticker24h:
 			ticker24hRaw &&
 			normalizePart(query, "ticker24h", () => normalizeTicker24h(ticker24hRaw)),
-		priceTicker:
-			priceTickerRaw &&
-			normalizePart(query, "priceTicker", () =>
-				normalizePriceTicker(priceTickerRaw)
-			),
-		bookTicker:
-			bookTickerRaw &&
-			normalizePart(query, "bookTicker", () =>
-				normalizeBookTicker(bookTickerRaw)
-			),
 		fetchedAt,
 	};
 }

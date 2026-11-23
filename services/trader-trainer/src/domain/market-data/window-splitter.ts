@@ -128,13 +128,13 @@ export class WindowSplitter {
 		}
 		const steps: MarketStep[] = candleSteps(state.candles);
 		if (this.signalKeys.length > 0) {
-			const signals = this._signals.get(ctx.symbol) ?? new Map();
+			const inputs = asOfSignalInputs(
+				this._signals.get(ctx.symbol) ?? new Map(),
+				this.signalKeys,
+				steps.map((_step, idx) => state.candles[idx + 1].closeTimestamp)
+			);
 			steps.forEach((step, idx) => {
-				step.features.signals = asOfSignalInputs(
-					signals,
-					this.signalKeys,
-					state.candles[idx + 1].closeTimestamp
-				);
+				step.features.signals = inputs[idx];
 			});
 		}
 		return steps;

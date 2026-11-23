@@ -3,7 +3,7 @@ import { withTimeout } from "@trading-model/common/utils/retry";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import type { BootstrapOptions } from "./bootstrap-types";
-import type { HttpServer } from "./create-secure-server";
+import type { HttpServer } from "./shared/server-types";
 
 function _closeServerOnShutdown(server: HttpServer | null): void {
 	if (!server) {

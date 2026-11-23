@@ -41,6 +41,9 @@ RCLONE_S3_ENV_AUTH=true rclone lsd :s3: >/dev/null 2>&1 || {
 	echo "rclone serve s3 did not start"
 	exit 1
 }
+# rclone ignores AWS_REGION (serve s3 accepts any region, a real store does not).
+[ "$(AWS_REGION=eu-west-3 offsite_remote s3://b/p)" = ":s3,region=eu-west-3:b/p" ] &&
+	pass "the remote carries AWS_REGION" || failed "offsite_remote drops AWS_REGION: $(AWS_REGION=eu-west-3 offsite_remote s3://b/p)"
 
 # --- Backup runs, uploaded with upload_offsite -------------------------------
 age-keygen -o "$WORK/key.txt" 2>/dev/null
@@ -84,6 +87,10 @@ backup_run() {
 			mkdir -p "$BACKUP_DIR/checkpoints"
 			write_dump checkpoints "$BACKUP_DIR/checkpoints/checkpoints_$ts.tar.gz.age" plain "checkpoints $ts"
 			;;
+		risk)
+			mkdir -p "$BACKUP_DIR/risk"
+			write_dump risk "$BACKUP_DIR/risk/risk_$ts.tar.gz.age" plain "risk $ts"
+			;;
 		pitr)
 			# PITR starting points (backup-k8s.sh, ADR-0031).
 			mkdir -p "$BACKUP_DIR/mongodb/$ts" "$BACKUP_DIR/mysql"
@@ -121,10 +128,10 @@ GOOD=2026-10-31_020000
 BROKEN=2026-11-01_020000
 # Every dump, but no run manifest: restore-k8s.sh could not check it.
 NOMANIFEST=2026-11-02_020000
-backup_run "$OLD" mongodb,mysql,checkpoints,spire nomanifest
-backup_run "$GOOD" mongodb,mysql,checkpoints,spire,pitr
+backup_run "$OLD" mongodb,mysql,checkpoints,spire,risk nomanifest
+backup_run "$GOOD" mongodb,mysql,checkpoints,spire,risk,pitr
 backup_run "$BROKEN" mongodb-only,mysql,checkpoints,spire-tar
-backup_run "$NOMANIFEST" mongodb,mysql,checkpoints,spire nomanifest
+backup_run "$NOMANIFEST" mongodb,mysql,checkpoints,spire,risk nomanifest
 # Binlog and oplog archives (backup-incremental-k8s.sh): one before GOOD
 # (never needed by it), two after.
 GOOD_EPOCH="$(stamp_epoch "$GOOD")"
@@ -164,6 +171,7 @@ manifests/manifest_${GOOD}.json.age
 mongodb/${GOOD}/mongodb-audit.archive.gz.age
 mongodb/${GOOD}/mongodb.archive.gz.age
 mysql/financial_scraper_${GOOD}.sql.gz.age
+risk/risk_${GOOD}.tar.gz.age
 spire/keys_${GOOD}.json.age"
 actual="$(cd "$DEST" 2>/dev/null && find . -type f | sed 's|^\./||' | sort)"
 if [ "$actual" = "$expected" ]; then
@@ -190,7 +198,7 @@ restore_lookup() {
 	)
 }
 layout=true
-for key in mongodb mongodb-audit mysql checkpoints spire; do
+for key in mongodb mongodb-audit mysql checkpoints spire risk; do
 	for ts in latest "$GOOD"; do
 		resolved="$(restore_lookup "$DEST" "$ts" "$key")" || resolved=""
 		case "$resolved" in
@@ -259,7 +267,7 @@ expected="$(printf '%s\n' "checkpoints/checkpoints_${GOOD}.tar.gz.age" \
 	"mongodb/${GOOD}/mongodb.archive.gz.age" "mongodb/${GOOD}/mongodb.pitr.age" \
 	"manifests/manifest_${GOOD}.json.age" \
 	"mysql/financial_scraper_${GOOD}.pitr.age" "mysql/financial_scraper_${GOOD}.sql.gz.age" \
-	"spire/keys_${GOOD}.json.age"; echo "$ARCHIVES_AFTER")"
+	"risk/risk_${GOOD}.tar.gz.age" "spire/keys_${GOOD}.json.age"; echo "$ARCHIVES_AFTER")"
 expected="$(sort <<<"$expected" | grep .)"
 if fetch --dest "$WORK/fetched-pitr" --pitr &&
 	[ "$(cd "$WORK/fetched-pitr" && find . -type f | sed 's|^\./||' | sort)" = "$expected" ] &&
@@ -280,8 +288,8 @@ fi
 
 echo "--dry-run"
 if fetch --dest "$WORK/fetched-dry" --dry-run && [ ! -e "$WORK/fetched-dry" ] &&
-	[ "$(grep -c "Would fetch" "$WORK/out")" = 6 ] && grep -q "$GOOD" "$WORK/out"; then
-	pass "lists the 6 files of ${GOOD} (manifest included) and copies nothing"
+	[ "$(grep -c "Would fetch" "$WORK/out")" = 7 ] && grep -q "$GOOD" "$WORK/out"; then
+	pass "lists the 7 files of ${GOOD} (manifest included) and copies nothing"
 else
 	failed "--dry-run: $(cat "$WORK/out")"
 fi
@@ -289,7 +297,7 @@ fi
 echo "--tier (BACKUP_OFFSITE_LAYOUT=tiered)"
 TIERED=2026-11-02_030000
 TIERED_EPOCH="$(stamp_epoch "$TIERED")"
-BACKUP_S3_BUCKET=s3://backups/tiered BACKUP_OFFSITE_LAYOUT=tiered backup_run "$TIERED" mongodb,mysql,checkpoints,spire,pitr
+BACKUP_S3_BUCKET=s3://backups/tiered BACKUP_OFFSITE_LAYOUT=tiered backup_run "$TIERED" mongodb,mysql,checkpoints,spire,risk,pitr
 # The incremental job (backup-incremental-cronjob.yaml) uploads tiered too:
 # its archives go under daily/ only, next to the dumps and .pitr files.
 BACKUP_DIR="$WORK/local/tiered-archives"
@@ -312,7 +320,7 @@ else
 	failed "long tiers hold: $long_tiers"
 fi
 if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-tiered" &&
-	[ "$(find "$WORK/fetched-tiered" -type f | grep -c "$TIERED")" = 6 ] &&
+	[ "$(find "$WORK/fetched-tiered" -type f | grep -c "$TIERED")" = 7 ] &&
 	[ -f "$WORK/fetched-tiered/mysql/financial_scraper_${TIERED}.sql.gz.age" ]; then
 	pass "a tiered bucket is read from daily/ by default, in the layout restore-k8s.sh reads"
 else

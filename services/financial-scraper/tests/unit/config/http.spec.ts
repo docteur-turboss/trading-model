@@ -91,6 +91,28 @@ describe("createHttpClient", () => {
 		jest.useRealTimers();
 	});
 
+	it("sends no retry once the signal fires, even during the backoff", async () => {
+		createHttpClient("https://api.example.com");
+		const axiosMock = jest.requireMock("axios") as {
+			create: jest.Mock<(...args: any[]) => any>;
+		};
+		const instance = axiosMock.create.mock.results.at(-1)?.value as jest.Mock<
+			(...args: any[]) => any
+		>;
+		instance.mockClear();
+		const abort = new AbortController();
+		const error = {
+			config: { retryCount: 2, signal: abort.signal },
+			response: { status: 500 },
+		};
+		const promise = mockResponseRejectedHandler!(error);
+		abort.abort();
+		await expect(promise).rejects.toBe(error);
+		expect(instance).not.toHaveBeenCalled();
+		expect(() => mockResponseRejectedHandler!(error)).toThrow();
+		expect(instance).not.toHaveBeenCalled();
+	});
+
 	it("records request count and duration per endpoint outside tests", async () => {
 		const axiosMock = jest.requireMock("axios") as {
 			create: jest.Mock<(...args: any[]) => any>;
@@ -140,36 +162,6 @@ describe("createHttpClient", () => {
 		expect(threw).toBe(true);
 	});
 
-	it("should wait for Retry-After on 429 and give up when it exceeds the bound", async () => {
-		createHttpClient("https://api.example.com");
-		const axiosMock = jest.requireMock("axios") as {
-			create: jest.Mock<(...args: any[]) => any>;
-		};
-		const instance = axiosMock.create.mock.results.at(-1)?.value as jest.Mock<
-			(...args: any[]) => any
-		>;
-		instance.mockClear();
-		jest.useFakeTimers();
-		const retried = {
-			config: { retryCount: 0 },
-			response: { status: 429, headers: { "retry-after": "30" } },
-		};
-		const promise = mockResponseRejectedHandler!(retried);
-		jest.advanceTimersByTime(29000);
-		await Promise.resolve();
-		expect(instance).not.toHaveBeenCalled();
-		jest.advanceTimersByTime(2000);
-		await promise;
-		expect(instance).toHaveBeenCalledTimes(1);
-		jest.useRealTimers();
-
-		const tooLong = {
-			config: { retryCount: 0 },
-			response: { status: 429, headers: { "retry-after": "3600" } },
-		};
-		expect(() => mockResponseRejectedHandler!(tooLong)).toThrow();
-	});
-
 	it("stamps the deadline once per request and the retry check enforces it", () => {
 		jest.useFakeTimers();
 		createHttpClient("https://api.example.com");
@@ -196,8 +188,8 @@ describe("createHttpClient", () => {
 		expect(error.config.retryCount).toBe(1);
 	});
 
-	it.each([403, 418, 451])(
-		"response rejected interceptor should not retry on %i (Binance WAF, IP ban, restricted location)",
+	it.each([403, 418, 429, 451])(
+		"response rejected interceptor should not retry on %i (Binance WAF, IP ban, weight limit, restricted location)",
 		async (status) => {
 			createHttpClient("https://api.example.com");
 			const axiosMock = jest.requireMock("axios") as {

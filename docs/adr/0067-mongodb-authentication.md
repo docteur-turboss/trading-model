@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0056](./0056-infrastructure-metrics-exporters.md) (§4: the `exporter` user it deferred), [ADR-0047](./0047-redis-isolation-per-service.md) (same model for Redis), [ADR-0027](./0027-audit-chain-verification-and-anchoring.md) and [ADR-0050](./0050-audit-chain-single-writer-lease.md) (the audit trail this protects), [ADR-0031](./0031-point-in-time-recovery-hourly-archives.md) (oplog archives), [ADR-0040](./0040-locked-resumable-migrations-and-expand-contract.md) (expand / contract)
-**Verified by:** `packages/persistence/tests/db/mongo-users.db.spec.ts`, `packages/persistence/tests/unit/mongo-connection-manager.spec.ts`, `tests/backup/compose-restore-drill.sh`, `tests/k8s/check-overlays.mjs`
+**Verified by:** `packages/persistence/tests/db/mongo-users.db.spec.ts`, `packages/persistence/tests/unit/mongo-connection-manager.spec.ts`, `tests/k8s/run-kind.sh`, `tests/k8s/check-overlays.mjs`
 
 ## Context
 

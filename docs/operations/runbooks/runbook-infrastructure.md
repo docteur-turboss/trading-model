@@ -2,7 +2,7 @@
 
 **Alerts:** `KubePodCrashLooping`, `KubeContainerOOMKilled`,
 `KubePodPending`, `KubePersistentVolumeFillingUp`, `NodeFilesystemAlmostFull`
-(warning); `KubeWorkloadUnavailable`, `MySQLDown`, `RedisDown`, `RedisSentinelQuorumLost`, `MongoDBDown`,
+(warning); `RedisMemoryHigh` (warning); `KubeWorkloadUnavailable`, `MySQLDown`, `RedisDown`, `RedisSentinelQuorumLost`, `MongoDBDown`,
 `MongoDBReplicaSetNoPrimary` (critical); `RedisReplicasMissing`,
 `MongoDBReplicaSetMemberUnhealthy` (warning).
 
@@ -185,6 +185,20 @@ with `deploy.yml`: `db-migrate-user` binds the users to their certificate again 
    ACL user (`redis-ha.sh`), not Redis.
 2. Otherwise:
    [runbook-database-failover#redis-failover](runbook-database-failover.md#redis-failover).
+
+## RedisMemoryHigh
+
+A Redis container uses over 80 % of its memory limit for 10 minutes. Redis runs
+with `noeviction` and the journal streams are trimmed by age only (`MINID` 24 h,
+ADR-0048): nothing unread is dropped, so a burst grows memory until the
+container is OOMKilled.
+
+```bash
+kubectl -n $NS top pod -l app.kubernetes.io/component=redis
+```
+
+A subscriber group stopped during a burst: restart it so it reads and acks.
+Otherwise raise the `redis` container memory limit in `redis.yaml`.
 
 ## RedisReplicasMissing
 

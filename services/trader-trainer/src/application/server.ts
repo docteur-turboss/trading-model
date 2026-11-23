@@ -1,5 +1,6 @@
 import { svidReadinessCheck } from "@trading-model/http/readiness";
 import { createServiceServer } from "@trading-model/http/service-server-factory";
+import { redisReadinessCheck } from "@trading-model/persistence/redis-readiness";
 import { ServiceId } from "@trading-model/primitives/primitives";
 
 import {
@@ -26,6 +27,10 @@ export function createServer(trainer: Trainer, models: TrainerRoutesOptions) {
 			ADDRESS_MANAGER_ROUTES(app);
 		},
 		// No discovery lookup: resolution falls back to the last known address during a discovery outage.
-		readiness: [svidReadinessCheck(ENV), REGISTRATION_READINESS],
+		readiness: [
+			svidReadinessCheck(ENV),
+			REGISTRATION_READINESS,
+			redisReadinessCheck(ENV),
+		],
 	});
 }

@@ -68,6 +68,19 @@ export function federalHolidays(year: number) {
 	]);
 }
 
+/** Longest gap between two collections of a calendar source (both run hourly). */
+const COLLECTION_INTERVAL_MS = 3_600_000;
+
+/**
+ * A report published later than its calendar says was unknown until a
+ * collection saw it: never date it before the previous collection window.
+ */
+export function notBeforeCollection(publishedAt: number, ingestedAt?: number) {
+	return ingestedAt === undefined
+		? publishedAt
+		: Math.max(publishedAt, ingestedAt - COLLECTION_INTERVAL_MS);
+}
+
 /**
  * The CFTC publishes at 3:30 pm Eastern Time, three business days after the
  * Tuesday it describes, so a federal holiday in between delays it
@@ -99,7 +112,7 @@ function _publishedAt(tuesday: string) {
  */
 export const CFTC_COT_LEGACY: SourceAdapter = {
 	dimensions: ["market"],
-	normalize(payload) {
+	normalize(payload, { ingestedAt }) {
 		return Rows.parse(payload).flatMap((row) => {
 			const day = row.report_date_as_yyyy_mm_dd.slice(0, 10);
 			const measures = {
@@ -111,7 +124,7 @@ export const CFTC_COT_LEGACY: SourceAdapter = {
 			};
 			return Object.entries(measures).map(([metric, value]) => ({
 				key: day,
-				observedAt: _publishedAt(day),
+				observedAt: notBeforeCollection(_publishedAt(day), ingestedAt),
 				payload: {
 					metric,
 					value,

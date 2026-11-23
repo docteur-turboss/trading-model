@@ -7,6 +7,8 @@ import {
 	trace,
 } from "@opentelemetry/api";
 import type { Message } from "@trading-model/contracts/message-types";
+import { DurationMs } from "@trading-model/primitives/primitives";
+import * as backoff from "../../../src/bus/backoff";
 import { BusConsumer } from "../../../src/bus/consumer";
 import { DeadStreams } from "../../../src/bus/dead-streams";
 import {
@@ -78,7 +80,7 @@ describe("publishToBus", () => {
 
 describe("BusConsumer", () => {
 	function consumer(
-		handle: (message: Message) => Promise<void>,
+		handle: (message: Message, signal: AbortSignal) => Promise<void>,
 		parts = bus(),
 		onDeadLetter = jest.fn()
 	) {
@@ -264,10 +266,17 @@ describe("BusConsumer", () => {
 			calls++;
 			await slow;
 		});
+		const claims = jest.spyOn(journal, "claimDue");
 		await c.start([TOPIC]);
 		await publishToBus(journal, "slow", METADATA);
-		// The fake Redis reports every pending entry as due; claims run every 2 s.
-		await new Promise((resolve) => setTimeout(resolve, 2500));
+		await until(() => calls === 1);
+		// The fake Redis reports every pending entry as due: jump past the 2 s claim period.
+		const before = claims.mock.calls.length;
+		const now = Date.now();
+		jest.spyOn(Date, "now").mockImplementation(() => now + 3000);
+		await until(() => claims.mock.calls.length > before);
+		expect(claims.mock.calls.length).toBeGreaterThan(before);
+		jest.spyOn(Date, "now").mockRestore();
 		const stopped = c.stop();
 		release();
 		await stopped;
@@ -291,6 +300,66 @@ describe("BusConsumer", () => {
 
 		expect(pendingOf(redis)).toBe(1);
 		expect(await streams.length(TOPIC)).toBe(0);
+	});
+
+	it("should abandon a handler that never ends and leave its entry pending", async () => {
+		jest.replaceProperty(backoff, "HANDLER_TIMEOUT_MS", DurationMs.of(50));
+		jest.replaceProperty(backoff, "ABORT_GRACE_MS", DurationMs.of(50));
+		let signal: AbortSignal | undefined;
+		const {
+			consumer: c,
+			journal,
+			redis,
+		} = consumer((_message, s) => {
+			signal = s;
+			return new Promise(() => {});
+		});
+		await c.start([TOPIC]);
+		await publishToBus(journal, "a", METADATA);
+		await new Promise((resolve) => setTimeout(resolve, 300));
+		await c.stop();
+
+		expect(signal?.aborted).toBe(true);
+		expect(pendingOf(redis)).toBe(1);
+		expect(
+			(await MESSAGES_DELIVERED_TOTAL.get()).values.some(
+				(v) => v.labels.status === "failed" && v.value >= 1
+			)
+		).toBe(true);
+	});
+
+	it.each([
+		[
+			"holds the slot for the whole grace while the handler runs on",
+			false,
+			450,
+		],
+		["frees the slot as soon as the aborted handler returns", true, 0],
+	])("should %s", async (_name, returnsOnAbort, minStopMs) => {
+		jest.replaceProperty(backoff, "HANDLER_TIMEOUT_MS", DurationMs.of(50));
+		jest.replaceProperty(backoff, "ABORT_GRACE_MS", DurationMs.of(500));
+		let signal: AbortSignal | undefined;
+		const { consumer: c, journal } = consumer((_message, s) => {
+			signal = s;
+			return new Promise<void>((resolve) => {
+				if (returnsOnAbort) {
+					s?.addEventListener("abort", () => resolve());
+				}
+			});
+		});
+		await c.start([TOPIC]);
+		await publishToBus(journal, "a", METADATA);
+		await until(() => signal?.aborted === true);
+		const startedAt = Date.now();
+		await c.stop();
+		const waited = Date.now() - startedAt;
+
+		// stop() waits for the in-flight slots: still taken during the grace, free once the handler returned.
+		if (returnsOnAbort) {
+			expect(waited).toBeLessThan(300);
+		} else {
+			expect(waited).toBeGreaterThanOrEqual(minStopMs - 50);
+		}
 	});
 
 	it("should dead-letter a rejected message and report it", async () => {

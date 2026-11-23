@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
 import { PAYLOADS } from "@trading-model/contracts/wire/signals";
+import { z } from "zod";
 import {
 	CFTC_COT_LEGACY,
 	newYorkLocalToUtc,
@@ -707,6 +708,16 @@ describe("eia-open-data", () => {
 		expect(observedAt).toBeUndefined();
 	});
 
+	it("never dates a late report before the collection window, keeps an on-time one", () => {
+		const published = Date.parse("2026-11-12T15:30:00Z");
+		const late = published + 14 * 86_400_000;
+		const at = (ingestedAt: number) =>
+			EIA_OPEN_DATA.normalize(crude, { ...CONTEXT, ingestedAt })[0].observedAt;
+
+		expect(at(published + 600_000)).toBe(published);
+		expect(at(late)).toBe(late - 3_600_000);
+	});
+
 	it("keeps a revised value as a second signal", () => {
 		const revised = structuredClone(crude);
 		revised.response.data[0].value = "414000";
@@ -787,6 +798,17 @@ describe("cftc-cot-legacy", () => {
 		);
 
 		expect(observedAt).toBe(Date.parse(release));
+	});
+
+	it("never dates a late report before the collection window, keeps an on-time one", () => {
+		const published = Date.parse("2026-11-06T20:30:00Z");
+		const late = published + 14 * 86_400_000;
+		const at = (ingestedAt: number) =>
+			CFTC_COT_LEGACY.normalize([rows[0]], { params: {}, ingestedAt })[0]
+				.observedAt;
+
+		expect(at(published + 600_000)).toBe(published);
+		expect(at(late)).toBe(late - 3_600_000);
 	});
 
 	it("gives nothing for a week without report", () => {
@@ -1037,6 +1059,17 @@ describe("twelvedata-daily-prices", () => {
 		});
 		// No release time: the collection time stands, never before the close.
 		expect(observations.every((o) => o.observedAt === undefined)).toBe(true);
+	});
+
+	it("throws a 429 HttpStatusError for a quota body sent with HTTP 200", () => {
+		const body = { code: 429, message: "out of API credits", status: "error" };
+
+		expect(() => TWELVEDATA_DAILY_PRICES.normalize(body, NO_PARAMS)).toThrow(
+			expect.objectContaining({ name: "HttpStatusError", status: 429 })
+		);
+		expect(() =>
+			TWELVEDATA_DAILY_PRICES.normalize({ ...body, code: 400 }, NO_PARAMS)
+		).toThrow(z.ZodError);
 	});
 
 	it("gives nothing for a day without quotation (no value)", () => {

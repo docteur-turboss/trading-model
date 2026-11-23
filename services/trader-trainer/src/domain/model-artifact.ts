@@ -1,5 +1,6 @@
 import { actionLabels } from "@trading-model/model-runtime/agent/action-mapper";
 import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
+import type { ManifestGenome } from "@trading-model/model-runtime/model-manifest";
 import { EVAL_EPSILON } from "./genetic-algorithm/evaluation-phase";
 import type { LamarckGenome } from "./genetic-algorithm/genome-fitness";
 import { SIMULATOR_PARAMS } from "./genetic-algorithm/rl-backend";
@@ -12,7 +13,7 @@ import type { BestAgentSummary } from "./training-state";
  * manifest holds everything needed to rebuild and run the agent, the weights
  * file holds its trained weights.
  */
-export const MODEL_FORMAT_VERSION = 1;
+const MODEL_FORMAT_VERSION = 1;
 /** The trainer reads one-minute candles from the scraper. */
 const CANDLE_INTERVAL_MS = 60_000;
 export const WEIGHTS_FILE = "weights.f32";
@@ -96,7 +97,7 @@ export interface ModelManifest {
 		sha256: string;
 	};
 	/** The best genome without its weights: topology, RL and GA genes. */
-	genome: Record<string, unknown>;
+	genome: ManifestGenome;
 	/** Layout of the input vector: `fields[i]` is the meaning of input `i`. */
 	features: { dim: number; fields: string[] };
 	/** Normalization statistics of the symbol at the end of training. */

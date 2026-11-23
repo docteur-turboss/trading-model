@@ -37,8 +37,9 @@ export class ScrapeCronOrchestrator {
 		// Fresh cursors: after a lost lease, another collector moved them (ADR-0057).
 		this._workerOrchestrator = this._createWorker();
 		this._task = scheduleNoOverlap(
+			"financial-scraper.scrape",
 			this._config.schedule,
-			() => this._runCycle(),
+			(signal) => this._runCycle(signal),
 			() => logger.warn("Previous execution still running")
 		);
 	}
@@ -59,10 +60,10 @@ export class ScrapeCronOrchestrator {
 		);
 	}
 
-	private async _runCycle(): Promise<void> {
+	private async _runCycle(signal: AbortSignal): Promise<void> {
 		const start = performance.now();
 		try {
-			await this._workerOrchestrator.executeAll();
+			await this._workerOrchestrator.executeAll(signal);
 			SCRAPE_CYCLES_TOTAL.inc({ result: "success" });
 		} catch (err) {
 			logger.error("Batch execution failed", { error: err });

@@ -17,7 +17,7 @@ const LOCK_NAME = 'schema_migrations';
 const LOCK_TIMEOUT_SECONDS = 120;
 
 // Built by `index-build`, not by a migration: on ~10 M rows the build outlasts the db-migrate Job
-// (issue #1473, ADR-0086). [table, index, index it replaces]; every index is (symbol, timestamp, id).
+// (issue #1473, ADR-0087). [table, index, index it replaces]; every index is (symbol, timestamp, id).
 const PAGED_READ_INDEXES = [
   ['market_candles', 'idx_candles_symbol_ts', 'idx_candles_symbol'],
   ['market_trades', 'idx_trades_symbol_ts', 'idx_trades_symbol'],

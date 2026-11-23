@@ -20,7 +20,6 @@ const NORM_TYPES: NormalisationType[] = [
 	NormalisationType.None,
 	NormalisationType.LogarithmicNormalization,
 	NormalisationType.DecimalScaling,
-	NormalisationType.Border,
 	NormalisationType.MinMax,
 	NormalisationType.RobustScaling,
 	NormalisationType.ZScore,

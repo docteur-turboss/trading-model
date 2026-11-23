@@ -67,7 +67,7 @@ All developers contributing to the codebase. Every architectural decision aims t
 | Formatting   | Biome                                                |
 | Linting      | Biome                                                |
 
-Layer boundaries (`application/` never imports `adapters/` or `infrastructure/`, except `index.ts`, `server.ts`, `telemetry.ts`) and the absence of runtime import cycles are enforced by `bun run arch:check`, ratcheted on `scripts/architecture-baseline.json` ([ADR-0015](../adr/0015-hexagonal-layering-completion.md)).
+Layer boundaries (`application/` never imports `adapters/` or `infrastructure/`, except `index.ts`, `server.ts`, `telemetry.ts`; `domain/` imports neither `adapters/`, `infrastructure/`, `application/`, `config/` nor `express`, `ioredis`, `mongodb`, `mysql2`, `prom-client`: metrics reach `domain/` through an injected port, while a direct `config/metrics` import stays tolerated in `application/`) and the absence of runtime import cycles are enforced by `bun run arch:check`, ratcheted on `scripts/architecture-baseline.json` ([ADR-0015](../adr/0015-hexagonal-layering-completion.md)).
 
 ## Dependency Graph
 
@@ -84,7 +84,7 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 | discovery-server | common, contracts, crypto, http, persistence, primitives |
 | dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability |
 | model-evaluator | address-manager, broker-message, common, contracts, http, model-runtime, persistence, primitives |
-| risk-execution | address-manager, broker-message, common, contracts, http, primitives |
+| risk-execution | address-manager, broker-message, common, contracts, http, model-runtime, primitives |
 | financial-scraper | address-manager, common, contracts, crypto, http, persistence, primitives, reliability |
 | message-manager | address-manager, broker-message, common, contracts, http, persistence, primitives, reliability |
 | trader-trainer | address-manager, broker-message, common, contracts, crypto, http, model-runtime, persistence, primitives, reliability |

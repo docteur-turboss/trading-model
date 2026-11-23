@@ -24,10 +24,9 @@ metadata:
     app.kubernetes.io/component: otel-collector
     app.kubernetes.io/part-of: trading-model
 spec:
-  replicas: 2
-  strategy:
-    rollingUpdate:
-      maxUnavailable: 1
+  # One replica: tail_sampling decides per collector on the spans it saw, so
+  # every span of a trace must land on the same one.
+  replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/component: otel-collector
@@ -44,27 +43,6 @@ spec:
         fsGroup: 10001
         seccompProfile:
           type: RuntimeDefault
-      # Even spread (ADR-0024): at most one pod more on a node than on the
-      # emptiest one; the zone is best effort (nodes without the label qualify).
-      topologySpreadConstraints:
-        - maxSkew: 1
-          topologyKey: kubernetes.io/hostname
-          whenUnsatisfiable: DoNotSchedule
-          nodeTaintsPolicy: Honor
-          matchLabelKeys:
-            - pod-template-hash
-          labelSelector:
-            matchLabels:
-              app.kubernetes.io/component: otel-collector
-        - maxSkew: 1
-          topologyKey: topology.kubernetes.io/zone
-          whenUnsatisfiable: ScheduleAnyway
-          nodeTaintsPolicy: Honor
-          matchLabelKeys:
-            - pod-template-hash
-          labelSelector:
-            matchLabels:
-              app.kubernetes.io/component: otel-collector
       containers:
         - name: otel-collector
           image: otel/opentelemetry-collector-contrib:0.165.0@sha256:e40d61f10c9a617cca1ffd1be4d7e2b3a4b0f0001798ff07e58cabe82e618cea
@@ -137,9 +115,21 @@ data:
         check_interval: 1s
         limit_mib: 400
         spike_limit_mib: 100
-      # Jaeger's Badger store grows with the span count (#1773): keep 20 %.
-      probabilistic_sampler:
-        sampling_percentage: 20
+      # Jaeger's Badger store grows with the span count (#1773): keep every trace
+      # with an error span, 20 % of the others. Buffered traces (num_traces x
+      # spans) stay well under limit_mib.
+      tail_sampling:
+        decision_wait: 10s
+        num_traces: 10000
+        policies:
+          - name: errors
+            type: status_code
+            status_code:
+              status_codes: [ERROR]
+          - name: sample
+            type: probabilistic
+            probabilistic:
+              sampling_percentage: 20
       batch:
         timeout: 1s
         send_batch_size: 1024
@@ -149,6 +139,10 @@ data:
         endpoint: jaeger:4317
         tls:
           insecure: true
+        # Jaeger is Recreate + Badger start (startupProbe up to 5 min): the
+        # default 5 min retry dropped spans on every rollout (#2326).
+        retry_on_failure:
+          max_elapsed_time: 15m
 
     extensions:
       health_check:
@@ -172,21 +166,8 @@ data:
       pipelines:
         traces:
           receivers: [otlp]
-          processors: [memory_limiter, probabilistic_sampler, batch]
+          processors: [memory_limiter, tail_sampling, batch]
           exporters: [otlp]
----
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: otel-collector-pdb
-  labels:
-    app.kubernetes.io/component: otel-collector
-    app.kubernetes.io/part-of: trading-model
-spec:
-  minAvailable: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/component: otel-collector
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

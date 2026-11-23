@@ -38,6 +38,11 @@ spec:
       activeDeadlineSeconds: 14400
       ttlSecondsAfterFinished: 86400
       template:
+        metadata:
+          # Selected by the egress NetworkPolicy apiserver-egress.
+          labels:
+            app.kubernetes.io/component: backup
+            app.kubernetes.io/part-of: trading-model
         spec:
           serviceAccountName: backup-runner
           restartPolicy: Never
@@ -73,7 +78,7 @@ spec:
                 - |
                   set -euo pipefail
                   /scripts/backup-k8s.sh \
-                    --components mongodb,mysql,checkpoints,spire
+                    --components mongodb,mysql,checkpoints,spire,risk
               # BACKUP_S3_SECONDARY_* keys of the Secret (second off-site bucket, optional).
               envFrom:
                 - secretRef:

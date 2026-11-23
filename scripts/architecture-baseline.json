@@ -1,7 +1,4 @@
 {
   "cycles": [],
-  "layers": [
-    "services/api-gateway/src/application/proxy-dispatcher.ts -> ../infrastructure/config/metrics",
-    "services/audit-logger/src/application/chain-cli.ts -> ../infrastructure/config/env"
-  ]
+  "layers": []
 }

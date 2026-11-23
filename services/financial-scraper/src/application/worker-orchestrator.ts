@@ -72,13 +72,21 @@ export class WorkerOrchestrator {
 		}
 	}
 
-	async executeAll(): Promise<void> {
-		this._deps.source.beginCycle?.(this._symbols);
+	/**
+	 * Once `signal` fires (lease lost), no symbol starts another step: at most
+	 * the requests already in flight finish.
+	 */
+	async executeAll(signal?: AbortSignal): Promise<void> {
+		this._deps.source.beginCycle?.(this._symbols, signal);
 		const limiter = await _createLimiter(this._maxConcurrency);
 
 		const settled = await Promise.allSettled(
-			this._symbols.map((symbol) => limiter(() => this._scrape(symbol)))
+			this._symbols.map((symbol) => limiter(() => this._scrape(symbol, signal)))
 		);
+
+		if (signal?.aborted) {
+			return; // Aborted symbols are not failures.
+		}
 
 		settled.forEach((outcome, index) => {
 			const symbol = this._symbols[index];
@@ -133,15 +141,22 @@ export class WorkerOrchestrator {
 		}
 	}
 
-	private async _scrape(symbol: TradingSymbol): Promise<void> {
+	private async _scrape(
+		symbol: TradingSymbol,
+		signal?: AbortSignal
+	): Promise<void> {
 		const state = this._stateOf(symbol);
+		signal?.throwIfAborted();
 		await this._loadCursor(symbol, state);
+		signal?.throwIfAborted();
 		const snapshot = await this._deps.source.fetchSnapshot({
 			symbol,
 			interval: this._candleInterval,
 			candleStartTime: state.cursor,
+			signal,
 		});
 
+		signal?.throwIfAborted();
 		await this._deps.persist(snapshot);
 		getLogger().debug("Data persisted");
 		// Moves past the last persisted candle; a failed cycle is fetched again.

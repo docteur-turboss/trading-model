@@ -77,8 +77,6 @@ Within 5 business days of L1-L2 incidents, a post-mortem document shall be produ
 - Remediation actions with owners and deadlines
 - Updates to runbooks, monitoring, or alerting
 
-Post-mortems are stored in `docs/operations/post-mortems/`.
-
 ## 4. Regulatory Notification
 
 | Regulation | Trigger | Notification Period | Notify |

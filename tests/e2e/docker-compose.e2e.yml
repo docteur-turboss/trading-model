@@ -73,6 +73,6 @@ services:
       TRAINER_INTERVAL_MS: '60000'
       # The stub serves 1-min candles for the current minute: allow a few of them.
       TRAINER_MAX_DATA_AGE_MS: '300000'
-      # Only the scraper may download weights; message-manager (also in the
+      # Only the gateway may download weights; risk-execution (also in the
       # trainer ACL) is deliberately not listed, to prove the 403.
-      MODEL_DOWNLOAD_CALLERS: financial-scraper,model-evaluator
+      MODEL_DOWNLOAD_CALLERS: api-gateway,model-evaluator

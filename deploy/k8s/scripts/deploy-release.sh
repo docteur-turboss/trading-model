@@ -55,8 +55,8 @@ FACTOR="${DEPLOY_TIMEOUT_FACTOR:-1}"
 }
 
 # Deployments a release rolls out and a failed release rolls back.
-DEPLOYMENTS="discovery-server message-manager financial-scraper financial-scraper-collector trader-trainer
-  api-gateway audit-logger dlq-service model-evaluator risk-execution edge-proxy"
+# The service list is deploy/k8s/services/kustomization.yaml; the collector is a second Deployment of financial-scraper.
+DEPLOYMENTS="$(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$(dirname "${BASH_SOURCE[0]}")/../services/kustomization.yaml") financial-scraper-collector"
 
 # Redis and its sentinels: the services' credentials (ADR-0047) only work
 # against the nodes of their own release, so these roll out and back too.
@@ -146,11 +146,18 @@ release_replicas() {
 	# Deployment. trader-trainer is a singleton (ADR-0044, issue #501);
 	# audit-logger runs 2 fixed pods (one lease holder writes, issue #1395).
 	kubectl delete hpa/trader-trainer-hpa hpa/audit-logger-hpa -n "$ns" --ignore-not-found
+	# Retired redis-cert-cache (unused, unauthenticated; issue #1993).
+	kubectl delete deployment/redis-cert-cache service/redis-cert -n "$ns" --ignore-not-found
 	# A Job's pod template is immutable: apply fails on a finished init Job
 	# whose template changed (labels, issues #727 and #771). All are idempotent and
 	# run again from the overlay.
 	# shellcheck disable=SC2086
 	kubectl delete job $INIT_JOBS -n "$ns" --ignore-not-found
+	# podManagementPolicy is immutable (issue #2202, now Parallel): drop the old
+	# StatefulSet without its pods or PVCs; the apply recreates it and adopts them.
+	if [ "$(kubectl get statefulset redis -n "$ns" -o jsonpath='{.spec.podManagementPolicy}' --ignore-not-found)" = OrderedReady ]; then
+		kubectl delete statefulset redis -n "$ns" --cascade=orphan
+	fi
 	for dep in $(kubectl get hpa -n "$ns" \
 		-o jsonpath='{range .items[?(@.spec.scaleTargetRef.kind=="Deployment")]}{.spec.scaleTargetRef.name}{"\n"}{end}'); do
 		last=$(kubectl get deployment "$dep" -n "$ns" -o json | jq -r --arg a "$ann" '.metadata.annotations[$a] // empty')
@@ -230,9 +237,13 @@ dry_run() {
 		return 0
 	fi
 	echo "Overlay (deploy-app):"
-	bash "$split" app <<<"$rendered" | awk -v jobs=" $INIT_JOBS " '
+	# StatefulSet redis still OrderedReady: podManagementPolicy is immutable and
+	# release-replicas recreates it (issue #2202), so the dry-run leaves it out.
+	local skip_redis=0
+	[ "$(kubectl get statefulset redis -n "$ns" -o jsonpath='{.spec.podManagementPolicy}' --ignore-not-found)" = OrderedReady ] && skip_redis=1
+	bash "$split" app <<<"$rendered" | awk -v jobs=" $INIT_JOBS " -v skip="$skip_redis" '
 function flush() {
-	if (doc != "" && !(kind == "Job" && index(jobs, " " name " "))) { printf "%s%s", sep, doc; sep = "---\n" }
+	if (doc != "" && !(kind == "Job" && index(jobs, " " name " ")) && !(skip == 1 && kind == "StatefulSet" && name == "redis")) { printf "%s%s", sep, doc; sep = "---\n" }
 	doc = ""; kind = ""; name = ""
 }
 /^---[ \t]*$/ { flush(); next }

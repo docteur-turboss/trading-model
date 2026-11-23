@@ -1,6 +1,7 @@
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { AssetId, type AssetType } from "@trading-model/contracts/wire/signals";
+import { SignalBarHistory } from "@trading-model/http/signals/signal-bar-history";
 import { inputGroupNames } from "@trading-model/model-runtime/agent/input-mask";
 import { toSymbol } from "@trading-model/primitives/primitives";
 import {
@@ -15,7 +16,6 @@ import {
 import { TrainingLoop } from "../adapters/inbound/scheduler/training-loop";
 import { FileModelArtifactStore } from "../adapters/outbound/file-model-artifact-store";
 import { ModelPublisher } from "../adapters/outbound/model-publisher";
-import { SignalBarHistory } from "../adapters/outbound/signal-bar-history";
 import { runInWorker } from "../adapters/outbound/training-worker/worker-training-runner";
 import { Trainer } from "../application/trainer";
 import { DEFAULT_ASSET_COSTS, parseAssets } from "../domain/asset-costs";
@@ -33,11 +33,13 @@ import type { ModelArtifactStorePort } from "../domain/ports/model-artifact-stor
 import type { SignalHistoryPort } from "../domain/ports/signal-history.port";
 import {
 	effectiveFitnessType,
+	symbolsPerGeneration,
 	type TrainingSettings,
 } from "../domain/training-settings";
 import { MessageManager } from "./message-manager";
 import {
 	CURRENT_GENERATION,
+	DAILY_BAR_ISSUES_TOTAL,
 	GENOME_EVALUATION_SECONDS,
 	MARKET_DATA_BUFFER_SIZE,
 	MARKET_DATA_SYMBOLS,
@@ -95,6 +97,8 @@ class ApplicationContainer {
 			maxMemoryBytes: 512 * 1024 * 1024,
 			evictionPolicy: EvictionPolicy.Lru,
 			signalKeys: config.signalKeys,
+			onInconsistentCandle: (symbol) =>
+				DAILY_BAR_ISSUES_TOTAL.inc({ symbol, issue: "ohlc_inconsistent" }),
 			onDataAdded: (symbol, candleCount, symbolCount) => {
 				MARKET_DATA_BUFFER_SIZE.set({ symbol: String(symbol) }, candleCount);
 				MARKET_DATA_SYMBOLS.set(symbolCount);
@@ -155,6 +159,7 @@ interface TraderTrainerSettings {
 	FEATURE_EVENT_DRIVEN_DECISIONS?: boolean;
 	FEATURE_INPUT_MASK_GENE?: boolean;
 	FEATURE_SHARED_TRUNK?: boolean;
+	TRAINER_SHARED_TRUNK_SYMBOLS_PER_GENERATION?: number;
 	TRAINER_INPUT_MASK_PROTECT_CANDLE?: boolean;
 	TRAINER_OBSERVE_POSITION?: boolean;
 	TRAINER_SEED_OFFSET?: number;
@@ -185,20 +190,23 @@ export function createTraderTrainerContainer(
 			},
 		])
 	);
-	const bars = new SignalBarHistory(signalHistory, assets);
+	const bars = new SignalBarHistory(signalHistory, assets, (symbol, issue) =>
+		DAILY_BAR_ISSUES_TOTAL.inc({ symbol, issue })
+	);
 	const signalKeys = settings.FEATURE_SIGNAL_INPUTS
 		? parseCommaSeparated(settings.TRAINER_SIGNAL_FEATURES ?? "")
 		: [];
+	const symbols = [
+		...new Set([
+			...parseCommaSeparated(settings.TRAINER_SYMBOLS).map((symbol) =>
+				toSymbol(symbol)
+			),
+			...dailyCosts.keys(),
+		]),
+	];
 	return new ApplicationContainer({
 		bufferSize: settings.TRAINER_DATA_WINDOW,
-		symbols: [
-			...new Set([
-				...parseCommaSeparated(settings.TRAINER_SYMBOLS).map((symbol) =>
-					toSymbol(symbol)
-				),
-				...dailyCosts.keys(),
-			]),
-		],
+		symbols,
 		dailyCosts,
 		settings: {
 			validationSplit: settings.TRAINER_VALIDATION_SPLIT,
@@ -217,6 +225,12 @@ export function createTraderTrainerContainer(
 				? inputGroupNames(signalKeys)
 				: undefined,
 			protectCandleGroup: settings.TRAINER_INPUT_MASK_PROTECT_CANDLE,
+			symbolsPerGeneration: settings.FEATURE_SHARED_TRUNK
+				? symbolsPerGeneration(
+						settings.TRAINER_SHARED_TRUNK_SYMBOLS_PER_GENERATION,
+						symbols.length
+					)
+				: undefined,
 		},
 		signalKeys,
 		modelDir: settings.TRAINER_MODEL_DIR,

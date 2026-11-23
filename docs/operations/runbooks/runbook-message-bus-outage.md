@@ -1,6 +1,6 @@
 # Runbook: Message Bus Outage
 
-**Alerts:** `ServiceDown` on `message-manager`, `MessageDeliveryLowSuccessRate`, `MessagesDeadLettered`, `BusDeadLetters`, `MessagesUnrouted`, `JournalBacklogOld`, `JournalEntriesTrimmed`  
+**Alerts:** `ServiceDown` on `message-manager`, `MessageDeliveryLowSuccessRate`, `BusDeadLetters`, `MessagesUnrouted`, `JournalBacklogOld`, `JournalEntriesTrimmed`  
 **Severity:** L1
 
 ## Architecture Context
@@ -20,7 +20,6 @@ An outage affects:
 
 - `ServiceDown`: message-manager not scraped.
 - `MessageDeliveryLowSuccessRate`: more than 0.5 % of messages dead-lettered over 5 min.
-- `MessagesDeadLettered`: messages given up, now in the dead streams.
 - `BusDeadLetters`: a dead stream holds entries waiting for an operator.
 - `MessagesUnrouted`: a topic has had no journal group for 10 min.
 - `JournalBacklogOld`: a subscriber has not acknowledged an entry for 15 min (see 6).
@@ -66,7 +65,7 @@ Subscriptions come back on their own within 15 s once Redis answers (subscribers
 
 ### 2. Slow or failing subscriber
 
-**Symptoms:** `MessageDeliveryLowSuccessRate`, `MessagesDeadLettered` on one topic, publishers slow (they wait for the retries: up to 10 attempts, 20 s cap, ~4.3 min at worst; the publish times out after 5 min).  
+**Symptoms:** `MessageDeliveryLowSuccessRate`, `BusDeadLetters` on one topic, publishers slow (they wait for the retries: up to 10 attempts, 20 s cap, ~4.3 min at worst; the publish times out after 5 min).  
 **Check:**
 
 ```bash
@@ -84,7 +83,7 @@ kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
 
 ### 4. Dead letters stuck, refused or lost
 
-**Symptoms:** `MessagesDeadLettered` or `BusDeadLetters` (warning). A dead letter is an entry of the stream `trading-model:message-manager:dead:<topic>` with its group, attempts and reason (ADR-0073). While Redis refuses the write, the journal entry stays pending (`JournalBacklogOld` after 15 min, see 6); message-manager logs the cause.
+**Symptoms:** `BusDeadLetters` (warning). A dead letter is an entry of the stream `trading-model:message-manager:dead:<topic>` with its group, attempts and reason (ADR-0073). While Redis refuses the write, the journal entry stays pending (`JournalBacklogOld` after 15 min, see 6); message-manager logs the cause.
 
 **Inspect, replay, delete** (inside an audit-logger pod; `<operator>` is recorded as the actor of the `dlq.*` audit event):
 

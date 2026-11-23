@@ -8,7 +8,14 @@ process.env.SERVICE_NAME = "financial-scraper";
 process.env.INSTANCE_ID = "instance-1";
 process.env.ADDRESS_MANAGER_URL = "https://address-manager.example.com";
 
-const MOCK_CREATE_POOL = jest.fn<(...args: any[]) => any>().mockReturnValue({});
+const NEVER_ANSWERS = jest.fn<(...args: any[]) => any>();
+const MOCK_POOL = {
+	on: jest.fn<(...args: any[]) => any>(),
+	getConnection: NEVER_ANSWERS,
+};
+const MOCK_CREATE_POOL = jest
+	.fn<(...args: any[]) => any>()
+	.mockReturnValue(MOCK_POOL);
 
 jest.mock("mysql2", () => ({
 	createPool: MOCK_CREATE_POOL,
@@ -38,5 +45,27 @@ describe("config/db", () => {
 		expect(MOCK_CREATE_POOL).toHaveBeenCalledWith(
 			expect.objectContaining({ connectionLimit: 10 })
 		);
+	});
+
+	it("should bound the connect, the SELECTs and the wait for a connection", () => {
+		expect(MOCK_CREATE_POOL).toHaveBeenCalledWith(
+			expect.objectContaining({ connectTimeout: 10_000 })
+		);
+		const query = jest.fn<(...args: any[]) => any>();
+		MOCK_POOL.on.mock.calls[0]?.[1]({ query, destroy: jest.fn() });
+		expect(query.mock.calls[0]?.[0]).toBe(
+			"SET SESSION max_execution_time = 30000"
+		);
+
+		jest.useFakeTimers();
+		const cb = jest.fn<(...args: any[]) => any>();
+		DATABASE.getConnection(cb);
+		jest.advanceTimersByTime(10_000);
+		jest.useRealTimers();
+		expect(cb).toHaveBeenCalledWith(expect.any(Error), undefined);
+		const release = jest.fn();
+		NEVER_ANSWERS.mock.calls[0]?.[0](null, { release });
+		expect(release).toHaveBeenCalled();
+		expect(cb).toHaveBeenCalledTimes(1);
 	});
 });

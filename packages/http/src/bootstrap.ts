@@ -2,7 +2,7 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { gracefulShutdown, hardShutdown } from "./bootstrap-shutdown";
 import type { BootstrapOptions } from "./bootstrap-types";
-import type { HttpServer } from "./create-secure-server";
+import type { HttpServer } from "./shared/server-types";
 import { setupProcessHandlers } from "./signal-handler";
 
 export type {
@@ -19,7 +19,7 @@ export function createBootstrap(options: BootstrapOptions): {
 	const doShutdown = (signal: string) =>
 		gracefulShutdown(signal, svrRef.current, options);
 	setupProcessHandlers(doShutdown, doHardShutdown);
-	runBootstrap(
+	void runBootstrap(
 		options,
 		(svr) => {
 			svrRef.current = svr;
@@ -29,74 +29,25 @@ export function createBootstrap(options: BootstrapOptions): {
 	return { shutdown: doShutdown };
 }
 
-function _onBootstrapError(
-	onFatal: (code: number) => void,
-	err: unknown
-): void {
-	getLogger().error("Fatal error during service bootstrap", {
-		context: { err: normalizeError(err) },
-	});
-	onFatal(1);
-}
-
-function runBootstrap(
+async function runBootstrap(
 	options: BootstrapOptions,
 	setServer: (server: HttpServer) => void,
 	onFatal: (code: number) => void
-): void {
-	const onError = (err: unknown) => _onBootstrapError(onFatal, err);
+): Promise<void> {
 	getLogger().info("Bootstrapping service", {
 		context: { name: options.name },
 	});
-	runSyncOrAsync(
-		() => options.onBeforeServer?.(),
-		() => _finishCreateServer(options, setServer, onError),
-		onError
-	);
-}
-
-function _finishCreateServer(
-	options: BootstrapOptions,
-	setServer: (server: HttpServer) => void,
-	onError: (err: unknown) => void
-): void {
-	runSyncOrAsync(
-		() => options.createServer(),
-		(httpServer) => {
-			setServer(httpServer);
-			finishBootstrap(options, onError);
-		},
-		onError
-	);
-}
-
-function runSyncOrAsync<TValue>(
-	fn: () => TValue | Promise<TValue> | undefined,
-	onSuccess: (value: TValue) => void,
-	onError: (err: unknown) => void
-): void {
 	try {
-		const result = fn();
-		if (result instanceof Promise) {
-			result.then(onSuccess).catch(onError);
-			return;
-		}
-		(onSuccess as (value: unknown) => void)(result);
+		await options.onBeforeServer?.();
+		setServer(await options.createServer());
+		await options.onStart?.();
+		getLogger().info("Service started successfully", {
+			context: { name: options.name },
+		});
 	} catch (err) {
-		onError(err);
+		getLogger().error("Fatal error during service bootstrap", {
+			context: { err: normalizeError(err) },
+		});
+		onFatal(1);
 	}
-}
-
-function finishBootstrap(
-	options: BootstrapOptions,
-	onError: (err: unknown) => void
-): void {
-	runSyncOrAsync(
-		() => options.onStart?.(),
-		() =>
-			getLogger().info("Service started successfully", {
-				context: { name: options.name },
-			}),
-		onError
-	);
 }

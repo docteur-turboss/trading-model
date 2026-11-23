@@ -74,7 +74,7 @@ spec:
       # file of the mongod user instead.
       initContainers:
         - name: keyfile
-          image: mongo:7.0.43@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+          image: mongo:7.0.45@sha256:8bb4442761a63a8dda452744082cdac9644b429807eb977b42324a63cef59ca4
           command:
             - sh
             - -c
@@ -109,7 +109,7 @@ spec:
             secretName: mongo-audit-tls
       containers:
         - name: mongodb
-          image: mongo:7.0.43@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+          image: mongo:7.0.45@sha256:8bb4442761a63a8dda452744082cdac9644b429807eb977b42324a63cef59ca4
           # Encryption at rest (--enableEncryption) is MongoDB Enterprise only:
           # this Community image refuses the flag and never starts with it.
           command:
@@ -186,7 +186,9 @@ spec:
                 - "try { rs.status().ok } catch (e) { if (e.codeName === 'InvalidReplicaSetConfig') quit(1) }"
             initialDelaySeconds: 30
             periodSeconds: 15
-            timeoutSeconds: 5
+            # mongosh starts slowly under the 1 CPU limit: a timeout is not a dead mongod.
+            timeoutSeconds: 15
+            failureThreshold: 6
           readinessProbe:
             exec:
               command:
@@ -200,9 +202,14 @@ spec:
         # Bootstrap of this member: replica set and root user through the localhost
         # exception (only a loopback connection of this pod gets it; a Job over the
         # network is refused: "no replset config", run 43340429996). Idempotent.
+        # The other members add themselves through the primary at each start, as
+        # root (rs.add needs clusterAdmin): the members are the pods that exist,
+        # whatever their start order (issue #2197). Same script in both manifests.
         - name: mongodb-bootstrap
-          image: mongo:7.0.43@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+          image: mongo:7.0.45@sha256:8bb4442761a63a8dda452744082cdac9644b429807eb977b42324a63cef59ca4
           env:
+            - name: REPLICA_SET
+              value: rs0-audit
             - name: MONGO_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -214,14 +221,11 @@ spec:
             - |
               M="mongosh --quiet --host 127.0.0.1 --port 27017"
               until $M --eval 'db.hello().ok' >/dev/null 2>&1; do sleep 2; done
-              if [ "$HOSTNAME" = "mongo-audit-0" ]; then
-                $M --eval '
-                  if (!db.hello().setName) {
-                    const hosts = [0, 1, 2]
-                      .map((i) => `mongo-audit-${i}.mongo-audit-headless:27017`)
-                      .filter((h) => { try { return new Mongo(h).getDB("admin").runCommand({ ping: 1 }).ok === 1; } catch (e) { return false; } });
-                    rs.initiate({ _id: "rs0-audit", members: hosts.map((host, _id) => ({ _id, host })) });
-                  }'
+              SET="${HOSTNAME%-*}"
+              export SELF="$HOSTNAME.$SET-headless:27017"
+              # Pod 0 joins too when pod 1 already holds the set (pod 0 rebuilt): never a second set.
+              if [ "${HOSTNAME##*-}" = 0 ] && ! mongosh --quiet "mongodb://$SET-1.$SET-headless:27017/?directConnection=true&serverSelectionTimeoutMS=3000" --eval 'db.hello().setName' 2>/dev/null | grep -q .; then
+                $M --eval 'if (!db.hello().setName) rs.initiate({ _id: process.env.REPLICA_SET, members: [{ _id: 0, host: process.env.SELF }] })' || exit 1
                 until $M --eval 'db.hello().isWritablePrimary' | grep -qx true; do sleep 2; done
                 # The localhost exception allows createUser and nothing else (reading
                 # system.users is refused, run 43364583932); once a user exists it
@@ -234,6 +238,10 @@ spec:
                   } catch (e) {
                     if (e.codeName !== "Unauthorized" && e.codeName !== "Location51003" && e.code !== 51003) throw e;
                   }' || exit 1
+              else
+                until mongosh --quiet "mongodb://$SET-0.$SET-headless:27017,$SELF/admin?replicaSet=$REPLICA_SET" --eval '
+                  db.auth("root", process.env.MONGO_ROOT_PASSWORD);
+                  if (!rs.conf().members.some((m) => m.host === process.env.SELF)) rs.add(process.env.SELF);'; do sleep 5; done
               fi
               exec sleep infinity
           securityContext:
@@ -300,8 +308,8 @@ spec:
 # client of this database, from deploy/mongo/users.js. Idempotent, so it runs
 # again on every release (ttl: the finished Job is removed, a later apply
 # creates it again) and applies a rotated password. Needs a primary, which
-# the mongodb-bootstrap sidecar elects; the members that do not answer (staging: 1 pod) are
-# only seeds.
+# the mongodb-bootstrap sidecar elects; every pod joins the replica set (staging:
+# 1 pod, so 1 member).
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -327,7 +335,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: mongodb-users
-          image: mongo:7.0.43@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+          image: mongo:7.0.45@sha256:8bb4442761a63a8dda452744082cdac9644b429807eb977b42324a63cef59ca4
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

@@ -22,7 +22,9 @@ import {
 import { ResponseCache } from "../../infrastructure/cache";
 import type { Env } from "../../infrastructure/config/env";
 import {
+	CACHE_LOOKUPS_TOTAL,
 	metricsHandler,
+	PROXY_REQUEST_DURATION_SECONDS,
 	SERVICE_ERRORS_TOTAL,
 } from "../../infrastructure/config/metrics";
 import { requiredScope } from "../../shared/api-keys";
@@ -107,7 +109,9 @@ const createCatchAllRoute = (env: Env) => {
 		// Read before the DNS lookup: a cached answer needs no resolution.
 		const search = _search(req);
 		const cacheKey = `${req.method}:${req.path}${search}`;
-		const cached = tryServeFromCache(req.method, cacheKey, cache);
+		const cached = tryServeFromCache(req.method, cacheKey, cache, (result) =>
+			CACHE_LOOKUPS_TOTAL.inc({ result })
+		);
 		if (cached) {
 			return cached;
 		}
@@ -154,7 +158,12 @@ const createCatchAllRoute = (env: Env) => {
 			req,
 			target,
 			{ serviceName, majorVersion, cacheKey, path: `${path}${search}` },
-			{ forward: (opts) => forwardRequest(opts, env), cache: cache }
+			{
+				forward: (opts) => forwardRequest(opts, env),
+				cache: cache,
+				observeDuration: (labels, seconds) =>
+					PROXY_REQUEST_DURATION_SECONDS.observe(labels, seconds),
+			}
 		);
 		if (response.status >= HTTP_STATUS.SERVICE_UNAVAILABLE) {
 			SERVICE_ERRORS_TOTAL.inc({ service: serviceName });

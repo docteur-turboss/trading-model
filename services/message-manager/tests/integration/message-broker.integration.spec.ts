@@ -122,10 +122,13 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 
 	it("should not deliver to unsubscribed services or to another topic", async () => {
 		await dispatcher.subscribe(subscribeParams());
-		await dispatcher.unsubscribe({
-			topic: "market.data" as Topic,
-			instanceId: mockSubscriberIdentity.instanceId as InstanceId,
-		});
+		await dispatcher.unsubscribe(
+			{
+				topic: "market.data" as Topic,
+				instanceId: mockSubscriberIdentity.instanceId as InstanceId,
+			},
+			mockSubscriberIdentity.serviceName
+		);
 		await dispatcher.subscribe({
 			...subscribeParams("x"),
 			topic: "other.topic" as Topic,
@@ -152,7 +155,7 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 		await runWorker(worker);
 		expect(httpClient.post).toHaveBeenCalledTimes(1);
 
-		now += 60_000;
+		now += 120_000;
 		await runWorker(worker);
 		expect(httpClient.post).toHaveBeenCalledTimes(2);
 
@@ -177,7 +180,7 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 		await runWorker(newWorker());
 		expect(httpClient.post).not.toHaveBeenCalled();
 
-		now += 60_000;
+		now += 120_000;
 		await runWorker(newWorker());
 
 		expect(httpClient.post).toHaveBeenCalledTimes(1);
@@ -186,10 +189,13 @@ describe("Message Broker Integration (journal + delivery worker)", () => {
 	it("should keep a message for a service without live subscriber until it subscribes again", async () => {
 		await dispatcher.subscribe(subscribeParams());
 		await dispatcher.publish({ price: 50000 }, PRICE);
-		await dispatcher.unsubscribe({
-			topic: "market.data" as Topic,
-			instanceId: mockSubscriberIdentity.instanceId as InstanceId,
-		});
+		await dispatcher.unsubscribe(
+			{
+				topic: "market.data" as Topic,
+				instanceId: mockSubscriberIdentity.instanceId as InstanceId,
+			},
+			mockSubscriberIdentity.serviceName
+		);
 		const worker = newWorker();
 
 		await runWorker(worker);

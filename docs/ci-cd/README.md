@@ -131,10 +131,11 @@ nodes pull credentials for the registry.
 | **Backup Key Check** | `backup-key-check.yml` | weekly cron (Mon), manual | Prove the escrow age key decrypts the newest off-site backup ([ADR-0034](../adr/0034-backup-key-custody-and-weekly-escrow-check.md)) |
 | **Mutation Testing** | `mutation-testing.yml` | weekly cron (Sun), manual | Stryker on trader-trainer `src/domain` and dlq-service `src/application`; not a PR gate |
 | **Sealed Secrets Key Backup** | `sealed-secrets-key-backup.yml` | daily cron (03:30 UTC), manual | Seal and copy the controller keys off-site ([ADR-0035](../adr/0035-sealed-secrets-key-daily-backup-by-github-actions.md)) |
+| **Secret Rotation Reminder** | `secret-rotation-reminder.yml` | quarterly cron (1 Jan/Apr/Jul/Oct), manual | Open a "Quarterly secret rotation" issue unless one is open |
 
 All workflows run on `ubuntu-latest` with Bun. Failure in any workflow blocks merging.
 
-**Concurrency:** CI grouped by workflow + ref, cancel-in-progress on new push.
+**Concurrency:** CI grouped by workflow + ref; a new commit cancels the running run of a pull request only, push and tag runs always finish.
 
 ## Related Documentation
 

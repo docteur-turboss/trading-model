@@ -434,19 +434,10 @@ cmd_canary_cleanup() {
 cmd_smoke_test() {
   log "Running smoke tests..."
 
-  local services=(
-    "discovery-server:https://discovery-server:3000/health/ready"
-    "message-manager:https://message-manager:3000/health/ready"
-    "api-gateway:https://api-gateway:3000/health/ready"
-    "audit-logger:https://audit-logger:3000/health/ready"
-    "dlq-service:https://dlq-service:3000/health/ready"
-    "model-evaluator:https://model-evaluator:3000/health/ready"
-    "risk-execution:https://risk-execution:3000/health/ready"
-    "financial-scraper:https://financial-scraper:3000/health/ready"
-    "financial-scraper-collector:https://financial-scraper-collector:3000/health/ready"
-    "trader-trainer:https://trader-trainer:3000/health/ready"
-    "edge-proxy:http://edge-proxy:8080/health/ready"
-  )
+  local services=() svc
+  for svc in $(bash "$(dirname "${BASH_SOURCE[0]}")/deploy-release.sh" deployments); do
+    [[ $svc == edge-proxy ]] && services+=("$svc:http://$svc:8080/health/ready") || services+=("$svc:https://$svc:3000/health/ready")
+  done
 
   local failed=0
   for entry in "${services[@]}"; do
@@ -530,8 +521,24 @@ fresh_candles() {
 # Critical alerts firing now, one line each: every label as sorted compact JSON,
 # so two alerts of the same name never share a line. $1 = extra label matchers (URL-encoded).
 critical_alerts() {
-  prom_query "ALERTS%7Balertstate%3D%22firing%22%2Cseverity%3D%22critical%22${1}%7D" \
-    | jq -cS '.data.result[].metric | del(.__name__, .alertstate)'
+  local alerts global='"alertname":"KillSwitchEngaged".*"scope":"global"'
+  alerts="$(prom_query "ALERTS%7Balertstate%3D%22firing%22%2Cseverity%3D%22critical%22${1}%7D" \
+    | jq -cS '.data.result[].metric | del(.__name__, .alertstate)')" || return 1
+  # A new environment (or a lost volume) starts with the global switch on for
+  # state_missing (ADR-0064 §5): the operator re-arms it, a rollback cannot, so never block on it.
+  if grep -q "$global" <<<"$alerts" && [[ "$(risk_global_reason)" == "state_missing" ]]; then
+    log "  - KillSwitchEngaged (global, state_missing): not blocking, re-arm after checking (runbook-risk-execution)" >&2
+    alerts="$(grep -v "$global" <<<"$alerts" || true)"
+  fi
+  [[ -z "$alerts" ]] || printf '%s\n' "$alerts"
+}
+
+# Reason of the global kill switch of risk-execution (GET /admin/status with its
+# own SVID, from its pod); empty when off or unreachable.
+risk_global_reason() {
+  kubectl exec -n "$NAMESPACE" deployment/risk-execution -c risk-execution -- \
+    curl -sfk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/admin/status \
+    | jq -r '.killSwitch.global // empty' || true
 }
 
 # critical_alerts lines (stdin) as one readable list: name{label=value, ...},...

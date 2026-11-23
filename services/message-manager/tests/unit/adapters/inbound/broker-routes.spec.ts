@@ -122,6 +122,21 @@ describe("message-manager API (BROKER_API)", () => {
 			expect(dispatcher.publish).not.toHaveBeenCalled();
 		});
 
+		it("rejects with 403 a topic the calling service may not publish", async () => {
+			const { status } = await call(BROKER_API.publish, {
+				payload: {},
+				metadata: {
+					schemaVersion: "1.0",
+					eventType: "training.model.published",
+					topic: "training.model.published",
+					publisher: PUBLISHER,
+				},
+			});
+
+			expect(status).toBe(403);
+			expect(dispatcher.publish).not.toHaveBeenCalled();
+		});
+
 		it("rejects metadata without topic or from an unknown service with 400", async () => {
 			const { status, body } = await call(BROKER_API.publish, {
 				payload: {},
@@ -190,10 +205,24 @@ describe("message-manager API (BROKER_API)", () => {
 			});
 
 			expect(status).toBe(204);
-			expect(dispatcher.unsubscribe).toHaveBeenCalledWith({
-				topic: Topic.of("market.candles.fetch"),
-				instanceId: InstanceId.of("scraper-1"),
+			expect(dispatcher.unsubscribe).toHaveBeenCalledWith(
+				{
+					topic: Topic.of("market.candles.fetch"),
+					instanceId: InstanceId.of("scraper-1"),
+				},
+				ServiceInstanceName.FinancialScraperService
+			);
+		});
+
+		it("rejects with 403 an instance of another service", async () => {
+			dispatcher.unsubscribe.mockResolvedValueOnce(false);
+
+			const { status } = await call(BROKER_API.unsubscribe, {
+				topic: "market.candles.fetch",
+				instanceId: "audit-1",
 			});
+
+			expect(status).toBe(403);
 		});
 
 		it("rejects an empty instance id with 400", async () => {

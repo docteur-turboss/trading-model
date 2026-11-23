@@ -27,4 +27,18 @@ describe("acquireToken", () => {
 		await all;
 		expect(served).toEqual([10, 1, 1]);
 	});
+
+	it("rejects a waiting request on abort and lets the next one through", async () => {
+		const url = "https://abort.test";
+		await acquireToken(url, 1195);
+		const abort = new AbortController();
+		const waiting = acquireToken(url, 100, abort.signal);
+		const rejected = expect(waiting).rejects.toThrow();
+		const next = acquireToken(url, 1);
+		await jest.advanceTimersByTimeAsync(1000);
+		abort.abort();
+		await rejected;
+		await jest.advanceTimersByTimeAsync(1000);
+		await expect(next).resolves.toBeUndefined();
+	});
 });

@@ -75,7 +75,9 @@ not scraped yet, only Loki's own metrics are.
 
 The collector (K8s only; compose exports straight to Jaeger, so the rule stays
 silent there) reports `otelcol_exporter_send_failed_spans` on `:8888`. Spans
-are being dropped between collector and Jaeger.
+are being dropped between collector and Jaeger. The exporter retries for 15
+minutes, so a Jaeger restart on a rollout (Badger start, up to 5 minutes) drops
+nothing; the alert means Jaeger stayed unreachable longer.
 
 1. `kubectl logs deploy/otel-collector`: look for export errors to `jaeger:4317`.
 2. Check the `jaeger` Service has ready endpoints.
@@ -101,11 +103,12 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `SignalCollectionFailing` | a signal source (ADR-0036) failed a collection in the last 24 h, by source: fetch error (403 from SEC EDGAR without contact e-mail), changed format or MySQL | [runbook-market-data-stale#signalcollectionfailing](runbooks/runbook-market-data-stale.md#signalcollectionfailing) |
 | `SignalSourceStale` | a signal source (ADR-0036) had no successful collection for longer than its threshold (`maxAgeSeconds`, else three cron periods), by source, with no failure counted | [runbook-market-data-stale#signalsourcestale](runbooks/runbook-market-data-stale.md#signalsourcestale) |
 | `MessageDeliveryLowSuccessRate` | less than 99.5% of the messages delivered (the rest dead-lettered) | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
-| `MessagesDeadLettered` | message-manager gave up on messages: they are in dlq-service (`GET /dlq`) to inspect and replay | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `BusDeadLetters` | A dead stream holds entries (`bus_dead_letters`): a subscriber group gave up on them, an operator replays or deletes them with `audit-dlq` | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `DlqAuditEventLost` | a DLQ delete or replay was done but message-manager refused its audit event (`dlq_audit_publish_failures_total`): not in the audit chain, the API answered 502 (ADR-0059) | [runbook-dlq-backlog#dlqauditeventlost](runbooks/runbook-dlq-backlog.md#dlqauditeventlost) |
 | `KillSwitchEngaged` | the Risk/Execution kill switch is engaged (global or per symbol): no new order, open orders cancelled, manual re-arming only | [runbook-risk-execution#killswitchengaged](runbooks/runbook-risk-execution.md#killswitchengaged) |
+| `RiskTickFailing` | the risk-execution tick failed repeatedly for 5 min (`risk_tick_failures_total`): state write or reconciliation error | [runbook-risk-execution#risktickfailing](runbooks/runbook-risk-execution.md#risktickfailing) |
 | `ReconciliationMismatch` | risk-execution found a position, open order or balance difference with the broker (ADR-0064 §4) | [runbook-risk-execution#reconciliationmismatch](runbooks/runbook-risk-execution.md#reconciliationmismatch) |
+| `RiskRejectRatioHigh` | risk-execution rejected over 50% of the order intents for 15 min (`risk_orders_total`) | [runbook-risk-execution#riskrejectratiohigh](runbooks/runbook-risk-execution.md#riskrejectratiohigh) |
 | `RiskMarketDataStale` | the newest reference price of an allowed instrument is older than 15 min (ADR-0064 §7) | [runbook-risk-execution#riskmarketdatastale](runbooks/runbook-risk-execution.md#riskmarketdatastale) |
 | `RetentionFailed` | warning | [BACKUP_DR#retention-job](../deployment/BACKUP_DR.md#retention-job) |
 | `RetentionStale` | warning | [BACKUP_DR#retention-job](../deployment/BACKUP_DR.md#retention-job) |
@@ -146,15 +149,14 @@ file absent from the repository, or on an anchor that matches no heading.
 | `HighMemoryUsage` | warning | [runbook-service-down#1-oomkilled-out-of-memory](runbooks/runbook-service-down.md#1-oomkilled-out-of-memory) |
 | `HeartbeatStopped` | critical | [runbook-discovery#heartbeatstopped](runbooks/runbook-discovery.md#heartbeatstopped) |
 | `BackupFailed` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
-| `SealedSecretsKeyBackupStale` | critical | [BACKUP_DR#sealedsecretskeybackupstale](../deployment/BACKUP_DR.md#sealedsecretskeybackupstale) |
-| `BackupNotRunning` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
+| `SealedSecretsKeyBackupStale` | warning | [BACKUP_DR#sealedsecretskeybackupstale](../deployment/BACKUP_DR.md#sealedsecretskeybackupstale) |
 | `BackupJobStale` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupIncrementalStale` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
-| `BackupIncrementalMissing` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
+| `BackupIncrementalMissing` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupIncrementalFailed` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupPitrGap` | critical | [BACKUP_DR#point-in-time-chain-broken](../deployment/BACKUP_DR.md#point-in-time-chain-broken) |
-| `BackupMetricsAbsent` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
-| `BackupComponentMissing` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
+| `BackupMetricsAbsent` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
+| `BackupComponentMissing` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupUnencrypted` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupOffsiteCopyFailed` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupVolumeFilling` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
@@ -166,7 +168,6 @@ file absent from the repository, or on an anchor that matches no heading.
 | `AuditChainNotAnchored` | warning | [runbook-audit-chain-broken#auditchainnotanchored](runbooks/runbook-audit-chain-broken.md#auditchainnotanchored) |
 | `MessageDeliveryLowSuccessRate` | critical | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `DlqAuditEventLost` | critical | [runbook-dlq-backlog#dlqauditeventlost](runbooks/runbook-dlq-backlog.md#dlqauditeventlost) |
-| `MessagesDeadLettered` | warning | [runbook-message-bus-outage#4-dead-letters-stuck-refused-or-lost](runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost) |
 | `BusDeadLetters` | warning | [runbook-message-bus-outage#4-dead-letters-stuck-refused-or-lost](runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost) |
 | `MessagesUnrouted` | warning | [runbook-message-bus-outage#3-no-subscriber-on-a-topic](runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic) |
 | `JournalEntriesTrimmed` | critical | [runbook-message-bus-outage#5-journal-entries-trimmed-before-delivery](runbooks/runbook-message-bus-outage.md#5-journal-entries-trimmed-before-delivery) |
@@ -179,7 +180,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `TrainerNoLeaderProlonged` | critical | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `MarketDataStale` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `ScrapeCyclesFailing` | warning | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
-| `SymbolMarketDataStale` | critical | [runbook-market-data-stale#symbolmarketdatastale](runbooks/runbook-market-data-stale.md#symbolmarketdatastale) |
+| `SymbolMarketDataStale` | warning | [runbook-market-data-stale#symbolmarketdatastale](runbooks/runbook-market-data-stale.md#symbolmarketdatastale) |
 | `BinanceRestrictedLocation` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `BinanceQuarantined` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `SignalCollectionFailing` | warning | [runbook-market-data-stale#signalcollectionfailing](runbooks/runbook-market-data-stale.md#signalcollectionfailing) |
@@ -198,6 +199,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `MySQLDown` | critical | [runbook-infrastructure#mysqldown](runbooks/runbook-infrastructure.md#mysqldown) |
 | `MySQLSecureTransportOff` | warning | [runbook-infrastructure#mysqlsecuretransportoff](runbooks/runbook-infrastructure.md#mysqlsecuretransportoff) |
 | `RedisDown` | critical | [runbook-infrastructure#redisdown](runbooks/runbook-infrastructure.md#redisdown) |
+| `RedisMemoryHigh` | warning | [runbook-infrastructure#redismemoryhigh](runbooks/runbook-infrastructure.md#redismemoryhigh) |
 | `RedisReplicasMissing` | warning | [runbook-infrastructure#redisreplicasmissing](runbooks/runbook-infrastructure.md#redisreplicasmissing) |
 | `StatefulSetStuckOnOldRevision` | warning | [runbook-infrastructure#statefulsetstuckonoldrevision](runbooks/runbook-infrastructure.md#statefulsetstuckonoldrevision) |
 | `RedisSentinelQuorumLost` | critical | [runbook-infrastructure#redissentinelquorumlost](runbooks/runbook-infrastructure.md#redissentinelquorumlost) |
