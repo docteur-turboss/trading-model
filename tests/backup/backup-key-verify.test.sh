@@ -70,12 +70,12 @@ out="$WORK/backup-metrics"
 mkdir -p "$out"
 if BACKUP_DIR="$WORK/none" METRICS_FILE="$out/backup.prom" BACKUP_REQUIRE_ENCRYPTION=true \
 	BACKUP_MIN_RECIPIENTS=2 BACKUP_AGE_RECIPIENTS="$OPERATOR" \
-	bash "$ROOT/scripts/backup.sh" --components mysql >/dev/null 2>&1; then
-	failed "backup.sh ran with one recipient under BACKUP_MIN_RECIPIENTS=2"
+	K8S_NAMESPACE=test bash "$ROOT/scripts/backup-k8s.sh" >/dev/null 2>&1; then
+	failed "backup-k8s.sh ran with one recipient under BACKUP_MIN_RECIPIENTS=2"
 else
 	grep -qx 'backup_last_status{component="encryption"} 0' "$out/backup.prom" &&
-		pass "backup.sh exits 1 with one recipient, backup_last_status{component=\"encryption\"} 0 (BackupUnencrypted)" ||
-		failed "backup.sh failed without the encryption metric: $(cat "$out/backup.prom" 2>/dev/null)"
+		pass "backup-k8s.sh exits 1 with one recipient, backup_last_status{component=\"encryption\"} 0 (BackupUnencrypted)" ||
+		failed "backup-k8s.sh failed without the encryption metric: $(cat "$out/backup.prom" 2>/dev/null)"
 fi
 
 # --- deploy.yml check: scripts/backup-recipients-check.sh --------------------

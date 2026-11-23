@@ -48,6 +48,8 @@ export const RiskLimits = z.object({
 	/** Balance difference accepted by the reconciliation, share of allocated capital (policy §4.3). */
 	balanceTolerancePct: z.number().positive().max(0.001).default(0.001),
 	feeBps: z.number().nonnegative().default(10),
+	/** Simulated slippage of the paper broker, reserved by the balance check. */
+	slippageBps: z.number().nonnegative().default(5),
 	/** Policy §4.3: 5 failures in 10 min per symbol, 10 across symbols. */
 	rejectWindowMs: z.number().int().positive().default(600_000),
 	rejectsPerSymbol: z.number().int().positive().max(5).default(5),

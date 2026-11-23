@@ -134,6 +134,7 @@ class TrainingSession {
 		const pnl = evalPhase({
 			genome,
 			validationData: test,
+			greedy: true,
 			backendFactory: makeSeededBackendFactory(
 				genome.gaControl.seeding.networkSeed,
 				{
@@ -201,6 +202,7 @@ class TrainingSession {
 			eventDriven: this._settings.eventDriven,
 			inputGroups: this._settings.inputGroups,
 			protectCandleGroup: this._settings.protectCandleGroup,
+			symbolsPerGeneration: this._settings.symbolsPerGeneration,
 		});
 	}
 }

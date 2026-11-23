@@ -25,7 +25,8 @@ export interface DeliveredMessage {
  */
 export async function deliverToHandler(
 	{ metadata, payload }: DeliveredMessage,
-	handle: (message: DeliveredMessage) => Promise<void>
+	handle: (message: DeliveredMessage, signal?: AbortSignal) => Promise<void>,
+	signal?: AbortSignal
 ): Promise<boolean> {
 	const resultPayload = await MESSAGE_PAYLOAD_SCHEMA.safeParseAsync({
 		type: metadata.topic,
@@ -45,7 +46,7 @@ export async function deliverToHandler(
 	}
 
 	// The handler runs in the message's correlation context: its logs and outgoing calls carry it.
-	const run = () => handle({ metadata, payload });
+	const run = () => handle({ metadata, payload }, signal);
 	await (metadata.correlationId
 		? runWithCorrelationId(toCorrelationId(metadata.correlationId), run)
 		: run());

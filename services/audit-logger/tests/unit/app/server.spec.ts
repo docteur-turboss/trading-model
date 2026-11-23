@@ -10,19 +10,12 @@ const MOCK_SERVER = {
 	raw: MOCK_APP,
 };
 
-const MOCK_TLS_CONFIG = {
-	key: "/some/key.pem",
-	cert: "/some/cert.pem",
-	ca: "/some/ca.pem",
-};
-
 const MOCK_HEALTH_ROUTES = jest.fn<(...args: any[]) => any>();
 const MOCK_EVENTS_ROUTES = jest.fn<(...args: any[]) => any>();
-jest.mock("@trading-model/http/create-secure-server", () => ({
-	createSecureServer: jest.fn((..._args: any[]) =>
+jest.mock("@trading-model/http/service-server-factory", () => ({
+	createServiceServer: jest.fn((..._args: any[]) =>
 		Promise.resolve(MOCK_SERVER)
 	),
-	buildTlsFromEnv: jest.fn((..._args: any[]) => MOCK_TLS_CONFIG),
 }));
 
 jest.mock("../../../src/infrastructure/config/env", () => ({
@@ -51,7 +44,7 @@ jest.mock("../../../src/config/address-manager", () => ({
 	ADDRESS_MANAGER_ROUTES: jest.fn<(...args: any[]) => any>(),
 }));
 
-import { createSecureServer } from "@trading-model/http/create-secure-server";
+import { createServiceServer } from "@trading-model/http/service-server-factory";
 import { eventsRoutes } from "../../../src/adapters/inbound/http/events.routes";
 import { healthRoutes } from "../../../src/adapters/inbound/http/health.routes";
 import { createServer } from "../../../src/application/server";
@@ -74,15 +67,14 @@ describe("createServer", () => {
 		const server = await createServer(auditRepo, mongoManager, () => ready);
 
 		expect(server).toBe(MOCK_SERVER);
-		expect(createSecureServer).toHaveBeenCalledWith(
+		expect(createServiceServer).toHaveBeenCalledWith(
 			expect.objectContaining({
-				port: 3001,
-				tls: MOCK_TLS_CONFIG,
+				serviceId: "audit-logger",
 			})
 		);
 
 		const secureServerOptions = (
-			createSecureServer as jest.Mock<(...args: any[]) => any>
+			createServiceServer as jest.Mock<(...args: any[]) => any>
 		).mock.calls[0][0] as any;
 
 		secureServerOptions.routes(MOCK_APP);

@@ -35,6 +35,7 @@
 //     kind of the application overlay is in deploy-identity/app-role.yaml (or,
 //     for the cluster-scope ones, cluster-role.yaml), every kind of the
 //     node-agents overlay in node-role.yaml or cluster-role.yaml
+//   - mongo-audit runs a bootstrap script that adds every pod to the replica set (issue #2197)
 // Usage: node tests/k8s/check-overlays.mjs   (needs kubectl)
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -367,7 +368,9 @@ for (const env of OVERLAYS) {
 		}
 		if (name === "prometheus" && sts && env === "production") {
 			const config = docs.find((doc) => doc.kind === "ConfigMap" && doc.name?.startsWith("prometheus-config-"))?.text ?? "";
-			if (!sts.text.includes("--enable-feature=expand-external-labels")) errors.push("production: prometheus lacks --enable-feature=expand-external-labels, so the replica label stays a literal ${HOSTNAME} (ADR-0062)");
+			const promImage = (text) => text.match(/image: (prom\/prometheus:\S+)/)?.[1];
+			const composeImage = promImage(readFileSync("docker-compose.yml", "utf8"));
+			if (promImage(sts.text) !== composeImage) errors.push(`production: prometheus image differs from docker-compose.yml (${composeImage}): the alert rules would be tested on another version (#1892)`);
 			if (/\\n\s+--/.test(sts.text)) errors.push("prometheus: literal backslash-n inside the launch command (merges two flags on one line)");
 			if (!/external_labels:\s+replica: '\$\{HOSTNAME\}'/.test(config)) errors.push("production: prometheus external label replica: '${HOSTNAME}' missing (ADR-0062)");
 			if (!/alert_relabel_configs:\s+- action: labeldrop\s+regex: replica/.test(config)) errors.push("production: prometheus does not drop the replica label before sending alerts: both replicas' alerts would differ (ADR-0062)");
@@ -394,6 +397,12 @@ for (const env of OVERLAYS) {
 		if (env !== "staging-local" && partition > 0) {
 			errors.push(`${env}: StatefulSet ${name} must not set a partition: its pods would keep the old template`);
 		}
+	}
+
+	// Issue #2197: every Mongo pod adds itself to the replica set.
+	const auditBoot = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === "mongo-audit")?.text.match(/^ +M="mongosh [\s\S]*?exec sleep infinity$/m)?.[0];
+	if (!auditBoot?.includes("rs.add(process.env.SELF)")) {
+		errors.push(`${env}: the mongodb-bootstrap script of mongo-audit must rs.add each member (issue #2197)`);
 	}
 
 	// Issue #917: a PDB demanding every pod of a fixed-replica workload blocks node drains.

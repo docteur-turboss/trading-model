@@ -89,4 +89,4 @@ docker compose down -v
 
 Removes containers **and** all named volumes (`mongo-data`, `mysql-data`, `spire-data`, `spire-agent-sockets`). On next `docker compose up -d`, the schema is recreated by the `migrate` service.
 
-MySQL is pinned to 8.4 LTS (same as K8s). A `mysql-data` volume started on the 26.10 innovation image (compose between 2026-11-19 and this fix) does not start on 8.4: MySQL has no downgrade. Recreate it with `docker compose down -v`, or restore a dump (`scripts/restore.sh`).
+MySQL is pinned to 8.4 LTS (same as K8s). A `mysql-data` volume started on the 26.10 innovation image (compose between 2026-11-19 and this fix) does not start on 8.4: MySQL has no downgrade. Recreate it with `docker compose down -v`.

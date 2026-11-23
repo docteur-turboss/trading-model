@@ -208,7 +208,7 @@ Migration 006, ADR-0036. One observation about an asset, a whole sector or an ec
 | `confidence_score` | `DOUBLE` | `NOT NULL` | Source reliability at collection time, 0–1 |
 | `payload` | `JSON` | `NOT NULL` | Canonical payload of the dimension (`PAYLOADS`): `metric` (e.g. `spot_rate_10y`, `us-gaap:EarningsPerShareDiluted`), `value`, `unit`, optional `details`, plus `period`, `filing`, `platform`/`topic`, `location`, `jurisdiction` or `area` depending on the dimension |
 
-**Constraint:** `chk_signals_one_subject`, exactly one of `asset_id`, `sector` and `area`. **Indexes:** `(asset_id, observed_at)`, `(sector, observed_at)` and `(area, observed_at)`, the three parts of `GET /signals/assets/:assetId`. `009` down deletes the area rows.
+**Constraint:** `chk_signals_one_subject`, exactly one of `asset_id`, `sector` and `area`. **Indexes:** `(asset_id, observed_at)`, `(sector, observed_at)` and `(area, observed_at)`, the three parts of `GET /signals/assets/:assetId`, and `(observed_at)` (migration 010) for the retention purge. `009` down deletes the area rows.
 
 ### Shared base interface
 

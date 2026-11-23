@@ -54,10 +54,13 @@ export class HttpRequestExecutor {
 	): Promise<TResponse | undefined> {
 		const timeoutMs = context.options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 		const url = new URL(context.urlStr);
-		const requestOptions = buildRequestOptions(context.method, url, {
-			...context.options,
-			...tls,
-		});
+		const requestOptions = {
+			...buildRequestOptions(context.method, url, {
+				...context.options,
+				...tls,
+			}),
+			signal: context.options?.signal,
+		};
 		return this._performRequest(context, requestOptions, timeoutMs);
 	}
 
@@ -139,6 +142,9 @@ export class HttpRequestExecutor {
 				return result;
 			} catch (error) {
 				lastError = error instanceof Error ? error : new Error(String(error));
+				if (context.options?.signal?.aborted) {
+					throw lastError;
+				}
 
 				const idempotent =
 					context.options?.idempotent ?? context.method !== "POST";

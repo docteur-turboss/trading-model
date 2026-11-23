@@ -19,7 +19,8 @@ describe("training.model.published handler", () => {
 			sha256: SHA,
 		});
 		expect(evaluate).toHaveBeenCalledWith(
-			expect.objectContaining({ symbol: "BTCUSDT", version: "v1" })
+			expect.objectContaining({ symbol: "BTCUSDT", version: "v1" }),
+			undefined
 		);
 	});
 

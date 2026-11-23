@@ -119,6 +119,12 @@ describe("metrics of a trained model", () => {
 		expect((await publishedPayload([1, 2, 3])).maxDrawdown).toBe(0);
 	});
 
+	it("training.model.published is refused when no group exists, so the trainer retries it", async () => {
+		expect((await publishedMessage()).metadata.delivery.requireSubscriber).toBe(
+			true
+		);
+	});
+
 	it("an agent without evaluation episodes publishes no drawdown", async () => {
 		expect((await publishedPayload()).maxDrawdown).toBe(0);
 	});
@@ -254,6 +260,18 @@ describe("admission of a model (ADR-0069)", () => {
 		).toBeUndefined();
 		expect(assessAdmission(testMeta(100), bars(prices, 75))).toBeUndefined();
 		expect(assessAdmission(testMeta(8766), bars(prices))).toBeDefined();
+	});
+
+	it("asks 30 days of bars and carries the attempt rank", () => {
+		const prices = [5, 4, 3, 2];
+		const perYear = 525_600; // one-minute bars
+		const thirtyDays = 30 * 1440;
+		expect(
+			assessAdmission(testMeta(perYear), bars(prices, thirtyDays - 1))
+		).toBeUndefined();
+		expect(
+			assessAdmission(testMeta(perYear), bars(prices, thirtyDays), 2)?.attempt
+		).toBe(2);
 	});
 
 	it("asks daily bars for a year of them, not 1440", () => {

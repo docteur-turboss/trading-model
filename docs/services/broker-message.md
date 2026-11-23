@@ -12,7 +12,7 @@ Every microservice uses this package to send and receive typed, validated messag
 
 - `@trading-model/http` — HttpClient, middleware (`catchSync`, `ResponseException`)
 - `@trading-model/primitives` — branded messaging/service types
-- `@trading-model/validation` — message envelope contracts (`message.types`)
+- `@trading-model/contracts` — message envelope contracts (`message.types`)
 - `@trading-model/common` — error classes, config re-exports (`event.types`, `services.types`, `tls-paths`)
 - `@trading-model/persistence` — Redis connection and the journal client
 - `express` — Express `Router`, `Application` types

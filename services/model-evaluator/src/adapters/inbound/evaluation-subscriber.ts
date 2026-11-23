@@ -6,9 +6,9 @@ import { PublishedModel } from "../../domain/model-evaluation";
 /** Evaluates a `training.model.published` message; a malformed payload throws and the bus dead-letters it after its retries. */
 export function createMessageHandler(
 	evaluate: ReturnType<typeof createEvaluateModel>
-): (message: DeliveredMessage) => Promise<void> {
-	return async ({ payload }) => {
+): (message: DeliveredMessage, signal?: AbortSignal) => Promise<void> {
+	return async ({ payload }, signal) => {
 		const event = PublishedModel.parse(payload);
-		MODEL_EVALUATIONS_TOTAL.inc({ outcome: await evaluate(event) });
+		MODEL_EVALUATIONS_TOTAL.inc({ outcome: await evaluate(event, signal) });
 	};
 }

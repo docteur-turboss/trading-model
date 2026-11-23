@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { TRADER_TRAINER_ENV_SCHEMA } from "../../../../src/infrastructure/config/env";
 
 // Importing env.ts parses process.env into ENV; only the schema is under test here.
-jest.mock("@trading-model/validation/config/validate-env", () => ({
+jest.mock("@trading-model/http/config/validate-env", () => ({
 	validateEnv: () => ({}),
 }));
 

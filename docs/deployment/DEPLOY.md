@@ -8,8 +8,10 @@ Start all services:
 
 ```bash
 cp .env.example .env   # then replace the example values
-docker compose up -d
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build   # builds from the sources
 ```
+
+The base `docker-compose.yml` only references released images (`IMAGE_REGISTRY`, `IMAGE_TAG`). The long-running compose stack is deployed by the `deploy-compose.yml` workflow from a release tag, never by `git checkout` + `docker compose up` on the host (ADR-0086).
 
 Follow logs:
 
@@ -132,6 +134,9 @@ environment and prints its secrets):
   branches and tags" with exactly the branches `development` and `main` and the
   tag rule `v*` (the release deploys its tag).
   A required reviewer is advised, not checked.
+- `release` (approval of `release.yml` before any image is published or signed): a required
+  reviewer and the tag rule `v*`. "Prevent self-review" stays off while the owner pushes
+  the tags. `release.yml` checks it first (`ENVIRONMENT_READ_TOKEN`).
 - `backup-key-check` (`BACKUP_ESCROW_AGE_IDENTITY`, the key that decrypts every
   backup): "Selected branches and tags" with exactly the branch `main`, **before**
   storing the escrow key. No required reviewer: it would hold the weekly
@@ -265,7 +270,7 @@ Two cases:
 > **Not production.** Production runs on Kubernetes (see above). This Compose
 > pull is for development hosts only, with no real data.
 
-Instead of building locally, pull published images from GHCR:
+Pull published images from GHCR (what the base file runs):
 
 ```bash
 # Authenticate to GitHub Container Registry
@@ -395,7 +400,7 @@ A Deployment created by the failed deploy has no earlier revision: the step
 deletes it (the next deploy recreates it).
 
 The canary (`deploy-k8s.sh canary`) copies the running pod template, so it runs
-the new image with the configuration of the current release, not the new one.
+the new image with the configuration of the current release, not the new one. With `CANARY_DIGESTS_FILE` (set by `deploy.yml` to the cosign-verified `image-digests`) it runs only the digest listed there for the service and fails when it is missing; without it (manual use) it resolves the tag, falling back to the tag.
 
 `deploy-k8s.sh migrate-down` provisions `migrator` itself (job `db-migrate-user`) before rolling the schema back; pass `MIGRATE_IMAGE` of the release being rolled back. Outside `deploy.yml`, set `SEALED_SECRETS_FILE` (the environment's SealedSecret file) when it carries a key the live Secret lacks: it is applied and waited for before the Jobs. `SEED_MIGRATE_PASSWORD=true` (random password) exists for the kind CI only, which has no Sealed Secrets controller.
 
@@ -464,12 +469,6 @@ For a manual rollback, revert a service to a previous revision:
 
 ```bash
 kubectl rollout undo deployment/<service> -n trading-model
-```
-
-Or via the deploy script:
-
-```bash
-./deploy/k8s/scripts/deploy-k8s.sh rollback <service>
 ```
 
 Schema: `deploy-k8s.sh migrate-down [N|all]`, see the runbook

@@ -58,9 +58,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 | `@trading-model/model-runtime` | Network forward pass, feature codec, portfolio simulator shared by trader-trainer and model-evaluator |
 | `@trading-model/common` | Residual shared infra: `AppError`/`ErrorCodes`, retry/backoff, SPIFFE identity, TLS path config, cache abstractions, shared Zod schemas |
 | `@trading-model/persistence` | Redis/Mongo connection managers, store adapters, key builders |
-| `@trading-model/http` | HTTP middleware (mTLS auth, response protocol), HTTP client, logging pipeline |
-| `@trading-model/validation` | Zod schemas, DTOs, event enums, admin contracts |
-| `@trading-model/http` | Secure HTTPS server factory, TLS watcher, bootstrap and shutdown, telemetry |
+| `@trading-model/http` | HTTP middleware (mTLS auth, response protocol), HTTP client, logging pipeline, secure HTTPS server factory, TLS watcher, bootstrap and shutdown, telemetry |
 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness |
 | `@trading-model/address-manager` | Service discovery client with health-checking and token rotation |
 | `@trading-model/broker-message` | Inter-service messaging SDK with typed event subscriptions |
@@ -89,7 +87,7 @@ bun run commit               # Interactive gitmoji commit CLI
 ## Deployment
 
 - **Docker Compose:** `docker compose up -d` (all 20+ containers with health-check ordering)
-- **Kubernetes:** `kubectl apply -k deploy/k8s/overlays/production` (HPA, PDBs, NetworkPolicies, SealedSecrets)
+- **Kubernetes:** via the `deploy.yml` workflow, see `docs/deployment/DEPLOY.md` (HPA, PDBs, NetworkPolicies, SealedSecrets)
 - **Backup:** Daily CronJob → MongoDB (audit) + MySQL + SPIRE datastore and CA keys (SQLite, ADR-0065) + checkpoints, age-encrypted, mandatory S3 off-site copy; restore drill in CI
 - **Secrets:** SealedSecrets (SealedSecret → controller decrypts → standard Secret)
 - **Probes:** `startupProbe` (90s window) + `livenessProbe` + `readinessProbe` on all services
@@ -97,12 +95,7 @@ bun run commit               # Interactive gitmoji commit CLI
 
 ## CI/CD
 
-GitHub Actions workflows:
-
-- **ci.yml** — on every push/PR: lint → typecheck (packages + services) → test+coverage → DB integration (Testcontainers) → observability gate → K8s overlays → contract tests → E2E (Docker stack) → K8s smoke test (kind)
-- **release.yml** — on a `vX.Y.Z` tag push: full CI → Docker build/push of the service and tool images listed in `release.yml` as `:X.Y.Z` (see [release.md](docs/contributing/release.md))
-- **deploy.yml** — manual staging/production deploy with rollback
-- **backup-test.yml** — weekly restore drill of the Docker backup scripts
+Workflows: see the table in [docs/ci-cd/README.md](docs/ci-cd/README.md).
 
 The pre-push git hook is `.husky/pre-push`.
 

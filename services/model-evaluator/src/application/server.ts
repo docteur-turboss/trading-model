@@ -1,4 +1,5 @@
 import { createServiceServer } from "@trading-model/http/service-server-factory";
+import { redisReadinessCheck } from "@trading-model/persistence/redis-readiness";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import {
 	ADDRESS_MANAGER_ROUTES,
@@ -15,6 +16,6 @@ export function createServer() {
 			app.get("/metrics", metricsHandler);
 			ADDRESS_MANAGER_ROUTES(app);
 		},
-		readiness: [REGISTRATION_READINESS],
+		readiness: [REGISTRATION_READINESS, redisReadinessCheck(ENV)],
 	});
 }

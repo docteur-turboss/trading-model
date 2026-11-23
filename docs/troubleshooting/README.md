@@ -13,7 +13,6 @@ Common issues grouped by category. For per-service debugging, see the [runbooks]
 | Containers keep restarting        | Service dependency not ready                 | Run `docker compose logs <service-name>` to see the specific error                      |
 | `docker compose` not found        | Docker not installed or v1 syntax            | Install Docker Desktop or `docker-compose-v2` package                                   |
 | First pull is very slow           | Initial download of database images          | This only happens once; subsequent runs use cached layers                               |
-| `trading-network` conflict        | Previous network not cleaned up              | `docker network rm trading-network`                                                     |
 | `docker compose build` slow       | Large build context                          | Ensure `.dockerignore` is correct                                                       |
 | Containers have no network access | Docker DNS misconfiguration                  | Check `/etc/docker/daemon.json` DNS settings, restart Docker                            |
 
@@ -62,19 +61,7 @@ Common issues grouped by category. For per-service debugging, see the [runbooks]
 | Certificate errors in logs        | Stale SVID or missing bundle          | `docker compose restart <svc>` to re-fetch the SVID via `spiffe-helper`         |
 | `wget` health check fails         | Self-signed SVID not trusted          | Expected: the health check uses `curl -sk` (skip server verify) with the container SVID as client certificate (`--cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem`); without it the mTLS handshake is refused |
 | `UNABLE_TO_VERIFY_LEAF_SIGNATURE` | mTLS misconfiguration                 | Verify the service CA bundle (`bundle.pem`) matches the SPIRE trust domain      |
-| SVID renewal failed               | SPIRE agent attestation problem       | Check `docker compose logs spire-agent`; run `docker compose up -d spire-bootstrap spire-agent` (fresh token and bundle; the agent drops an expired cached SVID itself)      |
-
----
-
-## Bun
-
-| Symptom                                                 | Likely cause                            | Fix                                                                             |
-| ------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------- |
-| `bun install --frozen-lockfile` fails                                          | Bun outdated / unsupported platform     | Run `bun --version`; update Bun (`bun upgrade`)                                 |
-| `bun run build` fails                                   | Missing dependencies                    | Run `bun install --frozen-lockfile` first (clean install from lockfile)                                |
-| Test coverage below threshold                           | New code not fully tested               | Write tests for uncovered paths. Run `bun run test --coverage` to see the report |
-| `command not found: biome`                              | `bun install --frozen-lockfile` not run                        | Run `bun install --frozen-lockfile` to install dev dependencies                                        |
-| `bun install --frozen-lockfile` fails with `Missing: <package> from lock file` | Lock file out of sync with package.json | Run `bun install` to update lock file                                           |
+| SVID renewal failed               | SPIRE agent attestation problem       | Check `docker compose logs spire-agent`; redeploy the release with the `deploy-compose.yml` workflow (it runs `spire-bootstrap` before `spire-agent`: fresh token and bundle; the agent drops an expired cached SVID itself)      |
 
 ---
 
@@ -87,21 +74,10 @@ Common issues grouped by category. For per-service debugging, see the [runbooks]
 
 ---
 
-## Biome / VS Code
-
-| Issue                                                                        | Cause                                  | Solution                                                 |
-| ---------------------------------------------------------------------------- | -------------------------------------- | -------------------------------------------------------- |
-| Biome not running in VS Code                                                 | Biome VS Code extension not installed  | Install `biomejs.biome` extension from marketplace       |
-| Biome format conflicts with editor settings                                  | Editor uses default formatter          | Set `"editor.defaultFormatter": "biomejs.biome"` in settings |
-| `Parsing error: Cannot find module 'typescript'`            | TypeScript not installed in workspace                 | Run `bun install --frozen-lockfile` to install dependencies                                                    |
-
----
-
 ## Networking
 
 | Symptom                                     | Likely cause               | Fix                                                                                     |
 | ------------------------------------------- | -------------------------- | --------------------------------------------------------------------------------------- |
-| Services can't reach each other             | Custom network conflict    | `docker network rm trading-network` and restart                                         |
 | `curl -k` (no `--cert`) to a service `/ping` fails | Expected: no client SVID   | Services only accept SPIFFE mTLS clients. Use `docker exec trading-discovery curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping`, or the gateway through `http://localhost:8449/v1/...` |
 | Connection refused on all ports             | Docker not running         | Start Docker Desktop or the Docker daemon                                               |
 | DNS resolution fails inside containers      | Docker DNS config          | Edit `/etc/docker/daemon.json`: `{ "dns": ["1.1.1.1", "8.8.8.8"] }` then restart Docker |
@@ -118,18 +94,6 @@ Common issues grouped by category. For per-service debugging, see the [runbooks]
 | `husky` not running           | Git hooks path not set            | Run `bunx husky install` or `git config core.hooksPath .husky`   |
 | `LF will be replaced by CRLF` | Line ending mismatch              | `git config core.autocrlf false` in the repo, see [Windows line endings](../getting-started/quickstart.md#windows-line-endings) |
 | `bun run lint` fails on formatting on Windows, CI passes | Working tree checked out with CRLF | Renormalize the checkout, see [Windows line endings](../getting-started/quickstart.md#windows-line-endings) |
-
----
-
-## Testing
-
-| Symptom                     | Likely cause                    | Fix                                                          |
-| --------------------------- | ------------------------------- | ------------------------------------------------------------ |
-| Tests timeout               | Async operations not completing | Increase timeout with `jest.setTimeout(30000)` in the test   |
-| Mock not called             | Mock setup before action        | Call `mockResolvedValue` before invoking the tested function |
-| State leaking between tests | Shared mutable state            | Use `beforeEach` instead of `beforeAll` for test setup       |
-| Flaky tests                 | Timing-dependent assertions     | Use event-based waits instead of fixed `setTimeout` delays   |
-| `jest` command not found    | Dev dependencies not installed  | Run `bun install --frozen-lockfile` to install dev dependencies including Jest      |
 
 ---
 

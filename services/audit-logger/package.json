@@ -1,6 +1,6 @@
 {
   "name": "audit-logger",
-  "version": "3.1.0-rc.4",
+  "version": "3.1.0",
   "description": "Complete and immutable tracing of all decisions, transactions, and errors",
   "homepage": "https://github.com/docteur-turboss/trading-model#readme",
   "bugs": {
@@ -33,7 +33,7 @@
     "dev": "ts-node src/application/index.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1170.0",
+    "@aws-sdk/client-s3": "^3.1172.0",
     "@trading-model/address-manager": "*",
     "@trading-model/broker-message": "*",
     "@trading-model/common": "*",
@@ -41,7 +41,6 @@
     "@trading-model/http": "*",
     "@trading-model/persistence": "*",
     "@trading-model/primitives": "*",
-    "@trading-model/validation": "*",
     "express": "^5.3.0",
     "mongodb": "^7.9.0",
     "prom-client": "^15.1.3",

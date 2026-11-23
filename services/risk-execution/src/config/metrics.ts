@@ -26,4 +26,28 @@ export const RISK_MARKET_DATA_AGE_SECONDS = new promClient.Gauge({
 	labelNames: ["mode"] as const,
 });
 
+export const RISK_EXPOSURE_RATIO = new promClient.Gauge({
+	name: "risk_exposure_ratio",
+	help: "Global exposure (positions at their marks) over the allocated capital; compare with globalExposurePct",
+	labelNames: ["mode"] as const,
+});
+
+export const RISK_DAILY_LOSS = new promClient.Gauge({
+	name: "risk_daily_loss",
+	help: "Loss since the start of the UTC day, in quote currency (0 when in profit)",
+	labelNames: ["mode"] as const,
+});
+
+export const RISK_OPEN_ORDERS = new promClient.Gauge({
+	name: "risk_open_orders",
+	help: "Orders not yet in a final state",
+	labelNames: ["mode"] as const,
+});
+
+export const RISK_TICK_FAILURES = new promClient.Counter({
+	name: "risk_tick_failures_total",
+	help: "Risk ticks that threw (state write, reconciliation), by mode",
+	labelNames: ["mode"] as const,
+});
+
 export { metricsHandler };

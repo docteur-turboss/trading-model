@@ -47,14 +47,14 @@ export default class BrokerMessage {
 	/** Consumes the specified event topics in this process, each message through `handle`. */
 	async intents(
 		topics: readonly EventEnumMap[],
-		handle: (message: DeliveredMessage) => Promise<void>
+		handle: (message: DeliveredMessage, signal?: AbortSignal) => Promise<void>
 	): Promise<void> {
 		this._topics = [...topics];
 		await this._consume(handle);
 	}
 
 	private async _consume(
-		handle: (message: DeliveredMessage) => Promise<void>
+		handle: (message: DeliveredMessage, signal?: AbortSignal) => Promise<void>
 	): Promise<void> {
 		const journal = this._journal;
 		await this._consumer?.stop();
@@ -62,8 +62,8 @@ export default class BrokerMessage {
 			journal,
 			deadStreams: new DeadStreams(journal),
 			service: this._serviceName,
-			handle: async ({ metadata, payload }) => {
-				if (!(await deliverToHandler({ metadata, payload }, handle))) {
+			handle: async ({ metadata, payload }, signal) => {
+				if (!(await deliverToHandler({ metadata, payload }, handle, signal))) {
 					throw deadLetterError("Invalid payload format", {
 						reason: "REJECTED_BY_SUBSCRIBER",
 					});
