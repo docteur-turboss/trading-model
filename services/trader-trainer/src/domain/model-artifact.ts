@@ -1,11 +1,6 @@
 import { actionLabels } from "@trading-model/model-runtime/agent/action-mapper";
 import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
-import {
-	MANIFEST_FILE,
-	MODEL_SYMBOL_PATTERN,
-	MODEL_VERSION_PATTERN,
-	WEIGHTS_FILE,
-} from "@trading-model/model-runtime/model-artifact-reader";
+import { WEIGHTS_FILE } from "@trading-model/model-runtime/model-artifact-reader";
 import type { ManifestGenome } from "@trading-model/model-runtime/model-manifest";
 import { EVAL_EPSILON } from "./genetic-algorithm/evaluation-phase";
 import type { LamarckGenome } from "./genetic-algorithm/genome-fitness";
@@ -22,13 +17,6 @@ import type { BestAgentSummary } from "./training-state";
 const MODEL_FORMAT_VERSION = 1;
 /** The trainer reads one-minute candles from the scraper. */
 const CANDLE_INTERVAL_MS = 60_000;
-
-export {
-	MANIFEST_FILE,
-	MODEL_SYMBOL_PATTERN,
-	MODEL_VERSION_PATTERN,
-	WEIGHTS_FILE,
-};
 
 /**
  * How the metrics were computed (ADR-0025). 2: wallet PnL, annualised Sharpe of

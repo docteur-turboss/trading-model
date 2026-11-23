@@ -9,18 +9,20 @@ import {
 	writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
-import { readModelFile } from "@trading-model/model-runtime/model-artifact-reader";
 import {
-	buildModelManifest,
 	MANIFEST_FILE,
 	MODEL_SYMBOL_PATTERN,
 	MODEL_VERSION_PATTERN,
+	readModelFile,
+	WEIGHTS_FILE,
+} from "@trading-model/model-runtime/model-artifact-reader";
+import {
+	buildModelManifest,
 	type ModelManifest,
 	type ModelSummary,
 	modelVersion,
 	type NewModelArtifact,
 	summarizeModel,
-	WEIGHTS_FILE,
 } from "../../domain/model-artifact";
 import type { ModelArtifactStorePort } from "../../domain/ports/model-artifact-store.port";
 
