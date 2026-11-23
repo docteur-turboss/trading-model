@@ -1042,6 +1042,41 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		}
 		expect(ctx.svc.status().killSwitch.global).toBe("rejects");
 	});
+
+	it("keeps the recent rejections across a restart, and drops those out of the window", async () => {
+		const broker: BrokerPort = {
+			submit: async (o) => ({
+				clientOrderId: o.clientOrderId,
+				status: "rejected",
+				filledQty: 0,
+				quoteQty: 0,
+				fee: 0,
+			}),
+			query: async () => null,
+			cancel: async () => null,
+			account: async () => ({ cash: CAPITAL, positions: {}, openOrders: [] }),
+			haltedSymbols: async () => [],
+		};
+		const first = build({ broker });
+		await first.svc.start();
+		for (let n = 0; n < 4; n++) {
+			await first.svc.submitIntent(intent({ quantity: 0.001 }));
+			clock += 13_000;
+		}
+		const restart = async () => {
+			const next = build({ broker });
+			next.store.value = first.store.value;
+			await next.svc.start();
+			return next;
+		};
+		const again = await restart();
+		await again.svc.submitIntent(intent({ quantity: 0.001 }));
+		expect(again.svc.status().killSwitch.symbols.BTCUSDT).toBe("rejects");
+		clock += LIMITS.rejectWindowMs;
+		const late = await restart();
+		await late.svc.submitIntent(intent({ quantity: 0.001 }));
+		expect((late.store.value as RiskState).failures).toHaveLength(1);
+	});
 });
 
 describe("reconciliation (ADR-0064 §4)", () => {
