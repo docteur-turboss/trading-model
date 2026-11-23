@@ -412,7 +412,7 @@ tests:
       - eval_time: 25m
         alertname: TrainerMarketDataStale
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels: {severity: warning}
             exp_annotations:
               summary: 'trader-trainer reads no fresh candle'
               description: 'At its last session the newest stored candle of every symbol was over 15 minutes old: the scraper no longer feeds MySQL or the trainer cannot read it.'
@@ -464,7 +464,7 @@ tests:
       - eval_time: 40m
         alertname: TrainerNoLeaderProlonged
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels: {severity: warning}
             exp_annotations:
               summary: 'No trader-trainer pod has held the Lease for 30 minutes'
               description: 'No pod has trained for 30 minutes, far beyond a rollout handover (end of a generation plus a few seconds, ADR-0058): no trainer pod holds the Lease trader-trainer. No new model is produced.'
@@ -1207,7 +1207,7 @@ tests:
       - eval_time: 95m
         alertname: AuditChainVerificationStale
         exp_alerts:
-          - exp_labels: {severity: critical, job: audit-logger}
+          - exp_labels: {severity: warning, job: audit-logger}
             exp_annotations:
               summary: 'Audit trail no longer verified'
               description: 'audit-logger has not completed an audit chain verification for more than 45 minutes (MongoDB unreachable, or the cycle fails): a broken chain would go unnoticed (runbook-audit-chain-broken).'
@@ -1218,7 +1218,7 @@ tests:
       - eval_time: 95m
         alertname: AuditChainAnchoringStale
         exp_alerts:
-          - exp_labels: {severity: critical, job: audit-logger}
+          - exp_labels: {severity: warning, job: audit-logger}
             exp_annotations:
               summary: 'Audit trail no longer anchored'
               description: 'audit-logger has not anchored the audit chain head for more than 45 minutes: check the anchor bucket credentials (audit-anchor-s3) and its logs (runbook-audit-chain-broken).'

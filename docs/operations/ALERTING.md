@@ -93,7 +93,7 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `CollectorNoLeader` | no scraper pod reports `fs_collector_leader` = 1 for 2 min: no collector holds the Lease, nothing is collected (ADR-0057) | [runbook-market-data-stale#collectornoleader](runbooks/runbook-market-data-stale.md#collectornoleader) |
 | `MarketDataStale` | no candle persisted for 15 min, all scraper replicas together | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `TrainerNoLeader` | no trainer pod reports `tt_training_leader` = 1 for 5 min: no trainer holds the Lease, nothing is trained (ADR-0058); the read routes still answer | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
-| `TrainerNoLeaderProlonged` | `critical` (page): same condition as `TrainerNoLeader` for 30 min, far beyond a rollout handover (end of a generation plus a few seconds) | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
+| `TrainerNoLeaderProlonged` | `warning`: same condition as `TrainerNoLeader` for 30 min, far beyond a rollout handover (end of a generation plus a few seconds) | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `TrainerNoModelStored` | a trainer holds the Lease but no model was stored (`tt_model_artifacts_total{result="stored"}`) for 13 h (4 h after a start), whatever the cause: sessions failing, nothing trained, writes failing | [runbook-trainer#trainernomodelstored](runbooks/runbook-trainer.md#trainernomodelstored) |
 | `TrainerMarketDataStale` | newest stored candle read by the trainer older than 15 min for every symbol (`tt_last_candle_age_seconds`) | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `ModelBelowBuyAndHold` | the last 3 stored models of a symbol have an out-of-sample Sharpe below buy and hold on the same bars (`tt_model_below_buy_and_hold_streak`, Lease holder only; `segment="test"`, ADR-0068) | [runbook-trainer#modelbelowbuyandhold](runbooks/runbook-trainer.md#modelbelowbuyandhold) |
@@ -150,7 +150,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `HeartbeatStopped` | critical | [runbook-discovery#heartbeatstopped](runbooks/runbook-discovery.md#heartbeatstopped) |
 | `BackupFailed` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `SealedSecretsKeyBackupStale` | warning | [BACKUP_DR#sealedsecretskeybackupstale](../deployment/BACKUP_DR.md#sealedsecretskeybackupstale) |
-| `BackupJobStale` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
+| `BackupJobStale` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupIncrementalStale` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupIncrementalMissing` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupIncrementalFailed` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
@@ -163,8 +163,8 @@ file absent from the repository, or on an anchor that matches no heading.
 | `ApiAuthFailuresHigh` | warning | [runbook-auth-failures#apiauthfailureshigh](runbooks/runbook-auth-failures.md#apiauthfailureshigh) |
 | `MtlsAclDenials` | warning | [runbook-auth-failures#mtlsacldenials](runbooks/runbook-auth-failures.md#mtlsacldenials) |
 | `AuditChainBroken` | critical | [runbook-audit-chain-broken#auditchainbroken](runbooks/runbook-audit-chain-broken.md#auditchainbroken) |
-| `AuditChainVerificationStale` | critical | [runbook-audit-chain-broken#auditchainverificationstale](runbooks/runbook-audit-chain-broken.md#auditchainverificationstale) |
-| `AuditChainAnchoringStale` | critical | [runbook-audit-chain-broken#auditchainanchoringstale](runbooks/runbook-audit-chain-broken.md#auditchainanchoringstale) |
+| `AuditChainVerificationStale` | warning | [runbook-audit-chain-broken#auditchainverificationstale](runbooks/runbook-audit-chain-broken.md#auditchainverificationstale) |
+| `AuditChainAnchoringStale` | warning | [runbook-audit-chain-broken#auditchainanchoringstale](runbooks/runbook-audit-chain-broken.md#auditchainanchoringstale) |
 | `AuditChainNotAnchored` | warning | [runbook-audit-chain-broken#auditchainnotanchored](runbooks/runbook-audit-chain-broken.md#auditchainnotanchored) |
 | `MessageDeliveryLowSuccessRate` | critical | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `DlqAuditEventLost` | critical | [runbook-dlq-backlog#dlqauditeventlost](runbooks/runbook-dlq-backlog.md#dlqauditeventlost) |
@@ -177,7 +177,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `TrainerEventLoopBlocked` | warning | [runbook-trainer#trainereventloopblocked](runbooks/runbook-trainer.md#trainereventloopblocked) |
 | `TrainerEventLoopLagHigh` | warning | [runbook-trainer#trainereventlooplaghigh](runbooks/runbook-trainer.md#trainereventlooplaghigh) |
 | `TrainerNoLeader` | warning | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
-| `TrainerNoLeaderProlonged` | critical | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
+| `TrainerNoLeaderProlonged` | warning | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `MarketDataStale` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `ScrapeCyclesFailing` | warning | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `SymbolMarketDataStale` | warning | [runbook-market-data-stale#symbolmarketdatastale](runbooks/runbook-market-data-stale.md#symbolmarketdatastale) |
@@ -185,7 +185,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `BinanceQuarantined` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `SignalCollectionFailing` | warning | [runbook-market-data-stale#signalcollectionfailing](runbooks/runbook-market-data-stale.md#signalcollectionfailing) |
 | `SignalSourceStale` | warning | [runbook-market-data-stale#signalsourcestale](runbooks/runbook-market-data-stale.md#signalsourcestale) |
-| `TrainerMarketDataStale` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
+| `TrainerMarketDataStale` | warning | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `TrainerNoModelStored` | critical | [runbook-trainer#trainernomodelstored](runbooks/runbook-trainer.md#trainernomodelstored) |
 | `ModelArtifactWriteFailing` | warning | [runbook-trainer#modelartifactwritefailing](runbooks/runbook-trainer.md#modelartifactwritefailing) |
 | `ModelBelowBuyAndHold` | warning | [runbook-trainer#modelbelowbuyandhold](runbooks/runbook-trainer.md#modelbelowbuyandhold) |
