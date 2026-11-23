@@ -173,6 +173,21 @@ describe("ParetoArchive", () => {
 		expect(archive.update([g2], weak)).toBe(false);
 	});
 
+	test("ignores a candidate with the same objective vector as a member", () => {
+		const archive = new ParetoArchive();
+		const g1 = createDefaultGenome("g1");
+		const vec: ObjectiveVector = { avgPnl: 10, sharpe: 2, negFlops: -100 };
+		archive.update([g1], [vec], [{ fitness: 1 }]);
+		const changed = archive.update(
+			[createDefaultGenome("g2")],
+			[{ ...vec }],
+			[{ fitness: 5 }]
+		);
+		expect(changed).toBe(false);
+		expect(archive.size).toBe(1);
+		expect(archive.best()?.genome).toBe(g1);
+	});
+
 	test("members getter returns readonly array", () => {
 		const archive = new ParetoArchive();
 		const g = createDefaultGenome("g");

@@ -75,7 +75,9 @@ not scraped yet, only Loki's own metrics are.
 
 The collector (K8s only; compose exports straight to Jaeger, so the rule stays
 silent there) reports `otelcol_exporter_send_failed_spans` on `:8888`. Spans
-are being dropped between collector and Jaeger.
+are being dropped between collector and Jaeger. The exporter retries for 15
+minutes, so a Jaeger restart on a rollout (Badger start, up to 5 minutes) drops
+nothing; the alert means Jaeger stayed unreachable longer.
 
 1. `kubectl logs deploy/otel-collector`: look for export errors to `jaeger:4317`.
 2. Check the `jaeger` Service has ready endpoints.
