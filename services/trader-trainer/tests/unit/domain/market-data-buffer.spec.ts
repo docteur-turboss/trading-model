@@ -552,4 +552,21 @@ describe("MarketDataBuffer.replaceCandles", () => {
 		expect(old.getSymbolState(sym)).toEqual(fresh.getSymbolState(sym));
 		expect(old.getCandleCount(sym)).toBe(5);
 	});
+
+	it("evicts once per replaced series", () => {
+		const sym = TradingSymbol.of("BTCUSDT");
+		const buffer = new MarketDataBuffer();
+		const evict = jest.spyOn((buffer as any)._stateManager, "_evictIfNeeded");
+
+		feedCandles(buffer, "BTCUSDT", 1, (i) => i);
+		evict.mockClear();
+		buffer.replaceCandles(
+			sym,
+			Array.from({ length: 50 }, (_, i) =>
+				makeCandle({ symbol: sym, close: Price.of(100 + i) })
+			)
+		);
+
+		expect(evict).toHaveBeenCalledTimes(1);
+	});
 });

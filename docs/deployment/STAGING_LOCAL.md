@@ -43,6 +43,13 @@ a loop and audit-logger answers 503 (issue #760: the compose Jaeger held
 11.5 GiB of in-memory traces; it is now bounded by `MEMORY_MAX_TRACES` and
 `mem_limit`).
 
+The kind node is bounded by `docker update` (12 GiB, no swap, 12 CPUs of the
+20 GiB / 16 CPU VM; runner 2 GiB / 2 CPUs and MinIO 1 GiB / 1 CPU by
+`mem_limit` in `docker-compose.yml`), so a staging memory leak stops at the
+node instead of freezing the whole Docker VM (issue #2160). `docker update`
+does not survive `kind delete cluster`: rerun it after `kind create cluster`.
+Raise it with the VM size; check `docker stats --no-stream` after a deploy.
+
 `deploy.yml` checks out the release tag: a tag older than the `staging-local`
 overlay cannot be deployed this way. Its scripts come from the tag too, so
 `DEPLOY_TIMEOUT_FACTOR` only reaches the migration Jobs and rollouts of a tag
@@ -52,6 +59,7 @@ that has it (3.0.1 and later); the MySQL wait is in `deploy.yml` itself.
 
 ```bash
 kind create cluster --config deploy/staging-local/kind.yaml
+docker update --memory 12g --memory-swap 12g --cpus 12 trading-staging-control-plane   # kind has no limit setting (issue #2160)
 docker compose -p trading-staging -f deploy/staging-local/docker-compose.yml --env-file ~/.trading-staging/env up -d minio
 bash deploy/staging-local/bootstrap.sh prereqs      # ingress-nginx, cert-manager, VPA CRD, Sealed Secrets, rwx-csi
 OVERLAY=staging-local bash scripts/init-sealed-secrets.sh   # then commit the overlay's sealed-secrets.yaml
@@ -135,6 +143,22 @@ staging deploy (issue #842).
   to 168 h): `scripts/deploy-identity.sh app --revoke` and `cluster --revoke`
   with the arguments of `bootstrap.sh identities` (ADR-0041), then
   `bash deploy/staging-local/bootstrap.sh identities`.
+
+**Accepted risk (project owner, 2026-11-23, issue #2182).** The runner stays
+persistent: ephemeral mode needs a long-lived personal access token with
+"Administration: read and write" that GitHub cannot create by API, and runner
+groups need an organization. A runner compromised once stays compromised
+between jobs and can steal the secrets of the next one: `KUBECONFIG_STAGING_*`,
+the SealedSecrets backup kubeconfig and, while `BACKUP_KEY_CHECK_RUNNER` names
+this runner, the escrow age identity (`BACKUP_ESCROW_AGE_IDENTITY`, ADR-0034).
+The escrow check stays here only because the off-site store is the MinIO of
+this cluster, which no GitHub-hosted runner reaches (issue #1135). The barriers
+are the fork approval setting, checked before each of these jobs, and the purge
+above after any doubt. When a real off-site bucket exists, delete the repository
+variables `BACKUP_KEY_CHECK_RUNNER` (the escrow check then runs on
+`ubuntu-latest`) and, once a production cluster exists,
+`SEALED_SECRETS_BACKUP_RUNNER`. Never point `BACKUP_KEY_CHECK_RUNNER` at this
+runner for any other bucket.
 
 ## SealedSecrets key backup
 
@@ -287,7 +311,7 @@ While it is down:
   (every 15 min, ADR-0027) do not run. No alert fires either, since Prometheus
   and Alertmanager are down.
 - No PITR gap for a stop of hours or days: MySQL is down too, so nothing purges
-  its binlogs (kept 30 days), and the first hourly run archives the closed ones.
+  its binlogs (kept 4 days), and the first hourly run archives the closed ones.
   `BackupPitrGap` fires only if the stop outlasts that, or the MongoDB oplog
   window ("hours to days", `BACKUP_DR.md`, "Point-in-time archives") and overwrites
   entries before they are archived.
