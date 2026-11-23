@@ -38,7 +38,7 @@ run_job() { # <job> <manifest> [nowait]
     awk -v f="${DEPLOY_TIMEOUT_FACTOR:-1}" '/^ *activeDeadlineSeconds: *[0-9]+ *$/ { sub(/[0-9]+ *$/, $2 * f) } 1' |
     kubectl apply -n "$NS" -f -
   [ "${3:-}" = nowait ] && return 0
-  bash "$(dirname "${BASH_SOURCE[0]}")/wait-job.sh" "$NS" "$1" 180
+  bash "$(dirname "${BASH_SOURCE[0]}")/wait-job.sh" "$NS" "$1" "$(awk '$1 == "activeDeadlineSeconds:" { print $2; exit }' "$2")"
 }
 
 # Prints the requested field of trading-model-secrets. A missing Secret prints nothing;

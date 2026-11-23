@@ -133,24 +133,32 @@ async function runSteps(connection, id, direction, file) {
     console.log(`  resuming at statement ${done.length + 1}/${statements.length}`);
   }
   for (let i = done.length; i < statements.length; i++) {
-    await connection.beginTransaction();
-    try {
-      await connection.query(statements[i]);
-      await connection.execute(
-        `INSERT INTO \`${STEPS_TABLE}\` (migration_id, direction, step, checksum) VALUES (?, ?, ?, ?)`,
-        [id, direction, i, sha256(statements[i])]
-      );
-      await connection.commit();
-    } catch (err) {
-      await connection.rollback().catch(rollbackErr => {
-        err.message += ` (rollback failed: ${rollbackErr.message})`;
-      });
-      throw new Error(
-        `${id} (${direction}) statement ${i + 1}/${statements.length} failed: ${err.message}; ` +
-          'fix it and rerun, the statements before it are not replayed',
-        { cause: err }
-      );
-    }
+    // Batched data moves: a statement marked so runs again, one transaction each, until it changes no row.
+    const repeat = /^-- repeat until no row changes$/m.test(statements[i]);
+    let changed = 0;
+    do {
+      await connection.beginTransaction();
+      try {
+        const [result] = await connection.query(statements[i]);
+        changed = repeat ? result.affectedRows : 0;
+        if (changed === 0) {
+          await connection.execute(
+            `INSERT INTO \`${STEPS_TABLE}\` (migration_id, direction, step, checksum) VALUES (?, ?, ?, ?)`,
+            [id, direction, i, sha256(statements[i])]
+          );
+        }
+        await connection.commit();
+      } catch (err) {
+        await connection.rollback().catch(rollbackErr => {
+          err.message += ` (rollback failed: ${rollbackErr.message})`;
+        });
+        throw new Error(
+          `${id} (${direction}) statement ${i + 1}/${statements.length} failed: ${err.message}; ` +
+            'fix it and rerun, the statements before it are not replayed',
+          { cause: err }
+        );
+      }
+    } while (changed > 0);
   }
 }
 
