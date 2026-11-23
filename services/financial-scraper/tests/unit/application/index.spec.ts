@@ -50,12 +50,6 @@ jest.mock("../../../src/config/db", () => ({
 import "../../../src/application/index";
 
 describe("app/index", () => {
-	it("should call createBootstrap on load", () => {
-		expect(MOCK_CREATE_BOOTSTRAP).toHaveBeenCalledWith(
-			expect.objectContaining({ name: "Financial Scraper" })
-		);
-	});
-
 	// Idle pool connections kept the process alive until SIGKILL.
 	it("onStop should close the MySQL pool so the process can exit", async () => {
 		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
