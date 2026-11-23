@@ -43,6 +43,13 @@ a loop and audit-logger answers 503 (issue #760: the compose Jaeger held
 11.5 GiB of in-memory traces; it is now bounded by `MEMORY_MAX_TRACES` and
 `mem_limit`).
 
+The kind node is bounded by `docker update` (12 GiB, no swap, 12 CPUs of the
+20 GiB / 16 CPU VM; runner 2 GiB / 2 CPUs and MinIO 1 GiB / 1 CPU by
+`mem_limit` in `docker-compose.yml`), so a staging memory leak stops at the
+node instead of freezing the whole Docker VM (issue #2160). `docker update`
+does not survive `kind delete cluster`: rerun it after `kind create cluster`.
+Raise it with the VM size; check `docker stats --no-stream` after a deploy.
+
 `deploy.yml` checks out the release tag: a tag older than the `staging-local`
 overlay cannot be deployed this way. Its scripts come from the tag too, so
 `DEPLOY_TIMEOUT_FACTOR` only reaches the migration Jobs and rollouts of a tag
@@ -52,6 +59,7 @@ that has it (3.0.1 and later); the MySQL wait is in `deploy.yml` itself.
 
 ```bash
 kind create cluster --config deploy/staging-local/kind.yaml
+docker update --memory 12g --memory-swap 12g --cpus 12 trading-staging-control-plane   # kind has no limit setting (issue #2160)
 docker compose -p trading-staging -f deploy/staging-local/docker-compose.yml --env-file ~/.trading-staging/env up -d minio
 bash deploy/staging-local/bootstrap.sh prereqs      # ingress-nginx, cert-manager, VPA CRD, Sealed Secrets, rwx-csi
 OVERLAY=staging-local bash scripts/init-sealed-secrets.sh   # then commit the overlay's sealed-secrets.yaml
