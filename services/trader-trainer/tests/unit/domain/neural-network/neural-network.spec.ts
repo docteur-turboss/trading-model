@@ -22,7 +22,6 @@ function makeConfig(
 		initialisationType: InitialisationType.Zeros,
 		normalisationType: NormalisationType.None,
 		connectionType: ConnectionType.FullyConnected,
-		enablePool: false,
 		...overrides,
 	};
 }
@@ -281,7 +280,6 @@ describe("NeuralNetwork", () => {
 				initialisationType: InitialisationType.Zeros,
 				normalisationType: NormalisationType.None,
 				connectionType: ConnectionType.FullyConnected,
-				enablePool: false,
 			});
 
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
@@ -319,7 +317,6 @@ describe("NeuralNetwork", () => {
 				initialisationType: InitialisationType.Zeros,
 				normalisationType: NormalisationType.None,
 				connectionType: ConnectionType.DenseSkip,
-				enablePool: false,
 			});
 
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);

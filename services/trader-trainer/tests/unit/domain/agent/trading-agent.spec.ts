@@ -36,7 +36,6 @@ function makeConfig(
 			normalisationType: NormalisationType.None,
 			connectionType: ConnectionType.FullyConnected,
 			learningRate: 0.01 as Percentage,
-			enablePool: true,
 			poolMaxSize: 100 as PositiveInt,
 		},
 		wallet: {
