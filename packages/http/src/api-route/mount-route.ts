@@ -1,8 +1,7 @@
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { RequestHandler, Router } from "express";
 import { catchSync } from "../catch-error";
-import type { ResponseObject } from "../response-exception/http-codes";
-import { sendResponse } from "../response-exception/send-response";
+import { type ResponseObject, sendResponse } from "../response-exception";
 import { type ApiRoute, type ApiRouteInput, parseRequest } from "./api-route";
 
 /** Handler of an API route: receives the validated input and the Express request. */

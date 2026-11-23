@@ -1,3 +1,4 @@
+import type { Signal } from "@trading-model/contracts/wire/signals";
 import { AGENT_STATE_DIM } from "@trading-model/model-runtime/agent/agent-state";
 import { FEATURE_DIM } from "@trading-model/model-runtime/feature-vector-codec";
 import {
@@ -6,7 +7,6 @@ import {
 	UnixTimestamp,
 	Volume,
 } from "@trading-model/primitives/primitives";
-import type { Signal } from "@trading-model/validation/wire/signals";
 import {
 	eventInputLayout,
 	NETWORK_INPUT_LAYOUT,
@@ -82,6 +82,19 @@ describe("signal inputs (ADR-0081)", () => {
 		expect(raw[29][1]).toBe(0);
 		expect(raw[29][2]).toBeCloseTo(0.8);
 		expect(raw[29][0]).not.toBe(99); // public from idx 31, not before
+		expect(raw[30][0]).toBe(99);
+	});
+
+	it("takes the last listed of equal observedAt, whatever the input order", () => {
+		const at = closeOf(30);
+		const raw = inputs(
+			bufferWith(
+				[KEY],
+				[signal(at, 5), signal(at + 1, 99), signal(at - 5, 1), signal(at, 6)]
+			)
+		);
+
+		expect(raw[29][0]).toBe(6); // tie at `at`: the later listed wins, not 99 (future)
 		expect(raw[30][0]).toBe(99);
 	});
 

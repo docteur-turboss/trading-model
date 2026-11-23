@@ -5,7 +5,6 @@
 #    ./deploy-k8s.sh [-n <namespace>] apply           # Apply all manifests (dev cluster only, ALLOW_DEV_APPLY=1)
 #    ./deploy-k8s.sh [-n <namespace>] apply <service> # Apply a single service
 #    ./deploy-k8s.sh [-n <namespace>] status          # Show deployment status
-#    ./deploy-k8s.sh [-n <namespace>] rollback <service> [revision]
 #    ./deploy-k8s.sh [-n <namespace>] migrate-down [count|all]
 #    ./deploy-k8s.sh [-n <namespace>] canary <service> [image-tag] [percentage]
 #    ./deploy-k8s.sh [-n <namespace>] canary-all <image-tag> <percentage> <service>...
@@ -144,27 +143,6 @@ cmd_status() {
   kubectl get ingress -n "$NAMESPACE"
 }
 
-cmd_rollback() {
-  local service="$1"
-  local revision="${2:-}"
-
-  if [[ -z "$service" ]]; then
-    err "Usage: $0 rollback <service> [revision]"
-    exit 1
-  fi
-
-  if [[ -n "$revision" ]]; then
-    log "Rolling back $service to revision $revision..."
-    kubectl rollout undo -n "$NAMESPACE" "deployment/${service}" --to-revision="$revision"
-  else
-    log "Rolling back $service to previous revision..."
-    kubectl rollout undo -n "$NAMESPACE" "deployment/${service}"
-  fi
-
-  kubectl rollout status -n "$NAMESPACE" "deployment/${service}" --timeout=120s
-  log "Rollback of $service complete."
-}
-
 cmd_migrate_down() {
   local count="${1:-1}"
 
@@ -268,7 +246,16 @@ canary_start() {
   # Resolve image: prefer immutable @sha256 digest over mutable tag.
   local repo="${CANARY_IMAGE_REPO:-ghcr.io/trading-model}/${service}"
   local image_ref="${repo}:latest"
-  if [[ -n "$image_tag" ]]; then
+  if [[ -n "${CANARY_DIGESTS_FILE:-}" ]]; then
+    # deploy.yml: only the cosign-verified digest, never a tag.
+    local digest
+    digest="$(awk -v s="$service" '$1 == s { print $2 }' "$CANARY_DIGESTS_FILE")"
+    if [[ -z "$digest" ]]; then
+      err "No verified digest for ${service} in ${CANARY_DIGESTS_FILE}"
+      exit 1
+    fi
+    image_ref="${repo}@${digest}"
+  elif [[ -n "$image_tag" ]]; then
     local digest
     if digest="$(resolve_image_digest "$repo" "$image_tag")"; then
       image_ref="${repo}@${digest}"
@@ -447,19 +434,10 @@ cmd_canary_cleanup() {
 cmd_smoke_test() {
   log "Running smoke tests..."
 
-  local services=(
-    "discovery-server:https://discovery-server:3000/health/ready"
-    "message-manager:https://message-manager:3000/health/ready"
-    "api-gateway:https://api-gateway:3000/health/ready"
-    "audit-logger:https://audit-logger:3000/health/ready"
-    "dlq-service:https://dlq-service:3000/health/ready"
-    "model-evaluator:https://model-evaluator:3000/health/ready"
-    "risk-execution:https://risk-execution:3000/health/ready"
-    "financial-scraper:https://financial-scraper:3000/health/ready"
-    "financial-scraper-collector:https://financial-scraper-collector:3000/health/ready"
-    "trader-trainer:https://trader-trainer:3000/health/ready"
-    "edge-proxy:http://edge-proxy:8080/health/ready"
-  )
+  local services=() svc
+  for svc in $(bash "$(dirname "${BASH_SOURCE[0]}")/deploy-release.sh" deployments); do
+    [[ $svc == edge-proxy ]] && services+=("$svc:http://$svc:8080/health/ready") || services+=("$svc:https://$svc:3000/health/ready")
+  done
 
   local failed=0
   for entry in "${services[@]}"; do
@@ -543,8 +521,24 @@ fresh_candles() {
 # Critical alerts firing now, one line each: every label as sorted compact JSON,
 # so two alerts of the same name never share a line. $1 = extra label matchers (URL-encoded).
 critical_alerts() {
-  prom_query "ALERTS%7Balertstate%3D%22firing%22%2Cseverity%3D%22critical%22${1}%7D" \
-    | jq -cS '.data.result[].metric | del(.__name__, .alertstate)'
+  local alerts global='"alertname":"KillSwitchEngaged".*"scope":"global"'
+  alerts="$(prom_query "ALERTS%7Balertstate%3D%22firing%22%2Cseverity%3D%22critical%22${1}%7D" \
+    | jq -cS '.data.result[].metric | del(.__name__, .alertstate)')" || return 1
+  # A new environment (or a lost volume) starts with the global switch on for
+  # state_missing (ADR-0064 §5): the operator re-arms it, a rollback cannot, so never block on it.
+  if grep -q "$global" <<<"$alerts" && [[ "$(risk_global_reason)" == "state_missing" ]]; then
+    log "  - KillSwitchEngaged (global, state_missing): not blocking, re-arm after checking (runbook-risk-execution)" >&2
+    alerts="$(grep -v "$global" <<<"$alerts" || true)"
+  fi
+  [[ -z "$alerts" ]] || printf '%s\n' "$alerts"
+}
+
+# Reason of the global kill switch of risk-execution (GET /admin/status with its
+# own SVID, from its pod); empty when off or unreachable.
+risk_global_reason() {
+  kubectl exec -n "$NAMESPACE" deployment/risk-execution -c risk-execution -- \
+    curl -sfk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/admin/status \
+    | jq -r '.killSwitch.global // empty' || true
 }
 
 # critical_alerts lines (stdin) as one readable list: name{label=value, ...},...
@@ -675,9 +669,6 @@ case "${1:-help}" in
   status)
     cmd_status
     ;;
-  rollback)
-    cmd_rollback "${2:-}" "${3:-}"
-    ;;
   migrate-down)
     cmd_migrate_down "${2:-1}"
     ;;
@@ -709,7 +700,6 @@ case "${1:-help}" in
     echo "Usage:"
     echo "  $0 [-n namespace] apply [service]       Apply manifests"
     echo "  $0 [-n namespace] status                Show cluster status"
-    echo "  $0 [-n namespace] rollback <srv> [rev]  Rollback deployment"
     echo "  $0 [-n namespace] migrate-down [N|all]  Rollback N DB migrations (default: 1)"
     echo "  $0 [-n namespace] canary <srv> [tag] [pct]     Canary deployment"
     echo "  $0 [-n namespace] canary-all <tag> <pct> <srv>...  Canaries in parallel, one gate window"

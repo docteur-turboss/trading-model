@@ -18,6 +18,7 @@ import {
 	KubernetesLease,
 	kubernetesLeaseApi,
 	type Lease,
+	leaseAnnotation,
 } from "../../src/kubernetes-lease";
 
 function api(lease: Lease) {
@@ -31,6 +32,43 @@ function api(lease: Lease) {
 }
 
 const T0 = Date.UTC(2026, 10, 8, 12, 0, 0, 123);
+
+describe("leaseAnnotation", () => {
+	const lease: Lease = {
+		metadata: { name: "c", resourceVersion: "1", annotations: { other: "x" } },
+	};
+
+	it("reads undefined when the annotation is absent", async () => {
+		await expect(
+			leaseAnnotation(api(lease), "k").get()
+		).resolves.toBeUndefined();
+	});
+
+	it("writes the value and keeps the other annotations", async () => {
+		const leaseApi = api(lease);
+		await leaseAnnotation(leaseApi, "k").set("v");
+		expect(leaseApi.update.mock.calls[0][0].metadata.annotations).toEqual({
+			other: "x",
+			k: "v",
+		});
+	});
+
+	it("retries once after a conflict, then succeeds", async () => {
+		const leaseApi = api(lease);
+		leaseApi.update.mockResolvedValueOnce("conflict");
+		await leaseAnnotation(leaseApi, "k").set("v");
+		expect(leaseApi.get).toHaveBeenCalledTimes(2);
+		expect(leaseApi.update).toHaveBeenCalledTimes(2);
+	});
+
+	it("throws on a second conflict", async () => {
+		const leaseApi = api(lease);
+		leaseApi.update.mockResolvedValue("conflict");
+		await expect(leaseAnnotation(leaseApi, "k").set("v")).rejects.toThrow(
+			"update conflict"
+		);
+	});
+});
 
 describe("KubernetesLease", () => {
 	it("takes a lease nobody holds, in MicroTime, counting the transition", async () => {

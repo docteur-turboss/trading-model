@@ -1,5 +1,5 @@
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
-import type { ResolvedEndpoint } from "@trading-model/validation/wire/service-resolver.types";
+import type { ResolvedEndpoint } from "@trading-model/contracts/wire/service-resolver.types";
 import type { Request } from "express";
 import {
 	proxyAndCache,
@@ -10,7 +10,6 @@ import {
 	UpstreamResponseTooLargeError,
 	UpstreamTimeoutError,
 } from "../../src/domain/ports/gateway.port";
-import { PROXY_REQUEST_DURATION_SECONDS } from "../../src/infrastructure/config/metrics";
 
 const CTX = {
 	serviceName: "svc" as never,
@@ -28,18 +27,18 @@ function deps(body = '{"a":1}', status = 200) {
 			headers: { "content-type": "application/json; charset=utf-8" },
 		}),
 		cache: { get: jest.fn(), set: jest.fn() },
+		observeDuration: jest.fn(),
 	} satisfies ProxyDeps;
 }
 
 describe("proxyAndCache", () => {
-	const observe = jest.spyOn(PROXY_REQUEST_DURATION_SECONDS, "observe");
 	const GET = { method: "GET", headers: {} } as Request;
-	beforeEach(() => observe.mockClear());
 
 	it("observes the duration once with the upstream status", async () => {
-		await proxyAndCache(GET, TARGET, CTX, deps("{}", 204));
-		expect(observe).toHaveBeenCalledTimes(1);
-		expect(observe).toHaveBeenCalledWith(
+		const d = deps("{}", 204);
+		await proxyAndCache(GET, TARGET, CTX, d);
+		expect(d.observeDuration).toHaveBeenCalledTimes(1);
+		expect(d.observeDuration).toHaveBeenCalledWith(
 			{ service: "svc", status: "204" },
 			expect.any(Number)
 		);
@@ -51,7 +50,7 @@ describe("proxyAndCache", () => {
 		await proxyAndCache(GET, TARGET, CTX, d);
 		d.forward.mockRejectedValueOnce(new Error("boom"));
 		await proxyAndCache(GET, TARGET, CTX, d);
-		expect(observe.mock.calls.map(([labels]) => labels)).toEqual([
+		expect(d.observeDuration.mock.calls.map(([labels]) => labels)).toEqual([
 			{ service: "svc", status: "502" },
 			{ service: "svc", status: "503" },
 		]);
@@ -123,7 +122,11 @@ describe("tryServeFromCache", () => {
 			get: jest.fn().mockReturnValue({ data: { a: 1 }, status: 200 }),
 			set: jest.fn(),
 		};
-		expect(tryServeFromCache("GET", "k", cache)?.status).toBe(200);
-		expect(tryServeFromCache("POST", "k", cache)).toBeNull();
+		const count = jest.fn();
+		expect(tryServeFromCache("GET", "k", cache, count)?.status).toBe(200);
+		expect(tryServeFromCache("POST", "k", cache, count)).toBeNull();
+		cache.get.mockReturnValue(undefined);
+		expect(tryServeFromCache("GET", "k", cache, count)).toBeNull();
+		expect(count.mock.calls).toEqual([["hit"], ["miss"]]);
 	});
 });

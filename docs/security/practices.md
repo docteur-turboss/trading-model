@@ -30,17 +30,14 @@ Each SVID carries a SPIFFE URI SAN (`spiffe://trading-model.local/ns/<namespace>
 ### mTLS Configuration in the Service
 
 ```typescript
-import { createSecureServer } from '@trading-model/http/create-secure-server';
-import { env } from '../config/env';
+import { ServiceId } from '@trading-model/primitives/primitives';
+import { createServiceServer } from '@trading-model/http/service-server-factory';
+import { ENV } from '../config/env';
 
 export function createServer() {
-  return createSecureServer({
-    port: env.PORT,
-    tls: {
-      key: env.TLS_KEY_PATH,
-      cert: env.TLS_CERT_PATH,
-      ca: env.TLS_CA_PATH,
-    },
+  return createServiceServer({
+    env: ENV,
+    serviceId: ServiceId.of('my-service'),
     routes: app => {
       /* ... */
     },

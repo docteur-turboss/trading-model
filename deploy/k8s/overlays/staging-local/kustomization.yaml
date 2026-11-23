@@ -76,10 +76,12 @@ patches:
         value: 2400
 
   # One pod per data or observability StatefulSet: a release must not restart it (issue #700).
+  # Not prometheus nor alertmanager: they must load each release's rules and scrape jobs
+  # (issue #2323); their restart leaves a short supervision gap, no service outage.
   # Planned restart for a new template: docs/deployment/STAGING_LOCAL.md.
   - target:
       kind: StatefulSet
-      name: ^(mysql|redis|redis-sentinel|mongo-dlq|mongo-audit|alertmanager|grafana|loki|prometheus)$
+      name: ^(mysql|redis|redis-sentinel|mongo-dlq|mongo-audit|grafana|loki)$
     patch: |-
       - op: add
         path: /spec/updateStrategy
@@ -131,21 +133,21 @@ configMapGenerator:
     behavior: merge
     literals:
       - MONGODB_URI=mongodb://mongo-audit-0.mongo-audit-headless:27017,mongo-audit-1.mongo-audit-headless:27017,mongo-audit-2.mongo-audit-headless:27017/audit?replicaSet=rs0-audit&authSource=admin
-      - REDIS_SENTINELS=  # bus switch below (issue #1931)
+      - BUS_TRANSPORT=http  # bus switch below (issue #1931)
   - name: dlq-service-config
     behavior: merge
     literals:
       - MONGO_URI=mongodb://mongo-dlq-0.mongo-dlq-headless:27017,mongo-dlq-1.mongo-dlq-headless:27017,mongo-dlq-2.mongo-dlq-headless:27017/dlq?replicaSet=rs0&authSource=admin
   # The partitioned redis-0 creates an ACL user only at start: it lacks the bus users of
-  # 3.1.0 (issue #1931). An empty REDIS_SENTINELS keeps these services (and audit-logger,
+  # 3.1.0 (issue #1931). BUS_TRANSPORT=http keeps these services (and audit-logger,
   # entry above) on message-manager
   # over HTTP until the planned switch of STAGING_LOCAL.md, "Bus switch", removes the entries
   # (tests/k8s/check-overlays.mjs then needs the service in BUS_ON_PARTITIONED_REDIS).
   - name: trader-trainer-config
     behavior: merge
     literals:
-      - REDIS_SENTINELS=
+      - BUS_TRANSPORT=http
   - name: model-evaluator-config
     behavior: merge
     literals:
-      - REDIS_SENTINELS=
+      - BUS_TRANSPORT=http

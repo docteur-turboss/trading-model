@@ -61,4 +61,4 @@ const { AddressManager, BOOTSTRAP_ADDRESS_MANAGER, ADDRESS_MANAGER_ROUTES, FIND_
 
 ## Environment Schema
 
-`AddressManagerEnvSchema` (`@trading-model/validation/config/address-manager-env`); every variable is in [ENV.md](../deployment/ENV.md). Used: `ADDRESS_MANAGER_URL` (discovery-server URL), `SERVICE_NAME`, `INSTANCE_ID`, `APP_VERSION` (registered for N-1 gateways only), `PORT`, `TOKEN_REFRESH_INTERVAL_MS`, `TTL_REFRESH_INTERVAL_MS`, `DNS_NAME_MAP`. `CACHE_TTL_MS`, `DISCOVERY_TIMEOUT_MS` and `SERVICE_PING_TIMEOUT_MS` are no longer read by this package and leave the schema with discovery-server.
+`AddressManagerEnvSchema` (`@trading-model/address-manager/config/address-manager-env`); every variable is in [ENV.md](../deployment/ENV.md). Used: `ADDRESS_MANAGER_URL` (discovery-server URL), `SERVICE_NAME`, `INSTANCE_ID`, `APP_VERSION` (registered for N-1 gateways only), `PORT`, `TOKEN_REFRESH_INTERVAL_MS`, `TTL_REFRESH_INTERVAL_MS`, `DNS_NAME_MAP`. `CACHE_TTL_MS`, `DISCOVERY_TIMEOUT_MS` and `SERVICE_PING_TIMEOUT_MS` are no longer read by this package and leave the schema with discovery-server.

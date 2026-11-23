@@ -98,3 +98,7 @@ inhibit_rules:
   - source_matchers: ['alertname="ServiceDown"']
     target_matchers: ['alertname=~"SLO.*"']
     equal: ['job']
+  # Root cause pages once: the stale-data alerts follow a Binance block, a MySQL
+  # outage or a collector without leader. No `equal`: the jobs differ.
+  - source_matchers: ['alertname=~"BinanceQuarantined|BinanceRestrictedLocation|MySQLDown|CollectorNoLeader"']
+    target_matchers: ['alertname=~"MarketDataStale|SymbolMarketDataStale|TrainerMarketDataStale"']

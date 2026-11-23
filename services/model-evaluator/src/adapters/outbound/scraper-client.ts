@@ -5,7 +5,14 @@ import {
 	CandleInterval,
 } from "@trading-model/contracts/market-data.types";
 import { HttpClient } from "@trading-model/http/http-client";
-import { ServiceId, URLString } from "@trading-model/primitives/primitives";
+import { ScraperSignalHistory } from "@trading-model/http/signals/scraper-signal-history";
+import { SignalBarHistory } from "@trading-model/http/signals/signal-bar-history";
+import { DAY_MS } from "@trading-model/model-runtime/features/feature-builder";
+import {
+	ServiceId,
+	toSymbol,
+	URLString,
+} from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import { z } from "zod";
 import { FIND_A_SERVICE } from "../../config/address-manager";
@@ -30,21 +37,42 @@ const Page = z.object({
 
 /**
  * Reads one-minute candles through financial-scraper's keyset-paged route
- * `GET /v2/candles/symbols/:symbol` (ADR-0044, ADR-0054), as the trainer does.
+ * `GET /v2/candles/symbols/:symbol` (ADR-0044, ADR-0054), and daily bars
+ * rebuilt from the signals (ADR-0083), as the trainer does.
  */
 export class ScraperClient {
 	private readonly _http: HttpClient;
+	private readonly _daily: SignalBarHistory;
 
 	constructor(tls: TlsPaths) {
 		this._http = HttpClient.createWithTls(tls);
+		// No asset-type map: every asset reads as equity (market label only, no effect on replay).
+		this._daily = new SignalBarHistory(
+			new ScraperSignalHistory(tls, FIND_A_SERVICE),
+			new Map()
+		);
 	}
 
-	/** Candles opened in [from, to), one per open time, oldest first. */
+	/** Bars opened in [from, to), one per open time, oldest first. */
 	async candles(
 		symbol: string,
 		from: number,
-		to: number
+		to: number,
+		intervalMs: number,
+		signal?: AbortSignal
 	): Promise<CandleData[]> {
+		signal?.throwIfAborted();
+		if (intervalMs === DAY_MS) {
+			// The history ends at `to`; its size only has to reach back to `from`.
+			const bars = await this._daily.loadWindow(
+				toSymbol(symbol),
+				to,
+				Math.ceil((to - from) / DAY_MS) + 1
+			);
+			// shortcut: SignalBarHistory takes no signal, so a slow read is only caught after it returns.
+			signal?.throwIfAborted();
+			return bars.filter((bar) => bar.timestamp >= from);
+		}
 		const target = await FIND_A_SERVICE(
 			ServiceInstanceName.FinancialScraperService
 		);
@@ -54,7 +82,7 @@ export class ScraperClient {
 		do {
 			const page = await this._http.get(
 				URLString.of(`${base}${after}`),
-				{ serviceName: ServiceId.of("financial-scraper") },
+				{ serviceName: ServiceId.of("financial-scraper"), signal },
 				Page
 			);
 			if (!page) {

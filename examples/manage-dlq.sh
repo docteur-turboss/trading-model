@@ -45,7 +45,7 @@ signed_curl GET /dlq | pretty
 
 echo ""
 echo "=== Replay up to 10 entries of a topic ==="
-echo "signed_curl POST '/dlq/replay?topic=market.trade.recent.fetch&limit=10'"
+echo "signed_curl POST '/dlq/replay?topic=training.model.published&limit=10'"
 
 echo ""
 echo "=== Delete entries by id ==="

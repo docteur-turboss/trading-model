@@ -88,6 +88,10 @@ STUB_UNDO_FAILS="" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 
 printf '#!/bin/sh\necho "sleep $*" >>"$STUB_LOG"\n' >"$WORK/bin/sleep"
 chmod +x "$WORK/bin/sleep"
+
+out="$(bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
+	[[ $out == *"::warning::MySQL TLS relaxed by the rollback: redeploy release N to restore it"* ]] &&
+	ok "rollback warns that MySQL TLS stays relaxed" || ko "rollback TLS warning: $out"
 echo 2 >"$WORK/api-down"
 : >"$WORK/log"
 STUB_API_DOWN="$WORK/api-down" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null 2>&1 &&

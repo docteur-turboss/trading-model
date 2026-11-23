@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 #  Trading Model — Database Backup Script (Kubernetes)
-#  Usage:  bash scripts/backup-k8s.sh [--dry-run] [--components mongodb,mysql,checkpoints,spire]
+#  Usage:  bash scripts/backup-k8s.sh [--dry-run] [--components mongodb,mysql,checkpoints,spire,risk]
 #          BACKUP_DIR=/backups BACKUP_S3_BUCKET=s3://my-bucket/backups
 #          BACKUP_AGE_RECIPIENTS=age1... (encryption, see backup-lib.sh)
 #          RETENTION_DAYS, RETENTION_WEEKLY_WEEKS, RETENTION_MONTHLY_MONTHS,
@@ -14,7 +14,7 @@ BACKUP_DIR="${BACKUP_DIR:-/backups}"
 # UTC: restore-k8s.sh --until compares these stamps with the requested instant.
 TIMESTAMP="$(date -u +%Y-%m-%d_%H%M%S)"
 DRY_RUN=false
-COMPONENTS="mongodb,mysql,checkpoints,spire"
+COMPONENTS="mongodb,mysql,checkpoints,spire,risk"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
 K8S_NAMESPACE="${K8S_NAMESPACE:-trading-model}"
 METRICS_FILE="${METRICS_FILE:-}"
@@ -29,6 +29,14 @@ done
 
 # shellcheck source=backup-lib.sh
 source "$(dirname "$0")/backup-lib.sh"
+
+# Sets DUMP_ROWS for the next write_dump: {"<db>.<table>":<rows>,...} from
+# "name<TAB>count" lines on stdin. Without counts the manifest entry simply has
+# no rows (warned): the dump itself is not blocked.
+rows_from_counts() {
+  DUMP_ROWS="$(awk -F'	' 'NF==2 && $2 ~ /^[0-9]+$/ { printf "%s\"%s\":%s", (n++ ? "," : ""), $1, $2 } END { if (n) printf "}" }' | sed 's/^/{/')" || true
+  [ -n "$DUMP_ROWS" ] || warn "row counts unavailable: manifest entry without rows"
+}
 
 backup_mongodb() {
   log "Starting MongoDB backup..."
@@ -55,6 +63,9 @@ backup_mongodb() {
       write_metric "$label" 0
       continue
     fi
+    local coll=audit.audit_events
+    [ "$label" = mongodb ] && coll=dlq.dlq_entries
+    rows_from_counts < <(mongo_tool backup "${primary}" mongosh --quiet --eval       "print('${coll}	' + db.getSiblingDB('${coll%%.*}').${coll#*.}.countDocuments({}))")
     local file="${dest}/${label}.archive.gz${AGE_SUFFIX}"
     local pitr="${dest}/${label}.pitr${AGE_SUFFIX}"
     if write_dump "$label" "$file" mongo_tool backup "${primary}" mongodump --quiet --gzip --archive --oplog &&
@@ -108,6 +119,11 @@ backup_mysql() {
     return
   fi
   coords=$(mktemp)
+  local t q=""
+  for t in market_candles market_trades market_tickers signals; do
+    q="${q:+$q UNION ALL }SELECT 'financial_scraper.$t', COUNT(*) FROM financial_scraper.$t"
+  done
+  rows_from_counts < <(mysql_root_sh "${pod}" "mysql --user=root -N -e \"$q\"")
   if write_dump mysql "$file" mysql_dump_gz "${pod}" "$coords" &&
     sealed_write "$pitr" mysql_pitr "$uuid" "$coords"; then
     ok "MySQL backup complete: ${file}"
@@ -121,31 +137,35 @@ backup_mysql() {
   backup_mysql_core mysql_core_dump_gz "${pod}"
 }
 
-backup_checkpoints() {
-  log "Starting trader-trainer checkpoints backup..."
-  local dest="${BACKUP_DIR}/checkpoints"
+# Component `$1`: a tar of the volume of container `$2` (pod of the same
+# component), streamed by command `$3...` run in that container.
+backup_volume() {
+  local key="$1" container="$2"
+  shift 2
+  log "Starting ${key} backup (${container} volume)..."
+  local dest="${BACKUP_DIR}/${key}"
   mkdir -p "$dest"
 
   local pod
-  pod=$(component_pods trader-trainer | awk '{print $1}')
+  pod=$(component_pods "$container" | awk '{print $1}')
   if [ -z "$pod" ]; then
-    fail "No trader-trainer pod found"
-    write_metric "checkpoints" 0
+    fail "No ${container} pod found"
+    write_metric "$key" 0
     return
   fi
 
   if $DRY_RUN; then
-    warn "[DRY-RUN] Would backup checkpoints from ${pod}"
+    warn "[DRY-RUN] Would backup ${key} from ${pod}"
     return
   fi
 
-  local file="${dest}/checkpoints_${TIMESTAMP}.tar.gz${AGE_SUFFIX}"
-  if write_dump checkpoints "$file" kubectl_exec "${pod}" -c trader-trainer -- tar czf - -C /data/checkpoints .; then
-    ok "Checkpoints backup complete"
-    write_metric "checkpoints" 1
+  local file="${dest}/${key}_${TIMESTAMP}.tar.gz${AGE_SUFFIX}"
+  if write_dump "$key" "$file" kubectl_exec "${pod}" -c "$container" -- "$@"; then
+    ok "${key} backup complete"
+    write_metric "$key" 1
   else
-    fail "Checkpoints backup failed"
-    write_metric "checkpoints" 0
+    fail "${key} backup failed"
+    write_metric "$key" 0
   fi
 }
 
@@ -217,7 +237,9 @@ for part in "${PARTS[@]}"; do
     # Derived state only (discovery registrations and tokens, DLQ retry queue
     # rebuilt from MongoDB): rebuilt by the services, never restored.
     redis)        warn "Redis is not backed up: its content is rebuilt by the services" ;;
-    checkpoints)  backup_checkpoints ;;
+    checkpoints)  backup_volume checkpoints trader-trainer tar czf - -C /data/checkpoints . ;;
+    # *.json only: never a half-written tmp file (JsonFile renames it into place).
+    risk)         backup_volume risk risk-execution sh -c 'cd /data/risk-execution && tar czf - *.json' ;;
     spire)        backup_spire ;;
     *)            fail "Unknown component: ${part}"; write_metric "$part" 0 ;;
   esac
@@ -228,6 +250,7 @@ prune_old
 # failure is counted by write_metric (component "manifest"): the run exits 1.
 $DRY_RUN || write_manifest || true
 upload_offsite
+write_sealed_key_timestamp
 finalize_metrics
 
 echo ""

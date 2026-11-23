@@ -3,7 +3,10 @@ import { EpisodeScores } from "@trading-model/model-runtime/episode-scores";
 import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
 import { barsPerYear } from "@trading-model/model-runtime/replay-metrics";
 import { Cash, Price } from "@trading-model/primitives/primitives";
-import { EVAL_EPSILON } from "../../../../src/domain/genetic-algorithm/evaluation-phase";
+import {
+	EVAL_EPSILON,
+	evalPhase,
+} from "../../../../src/domain/genetic-algorithm/evaluation-phase";
 import { evaluateGenomeAllWindows } from "../../../../src/domain/genetic-algorithm/evaluation-pipeline";
 import {
 	computeFitness,
@@ -205,6 +208,23 @@ describe("evaluation protocol", () => {
 		// the training backend keeps the genome's schedule
 		expect(seen[0]).toBe(1);
 		expect(new Set(seen.slice(1))).toEqual(new Set([EVAL_EPSILON]));
+	});
+
+	it("plays one greedy pass when asked, whatever episodesPerIndividual", () => {
+		const seen: number[] = [];
+		const genome = createDefaultGenome("g0_0") as DeepReadonly<LamarckGenome>;
+		const pnl = evalPhase({
+			genome,
+			validationData: steps(6),
+			greedy: true,
+			backendFactory: (evaluated) => {
+				seen.push(evaluated.rl.discretePolicy.epsilonStart);
+				return scriptedBackend(STEADY);
+			},
+		});
+
+		expect(seen).toEqual([0]);
+		expect(pnl.episodePnl).toHaveLength(1);
 	});
 
 	it("derives the bars per year from the median bar spacing", () => {

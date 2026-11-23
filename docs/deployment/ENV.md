@@ -20,7 +20,7 @@ Service abbreviation legend:
 
 ## Common — all services
 
-Defined in `@trading-model/validation` (`config/env` — `BaseEnvSchema`), validated at startup via `application/services/validate-env`.
+Defined in `@trading-model/http` (`config/env` — `BaseEnvSchema`), validated at startup via `application/services/validate-env`.
 
 | Variable        | Type                                           | Default                 | Required | Description                   | Services |
 | --------------- | ---------------------------------------------- | ----------------------- | -------- | ----------------------------- | -------- |
@@ -40,7 +40,7 @@ Defined in `@trading-model/validation` (`config/env` — `BaseEnvSchema`), valid
 
 Used by services that register with the discovery-server.
 
-Defined in `@trading-model/validation` (`config/address-manager-env` — `AddressManagerEnvSchema`), validated at startup via `application/services/validate-env`.
+Defined in `@trading-model/address-manager` (`config/address-manager-env` — `AddressManagerEnvSchema`), validated at startup via `application/services/validate-env`.
 
 | Variable                          | Type   | Default                         | Required | Description                                      | Services       |
 | --------------------------------- | ------ | ------------------------------- | -------- | ------------------------------------------------ | -------------- |
@@ -61,7 +61,7 @@ Defined in `@trading-model/validation` (`config/address-manager-env` — `Addres
 
 ## Redis — shared connection
 
-Defined in `@trading-model/validation` (`config/redis-env` — `RedisEnvSchema`), turned into a connection by `redisConnectionFromEnv` (`@trading-model/persistence/redis-env`). With `REDIS_SENTINELS` set the service goes through the sentinels (K8s HA); otherwise it falls back to `REDIS_URL` (compose, dev).
+Defined in `@trading-model/persistence/redis-env` (`RedisEnvSchema`) and turned into a connection by `redisConnectionFromEnv`. With `REDIS_SENTINELS` set the service goes through the sentinels (K8s HA); otherwise it falls back to `REDIS_URL` (compose, dev).
 
 | Variable                     | Type   | Default    | Required | Description                                                               | Services                |
 | ---------------------------- | ------ | ---------- | -------- | ------------------------------------------------------------------------- | ----------------------- |
@@ -73,6 +73,7 @@ Defined in `@trading-model/validation` (`config/redis-env` — `RedisEnvSchema`)
 | `REDIS_TLS_MODE` | `optional` | `required` | `optional` | no | `required`: TLS to Redis and the sentinels, needs `REDIS_TLS_CA` (release N+1, ADR-0047, `docs/deployment/REDIS_TLS.md`) | DS, MM, DLQ, AL, TT, ME |
 | `REDIS_TLS_CA` | path | — | with `required` | PEM CA of the Redis server certificates (K8s: `ca.crt` of Secret `redis-tls`) | DS, MM, DLQ, AL, TT, ME |
 | `REDIS_TLS_SERVERNAME` | string | `redis` | no | Name the Redis certificate must carry (nodes are reached by IP) | DS, MM, DLQ, AL, TT, ME |
+| `BUS_TRANSPORT` | `library` \| `http` | — | no | Bus transport (ADR-0073, `BusEnvSchema`): `library` = Redis Streams in process, refuses to start without `REDIS_URL` / `REDIS_SENTINELS`; `http` = message-manager, Redis settings ignored; unset = `library` when Redis is set (N-1 rule). Set by every deployment | AL, TT, ME |
 
 ---
 
@@ -140,6 +141,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `FEATURE_RISK_ADJUSTED_FITNESS`   | boolean      | `true`            | no       | Feature flag (ADR-0039): `false` forces fitness `total_pnl` whatever `TRAINER_FITNESS_TYPE` says. Invalid value: refused at startup | TT       |
 | `FEATURE_ACTION_SPACE_GENE`        | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076): `true` lets the GA mutate the action set (partial order sizes, recorded as `actions` in the manifest); `false`: `sell_hold_buy`, never mutated | TT       |
 | `FEATURE_EVENT_DRIVEN_DECISIONS`   | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076 §5): `true` makes the agent decide on market events (price move, volume) instead of every bar; network gets a 33rd input `BarsSinceDecision`. `false`: genome and manifest unchanged. Invalid value: refused at startup | TT       |
+| `TRAINER_SHARED_TRUNK_SYMBOLS_PER_GENERATION` | int | `0` | no | ADR-0076 step 1, read only with `FEATURE_SHARED_TRUNK`: symbols each generation trains and evaluates on, a rotating subset of the group (k in [1, number of symbols], refused above; `0`: `max(1, floor(N / 3))`; k = N: every symbol every generation) | TT       |
 | `TRAINER_SEED_OFFSET`             | int          | `0`               | no       | Added to the default PRNG seeds: same value and same data give the same run (A/B measures, ADR-0030) | TT       |
 | `TRAINER_OBSERVE_POSITION`        | boolean      | `true`            | no       | Show the agent its position (`false`: a constant input, to measure what it is worth, ADR-0025) | TT       |
 | `TRAINER_WALK_FORWARD_FOLDS`      | number (1-20)| `1`               | no       | Walk-forward folds per training run (ADR-0030); `1`: a single train/validation split | TT       |

@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "@jest/globals";
-import { Signal } from "@trading-model/validation/wire/signals";
+import { Signal } from "@trading-model/contracts/wire/signals";
 import {
 	loadSignalRegistry,
 	parseSignalRegistry,
@@ -82,6 +82,14 @@ describe("signal registry — the shipped file", () => {
 		});
 		expect(eia?.accessPolicy.maxRequestsPerDay).toBeDefined();
 		expect(SIGNAL_REGISTRY.assets.get("XLE")?.sector).toBe("energy");
+	});
+
+	it("freezes no calendar year in a request URL: {year} or a relative window", () => {
+		const urls = SIGNAL_REGISTRY.sources.flatMap((s) =>
+			s.requests.map((r) => r.url)
+		);
+
+		expect(urls.filter((url) => /(?<!\d)20\d\d(?!\d)/.test(url))).toEqual([]);
 	});
 
 	it("only holds free sources, Twelve Data alone is non-commercial", () => {

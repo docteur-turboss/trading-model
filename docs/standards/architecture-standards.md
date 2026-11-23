@@ -17,7 +17,6 @@ trading-model/
 │   ├── common/              # @trading-model/common
 │   ├── persistence/         # @trading-model/persistence
 │   ├── http/                # @trading-model/http
-│   ├── validation/          # @trading-model/validation
 │   ├── crypto/              # @trading-model/crypto
 │   ├── address-manager/     # @trading-model/address-manager
 │   └── broker-message/      # @trading-model/broker-message
@@ -68,7 +67,7 @@ All developers contributing to the codebase. Every architectural decision aims t
 | Formatting   | Biome                                                |
 | Linting      | Biome                                                |
 
-Layer boundaries (`application/` never imports `adapters/` or `infrastructure/`, except `index.ts`, `server.ts`, `telemetry.ts`) and the absence of runtime import cycles are enforced by `bun run arch:check`, ratcheted on `scripts/architecture-baseline.json` ([ADR-0015](../adr/0015-hexagonal-layering-completion.md)).
+Layer boundaries (`application/` never imports `adapters/` or `infrastructure/`, except `index.ts`, `server.ts`, `telemetry.ts`; `domain/` imports neither `adapters/`, `infrastructure/`, `application/`, `config/` nor `express`, `ioredis`, `mongodb`, `mysql2`, `prom-client`: metrics reach `domain/` through an injected port, while a direct `config/metrics` import stays tolerated in `application/`) and the absence of runtime import cycles are enforced by `bun run arch:check`, ratcheted on `scripts/architecture-baseline.json` ([ADR-0015](../adr/0015-hexagonal-layering-completion.md)).
 
 ## Dependency Graph
 
@@ -80,15 +79,15 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 
 | Service | Dependencies |
 | --- | --- |
-| api-gateway | common, contracts, http, primitives, validation |
-| audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives, validation |
-| discovery-server | common, contracts, crypto, http, persistence, primitives, validation |
-| dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability, validation |
-| model-evaluator | address-manager, broker-message, common, contracts, http, model-runtime, primitives, validation |
-| risk-execution | address-manager, broker-message, common, contracts, http, primitives, validation |
-| financial-scraper | address-manager, common, contracts, crypto, http, primitives, reliability, validation |
-| message-manager | address-manager, broker-message, common, contracts, http, persistence, primitives, reliability, validation |
-| trader-trainer | address-manager, broker-message, common, contracts, crypto, http, model-runtime, primitives, reliability, validation |
+| api-gateway | common, contracts, http, primitives |
+| audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives |
+| discovery-server | common, contracts, crypto, http, persistence, primitives |
+| dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability |
+| model-evaluator | address-manager, broker-message, common, contracts, http, model-runtime, persistence, primitives |
+| risk-execution | address-manager, broker-message, common, contracts, http, model-runtime, primitives |
+| financial-scraper | address-manager, common, contracts, crypto, http, persistence, primitives, reliability |
+| message-manager | address-manager, broker-message, common, contracts, http, persistence, primitives, reliability |
+| trader-trainer | address-manager, broker-message, common, contracts, crypto, http, model-runtime, persistence, primitives, reliability |
 
 There is no frontend workspace: `admin-interface` was removed until a new one is specified ([ADR-0018](../adr/0018-temporary-frontend-removal.md)). A future frontend talks to the backend only through the **api-gateway**.
 
@@ -230,7 +229,7 @@ Each package declares its exports via the `exports` field in `package.json`. Ent
 
 > Post-split (2026-10), `common` no longer exports `middleware/`, `worker/`, `recovery/`, `reliability/`, `domain/`, `crl/`, `persistence/`, `http-headers`, `http-status` or `contracts/`. Those live in `@trading-model/primitives`, `@trading-model/contracts`, `@trading-model/reliability`, `@trading-model/persistence` and `@trading-model/http` respectively (`worker/` and `recovery/` went to `@trading-model/jobs`, removed by ADR-0029). See the [package map](../services/common.md#package-map-post-split).
 
-**@trading-model/validation**, **@trading-model/crypto**, **@trading-model/address-manager** and **@trading-model/broker-message** (simplified exports):
+**@trading-model/crypto**, **@trading-model/address-manager** and **@trading-model/broker-message** (simplified exports):
 
 ```json
 {

@@ -56,7 +56,10 @@ If multiple services were deployed together, re-run the `Deploy` workflow from
 the git ref of the last known-good release, with its image tag. It re-applies
 the whole overlay of that release (configuration, CronJobs, policies...) pinned
 to its digests. `kubectl set image` would only change the image and keep the
-new configuration.
+new configuration. If GHCR or Sigstore (Fulcio/Rekor) is unavailable, the
+workflow fails at `Resolve image digests` / `Verify image signatures` before any
+change: use `kubectl rollout undo` per service instead (see "Rollback to
+Specific Version"; images stay cached on the nodes).
 
 ```bash
 gh workflow run deploy.yml --ref v<previous-stable> \
@@ -98,13 +101,6 @@ Limits:
 - Expand/contract (ADR-0040): N+1 only adds, so N normally runs on the N+1
   schema and a schema rollback is rarely needed.
 - A failed run resumes at the failed statement: check `_migration_steps` before rerunning.
-
-## Canary Deployment Rollback (via deploy scripts)
-
-```bash
-# Manual rollback for K8s
-./deploy/k8s/scripts/deploy-k8s.sh rollback <service>
-```
 
 ## Root Cause Investigation
 

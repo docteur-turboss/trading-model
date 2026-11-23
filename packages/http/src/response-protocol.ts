@@ -1,4 +1,3 @@
-import { anonymizeIp } from "@trading-model/common/utils/anonymize-ip";
 import { isAppError } from "@trading-model/common/utils/errors";
 import {
 	HTTP_STATUS,
@@ -13,10 +12,30 @@ type ErrorInput = Error | ResponseObject;
 /** Body of an error nobody anticipated: its message stays in the logs. */
 const UNEXPECTED_ERROR = "Internal server error";
 
+/** body-parser (http-errors) flags a client mistake with `expose` and a 4xx `status`. */
+function isClientBodyError(err: Error): err is Error & { status: number } {
+	const { status, expose } = err as { status?: unknown; expose?: unknown };
+	return (
+		expose === true &&
+		typeof status === "number" &&
+		status >= 400 &&
+		status < 500
+	);
+}
+
 function mapErrorToResponse(err: Error): ResponseObject {
-	return isAppError(err)
-		? { status: err.httpStatus as HttpStatusCode, data: err.message }
-		: { status: HTTP_STATUS.INTERNAL_SERVER_ERROR, data: UNEXPECTED_ERROR };
+	if (isAppError(err)) {
+		return { status: err.httpStatus as HttpStatusCode, data: err.message };
+	}
+	if (isClientBodyError(err)) {
+		// generic text: the parser message can echo part of the body
+		return {
+			status: err.status as HttpStatusCode,
+			data:
+				err.status === 413 ? "Request body too large" : "Invalid request body",
+		};
+	}
+	return { status: HTTP_STATUS.INTERNAL_SERVER_ERROR, data: UNEXPECTED_ERROR };
 }
 
 /**
@@ -32,21 +51,28 @@ function logServerError(
 	req: Request,
 	response: ResponseObject
 ): void {
-	if (response.status < 500) {
+	if (response.status === HTTP_STATUS.NOT_FOUND || response.status < 400) {
 		return;
 	}
+	const serverError = response.status >= 500;
 	const originalError = err instanceof Error ? err : undefined;
-	logger.error("Server error", {
-		context: {
-			message: originalError?.message,
-			stack: originalError?.stack,
-			correlationId: req.correlationId,
-			// path only: the query string may carry secrets
-			url: req.originalUrl.split("?")[0],
-			method: req.method,
-			ip: anonymizeIp(req.ip),
-		},
-	});
+	const context = {
+		// a body-parser message can echo the body: warn lines only get an AppError's
+		message:
+			serverError || isAppError(err) ? originalError?.message : undefined,
+		correlationId: req.correlationId,
+		// path only: the query string may carry secrets
+		url: req.originalUrl.split("?")[0],
+		method: req.method,
+		status: response.status,
+	};
+	if (serverError) {
+		logger.error("Server error", {
+			context: { ...context, stack: originalError?.stack },
+		});
+	} else {
+		logger.warn("Client error", { context });
+	}
 }
 
 /** Maps an error to the HTTP response sent to the client. */

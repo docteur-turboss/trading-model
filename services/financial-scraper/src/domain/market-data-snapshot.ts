@@ -1,10 +1,8 @@
 import type { CandleInterval } from "@trading-model/contracts/market-data.types";
 import type {
 	Limit,
-	Price,
 	TradingSymbol,
 	UnixTimestamp,
-	Volume,
 } from "@trading-model/primitives/primitives";
 import type {
 	CandleData,
@@ -22,14 +20,8 @@ export interface SnapshotRequest {
 	candleStartTime?: UnixTimestamp;
 	tradeLimit?: Limit;
 	orderBookLimit?: Limit;
-}
-
-interface BookTickerQuote {
-	symbol: TradingSymbol;
-	bid: Price;
-	ask: Price;
-	bidQty: Volume;
-	askQty: Volume;
+	/** Fires when the cycle must stop: in-flight requests are cancelled and not retried. */
+	signal?: AbortSignal;
 }
 
 /**
@@ -42,8 +34,6 @@ export interface MarketDataSnapshot {
 	recentTrades?: TradeData[];
 	candles?: CandleData[];
 	ticker24h?: TickerData[];
-	priceTicker?: Record<TradingSymbol, Price>;
-	bookTicker?: BookTickerQuote[];
 	fetchedAt: number;
 }
 

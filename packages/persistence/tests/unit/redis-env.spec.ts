@@ -1,5 +1,9 @@
 import { describe, expect, it } from "@jest/globals";
-import { parseRedisNodes, redisConnectionFromEnv } from "../../src/redis-env";
+import {
+	parseRedisNodes,
+	RedisEnvSchema,
+	redisConnectionFromEnv,
+} from "../../src/redis-env";
 
 const K8S_SENTINELS =
 	"redis-sentinel-0.redis-sentinel-headless:26379, redis-sentinel-1.redis-sentinel-headless:26379";
@@ -142,5 +146,16 @@ describe("redisConnectionFromEnv", () => {
 	it("should leave Redis off when nothing is configured", () => {
 		expect(redisConnectionFromEnv({ REDIS_URL: "" })).toBeUndefined();
 		expect(redisConnectionFromEnv({})).toBeUndefined();
+	});
+});
+
+describe("RedisEnvSchema", () => {
+	it("accepts the sentinel settings", () => {
+		const result = RedisEnvSchema.parse({
+			REDIS_SENTINELS: "10.0.0.1:26379,redis-sentinel:26379",
+			REDIS_SENTINEL_MASTER_NAME: "mymaster",
+		});
+		expect(result.REDIS_SENTINELS).toBe("10.0.0.1:26379,redis-sentinel:26379");
+		expect(result.REDIS_URL).toBeUndefined();
 	});
 });

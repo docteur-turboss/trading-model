@@ -59,6 +59,16 @@ patches:
       kind: CronJob
       name: db-backup-incremental
     patch: *min-recipients
+  # Alert SealedSecretsKeyBackupStale: the daily job lists the key backups of the bucket.
+  - target:
+      kind: CronJob
+      name: db-backup
+    patch: |-
+      - op: add
+        path: /spec/jobTemplate/spec/template/spec/containers/0/env/-
+        value:
+          name: BACKUP_SEALED_KEY_CHECK
+          value: "true"
   # Alerting path in HA (issue #809, ADR-0062): 2 Alertmanagers gossiping on
   # 9094 (the notification is deduplicated by the cluster) and 2 identical
   # Prometheus, each sending to every Alertmanager pod. Spread over two nodes.

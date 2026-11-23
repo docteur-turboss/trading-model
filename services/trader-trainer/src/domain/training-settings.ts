@@ -24,6 +24,8 @@ export interface TrainingSettings {
 	eventDriven?: boolean;
 	/** FEATURE_INPUT_MASK_GENE (ADR-0082): names of the input groups the genome masks. */
 	inputGroups?: string[];
+	/** FEATURE_SHARED_TRUNK (ADR-0076 step 1): symbols per generation, in [1, N] of the group; absent: all. */
+	symbolsPerGeneration?: number;
 	/** ADR-0082: the candle group stays active in every mask. */
 	protectCandleGroup?: boolean;
 	/**
@@ -41,4 +43,17 @@ export function effectiveFitnessType(settings: {
 	return settings.FEATURE_RISK_ADJUSTED_FITNESS === false
 		? FitnessType.TotalPnl
 		: settings.TRAINER_FITNESS_TYPE;
+}
+
+/** Symbols per generation of a shared-trunk group of `total` (ADR-0076 step 1): `count` in [1, total], 0 or absent: `max(1, floor(total / 3))`. */
+export function symbolsPerGeneration(
+	count: number | undefined,
+	total: number
+): number {
+	if (count && count > total) {
+		throw new Error(
+			`TRAINER_SHARED_TRUNK_SYMBOLS_PER_GENERATION=${count} must be in [1, ${total}] (the number of symbols)`
+		);
+	}
+	return count || Math.max(1, Math.floor(total / 3));
 }

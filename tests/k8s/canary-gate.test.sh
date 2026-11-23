@@ -83,4 +83,16 @@ if run; then failed "error-rate service should fail"; else pass "gate fails"; fi
 grep -q "api-gateway-canary error rate 90%" "$WORK/out" && pass "reports the error rate" || failed "wrong message"
 deleted_all && pass "every canary removed" || failed "canary left behind"
 
+echo "verified digests file"
+metrics api-gateway 100 0; metrics audit-logger 50 0; rm -f "$WORK/metrics/dlq-service"
+printf 'api-gateway sha256:aaa
+dlq-service sha256:bbb
+' >"$WORK/digests"
+export CANARY_DIGESTS_FILE="$WORK/digests"
+if run; then failed "service missing from the digests file should fail"; else pass "gate fails"; fi
+grep -q "No verified digest for audit-logger" "$WORK/out" && pass "names the missing digest" || failed "wrong message"
+printf 'audit-logger sha256:ccc
+' >>"$WORK/digests"
+run && grep -q "image .*/api-gateway@sha256:aaa" "$WORK/out" && pass "canary runs the verified digest" || { failed "digest not used"; cat "$WORK/out"; }
+
 exit "$FAILED"

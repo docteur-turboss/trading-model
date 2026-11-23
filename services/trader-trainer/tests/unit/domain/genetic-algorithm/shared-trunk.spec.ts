@@ -6,9 +6,13 @@ import {
 	runInProcess,
 	type TrainingSessionResult,
 } from "../../../../src/application/training-session";
+import * as pipeline from "../../../../src/domain/genetic-algorithm/evaluation-pipeline";
+import { createDefaultGenome } from "../../../../src/domain/genetic-algorithm/factory";
+import { GenerationProcessor } from "../../../../src/domain/genetic-algorithm/generation-processor";
 import { FitnessType } from "../../../../src/domain/genetic-algorithm/genome";
 import { makeSeededBackendFactory } from "../../../../src/domain/genetic-algorithm/rl-backend";
 import {
+	rotatingWindowSets,
 	trunkSha256,
 	withHeadOf,
 } from "../../../../src/domain/genetic-algorithm/shared-trunk";
@@ -17,7 +21,10 @@ import {
 	buildModelManifest,
 	type NewModelArtifact,
 } from "../../../../src/domain/model-artifact";
-import type { TrainingSettings } from "../../../../src/domain/training-settings";
+import {
+	symbolsPerGeneration,
+	type TrainingSettings,
+} from "../../../../src/domain/training-settings";
 import { feedCandles } from "../../../fixtures/market-data.fixture";
 
 jest.mock("../../../../src/config/metrics", () => {
@@ -55,6 +62,7 @@ async function run(
 	const saved: NewModelArtifact[] = [];
 	let session: TrainingSessionResult | undefined;
 	const models = {
+		list: async () => [],
 		save: async (artifact: NewModelArtifact) => {
 			if (artifact.symbol === options.failSave) {
 				throw new Error("disk full");
@@ -153,4 +161,80 @@ describe("FEATURE_SHARED_TRUNK", () => {
 			"mixes daily and intraday"
 		);
 	}, 120_000);
+});
+
+describe("symbolsPerGeneration", () => {
+	it("defaults to max(1, floor(N / 3)), refuses k above N", () => {
+		expect(symbolsPerGeneration(0, 10)).toBe(3);
+		expect(symbolsPerGeneration(0, 2)).toBe(1);
+		expect(symbolsPerGeneration(10, 10)).toBe(10);
+		expect(() => symbolsPerGeneration(11, 10)).toThrow(/\[1, 10\]/);
+	});
+});
+
+describe("rotatingWindowSets", () => {
+	const sets = ["A", "B", "C", "D", "E"].map((symbol) => ({ symbol }));
+	const pick = (k: number | undefined, seed: number, generation: number) =>
+		rotatingWindowSets(sets, k, seed, generation).map((ws) => ws.symbol);
+
+	it("k = N, absent or without symbols: every window, same array", () => {
+		expect(rotatingWindowSets(sets, 5, 0, 3)).toBe(sets);
+		expect(rotatingWindowSets(sets, undefined, 0, 3)).toBe(sets);
+		const plain = [{ id: 1 } as { symbol?: string }];
+		expect(rotatingWindowSets(plain, 1, 0, 1)).toBe(plain);
+	});
+
+	it("k < N: deterministic, k symbols, each seen the same number of times to one", () => {
+		const counts = new Map<string, number>();
+		for (let generation = 1; generation <= 12; generation++) {
+			const picked = pick(2, 7, generation);
+			expect(picked).toEqual(pick(2, 7, generation));
+			expect(picked).toHaveLength(2);
+			for (const symbol of picked) {
+				counts.set(symbol as string, (counts.get(symbol as string) ?? 0) + 1);
+			}
+		}
+		const seen = [...counts.values()];
+		expect(Math.max(...seen) - Math.min(...seen)).toBeLessThanOrEqual(1);
+		expect(counts.size).toBe(5);
+	});
+});
+
+describe("selectOnAllSymbols", () => {
+	it("k < N: publishes the archive member best on all symbols, not on its slice", async () => {
+		const windowSets = ["A", "B", "C"].map((symbol) => ({ symbol })) as any[];
+		const cfg = { windowSets, symbolsPerGeneration: 1 } as any;
+		const [lucky, robust] = [
+			createDefaultGenome("a"),
+			createDefaultGenome("b"),
+		];
+		const processor = new GenerationProcessor(cfg);
+		(processor as any)._archive.update(
+			[lucky, robust],
+			[
+				{ avgPnl: 9, sharpe: 0, negFlops: 0 },
+				{ avgPnl: 1, sharpe: 9, negFlops: 0 },
+			],
+			[{ fitness: 9 }, { fitness: 1 }]
+		);
+		expect(processor.archiveBest?.genome).toBe(lucky);
+		const score = new Map([
+			[lucky, 0],
+			[robust, 5],
+		]);
+		const spy = jest
+			.spyOn(pipeline, "evaluateGenomeAllWindows")
+			.mockImplementation(((genome: any, sets: any[]) => {
+				expect(sets).toBe(windowSets);
+				return Promise.resolve({
+					updatedGenome: genome,
+					meta: { efficiencyScore: score.get(genome) },
+					objectives: {},
+				});
+			}) as any);
+		await processor.selectOnAllSymbols();
+		spy.mockRestore();
+		expect(processor.archiveBest?.genome).toBe(robust);
+		expect(processor.archiveBest?.fitness).toBe(5);
+	});
 });

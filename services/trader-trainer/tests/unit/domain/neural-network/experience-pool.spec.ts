@@ -37,7 +37,6 @@ describe("createExperiencePool", () => {
 			pool.clearPool();
 
 			expect(pool.getPoolSize()).toBe(0);
-			expect(pool.getPool()).toEqual([]);
 			expect(pool.samplePool(3)).toEqual([]);
 		});
 	});
@@ -51,7 +50,7 @@ describe("createExperiencePool", () => {
 			pool.add(makeExperience(3));
 
 			expect(pool.getPoolSize()).toBe(2);
-			expect(pool.getPool()).not.toContain(first);
+			expect(new Set(pool.samplePool(2))).not.toContain(first);
 		});
 
 		it("should sample a batch without exceeding the pool", () => {
@@ -66,14 +65,15 @@ describe("createExperiencePool", () => {
 
 		it("should sample distinct live experiences after eviction", () => {
 			const pool = createExperiencePool(true, 4, undefined, makePRNG(7));
-			for (let i = 0; i < 9; i++) {
-				pool.add(makeExperience(i));
+			const live = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(makeExperience);
+			for (const exp of live) {
+				pool.add(exp);
 			}
 
 			const batch = pool.samplePool(4);
 
 			expect(new Set(batch).size).toBe(4);
-			expect(batch.every((exp) => pool.getPool().includes(exp))).toBe(true);
+			expect(batch.every((exp) => live.slice(5).includes(exp))).toBe(true);
 		});
 
 		it("should clear the pool", () => {
@@ -301,6 +301,20 @@ describe("createExperiencePool", () => {
 
 			expect(new Set(ids)).toEqual(new Set([2, 3]));
 			expect([...weights].every((weight) => weight === 1)).toBe(true);
+		});
+
+		it("should keep sampling live experiences once a non-power-of-two pool wrapped", () => {
+			const pool = createPrioritizedExperiencePool(3, PER, makePRNG(5));
+			const added = [0, 1, 2, 3, 4].map(makeExperience);
+			for (const exp of added) {
+				pool.add(exp);
+			}
+			pool.updatePriorities([2, 3, 4], [1, 5, 50]);
+
+			const { experiences, ids } = pool.sampleWithWeights(200);
+
+			expect(new Set(ids)).toEqual(new Set([2, 3, 4]));
+			expect(experiences.every((exp, i) => exp === added[ids[i]])).toBe(true);
 		});
 
 		it("should reset priorities on clear", () => {

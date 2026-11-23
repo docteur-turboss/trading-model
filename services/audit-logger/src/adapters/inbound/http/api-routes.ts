@@ -1,5 +1,5 @@
+import { brand } from "@trading-model/contracts/wire/brand";
 import {
-	brand,
 	defineRoute,
 	ErrorResponse,
 } from "@trading-model/http/api-route/api-route";

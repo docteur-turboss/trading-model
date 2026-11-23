@@ -1,13 +1,16 @@
+import { brand } from "@trading-model/contracts/wire/brand";
 import {
 	binary,
-	brand,
 	defineRoute,
 	ErrorResponse,
 } from "@trading-model/http/api-route/api-route";
+import {
+	ModelManifestSchema,
+	ModelMetricsSchema,
+} from "@trading-model/model-runtime/model-manifest";
 import { toSymbol } from "@trading-model/primitives/primitives";
 import { z } from "zod";
 import {
-	MODEL_FORMAT_VERSION,
 	MODEL_SYMBOL_PATTERN,
 	MODEL_VERSION_PATTERN,
 } from "../../../domain/model-artifact";
@@ -57,17 +60,6 @@ const BestAgentSummary = z.object({
 	}),
 });
 
-const ModelMetrics = z.object({
-	/** 2: wallet PnL, annualised Sharpe (ADR-0025); absent: older metrics, not comparable. */
-	metricsVersion: z.number().int().optional(),
-	generation: z.number().int(),
-	fitness: z.number(),
-	sharpe: z.number(),
-	avgPnl: z.number(),
-	maxDrawdown: z.number().nonnegative(),
-	evaluatedOn: z.enum(["validation", "test"]).optional(),
-});
-
 const SHA256 = z.string().regex(/^[0-9a-f]{64}$/);
 
 /** A stored version of a model, without its manifest body. */
@@ -77,66 +69,7 @@ const ModelSummary = z.object({
 	createdAt: z.iso.datetime(),
 	/** sha256 of the weights file: check a download against it. */
 	sha256: SHA256,
-	metrics: ModelMetrics,
-});
-
-/** Everything needed to rebuild and run the agent, except its weights. */
-const ModelManifest = z.object({
-	formatVersion: z.literal(MODEL_FORMAT_VERSION),
-	symbol: z.string(),
-	version: z.string(),
-	createdAt: z.iso.datetime(),
-	producedBy: z.object({ instanceId: z.string() }),
-	weights: z.object({
-		file: z.literal("weights.f32"),
-		dtype: z.literal("float32-le"),
-		length: z.number().int(),
-		sha256: SHA256,
-	}),
-	/** The best genome without weights: network topology, RL and GA genes. */
-	genome: z.record(z.string(), z.unknown()),
-	/** `fields[i]` is the meaning of input `i` of the network. */
-	features: z.object({ dim: z.number().int(), fields: z.array(z.string()) }),
-	/** Normalization statistics of the symbol at the end of training. */
-	normalization: z.record(z.string(), z.unknown()),
-	/** Constraint the policy learned under; absent on older manifests (unbounded). */
-	riskLimits: z.object({ maxExposureFraction: z.number() }).optional(),
-	metrics: ModelMetrics,
-	/** ADR-0030 verdict on the test segment (ADR-0069); absent: not admissible. */
-	admission: z
-		.object({
-			admissible: z.boolean(),
-			evaluatedOn: z.literal("test"),
-			criteria: z.object({
-				sharpe: z.number(),
-				sortino: z.number(),
-				calmar: z.number(),
-				buyAndHoldSharpe: z.number(),
-			}),
-			thresholds: z.object({
-				minSharpe: z.number(),
-				minSortino: z.number(),
-				minCalmar: z.number(),
-			}),
-		})
-		.optional(),
-	/** Window and simulator to replay the model (ADR-0079); absent on older manifests. */
-	replay: z
-		.object({
-			from: z.number().int(),
-			testFrom: z.number().int(),
-			to: z.number().int(),
-			intervalMs: z.number().int(),
-			evalEpsilon: z.number(),
-			simulator: z.object({
-				initialCash: z.number(),
-				feeRate: z.number(),
-				executionCostRate: z.number(),
-				tradeFraction: z.number(),
-				observePosition: z.boolean(),
-			}),
-		})
-		.optional(),
+	metrics: ModelMetricsSchema,
 });
 
 const MODEL_SYMBOL = z.string().regex(MODEL_SYMBOL_PATTERN);
@@ -224,7 +157,7 @@ export const TRAINER_API = {
 		summary: "Manifest of a model version (everything but the weights)",
 		params: MODEL,
 		responses: {
-			200: z.object({ data: ModelManifest }),
+			200: z.object({ data: ModelManifestSchema }),
 			400: ErrorResponse,
 			404: ErrorResponse,
 		},

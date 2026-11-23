@@ -1,10 +1,10 @@
+import { AddressManagerEnvSchema } from "@trading-model/address-manager/config/address-manager-env";
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
-import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
-import { BaseEnvSchema } from "@trading-model/validation/config/env";
-import { featureFlag } from "@trading-model/validation/config/feature-flags";
-import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
-import { validateEnv } from "@trading-model/validation/config/validate-env";
-import { AssetType } from "@trading-model/validation/wire/signals";
+import { AssetType } from "@trading-model/contracts/wire/signals";
+import { BaseEnvSchema } from "@trading-model/http/config/env";
+import { featureFlag } from "@trading-model/http/config/feature-flags";
+import { validateEnv } from "@trading-model/http/config/validate-env";
+import { BusEnvSchema } from "@trading-model/persistence/redis-env";
 import { z } from "zod";
 import { FitnessType } from "../../domain/genetic-algorithm/genome-control";
 import { SIGNAL_KEY_PATTERN } from "../../domain/signal-features";
@@ -55,6 +55,12 @@ const TRAINER_ENV_SHAPE = {
 	TRAINER_INPUT_MASK_PROTECT_CANDLE: featureFlag(false),
 	/** Feature flag (ADR-0039, ADR-0076 step 1): true trains all the symbols in one session, hidden layers shared, one head per symbol; false: one session per symbol. */
 	FEATURE_SHARED_TRUNK: featureFlag(false),
+	/** ADR-0076 step 1: symbols each generation trains on, in [1, number of symbols]; 0: max(1, floor(N / 3)); read only with FEATURE_SHARED_TRUNK. */
+	TRAINER_SHARED_TRUNK_SYMBOLS_PER_GENERATION: z.coerce
+		.number()
+		.int()
+		.min(0)
+		.default(0),
 	/** Model artifacts (ADR-0022): on the checkpoint volume shared by the replicas. */
 	TRAINER_MODEL_DIR: z.string().min(1).default("/data/checkpoints/models"),
 	TRAINER_MODEL_RETENTION: z.coerce.number().int().min(1).default(20),
@@ -100,7 +106,7 @@ const TRAINER_ENV_SHAPE = {
 export const TRADER_TRAINER_ENV_SCHEMA = BaseEnvSchema.merge(
 	AddressManagerEnvSchema
 )
-	.extend(RedisEnvSchema.shape)
+	.extend(BusEnvSchema.shape)
 	.extend(TRAINER_ENV_SHAPE);
 
 export const ENV = validateEnv(TRADER_TRAINER_ENV_SCHEMA);

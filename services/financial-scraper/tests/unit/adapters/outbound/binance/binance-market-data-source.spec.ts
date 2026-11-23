@@ -20,9 +20,7 @@ jest.mock(
 		getOrderBook: jest.fn<(...args: any[]) => any>(),
 		getCandlestickData: jest.fn<(...args: any[]) => any>(),
 		getRecentTrades: jest.fn<(...args: any[]) => any>(),
-		getOrderBookTicker: jest.fn<(...args: any[]) => any>(),
 		get24hrTickerStats: jest.fn<(...args: any[]) => any>(),
-		getSymbolPriceTicker: jest.fn<(...args: any[]) => any>(),
 	})
 );
 
@@ -54,20 +52,6 @@ jest.mock(
 	})
 );
 
-jest.mock(
-	"../../../../../src/adapters/outbound/binance/normalizers/price-ticker",
-	() => ({
-		normalizePriceTicker: jest.fn<(...args: any[]) => any>(),
-	})
-);
-
-jest.mock(
-	"../../../../../src/adapters/outbound/binance/normalizers/book-ticker",
-	() => ({
-		normalizeBookTicker: jest.fn<(...args: any[]) => any>(),
-	})
-);
-
 jest.mock("@trading-model/http/logger", () => ({
 	logger: {
 		warn: jest.fn<(...args: any[]) => any>(),
@@ -79,10 +63,8 @@ jest.mock("@trading-model/http/logger", () => ({
 
 import * as binanceClient from "../../../../../src/adapters/outbound/binance/binance.client";
 import { BinanceMarketDataSource } from "../../../../../src/adapters/outbound/binance/binance-market-data-source";
-import { normalizeBookTicker } from "../../../../../src/adapters/outbound/binance/normalizers/book-ticker";
 import { normalizeCandles } from "../../../../../src/adapters/outbound/binance/normalizers/candles";
 import { normalizeOrderBook } from "../../../../../src/adapters/outbound/binance/normalizers/order-book";
-import { normalizePriceTicker } from "../../../../../src/adapters/outbound/binance/normalizers/price-ticker";
 import { normalizeTicker24h } from "../../../../../src/adapters/outbound/binance/normalizers/ticker";
 import { normalizeTrades } from "../../../../../src/adapters/outbound/binance/normalizers/trades";
 import { SNAPSHOT_PARTS_FAILED_TOTAL } from "../../../../../src/config/metrics";
@@ -97,18 +79,12 @@ const LIMIT_100 = Limit.of(100, 5000);
 const MOCK_GET_ORDER_BOOK = jest.mocked(binanceClient.getOrderBook);
 const MOCK_CANDLESTICK_DATA = jest.mocked(binanceClient.getCandlestickData);
 const MOCK_RECENT_TRADES = jest.mocked(binanceClient.getRecentTrades);
-const MOCK_ORDER_BOOK_TICKER = jest.mocked(binanceClient.getOrderBookTicker);
 const MOCK24HR_TICKER_STATS = jest.mocked(binanceClient.get24hrTickerStats);
-const MOCK_SYMBOL_PRICE_TICKER = jest.mocked(
-	binanceClient.getSymbolPriceTicker
-);
 
 const MOCK_NORMALIZER_ORDER_BOOK = jest.mocked(normalizeOrderBook);
 const MOCK_NORMALIZER_TRADES = jest.mocked(normalizeTrades);
 const MOCK_NORMALIZER_CANDLES = jest.mocked(normalizeCandles);
 const MOCK_NORMALIZER_TICKER24H = jest.mocked(normalizeTicker24h);
-const MOCK_NORMALIZER_PRICE_TICKER = jest.mocked(normalizePriceTicker);
-const MOCK_NORMALIZER_BOOK_TICKER = jest.mocked(normalizeBookTicker);
 
 describe("BinanceMarketDataSource", () => {
 	const source = new BinanceMarketDataSource();
@@ -127,8 +103,6 @@ describe("BinanceMarketDataSource", () => {
 			{ symbol: BTC, interval: CandleInterval.Min1, closeTimestamp: 1 },
 		],
 		ticker24h: [{ symbol: BTC }],
-		priceTicker: { BTCUSDT: 50000 },
-		bookTicker: [{ symbol: BTC }],
 	};
 
 	beforeEach(() => {
@@ -141,9 +115,7 @@ describe("BinanceMarketDataSource", () => {
 		});
 		MOCK_CANDLESTICK_DATA.mockResolvedValue([]);
 		MOCK_RECENT_TRADES.mockResolvedValue([]);
-		MOCK_ORDER_BOOK_TICKER.mockResolvedValue([]);
 		MOCK24HR_TICKER_STATS.mockResolvedValue([]);
-		MOCK_SYMBOL_PRICE_TICKER.mockResolvedValue([]);
 
 		MOCK_NORMALIZER_ORDER_BOOK.mockReturnValue(
 			mockNormalized.orderBook as never
@@ -155,12 +127,6 @@ describe("BinanceMarketDataSource", () => {
 		MOCK_NORMALIZER_TICKER24H.mockReturnValue(
 			mockNormalized.ticker24h as never
 		);
-		MOCK_NORMALIZER_PRICE_TICKER.mockReturnValue(
-			mockNormalized.priceTicker as never
-		);
-		MOCK_NORMALIZER_BOOK_TICKER.mockReturnValue(
-			mockNormalized.bookTicker as never
-		);
 	});
 
 	it("should identify itself as the Binance source", () => {
@@ -170,17 +136,13 @@ describe("BinanceMarketDataSource", () => {
 	describe("beginCycle", () => {
 		it("fetches each ticker endpoint once for all symbols and isolates a missing one", async () => {
 			MOCK24HR_TICKER_STATS.mockResolvedValueOnce([{ symbol: BTC }] as any);
-			MOCK_SYMBOL_PRICE_TICKER.mockResolvedValueOnce([{ symbol: BTC }] as any);
-			MOCK_ORDER_BOOK_TICKER.mockResolvedValueOnce([{ symbol: BTC }] as any);
 			const cycle = new BinanceMarketDataSource();
 			cycle.beginCycle([BTC, ETH]);
 			await cycle.fetchSnapshot({ symbol: BTC });
 			const eth = await cycle.fetchSnapshot({ symbol: ETH });
 
 			expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledTimes(1);
-			expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith([BTC, ETH]);
-			expect(MOCK_SYMBOL_PRICE_TICKER).toHaveBeenCalledTimes(1);
-			expect(MOCK_ORDER_BOOK_TICKER).toHaveBeenCalledTimes(1);
+			expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith([BTC, ETH], undefined);
 			expect(eth.ticker24h).toBeUndefined();
 		});
 	});
@@ -189,29 +151,36 @@ describe("BinanceMarketDataSource", () => {
 		const many = Array.from({ length: 101 }, (_, i) => `S${i}USDT`) as any[];
 		new BinanceMarketDataSource().beginCycle(many);
 
-		expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith(undefined);
+		expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith(undefined, undefined);
 	});
 
 	describe("fetchSnapshot", () => {
 		it("should call all 6 Binance client functions in parallel", async () => {
 			await source.fetchSnapshot(request);
 
-			expect(MOCK_GET_ORDER_BOOK).toHaveBeenCalledWith({
-				symbol: BTC,
-				limit: LIMIT_10,
-			});
-			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith({
-				symbol: BTC,
-				limit: LIMIT_50,
-			});
-			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith({
-				symbol: BTC,
-				limit: LIMIT_50,
-				interval: CandleInterval.Min1,
-			});
-			expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith([BTC]);
-			expect(MOCK_SYMBOL_PRICE_TICKER).toHaveBeenCalledWith([BTC]);
-			expect(MOCK_ORDER_BOOK_TICKER).toHaveBeenCalledWith([BTC]);
+			expect(MOCK_GET_ORDER_BOOK).toHaveBeenCalledWith(
+				{
+					symbol: BTC,
+					limit: LIMIT_10,
+				},
+				undefined
+			);
+			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith(
+				{
+					symbol: BTC,
+					limit: LIMIT_50,
+				},
+				undefined
+			);
+			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith(
+				{
+					symbol: BTC,
+					limit: LIMIT_50,
+					interval: CandleInterval.Min1,
+				},
+				undefined
+			);
+			expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith([BTC], undefined);
 		});
 
 		it("should fetch candles from the given start time", async () => {
@@ -223,7 +192,8 @@ describe("BinanceMarketDataSource", () => {
 			});
 
 			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith(
-				expect.objectContaining({ startTime })
+				expect.objectContaining({ startTime }),
+				undefined
 			);
 		});
 
@@ -245,8 +215,6 @@ describe("BinanceMarketDataSource", () => {
 			expect(MOCK_NORMALIZER_TRADES).toHaveBeenCalled();
 			expect(MOCK_NORMALIZER_CANDLES).toHaveBeenCalled();
 			expect(MOCK_NORMALIZER_TICKER24H).toHaveBeenCalled();
-			expect(MOCK_NORMALIZER_PRICE_TICKER).toHaveBeenCalled();
-			expect(MOCK_NORMALIZER_BOOK_TICKER).toHaveBeenCalled();
 		});
 
 		it("should return normalized result with fetchedAt", async () => {
@@ -256,8 +224,6 @@ describe("BinanceMarketDataSource", () => {
 			expect(result.recentTrades).toEqual(mockNormalized.recentTrades);
 			expect(result.candles).toEqual(mockNormalized.candles);
 			expect(result.ticker24h).toEqual(mockNormalized.ticker24h);
-			expect(result.priceTicker).toEqual(mockNormalized.priceTicker);
-			expect(result.bookTicker).toEqual(mockNormalized.bookTicker);
 			expect(typeof result.fetchedAt).toBe("number");
 		});
 
@@ -277,7 +243,7 @@ describe("BinanceMarketDataSource", () => {
 			]);
 		});
 
-		describe("418/451 quarantine", () => {
+		describe("429/418/451 quarantine", () => {
 			const ban = (status: number, retryAfter?: string) =>
 				Object.assign(new Error(String(status)), {
 					response: { status, headers: { "retry-after": retryAfter } },
@@ -288,8 +254,6 @@ describe("BinanceMarketDataSource", () => {
 					MOCK_RECENT_TRADES,
 					MOCK_CANDLESTICK_DATA,
 					MOCK24HR_TICKER_STATS,
-					MOCK_SYMBOL_PRICE_TICKER,
-					MOCK_ORDER_BOOK_TICKER,
 				]) {
 					mock.mockRejectedValueOnce(error);
 				}
@@ -302,7 +266,7 @@ describe("BinanceMarketDataSource", () => {
 				jest.useRealTimers();
 			});
 
-			it.each([418, 451])(
+			it.each([429, 418, 451])(
 				"makes no call after a %i until the backoff ends, then probes",
 				async (status) => {
 					const banned = new BinanceMarketDataSource();
@@ -359,8 +323,6 @@ describe("BinanceMarketDataSource", () => {
 				MOCK_RECENT_TRADES,
 				MOCK_CANDLESTICK_DATA,
 				MOCK24HR_TICKER_STATS,
-				MOCK_SYMBOL_PRICE_TICKER,
-				MOCK_ORDER_BOOK_TICKER,
 			]) {
 				mock.mockRejectedValueOnce(restricted);
 			}
@@ -373,15 +335,21 @@ describe("BinanceMarketDataSource", () => {
 		it("should use default options when not provided", async () => {
 			await source.fetchSnapshot({ symbol: ETH });
 
-			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith({
-				symbol: ETH,
-				limit: LIMIT_100,
-			});
-			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith({
-				symbol: ETH,
-				limit: LIMIT_100,
-				interval: CandleInterval.Min1,
-			});
+			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith(
+				{
+					symbol: ETH,
+					limit: LIMIT_100,
+				},
+				undefined
+			);
+			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith(
+				{
+					symbol: ETH,
+					limit: LIMIT_100,
+					interval: CandleInterval.Min1,
+				},
+				undefined
+			);
 		});
 	});
 });

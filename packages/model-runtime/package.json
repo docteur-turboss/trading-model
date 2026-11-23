@@ -24,6 +24,7 @@
     "./neural-network/feed-forward-engine": "./dist/neural-network/feed-forward-engine.js",
     "./neural-network/network-serialization": "./dist/neural-network/network-serialization.js",
     "./neural-network/type": "./dist/neural-network/type.js",
+    "./model-manifest": "./dist/model-manifest.js",
     "./noise": "./dist/noise.js",
     "./replay": "./dist/replay.js",
     "./replay-metrics": "./dist/replay-metrics.js"
@@ -31,7 +32,8 @@
   "dependencies": {
     "@trading-model/primitives": "*",
     "@trading-model/contracts": "*",
-    "@trading-model/common": "*"
+    "@trading-model/common": "*",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@jest/globals": "^30.5.2",

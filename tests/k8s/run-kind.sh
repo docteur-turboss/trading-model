@@ -36,7 +36,7 @@ NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
 CERT_MANAGER="v1.21.3" # same as deploy/staging-local/bootstrap.sh
 API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
-SERVICES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator risk-execution"
+SERVICES="$(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$ROOT/deploy/k8s/services/kustomization.yaml" | grep -vx edge-proxy | tr '\n' ' ')" # edge-proxy is not a first-party image
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
 PREVIOUS_REF="${KIND_PREVIOUS_REF:-HEAD^1}"
@@ -113,17 +113,22 @@ build_images() {
 		if docker compose -f "$root/docker-compose.yml" config --services | grep -qx "$svc"; then have="$have $svc"; else missing="$missing $svc"; fi
 	done
 	# shellcheck disable=SC2086
-	retry 3 docker compose -f "$root/docker-compose.yml" build $have spire-bootstrap
+	local f="-f $root/docker-compose.yml"
+	[ ! -f "$root/docker-compose.build.yml" ] || f="$f -f $root/docker-compose.build.yml"
+	export IMAGE_TAG="$tag"
+	retry 3 docker compose $f build $have spire-bootstrap
 	# shellcheck disable=SC2086
-	[ -z "$missing" ] || retry 3 docker compose -f "$ROOT/docker-compose.yml" build $missing
+	[ -z "$missing" ] || retry 3 docker compose -f "$ROOT/docker-compose.yml" -f "$ROOT/docker-compose.build.yml" build $missing
 	retry 3 docker build -q -t "ghcr.io/trading-model/backup-tools:$tag" "$root/deploy/backup"
 	# N-1 may predate the image: its digest entry is a stand-in built from this checkout.
 	local mroot="$root"
 	[ -f "$root/deploy/migrate/Dockerfile" ] || mroot="$ROOT"
 	retry 3 docker build -q -t "ghcr.io/trading-model/db-migrate:$tag" -f "$mroot/deploy/migrate/Dockerfile" "$mroot"
-	docker tag "${COMPOSE_PROJECT_NAME}-spire-bootstrap" "ghcr.io/trading-model/spire-tools:$tag"
+	# N-1 (no `image:` in compose) builds as <project>-<svc>; N builds straight to ghcr.io/trading-model/<svc>:$tag.
+	tag_built() { ! docker image inspect "$1" >/dev/null 2>&1 || docker tag "$1" "$2"; }
+	tag_built "${COMPOSE_PROJECT_NAME}-spire-bootstrap" "ghcr.io/trading-model/spire-tools:$tag"
 	for svc in $SERVICES; do
-		docker tag "${COMPOSE_PROJECT_NAME}-${svc}" "ghcr.io/trading-model/${svc}:$tag"
+		tag_built "${COMPOSE_PROJECT_NAME}-${svc}" "ghcr.io/trading-model/${svc}:$tag"
 	done
 }
 
@@ -241,7 +246,15 @@ identities() {
 		log "deploy-app can read Secrets of kube-system"
 		return 1
 	}
-	log "  deploy-cluster: self-bind Forbidden, no nodes/proxy; deploy-app: no Secret in kube-system"
+	if out="$($as_cluster label namespace "$NS" pod-security.kubernetes.io/enforce=privileged --overwrite 2>&1)" || ! grep -qi forbidden <<<"$out"; then
+		log "deploy-cluster could relabel the application namespace (or failed other than Forbidden): $out"
+		return 1
+	fi
+	if out="$($as_cluster -n trading-model-node create -f - 2>&1 <<<'{"apiVersion":"apps/v1","kind":"DaemonSet","metadata":{"name":"rogue"},"spec":{"selector":{"matchLabels":{"a":"b"}},"template":{"metadata":{"labels":{"a":"b"}},"spec":{"containers":[{"name":"c","image":"busybox"}]}}}}')" || ! grep -qi forbidden <<<"$out"; then
+		log "deploy-cluster could create a DaemonSet in trading-model-node (or failed other than Forbidden): $out"
+		return 1
+	fi
+	log "  deploy-cluster: self-bind, namespace relabel and DaemonSet create Forbidden, no nodes/proxy; deploy-app: no Secret in kube-system"
 }
 
 # deploy-release.sh (the release steps of deploy.yml) against the kind cluster.
@@ -824,35 +837,40 @@ verify_identity_without_mysql() {
 # Express recorded nothing). Jaeger is read through a port-forward, which the
 # NetworkPolicies do not filter.
 traces_span_services() {
-	curl -sf "http://localhost:18686/api/traces?service=api-gateway&limit=50&lookback=1h" |
+	# The trace ID is the one verify_traces sends in `traceparent`: looking it up
+	# tells a lost propagation (api-gateway spans only) from an absent trace.
+	curl -sf "http://localhost:18686/api/traces/$TRACE_ID" |
 		node -e '
-			const traces = JSON.parse(require("fs").readFileSync(0, "utf8")).data ?? [];
-			const best = traces
-				.map((t) => [...new Set(Object.values(t.processes).map((p) => p.serviceName))])
-				.sort((a, b) => b.length - a.length)[0] ?? [];
-			console.error(`traces=${traces.length} widest=${best.join(",")}`);
-			process.exit(best.length >= 2 ? 0 : 1)'
+			const [trace] = JSON.parse(require("fs").readFileSync(0, "utf8")).data ?? [];
+			const names = [...new Set(Object.values(trace?.processes ?? {}).map((p) => p.serviceName))];
+			console.error(`trace=${process.argv[1]} widest=${names.join(",")}`);
+			process.exit(names.includes("api-gateway") && names.includes("trader-trainer") ? 0 : 1)' "$TRACE_ID"
 }
 
 verify_traces() {
-	log "a request through edge-proxy gives a Jaeger trace with 2+ services"
+	log "a request through edge-proxy gives a Jaeger trace spanning api-gateway and trader-trainer"
 	$K -n "$NS" port-forward svc/edge-proxy 18451:8080 >/dev/null 2>&1 &
 	local edge=$!
 	$K -n "$NS" port-forward svc/jaeger 18686:16686 >/dev/null 2>&1 &
 	local jaeger=$!
-	local result=0
+	local result=0 codes=""
+	TRACE_ID="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
 	wait_for 30 'curl -s -o /dev/null http://localhost:18451/ && curl -s -o /dev/null http://localhost:18686/' || result=1
-	# 30 requests: the collector keeps 20 % of traces, 1 - 0.8^30 ~ 99.9 % that one survives.
+	# ci-render.mjs samples 100 % and the sent traceparent is sampled: all requests join one trace.
 	if [ "$result" = 0 ]; then
-		for _ in $(seq 30); do
-			curl -s -o /dev/null -H "x-api-key: $API_KEY" http://localhost:18451/v1/trader-trainer/training-status
-		done
+		codes="$(for _ in $(seq 30); do
+			curl -s -o /dev/null -w '%{http_code}\n' -H "x-api-key: $API_KEY" \
+				-H "traceparent: 00-$TRACE_ID-00f067aa0ba902b7-01" \
+				http://localhost:18451/v1/trader-trainer/training-status
+		done | sort | uniq -c | tr '\n' ' ')"
 	fi
-	# Batch exporter (5 s) then collector batch (1 s): a few polls at most.
+	# Batch exporter (5 s), tail_sampling decision_wait (10 s) then collector batch (1 s): a few polls at most.
 	if [ "$result" = 0 ] && wait_for 120 traces_span_services; then
 		log "  $(traces_span_services 2>&1)"
 	else
 		traces_span_services || true
+		log "  http codes: ${codes:-none}"
+		log "  trader-trainer traces in Jaeger: $(curl -s "http://localhost:18686/api/traces?service=trader-trainer&limit=50&lookback=1h" | node -e 'try{console.log((JSON.parse(require("fs").readFileSync(0,"utf8")).data??[]).length)}catch{console.log("unreadable")}')"
 		result=1
 	fi
 	# No RETURN trap: it would replace the one of verify (traps are global).
@@ -1201,6 +1219,12 @@ inspector() {
 	$K -n "$NS" exec backup-inspector -- sh -c "$1"
 }
 
+# risk-execution admin route `$1` (POST body `$2` when given), from its own pod
+# (docs/operations/runbooks/runbook-risk-execution.md).
+risk_admin() {
+	$K -n "$NS" exec deployment/risk-execution -c risk-execution -- sh -c 		"curl -sfk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem -H content-type:application/json https://localhost:3000/admin/$1${2:+ -d '$2'}"
+}
+
 # The real audit trail: tests/backup/audit-chain.js on the `audit` database
 # (JSON: count, first, last, digest, broken).
 audit_chain() {
@@ -1298,6 +1322,8 @@ verify_backup() {
 	mysql_root "INSERT INTO financial_scraper.market_tickers (symbol, market, source, open, high, low, last, volume, timestamp, close_time) VALUES ('DRILLEXP', 'spot', 'drill', 1, 1, 1, 1, 1, NOW() - INTERVAL 2000 DAY, NOW() - INTERVAL 2000 DAY);"
 	local bundle_before
 	bundle_before="$(spire_bundle)"
+	# Engaged before the backup, re-armed after it: the restore must bring it back (issue #1933).
+	risk_admin kill-switch '{"scope":"symbol","symbol":"BTCUSDT","reason":"restore_drill","actor":"drill"}' >/dev/null
 
 	log "restore drill: recording the real audit trail and dead letters"
 	audit_grows count 0
@@ -1356,10 +1382,10 @@ verify_backup() {
 	inspector "grep -qx 'backup_last_status{component=\"offsite\"} 1' /backups/metrics/backup.prom"
 	local offsite
 	offsite="$($K -n "$NS" exec deployment/backup-s3 -- sh -c "find /data/backups/staging -name '*.age' | wc -l")"
-	# 5 dumps + 3 PITR starting points (mysql, mongodb, mongodb-audit) + the
+	# 6 dumps + 3 PITR starting points (mysql, mongodb, mongodb-audit) + the
 	# run manifest (backup-lib.sh, write_manifest).
-	[ "$offsite" -ge 9 ] || {
-		log "only $offsite encrypted file(s) copied off-site (expected 9)"
+	[ "$offsite" -ge 10 ] || {
+		log "only $offsite encrypted file(s) copied off-site (expected 10)"
 		return 1
 	}
 	local listed
@@ -1369,6 +1395,7 @@ verify_backup() {
 		return 1
 	}
 	log "  every file is age-encrypted, $offsite copied off-site, run manifest written"
+	risk_admin kill-switch/rearm '{"scope":"symbol","symbol":"BTCUSDT","reason":"after the backup","actor":"drill"}' >/dev/null
 
 	log "point-in-time: writes after the daily dump (markers, audit events, a dead letter)"
 	local audit_dumped
@@ -1501,11 +1528,11 @@ verify_backup() {
 	runner "bash /scripts/fetch-offsite.sh --pitr --dest /restore"
 	fetch_seconds=$((SECONDS - started))
 	drill_record fetch_offsite "$fetch_seconds"
-	# The run: 5 dumps + 3 PITR starting points + the run manifest, which
+	# The run: 6 dumps + 3 PITR starting points + the run manifest, which
 	# restore-k8s.sh selects and verifies with; then the archives replayed.
-	fetched="$(runner "find /restore -type f \( -name '*.archive.gz.age' -o -name 'financial_scraper_*.sql.gz.age' -o -name 'checkpoints_*.age' -o -name 'data_*.tar.age' -o -name 'keys_*.age' -o -name '*.pitr.age' -o -name 'manifest_*.json.age' \) | wc -l")"
-	[ "$fetched" -eq 9 ] && runner "test -s /restore/manifests/manifest_*.json.age" || {
-		log "fetch-offsite.sh fetched $fetched file(s) of the run instead of 9 (5 dumps, 3 PITR starting points, run manifest)"
+	fetched="$(runner "find /restore -type f \( -name '*.archive.gz.age' -o -name 'financial_scraper_*.sql.gz.age' -o -name 'checkpoints_*.age' -o -name 'risk_*.age' -o -name 'data_*.tar.age' -o -name 'keys_*.age' -o -name '*.pitr.age' -o -name 'manifest_*.json.age' \) | wc -l")"
+	[ "$fetched" -eq 10 ] && runner "test -s /restore/manifests/manifest_*.json.age" || {
+		log "fetch-offsite.sh fetched $fetched file(s) of the run instead of 10 (6 dumps, 3 PITR starting points, run manifest)"
 		return 1
 	}
 	for dir in mysql/binlog mongodb/oplog/mongodb mongodb/oplog/mongodb-audit; do
@@ -1538,7 +1565,7 @@ verify_backup() {
 	restore_log="$(mktemp)"
 	echo "$key" | $K -n "$NS" exec -i restore-runner -- sh -c \
 		"umask 077 && cat > /tmp/identity && BACKUP_DIR=/restore BACKUP_AGE_IDENTITY=/tmp/identity K8S_NAMESPACE=$NS \
-		bash /scripts/restore-k8s.sh --components mongodb,mysql,checkpoints,spire --until $until; rc=\$?; rm -f /tmp/identity; exit \$rc" |
+		bash /scripts/restore-k8s.sh --components mongodb,mysql,checkpoints,spire,risk --until $until; rc=\$?; rm -f /tmp/identity; exit \$rc" |
 		tee "$restore_log"
 	restore_seconds=$((SECONDS - started))
 	drill_record_components "$restore_log"
@@ -1581,6 +1608,10 @@ verify_backup() {
 		log "the SPIRE trust bundle differs: the CA keys were not restored"
 		return 1
 	}
+	risk_admin status | grep -q '"BTCUSDT":"restore_drill"' || {
+		log "risk-execution: the kill switch engaged before the backup is off after the restore"
+		return 1
+	}
 	# Up to the instant: every audit event written after the dump too, with
 	# the same hashes, and every dead letter.
 	local audit_restored
@@ -1611,10 +1642,35 @@ verify_backup() {
 
 	# Operator command (issue #322): same checks a real restore gets, read-only.
 	log "restore drill: scripts/verify-restore-k8s.sh on the restored data"
-	K8S_NAMESPACE="$NS" bash "$ROOT/scripts/verify-restore-k8s.sh" || {
-		log "verify-restore-k8s.sh failed on a correctly restored cluster"
+	# The run manifest, decrypted in the runner, gives it the row counts of the dump.
+	local mdir verify_out comp
+	mdir="$(mktemp -d)"
+	mkdir "$mdir/manifests"
+	echo "$key" | $K -n "$NS" exec -i restore-runner -- sh -c \
+		"umask 077 && cat > /tmp/identity && age -d -i /tmp/identity /restore/manifests/manifest_*.json.age; rc=\$?; rm -f /tmp/identity; exit \$rc" \
+		>"$mdir/manifests/manifest_drill.json"
+	for comp in mysql mongodb-audit mongodb; do
+		grep "\"component\":\"$comp\"" "$mdir/manifests/manifest_drill.json" | grep -q '"rows":{' || {
+			log "the run manifest has no rows for $comp: the row count at the dump failed silently"
+			return 1
+		}
+	done
+	verify_out="$(BACKUP_DIR="$mdir" K8S_NAMESPACE="$NS" bash "$ROOT/scripts/verify-restore-k8s.sh" 2>&1)" || {
+		log "verify-restore-k8s.sh failed on a correctly restored cluster: $verify_out"
 		return 1
 	}
+	echo "$verify_out" | grep -q "rows (manifest" || {
+		log "verify-restore-k8s.sh compared no row counts: $verify_out"
+		return 1
+	}
+	# Negative test: a manifest counting more rows than restored (partial restore) must fail.
+	sed -i 's/"audit.audit_events":[0-9]*/"audit.audit_events":999999999/' "$mdir/manifests/manifest_drill.json"
+	if BACKUP_DIR="$mdir" K8S_NAMESPACE="$NS" bash "$ROOT/scripts/verify-restore-k8s.sh" >/dev/null 2>&1; then
+		log "verify-restore-k8s.sh accepted a table with fewer rows than the manifest"
+		return 1
+	fi
+	rm -rf "$mdir"
+	log "  row counts of the manifest compared; a table below the manifest fails"
 	# Negative test: one altered audit event must make it fail (then put back).
 	local audit_hash
 	audit_hash="$(mongo_eval mongodb-audit "const e = db.getSiblingDB('audit').audit_events.find().sort({chainSequence: -1}).limit(1).next(); print(e.dataHash)" | tail -1)"
@@ -1736,7 +1792,7 @@ dump() {
 	$K -n "$NS" logs deploy/spire-server -c spire-entries --tail=40 2>&1 || true
 	$K -n trading-model-node logs daemonset/spire-agent --tail=40 || true
 	# The market data path and the audit trail, even when their pods look healthy (verify checks them).
-	for workload in binance-stub financial-scraper-collector financial-scraper message-manager audit-logger discovery-server api-gateway; do
+	for workload in binance-stub financial-scraper-collector financial-scraper message-manager audit-logger discovery-server api-gateway trader-trainer otel-collector; do
 		echo "===== deployment/$workload"
 		$K -n "$NS" logs "deployment/$workload" --all-containers --tail=80 2>&1 | grep -v 'x509 context' || true
 	done

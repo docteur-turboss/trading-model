@@ -207,8 +207,10 @@ write_dump() {
 	fi
 	size="$(file_size "$file")"
 	record_output "$file"
-	MANIFEST_ENTRIES+=("$(printf '{"component":"%s","path":"%s","size":%s,"sha256":"%s"}' \
-		"$key" "${file#"${BACKUP_DIR}"/}" "$size" "$sum")")
+	# DUMP_ROWS (optional, set by the caller): JSON object of row counts at dump time.
+	MANIFEST_ENTRIES+=("$(printf '{"component":"%s","path":"%s","size":%s,"sha256":"%s"%s}' \
+		"$key" "${file#"${BACKUP_DIR}"/}" "$size" "$sum" "${DUMP_ROWS:+,\"rows\":$DUMP_ROWS}")")
+	DUMP_ROWS=""
 }
 
 # Writes this run's manifest (`manifests/manifest_<TIMESTAMP>.json`, sealed
@@ -264,7 +266,7 @@ manifests_newest_first() {
 }
 
 # One manifest entry line, as written by write_dump (trailing comma optional).
-MANIFEST_ENTRY_RE='^\{"component":"[^"]+","path":"[^"]+","size":[0-9]+,"sha256":"[0-9a-f]{64}"\},?$'
+MANIFEST_ENTRY_RE='^\{"component":"[^"]+","path":"[^"]+","size":[0-9]+,"sha256":"[0-9a-f]{64}"(,"rows":\{[^{}]*\})?\},?$'
 
 # Prints `<path> <size> <sha256>` of entry `$2` in manifest file `$1`
 # (nothing when the run has no such entry). Returns 1 when the manifest
@@ -291,7 +293,7 @@ manifest_entry() {
 		esac
 	done <<<"$body"
 	printf '%s\n' "$body" | sed -n \
-		's/^{"component":"'"$key"'","path":"\([^"]*\)","size":\([0-9]*\),"sha256":"\([0-9a-f]*\)"}.*$/\1 \2 \3/p' | head -1
+		's/^{"component":"'"$key"'","path":"\([^"]*\)","size":\([0-9]*\),"sha256":"\([0-9a-f]*\)"[,}].*$/\1 \2 \3/p' | head -1
 }
 
 # read_manifest_entry <key> <manifest>
@@ -548,6 +550,25 @@ write_pitr_gap() {
 	echo "backup_pitr_gap{component=\"$1\"${BACKUP_RUN:+,run=\"${BACKUP_RUN}\"}} $2" >>"$_METRICS_TMP"
 }
 
+# write_sealed_key_timestamp: epoch of the newest off-site
+# `sealed-secrets-key/sealed-secrets-key_<TS>.yaml.age` (0 when none, or when
+# the listing fails: rclone exits 3 on an absent prefix, other errors are an
+# unreadable bucket; both must alert, so a failure publishes 0). Dated by the name, never the mtime. Alert
+# SealedSecretsKeyBackupStale. Opt-in: BACKUP_SEALED_KEY_CHECK=true (the key
+# backup runs from GitHub Actions, outside this job).
+write_sealed_key_timestamp() {
+	[ "${BACKUP_SEALED_KEY_CHECK:-false}" = true ] || return 0
+	[ -n "${METRICS_FILE:-}" ] && [ -n "${BACKUP_S3_BUCKET:-}" ] && [ -n "$_METRICS_TMP" ] || return 0
+	local names="" stamp ts=0
+	if ! names="$(RCLONE_S3_ENV_AUTH=true rclone lsf --files-only "$(offsite_remote "${BACKUP_S3_BUCKET%/}/sealed-secrets-key")")"; then
+		warn "Cannot list sealed-secrets-key/ (absent prefix or no access): publishing 0"
+		names=""
+	fi
+	stamp="$(grep -E '^sealed-secrets-key_[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}\.yaml\.age$' <<<"$names" | sort | tail -1 | sed -E 's/^sealed-secrets-key_([0-9-]+)_([0-9]{2})([0-9]{2})([0-9]{2})\..*/\1 \2:\3:\4/' || true)"
+	[ -z "$stamp" ] || ts="$(date -u -d "$stamp" +%s)"
+	echo "backup_sealed_secrets_key_timestamp ${ts}" >>"$_METRICS_TMP"
+}
+
 # write_volume_usage: used / capacity of the filesystem holding BACKUP_DIR as
 # backup_volume_used_ratio (alert BackupVolumeFilling). Measured by the job
 # itself: no dependency on kubelet_volume_stats_* being scraped. A failing df
@@ -601,9 +622,10 @@ sealed_write() {
 # rclone remote of the off-site bucket `$1` (s3://bucket/prefix), shared by
 # upload_offsite and fetch-offsite.sh. `:s3:` is an on-the-fly remote:
 # credentials from AWS_* (with RCLONE_S3_ENV_AUTH=true), endpoint and provider
-# from RCLONE_S3_*.
+# from RCLONE_S3_*. rclone ignores AWS_REGION and signs for us-east-1, which a
+# store in another region rejects: the region goes in the remote itself.
 offsite_remote() {
-	echo ":s3:${1#s3://}"
+	echo ":s3${AWS_REGION:+,region=${AWS_REGION}}:${1#s3://}"
 }
 
 # Copies this run's files to bucket `$1`; its metric is component `$2`.

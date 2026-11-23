@@ -3,9 +3,9 @@ import {
 	isAuthenticationError,
 } from "@trading-model/common/utils/errors";
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
+import { RotatedTokenWire } from "@trading-model/contracts/wire/service-instance";
 import type { HttpClient } from "@trading-model/http/http-client";
 import { ServiceId, URLString } from "@trading-model/primitives/primitives";
-import { RotatedTokenWire } from "@trading-model/validation/wire/service-instance";
 import type { AddressManagerConfig } from "../config/address-manager-config";
 
 /** Holds the registration token and refreshes it before it expires. */

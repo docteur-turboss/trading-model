@@ -68,7 +68,7 @@ rate(tt_training_sessions_total[12h])`.
 
 The Message Delivery and Training SLOs have no slow-burn alert: their
 traffic is low and bursty, so a 1h ratio flaps on a handful of events. A
-dead-lettered message already raises `MessagesDeadLettered`, and the existing
+dead-lettered message already raises `BusDeadLetters`, and the existing
 alert on each SLI catches sustained loss. Adding them needs a minimum-volume
 guard first.
 
@@ -124,8 +124,7 @@ good (point-in-time sources, ADR-0036).
 | Binance candles | not lost | each series restarts from its newest stored candle (`market_candles`) |
 
 The table follows `services/financial-scraper/src/config/signal-registry.json`:
-a new source gets a row here. No source has a `history` block yet, so
-`signal-backfill` cannot recover a gap.
+a new source gets a row here. No command backfills a gap.
 
 A value collected late (after a weekend, for instance) gets a later
 `observedAt` than if it had been collected on time: features stay

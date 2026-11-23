@@ -14,6 +14,7 @@ import {
 	SourceType,
 	TradeSide,
 } from "@trading-model/contracts/market-data.types";
+import type { Signal } from "@trading-model/contracts/wire/signals";
 import {
 	DataSource,
 	NonNegativeInt,
@@ -22,7 +23,6 @@ import {
 	UnixTimestamp,
 	Volume,
 } from "@trading-model/primitives/primitives";
-import type { Signal } from "@trading-model/validation/wire/signals";
 import { createConnection } from "mysql2/promise";
 import {
 	insertCandles,
@@ -205,9 +205,10 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
 		await expect(tables()).resolves.toEqual(ALL_TABLES);
 
-		migrate("down", "2");
+		// 011 (trades id), 010 (index), 009 (signals.area), 008 (market_order_books).
+		migrate("down", "4");
 		await expect(appliedMigrations()).resolves.toEqual(
-			MIGRATION_IDS.slice(0, -2)
+			MIGRATION_IDS.slice(0, -4)
 		);
 		await expect(tables()).resolves.toEqual(
 			ALL_TABLES.filter((table) => table !== "market_order_books")
@@ -392,6 +393,17 @@ describe("market_trades — real MySQL", () => {
 				to: T0 + 2,
 			})
 		).resolves.toHaveLength(1);
+	});
+
+	it("should upsert past the INT limit once the id is BIGINT UNSIGNED (issue #2017)", async () => {
+		await DATABASE.promise().query(
+			"ALTER TABLE market_trades AUTO_INCREMENT = 2147483648"
+		);
+
+		await insertTrades([trade({ tradeId: 77n })]);
+
+		const [row] = await selectTradesBy.symbol(SYMBOL, PAGE);
+		expect(row.id).toBeGreaterThan(2_147_483_647);
 	});
 
 	it("should reject a side outside the column enum", async () => {

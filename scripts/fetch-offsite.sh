@@ -2,7 +2,7 @@
 # =============================================================================
 #  Trading Model — Fetch a backup run from the off-site bucket
 #  Usage:  bash scripts/fetch-offsite.sh --dest DIR [--timestamp TS] [--tier T] [--pitr] [--dry-run]
-#            [--components mongodb,mongodb-audit,mysql,mysql-core,checkpoints,spire]
+#            [--components mongodb,mongodb-audit,mysql,mysql-core,checkpoints,spire,risk]
 #          BACKUP_S3_BUCKET=s3://bucket/prefix AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...
 #          RCLONE_S3_ENDPOINT / RCLONE_S3_PROVIDER for a non-AWS store
 #
@@ -16,6 +16,7 @@
 #    mysql-core/financial_scraper_<TS>.sql.gz.age (without the market tables
 #      of MYSQL_CORE_EXCLUDED_TABLES, backup-lib.sh)
 #    checkpoints/checkpoints_<TS>.tar.gz.age
+#    risk/risk_<TS>.tar.gz.age                   (risk-execution state, ADR-0064)
 #    spire/data_<TS>.tar.age                     (SQLite datastore + CA keys, ADR-0065;
 #      spire/keys_<TS>.json.age in runs taken before it)
 #    manifests/manifest_<TS>.json.age            (run manifest, backup-lib.sh)
@@ -55,7 +56,7 @@ DEST=""
 TIMESTAMP=""
 DRY_RUN=false
 PITR=false
-COMPONENTS="mongodb,mysql,checkpoints,spire"
+COMPONENTS="mongodb,mysql,checkpoints,spire,risk"
 TIER=""
 
 usage() {
@@ -104,7 +105,7 @@ component_files() {
       ! $PITR || echo "mysql/financial_scraper_$2.pitr.age"
       ;;
     mysql-core) echo "mysql-core/financial_scraper_$2.sql.gz.age" ;;
-    checkpoints) echo "checkpoints/checkpoints_$2.tar.gz.age" ;;
+    checkpoints|risk) echo "$1/$1_$2.tar.gz.age" ;;
     # data_ since ADR-0065 (datastore + CA keys), keys_ before it.
     spire)
       if grep -qxF "spire/data_$2.tar.age" <<<"$LISTING"; then
@@ -184,7 +185,7 @@ PARTS=()
 IFS=',' read -ra REQUESTED <<<"$COMPONENTS"
 for part in "${REQUESTED[@]}"; do
   case "$part" in
-    mongodb|mongodb-audit|mysql|mysql-core|checkpoints|spire) PARTS+=("$part") ;;
+    mongodb|mongodb-audit|mysql|mysql-core|checkpoints|spire|risk) PARTS+=("$part") ;;
     redis) warn "Redis is not backed up: its content is rebuilt by the services" ;;
     *) fail "Unknown component: ${part}"; exit 1 ;;
   esac

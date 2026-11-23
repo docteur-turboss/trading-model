@@ -1,6 +1,6 @@
 {
   "name": "dlq-service",
-  "version": "3.1.0-rc.4",
+  "version": "3.1.0",
   "description": "Dead Letter Queue Service - stores and manages dead letter entries with PostgreSQL persistence",
   "license": "ISC",
   "type": "commonjs",
@@ -24,9 +24,8 @@
     "@trading-model/crypto": "*",
     "@trading-model/http": "*",
     "@trading-model/reliability": "*",
-    "@trading-model/validation": "*",
     "express": "^5.3.0",
-    "express-rate-limit": "^8.7.4",
+    "express-rate-limit": "^8.7.5",
     "ioredis": "^6.0.0",
     "mongodb": "^7.9.0",
     "prom-client": "^15.1.3",

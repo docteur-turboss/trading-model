@@ -1,5 +1,5 @@
+import { AssetType } from "@trading-model/contracts/wire/signals";
 import { toSymbol } from "@trading-model/primitives/primitives";
-import { AssetType } from "@trading-model/validation/wire/signals";
 import {
 	SIMULATOR_PARAMS,
 	type SimulatorCosts,

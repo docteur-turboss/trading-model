@@ -1,6 +1,12 @@
 import { SourceType } from "@trading-model/contracts/market-data.types";
+import { brand } from "@trading-model/contracts/wire/brand";
 import {
-	brand,
+	Asset,
+	AssetId,
+	AssetSignalsResponse,
+	Dimension,
+} from "@trading-model/contracts/wire/signals";
+import {
 	defineRoute,
 	ErrorResponse,
 } from "@trading-model/http/api-route/api-route";
@@ -9,12 +15,6 @@ import {
 	toSymbol,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import {
-	Asset,
-	AssetId,
-	AssetSignalsResponse,
-	Dimension,
-} from "@trading-model/validation/wire/signals";
 import { z } from "zod";
 import type { MarketDataPage } from "../../../domain/market-data.types";
 import { Source } from "../../../domain/signals";

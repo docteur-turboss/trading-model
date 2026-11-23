@@ -12,7 +12,7 @@ Some concerns are genuinely cross-cutting and have no single owning domain: the 
 > - Reliability (circuit-breaker, circuit-state-machine, heartbeat interfaces) → `@trading-model/reliability`
 > - Persistence (Redis/Mongo connection managers, store adapters, key builders) → `@trading-model/persistence`
 > - Server bootstrap / secure HTTPS factory → `@trading-model/http`
-> - Environment validation & Zod schemas → `@trading-model/validation`
+> - Environment validation & Zod schemas → `@trading-model/http` (`config/*`)
 > - Crypto primitives → `@trading-model/crypto`
 > - HTTP middleware, HTTP client, logging system → `@trading-model/http`
 > - Distributed worker protocol & orphan recovery → `@trading-model/jobs` (removed by ADR-0029: no producer, no worker)
@@ -32,7 +32,6 @@ The monorepo has shared packages under the `@trading-model/*` scope. Build order
 | 5 | `@trading-model/model-runtime` | Network forward pass, feature codec, portfolio simulator (ADR-0066); moved out of the trainer | primitives, contracts, common |
 | 6 | `@trading-model/persistence` | Redis/Mongo connection managers, store adapters, key builders (absorbed `redis-config`) | common, primitives, contracts (+ ioredis, mongodb) |
 | 7 | `@trading-model/http` | HTTP middleware, HTTP client, concrete logging pipeline, secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry | primitives, contracts, common, reliability |
-| 8 | `@trading-model/validation` | Environment validation, Zod schemas, DTOs, shared type contracts | primitives, contracts, common, http |
 | 9 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness | primitives, contracts, common, validation |
 | 10 | `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing | primitives, contracts, common, persistence, http, reliability, validation |
 | 11 | `@trading-model/broker-message` | Inter-service messaging SDK: message-manager client, event emitter, controller/routes | primitives, contracts, address-manager, common, http, validation |
@@ -154,7 +153,7 @@ import { sanitizeForLog } from '@trading-model/common/utils/sanitize';
 | Circuit breakers, heartbeats, leader lease | `@trading-model/reliability` |
 | Redis/Mongo stores, connection managers, `redis-config` | `@trading-model/persistence` |
 | Server bootstrap, secure HTTPS factory, TLS loading | `@trading-model/http` |
-| Environment validation (Zod) | `@trading-model/validation` |
+| Environment validation (Zod) | `@trading-model/http` |
 | Crypto primitives (PRNG, random string) | `@trading-model/crypto` |
 | HTTP middleware, HTTP client | `@trading-model/http` |
 | Worker protocol, orphan recovery | removed (ADR-0029) |

@@ -1,6 +1,6 @@
-import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
-import { BaseEnvSchema } from "@trading-model/validation/config/env";
-import { validateEnv } from "@trading-model/validation/config/validate-env";
+import { AddressManagerEnvSchema } from "@trading-model/address-manager/config/address-manager-env";
+import { BaseEnvSchema } from "@trading-model/http/config/env";
+import { validateEnv } from "@trading-model/http/config/validate-env";
 import { z } from "zod";
 
 const RISK_EXECUTION_ENV_SHAPE = {

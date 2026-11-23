@@ -1,10 +1,10 @@
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import { sha256Hex } from "@trading-model/crypto/node-crypto";
 import {
 	SIGNAL_SCHEMA_VERSION,
 	Signal,
-} from "@trading-model/validation/wire/signals";
+} from "@trading-model/contracts/wire/signals";
+import { sha256Hex } from "@trading-model/crypto/node-crypto";
 import {
 	SIGNAL_COLLECTIONS_TOTAL,
 	SIGNAL_LAST_SUCCESS,
@@ -83,7 +83,7 @@ export async function restoreFreshness(
 			{ source: source.id },
 			(stored?.ingestedAt ?? now) / 1000
 		);
-		if (stored) {
+		if (stored && stored.observedAt !== null) {
 			SIGNAL_NEWEST_OBSERVED.set(
 				{ source: source.id },
 				stored.observedAt / 1000
@@ -233,22 +233,6 @@ export class SignalCollector {
 		);
 	}
 
-	/**
-	 * Fetches and stores one history page (`signal-backfill`). Throws on any
-	 * failure, and on an observation the adapter leaves undated: dated at the
-	 * first collection, a backfilled value would claim today (ADR-0030).
-	 */
-	async backfillPage(source: Source, request: SourceRequest): Promise<void> {
-		const worker = this._deps.workers[source.protocol];
-		const payload = await worker(request, source.accessPolicy.auth, source);
-		if (payload === NOT_MODIFIED) {
-			return;
-		}
-		await this._deps.store.save(
-			this._toSignals(source, request, payload, this._deps.now(), true)
-		);
-	}
-
 	private async _collectRequest(
 		source: Source,
 		request: SourceRequest
@@ -276,10 +260,12 @@ export class SignalCollector {
 			worker.confirm?.(url);
 			result = "success";
 			SIGNAL_LAST_SUCCESS.set({ source: source.id }, ingestedAt / 1000);
-			if (signals.length > 0) {
+			// observedAt === ingestedAt: the source gave no date, the gauge would follow the clock.
+			const dated = signals.filter((sig) => sig.observedAt !== sig.ingestedAt);
+			if (dated.length > 0) {
 				SIGNAL_NEWEST_OBSERVED.set(
 					{ source: source.id },
-					Math.max(...signals.map(({ observedAt }) => Date.parse(observedAt))) /
+					Math.max(...dated.map(({ observedAt }) => Date.parse(observedAt))) /
 						1000
 				);
 			}
@@ -287,6 +273,10 @@ export class SignalCollector {
 				context: { source: source.id, count: signals.length },
 			});
 		} catch (err) {
+			if (err instanceof HttpStatusError) {
+				// `result` is already "invalid_payload" here: without this, an HTTP failure an adapter finds in a 200 body would skip `_track` and never quarantine.
+				result = "fetch_error";
+			}
 			if (err instanceof InvalidPayloadError) {
 				result = "invalid_payload";
 			}
@@ -320,23 +310,20 @@ export class SignalCollector {
 		source: Source,
 		request: SourceRequest,
 		payload: unknown,
-		ingestedAt: number,
-		requireObservedAt = false
+		ingestedAt: number
 	): Signal[] {
 		const adapter = this._deps.adapters.get(source.adapter);
 		if (!adapter) {
 			throw new Error(`No source adapter named ${source.adapter}`);
 		}
 		const { subject, dimension } = request;
-		const observations = adapter.normalize(payload, { params: request.params });
+		const observations = adapter.normalize(payload, {
+			params: request.params,
+			ingestedAt,
+		});
 		const ingestedIso = new Date(ingestedAt).toISOString();
 		// One parse: Signal checks the payload against its dimension, and metric has no transform.
 		return observations.map((observation) => {
-			if (requireObservedAt && observation.observedAt === undefined) {
-				throw new InvalidPayloadError(
-					`Adapter ${source.adapter} leaves observedAt to the collection time: no point-in-time history`
-				);
-			}
 			return Signal.parse({
 				id: signalId(
 					source.id,

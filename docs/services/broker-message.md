@@ -8,7 +8,7 @@ Inter-service messaging library: the Redis Streams bus used in process ([ADR-007
 
 ## Bus library (`src/bus/`)
 
-Opt-in: `busJournalFromEnv(env)` (`@trading-model/broker-message/create-message-manager`) returns a `RedisMessageJournal`, or `undefined` when no Redis setting is present (`REDIS_URL` or `REDIS_SENTINELS`, `REDIS_SENTINEL_MASTER_NAME`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_SENTINEL_PASSWORD`, `REDIS_TLS_MODE`, `REDIS_TLS_CA`, `REDIS_TLS_SERVERNAME`, plus `JOURNAL_MIN_REPLICAS`). `createServiceMessageManager` passes it to `BrokerMessage`. Keys keep the prefix `trading-model:message-manager`.
+Opt-in: `busJournalFromEnv(env)` (`@trading-model/broker-message/create-message-manager`) follows `BUS_TRANSPORT`: `library` returns a `RedisMessageJournal` and throws without Redis settings, `http` returns `undefined`; unset, it returns the journal only when a Redis setting is present (`REDIS_URL` or `REDIS_SENTINELS`, `REDIS_SENTINEL_MASTER_NAME`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_SENTINEL_PASSWORD`, `REDIS_TLS_MODE`, `REDIS_TLS_CA`, `REDIS_TLS_SERVERNAME`, plus `JOURNAL_MIN_REPLICAS`). `createServiceMessageManager` passes it to `BrokerMessage`. Keys keep the prefix `trading-model:message-manager`.
 
 | Export (`@trading-model/broker-message/bus/…`) | Role |
 | ---------------------------------------------- | ---- |
@@ -25,7 +25,7 @@ Dead letters are read, replayed and deleted with the `audit-dlq` CLI of audit-lo
 
 - `@trading-model/http` — HttpClient, middleware (`catchSync`, `ResponseException`)
 - `@trading-model/primitives` — branded messaging/service types
-- `@trading-model/validation` — message envelope contracts (`message.types`)
+- `@trading-model/contracts` — message envelope contracts (`message.types`)
 - `@trading-model/common` — error classes, config re-exports (`event.types`, `services.types`, `tls-paths`)
 - `@trading-model/address-manager` — Service discovery (finds message-manager)
 - `express` — Express `Router`, `Application` types

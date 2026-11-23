@@ -1,5 +1,5 @@
+import type { Signal } from "@trading-model/contracts/wire/signals";
 import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
-import type { Signal } from "@trading-model/validation/wire/signals";
 import type { MarketStep } from "./genetic-algorithm/genome";
 
 /** Inputs per metric: value, age, confidence (ADR-0081). */
@@ -24,38 +24,46 @@ export function signalFieldNames(keys: readonly string[]): string[] {
 }
 
 /**
- * Raw signal inputs at instant `at`: per key, the newest value observed at or
- * before `at` (as-of join, ADR-0030), its age on a log scale in [0, 1] and its
+ * Raw signal inputs at each instant of `instants` (ascending): per key, the
+ * newest value observed at or before the instant (as-of join, ADR-0030; the
+ * last listed wins a tie), its age on a log scale in [0, 1] and its
  * confidence. Before the first value: NaN (normalised to 0 later), age 1,
- * confidence 0.
+ * confidence 0. Each `observedAt` is parsed once and each key sorted once.
  */
 export function asOfSignalInputs(
 	byKey: ReadonlyMap<string, Signal[]>,
 	keys: readonly string[],
-	at: number
-): Float32Array {
-	const out = new Float32Array(keys.length * SIGNAL_INPUTS_PER_METRIC);
+	instants: readonly number[]
+): Float32Array[] {
+	const outs = instants.map(
+		() => new Float32Array(keys.length * SIGNAL_INPUTS_PER_METRIC)
+	);
 	keys.forEach((key, index) => {
-		let best: Signal | undefined;
-		let bestAt = Number.NEGATIVE_INFINITY;
-		for (const signal of byKey.get(key) ?? []) {
-			const observed = Date.parse(signal.observedAt);
-			if (observed <= at && observed >= bestAt) {
-				best = signal;
-				bestAt = observed;
-			}
-		}
+		// Array.sort is stable: equal instants keep list order, so the last one wins.
+		const sorted = (byKey.get(key) ?? [])
+			.map((signal) => ({ signal, observed: Date.parse(signal.observedAt) }))
+			.filter(({ observed }) => !Number.isNaN(observed))
+			.sort((left, right) => left.observed - right.observed);
 		const base = index * SIGNAL_INPUTS_PER_METRIC;
-		out[base] = best ? best.payload.value : Number.NaN;
-		out[base + 1] = best
-			? Math.min(
-					1,
-					Math.log1p((at - bestAt) / HOUR_MS) / Math.log1p(MAX_AGE_MS / HOUR_MS)
-				)
-			: 1;
-		out[base + 2] = best ? best.confidenceScore : 0;
+		let next = 0;
+		instants.forEach((at, step) => {
+			while (next < sorted.length && sorted[next].observed <= at) {
+				next++;
+			}
+			const best = next > 0 ? sorted[next - 1] : undefined;
+			const out = outs[step];
+			out[base] = best ? best.signal.payload.value : Number.NaN;
+			out[base + 1] = best
+				? Math.min(
+						1,
+						Math.log1p((at - best.observed) / HOUR_MS) /
+							Math.log1p(MAX_AGE_MS / HOUR_MS)
+					)
+				: 1;
+			out[base + 2] = best ? best.signal.confidenceScore : 0;
+		});
 	});
-	return out;
+	return outs;
 }
 
 export interface SignalNorm {

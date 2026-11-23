@@ -19,6 +19,12 @@ export const JOURNAL_TRIMMED_PENDING_TOTAL = new promClient.Counter({
 	labelNames: ["topic", "service"] as const,
 });
 
+export const JOURNAL_UNREADABLE_TOTAL = new promClient.Counter({
+	name: "mm_journal_unreadable_total",
+	help: "Journal entries whose message field is not JSON, acknowledged and dropped",
+	labelNames: ["topic", "service"] as const,
+});
+
 export const JOURNAL_PENDING_ENTRIES = new promClient.Gauge({
 	name: "mm_journal_pending_entries",
 	help: "Journal entries of a topic not yet acknowledged by a subscriber service (delivered or not)",

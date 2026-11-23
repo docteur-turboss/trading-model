@@ -67,7 +67,6 @@ const SCOPE_TO_PACKAGE = {
   common: 'packages/common',
   http: 'packages/http',
   crypto: 'packages/crypto',
-  validation: 'packages/validation',
   'address-manager': 'packages/address-manager',
   broker: 'packages/broker-message',
   'api-gateway': 'services/api-gateway',

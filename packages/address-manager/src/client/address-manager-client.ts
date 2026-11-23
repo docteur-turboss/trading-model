@@ -1,11 +1,11 @@
 import { parseServiceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
+import { ServiceRegistrationWire } from "@trading-model/contracts/wire/service-instance";
 import type { HttpClient } from "@trading-model/http/http-client";
 import { logger } from "@trading-model/http/logger";
 import type { IPAddress } from "@trading-model/primitives/primitives";
 import { ServiceId, URLString } from "@trading-model/primitives/primitives";
-import { ServiceRegistrationWire } from "@trading-model/validation/wire/service-instance";
 import type { AddressManagerConfig } from "../config/address-manager-config";
 import { LocalIPDetector } from "../shared/client/local-ip-detector";
 import { addressManagerError } from "../shared/errors";

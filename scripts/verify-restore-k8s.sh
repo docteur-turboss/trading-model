@@ -17,7 +17,7 @@
 #    - SPIRE datastore (SQLite, ADR-0065): registration entries > 0
 #    - SPIRE trust bundle readable (PEM certificate)
 #    - run manifest (BACKUP_DIR, issue #288): the manifest lists size and
-#      sha256 per dump, no row counts: nothing to compare, said so.
+#      sha256 and row counts of the main tables: KO when a restored table has fewer rows.
 # =============================================================================
 
 set -euo pipefail
@@ -157,9 +157,26 @@ check_manifest() {
     fail "run manifest: ${manifest} cannot be read (BACKUP_AGE_IDENTITY?)"
     return
   fi
-  # No row counts to compare: the #288 manifest holds size and sha256 only.
-  # A count comparison returns when a manifest carries counts, with its test.
-  warn "run manifest: $(basename "$manifest") records size and sha256 only, no row counts: nothing to compare"
+  # Restored tables may hold MORE rows than the dump counted (PITR replays later
+  # writes), or fewer only if db-retention purged since: a table with fewer
+  # rows than the manifest is a partial restore, so it fails.
+  local line comp pair name want got compared=0
+  while IFS= read -r line; do
+    comp="$(json_field "$line" component)" || continue
+    for pair in $(printf '%s' "$line" | sed -n 's/.*"rows":{\([^}]*\)}.*/\1/p' | tr -d '"' | tr ',' ' '); do
+      name="${pair%%:*}"; want="${pair#*:}"
+      if [ "$comp" = mysql ]; then
+        got="$(mysql_q "SELECT COUNT(*) FROM ${name}" 2>/dev/null || true)"
+      else
+        got="$(mongo_eval "$comp" "print(db.getSiblingDB('${name%%.*}').${name#*.}.countDocuments({}))" 2>/dev/null | tail -1 || true)"
+      fi
+      compared=1
+      if ! [[ "$got" =~ ^[0-9]+$ ]]; then fail "${name}: cannot count rows (manifest ${want})"
+      elif [ "$got" -lt "$want" ]; then fail "${name}: ${got} rows, manifest counted ${want}"
+      else ok "${name}: ${got} rows (manifest ${want})"; fi
+    done
+  done <<<"$content"
+  [ "$compared" -eq 1 ] || warn "run manifest: $(basename "$manifest") has no row counts (written before #1941): nothing to compare"
 }
 
 log "Post-restore verification (namespace ${K8S_NAMESPACE}, read-only)"

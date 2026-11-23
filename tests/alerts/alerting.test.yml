@@ -12,6 +12,39 @@ evaluation_interval: 30s
 tests:
   # 1% errors on api-gateway: below every threshold. 10% on dlq-service:
   # fires, per job, with the real ratio.
+  # Recreate restart: a new pod down 3 m (startup) stays quiet, a pod down 10 m fires; other jobs keep the 1 m rule.
+  - name: Recreate jobs tolerate a startup window, a durable outage still fires ServiceDown
+    interval: 1m
+    input_series:
+      - series: 'up{job="risk-execution",instance="start"}'
+        values: '0x3 1x20'
+      - series: 'up{job="model-evaluator",instance="dead"}'
+        values: '0x20'
+      - series: 'up{job="api-gateway",instance="dead"}'
+        values: '0x20'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: ServiceDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: api-gateway, instance: dead}
+            exp_annotations:
+              summary: 'api-gateway is down'
+              description: 'Service api-gateway has been unreachable for over 1 minute.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md'
+      - eval_time: 10m
+        alertname: ServiceDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: api-gateway, instance: dead}
+            exp_annotations:
+              summary: 'api-gateway is down'
+              description: 'Service api-gateway has been unreachable for over 1 minute.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md'
+          - exp_labels: {severity: critical, job: model-evaluator, instance: dead}
+            exp_annotations:
+              summary: 'model-evaluator is down'
+              description: 'Service model-evaluator has been unreachable for over 1 minute.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md'
+
   - name: error ratios are computed per job
     interval: 1m
     input_series:
@@ -476,6 +509,8 @@ tests:
         values: '1x10'
       - series: 'up{job="model-evaluator",instance="i"}'
         values: '1x10'
+      - series: 'up{job="risk-execution",instance="i"}'
+        values: '1x10'
       - series: 'up{job="dlq-service",instance="i"}'
         values: '0x10'
     alert_rule_test:
@@ -506,6 +541,11 @@ tests:
             exp_annotations:
               summary: 'model-evaluator has no scrape target'
               description: 'Prometheus has had no up series for model-evaluator for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
+          - exp_labels: {severity: critical, job: risk-execution}
+            exp_annotations:
+              summary: 'risk-execution has no scrape target'
+              description: 'Prometheus has had no up series for risk-execution for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
           - exp_labels: {severity: critical, job: dlq-service}
             exp_annotations:
@@ -590,12 +630,12 @@ tests:
       - eval_time: 25m
         alertname: SymbolMarketDataStale
         exp_alerts:
-          - exp_labels: {severity: critical, symbol: BTCUSDT}
+          - exp_labels: {severity: warning, symbol: BTCUSDT}
             exp_annotations:
               summary: 'No candle persisted for BTCUSDT for 15 minutes'
               description: 'financial-scraper persisted no BTCUSDT candle in 15 minutes, while the other symbols may still flow. The error is in the "Symbol scrape failed", "Market data part fetch failed" or "Market data part normalization failed" logs of that symbol.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#symbolmarketdatastale'
-          - exp_labels: {severity: critical, symbol: SOLUSDT}
+          - exp_labels: {severity: warning, symbol: SOLUSDT}
             exp_annotations:
               summary: 'No candle persisted for SOLUSDT for 15 minutes'
               description: 'financial-scraper persisted no SOLUSDT candle in 15 minutes, while the other symbols may still flow. The error is in the "Symbol scrape failed", "Market data part fetch failed" or "Market data part normalization failed" logs of that symbol.'
@@ -624,7 +664,7 @@ tests:
       - eval_time: 35m
         alertname: SymbolMarketDataStale
         exp_alerts:
-          - exp_labels: {severity: critical, symbol: BTCUSDT}
+          - exp_labels: {severity: warning, symbol: BTCUSDT}
             exp_annotations:
               summary: 'No candle persisted for BTCUSDT for 15 minutes'
               description: 'financial-scraper persisted no BTCUSDT candle in 15 minutes, while the other symbols may still flow. The error is in the "Symbol scrape failed", "Market data part fetch failed" or "Market data part normalization failed" logs of that symbol.'
@@ -761,8 +801,8 @@ tests:
         exp_alerts:
           - exp_labels: {severity: critical}
             exp_annotations:
-              summary: 'Binance quarantined after a 418 or 451'
-              description: 'financial-scraper makes no Binance call until the quarantine ends (Retry-After or doubling backoff, 5 min to 24 h): market data collection is blocked. Check fs_binance_requests_total{status=~"418|451"} and runbook-market-data-stale.'
+              summary: 'Binance quarantined after a 429, 418 or 451'
+              description: 'financial-scraper makes no Binance call until the quarantine ends (Retry-After or doubling backoff, 5 min to 24 h): market data collection is blocked. Check fs_binance_requests_total{status=~"429|418|451"} and runbook-market-data-stale.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md'
       - eval_time: 50m
         alertname: BinanceQuarantined
@@ -999,21 +1039,6 @@ tests:
               description: 'Notifications through slack fail: check the alertmanager-credentials Secret (webhook URL, routing key). This alert may not reach you: the dead man''s switch (Watchdog) is the safety net.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#alerts-on-the-alerting-path'
 
-  - name: dead-lettered messages are parked
-    interval: 1m
-    input_series:
-      - series: 'mm_messages_dlq_total{job="message-manager",instance="m",topic="market.candlestick.series.fetch",reason="MAX_RETRIES_EXCEEDED"}'
-        values: '0 0 0 3x20'
-    alert_rule_test:
-      - eval_time: 10m
-        alertname: MessagesDeadLettered
-        exp_alerts:
-          - exp_labels: {severity: warning, topic: market.candlestick.series.fetch}
-            exp_annotations:
-              summary: 'Messages dead-lettered on market.candlestick.series.fetch'
-              description: 'message-manager gave up delivering 3 message(s) on market.candlestick.series.fetch in the last hour. They are in the dead stream of the topic (audit-dlq CLI) to inspect and replay.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
-
   # A dead stream with entries: the alert waits 5 minutes, stays while one is left.
   - name: dead letters wait in a dead stream
     interval: 1m
@@ -1224,7 +1249,7 @@ tests:
       - series: 'backup_last_success_timestamp{job="backup-metrics",component="mongodb-audit-oplog",run="incremental"}'
         values: '0+60x200'
       - series: 'backup_last_success_timestamp{job="backup-metrics",component="mysql"}'
-        values: '0x200'
+        values: '0x3100'
     alert_rule_test:
       - eval_time: 175m
         alertname: BackupIncrementalStale
@@ -1256,23 +1281,38 @@ tests:
       - eval_time: 130m
         alertname: BackupIncrementalMissing
         exp_alerts:
-          - exp_labels: {severity: critical, component: mongodb-audit-oplog, run: incremental}
+          - exp_labels: {severity: warning, component: mongodb-audit-oplog, run: incremental}
             exp_annotations:
               summary: 'A binlog or oplog is no longer archived: mongodb-audit-oplog'
               description: 'db-backup-incremental reported nothing for mongodb-audit-oplog (job never ran, component removed, or backup-metrics-exporter down): no point-in-time recovery.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
-  # Compose (scripts/backup.sh) has no incremental job and says so.
-  - name: no incremental alert where point-in-time recovery is not supported
-    interval: 1m
+  # The risk-execution state stops being backed up.
+  - name: a daily component that never reports fires after 26 h
+    interval: 10m
     input_series:
-      - series: 'backup_pitr_supported{job="backup-metrics"}'
-        values: '0x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mongodb"}'
+        values: '0+600x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mongodb-audit"}'
+        values: '0+600x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="mysql"}'
+        values: '0+600x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="spire"}'
+        values: '0+600x200'
+      - series: 'backup_last_success_timestamp{job="backup-metrics",component="checkpoints"}'
+        values: '0+600x200'
     alert_rule_test:
-      - eval_time: 190m
-        alertname: BackupIncrementalMissing
+      - eval_time: 25h
+        alertname: BackupComponentMissing
         exp_alerts: []
-
+      - eval_time: 27h
+        alertname: BackupComponentMissing
+        exp_alerts:
+          - exp_labels: {severity: warning, component: risk}
+            exp_annotations:
+              summary: 'A database is no longer backed up: risk'
+              description: 'The last backup runs reported nothing for risk (component removed from the job, or skipped).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
   # The copy to the second off-site bucket fails: BackupOffsiteCopyFailed fires
   # for it, the primary copy stays quiet.
   - name: a failed second off-site copy raises BackupOffsiteCopyFailed
@@ -1317,6 +1357,39 @@ tests:
       - eval_time: 70m
         alertname: BackupIncrementalFailed
         exp_alerts: []
+
+  - name: the newest off-site SealedSecrets key backup is older than 48 hours, or absent
+    interval: 1m
+    input_series:
+      - series: 'backup_sealed_secrets_key_timestamp{job="backup-metrics"}'
+        values: '3600x3100'
+    alert_rule_test:
+      - eval_time: 40h
+        alertname: SealedSecretsKeyBackupStale
+        exp_alerts: []
+      - eval_time: 51h
+        alertname: SealedSecretsKeyBackupStale
+        exp_alerts:
+          - exp_labels: {severity: warning, job: backup-metrics}
+            exp_annotations:
+              summary: 'SealedSecrets key backup is older than 48 hours (or missing)'
+              description: 'The newest sealed-secrets-key_<TS>.yaml.age of the off-site bucket is more than 48 hours old, none exists, or the bucket prefix cannot be listed: sealed-secrets-key-backup.yml stopped (schedule disabled, run held, kubeconfig expired).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#sealedsecretskeybackupstale'
+
+  - name: no key listed or listing failed publishes 0 and alerts
+    interval: 1m
+    input_series:
+      - series: 'backup_sealed_secrets_key_timestamp{job="backup-metrics"}'
+        values: '0x3100'
+    alert_rule_test:
+      - eval_time: 51h
+        alertname: SealedSecretsKeyBackupStale
+        exp_alerts:
+          - exp_labels: {severity: warning, job: backup-metrics}
+            exp_annotations:
+              summary: 'SealedSecrets key backup is older than 48 hours (or missing)'
+              description: 'The newest sealed-secrets-key_<TS>.yaml.age of the off-site bucket is more than 48 hours old, none exists, or the bucket prefix cannot be listed: sealed-secrets-key-backup.yml stopped (schedule disabled, run held, kubeconfig expired).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#sealedsecretskeybackupstale'
 
   # The audit oplog was overwritten before being archived: the run that found
   # it failed (status 0 for one hour), the next ones succeed again from after
@@ -1375,7 +1448,7 @@ tests:
       - eval_time: 27h
         alertname: BackupMetricsAbsent
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels: {severity: warning}
             exp_annotations:
               summary: 'No backup has ever reported'
               description: 'Prometheus has no metric of the daily backup job: db-backup never ran or backup-metrics-exporter is down (the series of db-backup-incremental do not count).'
@@ -1722,6 +1795,26 @@ tests:
               description: 'Only 10% of /dev/sda1 is free on 10.0.0.5:9100 (one alert per device, whatever its mount points). A full node disk evicts pods; a full Docker Desktop host disk froze the whole VM (2026-10-28).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#nodefilesystemalmostfull'
 
+  - name: MySQL accepting plain connections is reported after 15 minutes
+    interval: 1m
+    input_series:
+      - series: 'mysql_global_variables_require_secure_transport{job="mysql",instance="10.0.0.1:9104"}'
+        values: '0x20'
+      - series: 'mysql_global_variables_require_secure_transport{job="mysql",instance="10.0.0.2:9104"}'
+        values: '1x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: MySQLSecureTransportOff
+        exp_alerts: []
+      - eval_time: 17m
+        alertname: MySQLSecureTransportOff
+        exp_alerts:
+          - exp_labels: {severity: warning, job: mysql, instance: '10.0.0.1:9104'}
+            exp_annotations:
+              summary: 'MySQL 10.0.0.1:9104 accepts plain connections'
+              description: 'require_secure_transport has been OFF on 10.0.0.1:9104 for 15 minutes: a deploy rollback relaxed MySQL TLS (scraper no longer needs a client certificate) and nothing restored it.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mysqlsecuretransportoff'
+
   - name: a database its exporter cannot query is reported per member
     interval: 1m
     input_series:
@@ -1786,6 +1879,27 @@ tests:
               summary: 'StatefulSet trading-model-staging/mysql still runs an old revision'
               description: 'StatefulSet mysql has pods on a revision other than its update revision for 24 hours: a partition holds the rollout back, so new sidecars (exporters) and their alerts are not running.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#statefulsetstuckonoldrevision'
+
+  - name: a Redis container near its memory limit is reported
+    interval: 1m
+    input_series:
+      - series: 'container_memory_working_set_bytes{namespace="trading-model",pod="redis-0",container="redis"}'
+        values: '450000000x15'
+      - series: 'container_spec_memory_limit_bytes{namespace="trading-model",pod="redis-0",container="redis"}'
+        values: '500000000x15'
+      - series: 'container_memory_working_set_bytes{namespace="trading-model",pod="redis-1",container="redis"}'
+        values: '100000000x15'
+      - series: 'container_spec_memory_limit_bytes{namespace="trading-model",pod="redis-1",container="redis"}'
+        values: '500000000x15'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: RedisMemoryHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, namespace: trading-model, pod: redis-0}
+            exp_annotations:
+              summary: 'Redis redis-0 uses over 80 % of its memory limit'
+              description: 'Redis redis-0 has used 90% of its container memory limit for 10 minutes. The journal is trimmed by age only (24 h), so a burst of messages is not cut: at the limit the container is OOMKilled.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redismemoryhigh'
 
   # 3 Redis nodes: the master must have 2 replicas; it has 1.
   - name: a Redis master with fewer replicas than the StatefulSet is reported
@@ -2010,7 +2124,7 @@ tests:
           - exp_labels: {severity: critical, job: risk-execution, mode: paper}
             exp_annotations:
               summary: 'risk-execution state differs from the broker (paper)'
-              description: 'The last reconciliation found a position, open order or balance difference with the broker. The global kill switch is on and the service is not ready; the store is never fixed to match the broker.'
+              description: 'The last reconciliation that reached the broker found a position, open order or balance difference. The global kill switch is on and the service is not ready; the store is never fixed to match the broker.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#reconciliationmismatch'
       - eval_time: 1m
         alertname: RiskMarketDataStale
@@ -2023,6 +2137,46 @@ tests:
               summary: 'Reference price older than 15 minutes (paper)'
               description: 'An allowed instrument has no price newer than 15 min: its orders halt (kill switch on that symbol, global when every symbol is stale).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskmarketdatastale'
+
+  - name: risk-execution tick failures
+    interval: 1m
+    input_series:
+      - series: 'risk_tick_failures_total{job="risk-execution",mode="paper"}'
+        values: '0 0 1+1x20'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: RiskTickFailing
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: RiskTickFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, job: risk-execution, mode: paper}
+            exp_annotations:
+              summary: 'risk-execution ticks keep failing (paper)'
+              description: 'The periodic risk tick (reconciliation, stale-data and loss checks, state write) threw for 5 min. Gauges are still republished from memory, but the state may not be persisted.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#risktickfailing'
+
+  - name: risk-execution reject ratio
+    interval: 1m
+    input_series:
+      - series: 'risk_orders_total{job="risk-execution",mode="paper",outcome="filled"}'
+        values: '0+1x40'
+      - series: 'risk_orders_total{job="risk-execution",mode="paper",outcome="rejected:price_band"}'
+        values: '0+3x40'
+      - series: 'risk_orders_total{job="risk-execution",mode="live",outcome="filled"}'
+        values: '0+0x40'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: RiskRejectRatioHigh
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: RiskRejectRatioHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, job: risk-execution, mode: paper}
+            exp_annotations:
+              summary: 'More than half of the order intents rejected (paper)'
+              description: 'risk-execution rejected over 50% of the intents for 15 min. A limit is close or the decision consumer sends bad intents (price band, exposure, stale price); repeated rejects also engage the kill switch.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskrejectratiohigh'
 
   # Deployed with no decision consumer: no price ever received, the service publishes age 0 and no switch, so nothing pages.
   - name: risk-execution without a price flow

@@ -1,8 +1,8 @@
-import { AddressManagerEnvSchema } from "@trading-model/validation/config/address-manager-env";
-import { BaseEnvSchema } from "@trading-model/validation/config/env";
-import { RedisEnvSchema } from "@trading-model/validation/config/redis-env";
-import { weakSecretReason } from "@trading-model/validation/config/secret-strength";
-import { validateEnv } from "@trading-model/validation/config/validate-env";
+import { AddressManagerEnvSchema } from "@trading-model/address-manager/config/address-manager-env";
+import { BaseEnvSchema } from "@trading-model/http/config/env";
+import { weakSecretReason } from "@trading-model/http/config/secret-strength";
+import { validateEnv } from "@trading-model/http/config/validate-env";
+import { RedisEnvSchema } from "@trading-model/persistence/redis-env";
 import { z } from "zod";
 
 const DlqEnvSchema = BaseEnvSchema.extend(AddressManagerEnvSchema.shape)

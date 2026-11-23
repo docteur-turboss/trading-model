@@ -2,10 +2,10 @@ import "./telemetry";
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { createBootstrap } from "@trading-model/http/bootstrap";
+import { ScraperSignalHistory } from "@trading-model/http/signals/scraper-signal-history";
 import { shutdownTelemetry } from "@trading-model/http/telemetry";
 import type { Leadership } from "@trading-model/reliability/leadership";
 import { ScraperCandleHistory } from "../adapters/outbound/scraper-candle-history";
-import { ScraperSignalHistory } from "../adapters/outbound/scraper-signal-history";
 import {
 	BOOTSTRAP_ADDRESS_MANAGER,
 	FIND_A_SERVICE,

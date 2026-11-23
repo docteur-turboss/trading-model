@@ -7,7 +7,7 @@
 
 ## Context
 
-model-evaluator only checks weight integrity (issue #1256, audit M4). To replay a published model on stored candles it lacks what the manifest never wrote: the test segment is the newest 15 % of the steps of a window that slides at every cycle; features are normalised point by point from the first candle (ADR-0030), so the replay needs the start of the window, not only the test segment; and the simulator constants (fee, execution cost, trade fraction) live in trader-trainer code only. The trainer's own ratios are measured with a 5 % random exploration (`EVAL_EPSILON`) and an unkept RNG: they cannot be reproduced to the digit.
+model-evaluator only checks weight integrity (issue #1256, audit M4). To replay a published model on stored candles it lacks what the manifest never wrote: the test segment is the newest 15 % of the steps of a window that slides at every cycle; features are normalised point by point from the first candle (ADR-0030), so the replay needs the start of the window, not only the test segment; and the simulator constants (fee, execution cost, trade fraction) live in trader-trainer code only. The trainer's selection ratios are measured with a 5 % random exploration (`EVAL_EPSILON`) and an unkept RNG; its admission ratios (ADR-0069) are one greedy pass, which the replay reproduces.
 
 ## Decision
 

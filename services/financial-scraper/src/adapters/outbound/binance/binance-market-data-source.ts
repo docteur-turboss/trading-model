@@ -3,7 +3,10 @@ import {
 	DataSource,
 	type TradingSymbol,
 } from "@trading-model/primitives/primitives";
-import { SourceQuarantine } from "../../../application/source-quarantine";
+import {
+	type QuarantineStore,
+	SourceQuarantine,
+} from "../../../application/source-quarantine";
 import type {
 	MarketDataSnapshot,
 	SnapshotRequest,
@@ -20,7 +23,7 @@ import {
 const BAN_BACKOFF_BASE_MS = 5 * 60_000;
 
 /**
- * Binance public REST API (no account, no key: ADR-0026). A 418 or 451
+ * Binance public REST API (no account, no key: ADR-0026). A 429, 418 or 451
  * quarantines it at once: no call until the deadline (`Retry-After` or a
  * doubling backoff), since each call during a ban extends it.
  */
@@ -29,19 +32,30 @@ export class BinanceMarketDataSource implements MarketDataSourcePort {
 	private _tickers?: TickerBatch;
 
 	constructor(
-		private readonly _quarantine = new SourceQuarantine(BAN_BACKOFF_BASE_MS, 1)
+		store?: QuarantineStore,
+		private readonly _quarantine = new SourceQuarantine(
+			BAN_BACKOFF_BASE_MS,
+			1,
+			undefined,
+			store
+		)
 	) {}
 
-	beginCycle(symbols: TradingSymbol[]): void {
+	/** Reads back a ban recorded before a restart or by the previous leader. */
+	restore(): Promise<void> {
+		return this._quarantine.restore();
+	}
+
+	beginCycle(symbols: TradingSymbol[], signal?: AbortSignal): void {
 		this._tickers = this._quarantine.isOpen(this.id)
 			? undefined
-			: fetchTickerBatch(symbols);
+			: fetchTickerBatch(symbols, signal);
 	}
 
 	async fetchSnapshot(request: SnapshotRequest): Promise<MarketDataSnapshot> {
 		if (this._quarantine.isOpen(this.id)) {
 			throw new Error(
-				"Binance quarantined after a 418/451: no call until the deadline"
+				"Binance quarantined after a 429/418/451: no call until the deadline"
 			);
 		}
 		let banned = false;

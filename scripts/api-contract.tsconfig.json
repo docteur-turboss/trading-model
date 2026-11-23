@@ -31,9 +31,6 @@
       ],
       "@trading-model/reliability/*": [
         "../packages/reliability/src/*"
-      ],
-      "@trading-model/validation/*": [
-        "../packages/validation/src/*"
       ]
     }
   }

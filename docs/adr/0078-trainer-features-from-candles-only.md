@@ -22,5 +22,5 @@ Owner's choice, option 1 on issue #1252.
 - Two pods give the same `MarketStep`s for the same symbol and window, by construction.
 - The microstructure signal is lost; a model that needs it must read stored history (a route for order books first) in a new ADR.
 - Published 32-input models stay readable as files but are no longer served as the best agent; model-evaluator keeps the layout it is sent.
-- financial-scraper still publishes the market topics, now without a subscriber: stopping those publications is left to the bus rework (ADR-0073).
+- financial-scraper no longer publishes the market topics: stopped in #1764 (`ddb41f301`), with no subscriber left; the `MarketEvent` contract was removed in #1797 (`964142d3b`).
 - ADR-0030's point-in-time rule stays for the candle statistics; ADR-0044's "still starts empty" limit is gone.

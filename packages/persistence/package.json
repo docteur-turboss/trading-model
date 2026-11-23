@@ -11,6 +11,7 @@
     "./redis-config": "./dist/redis-config.js",
     "./redis-connection-manager": "./dist/redis-connection-manager.js",
     "./redis-env": "./dist/redis-env.js",
+    "./redis-readiness": "./dist/redis-readiness.js",
     "./redis-key-builder": "./dist/redis-key-builder.js"
   },
   "dependencies": {
@@ -18,7 +19,8 @@
     "@trading-model/primitives": "*",
     "@trading-model/contracts": "*",
     "ioredis": "^6.0.0",
-    "mongodb": "^7.9.0"
+    "mongodb": "^7.9.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@jest/globals": "^30.5.2",

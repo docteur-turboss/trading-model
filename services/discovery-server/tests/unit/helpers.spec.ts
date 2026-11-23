@@ -16,7 +16,7 @@ jest.mock("@trading-model/http/response-exception", () => ({
 	})),
 }));
 
-jest.mock("@trading-model/validation/wire/primitives", () => ({
+jest.mock("@trading-model/contracts/wire/primitives", () => ({
 	isNonEmptyString: (v: any) => typeof v === "string" && v.trim().length > 0,
 }));
 

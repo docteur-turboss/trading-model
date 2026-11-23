@@ -1,3 +1,4 @@
+import { normalizeError } from "@trading-model/common/utils/errors";
 import type { Message } from "@trading-model/contracts/message-types";
 import { logger } from "@trading-model/http/logger";
 import { messageManagerError } from "../shared/errors";
@@ -8,7 +9,10 @@ import {
 	type JournalGroupLag,
 	type MessageJournalPort,
 } from "./journal.port";
-import { JOURNAL_TRIMMED_PENDING_TOTAL } from "./metrics";
+import {
+	JOURNAL_TRIMMED_PENDING_TOTAL,
+	JOURNAL_UNREADABLE_TOTAL,
+} from "./metrics";
 
 /** The ioredis commands the bus uses (a client of `@trading-model/persistence` fits). */
 export interface BusRedis {
@@ -89,9 +93,6 @@ export function openJournalWriter(
 		});
 	});
 }
-/** Approximate cap of a journal stream, applied every `CAP_EVERY` appends: bounds a burst the 24 h `MINID` would keep. Unmeasured: 100 000 × ~1 KB ≈ 100 MB per stream, against 512 Mi of Redis. */
-const JOURNAL_MAX_LENGTH = 100_000;
-const CAP_EVERY = 100;
 const FIELD = "message";
 const ONLY_FIELD = "only";
 
@@ -120,7 +121,6 @@ export class RedisMessageJournal implements MessageJournalPort {
 	>();
 	private readonly _readers = new Map<string, BlockingBusRedis>();
 	private _writer: Promise<BlockingBusRedis> | undefined;
-	private readonly _appends = new Map<string, number>();
 
 	constructor(private readonly _deps: RedisMessageJournalDeps) {
 		this._now = _deps.now ?? Date.now;
@@ -168,16 +168,12 @@ export class RedisMessageJournal implements MessageJournalPort {
 		await Promise.all(
 			services.map((service) => this._register(writer, { topic, service }))
 		);
-		// XADD takes MINID or MAXLEN, not both: the 24 h rule by default, the length cap every CAP_EVERY appends of the topic.
-		const count = (this._appends.get(topic) ?? 0) + 1;
-		this._appends.set(topic, count);
-		const capped = count % CAP_EVERY === 0;
 		const entryId = (await writer.call(
 			"XADD",
 			this.stream(topic),
-			...(capped
-				? ["MAXLEN", "~", String(JOURNAL_MAX_LENGTH)]
-				: ["MINID", "~", String(now - JOURNAL_RETENTION_MS)]),
+			"MINID",
+			"~",
+			String(now - JOURNAL_RETENTION_MS),
 			"*",
 			FIELD,
 			JSON.stringify(message),
@@ -300,21 +296,35 @@ export class RedisMessageJournal implements MessageJournalPort {
 					!skip.has(id) && idleMs >= retry.dueAfterMs(deliveries)
 			)
 			.slice(0, count);
-		// MIN-IDLE makes each claim atomic: of two replicas, one wins. Promise.all keeps the XPENDING order.
+		// One XCLAIM per min-idle value. MIN-IDLE makes each claim atomic: of two replicas, one wins.
+		const deliveriesById = new Map(due.map(([id, , , count2]) => [id, count2]));
+		const idsByMinIdle = new Map<number, string[]>();
+		for (const [id, , , deliveries] of due) {
+			const minIdle = retry.dueAfterMs(deliveries);
+			idsByMinIdle.set(minIdle, [...(idsByMinIdle.get(minIdle) ?? []), id]);
+		}
 		const batches = await Promise.all(
-			due.map(async ([id, , , deliveries]) => {
+			[...idsByMinIdle].map(async ([minIdle, ids]) => {
 				const claimed = (await this._deps.redis.call(
 					"XCLAIM",
 					stream,
 					group.service,
 					consumer,
-					String(retry.dueAfterMs(deliveries)),
-					id
+					String(minIdle),
+					...ids
 				)) as StreamReply;
-				return this._parse(group, claimed, () => deliveries + 1);
+				return this._parse(group, claimed, () => 1);
 			})
 		);
-		return batches.flat();
+		// Back to the XPENDING order, each entry with its own delivery count.
+		const order = [...deliveriesById.keys()];
+		return batches
+			.flat()
+			.map((entry) => ({
+				...entry,
+				deliveries: (deliveriesById.get(entry.id) ?? 0) + 1,
+			}))
+			.sort((x1, x2) => order.indexOf(x1.id) - order.indexOf(x2.id));
 	}
 
 	/** Lag of the groups of `service` only when given: a bus user has no right on other services' streams. */
@@ -419,11 +429,25 @@ export class RedisMessageJournal implements MessageJournalPort {
 			if (fields && at >= 0 && forOthers) {
 				await this.ack(group, id);
 			} else if (fields && at >= 0) {
-				entries.push({
-					id,
-					message: JSON.parse(fields[at + 1] as string) as Message,
-					deliveries: deliveries(),
-				});
+				let message: Message;
+				try {
+					message = JSON.parse(fields[at + 1] as string) as Message;
+				} catch (err) {
+					// Not JSON: no `Message` to dead-letter, so it is counted, logged and acked; the others go on.
+					JOURNAL_UNREADABLE_TOTAL.inc({
+						topic: group.topic,
+						service: group.service,
+					});
+					logger.error("Journal entry unreadable: dropped", {
+						topic: group.topic,
+						service: group.service,
+						entryId: id,
+						error: normalizeError(err),
+					});
+					await this.ack(group, id);
+					continue;
+				}
+				entries.push({ id, message, deliveries: deliveries() });
 			} else {
 				// Trimmed (24 h) before delivery: the message is gone for good, so it is counted, logged and alerted.
 				JOURNAL_TRIMMED_PENDING_TOTAL.inc({

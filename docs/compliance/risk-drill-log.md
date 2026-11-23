@@ -35,3 +35,5 @@ Add one entry per drill, newest first, in the pull request that follows it. Neve
 **Alerts.** Not raised by a running Prometheus: `KillSwitchEngaged`, `ReconciliationMismatch` and `RiskMarketDataStale` are checked by the promtool cases of `tests/alerts/alerting.test.yml` on the gauges the service sets (`risk_kill_switch`, `risk_reconciliation_mismatch`, `risk_market_data_age_seconds`).
 
 **What this drill does not cover, to run on the deployed paper environment before the 30 days of paper start:** a pod restart on the cluster (PVC re-mount), the admin routes through `kubectl exec`, the alerts firing in Prometheus and reaching Alertmanager, the audit trail records of each engagement (the service writes them to its log with the mode; publishing them to the audit chain is not wired yet). Log that run as a new entry.
+
+**Correction (2026-11-22):** engagements have been published to the audit chain since #1732.

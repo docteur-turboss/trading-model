@@ -117,7 +117,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: prometheus
-          image: prom/prometheus:v2.55.0@sha256:378f4e03703557d1c6419e6caccf922f96e6d88a530f7431d66a4c4f4b1000fe
+          image: prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
@@ -147,8 +147,7 @@ spec:
                 --config.file=/etc/prometheus/prometheus.yml \
                 --storage.tsdb.path=/prometheus \
                 --storage.tsdb.retention.time=30d \
-                --storage.tsdb.retention.size=40GB \
-                --enable-feature=expand-external-labels
+                --storage.tsdb.retention.size=40GB
           ports:
             - containerPort: 9090
               name: http

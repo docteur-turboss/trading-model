@@ -3,6 +3,7 @@ import type { SequenceNumber } from "@trading-model/primitives/primitives";
 import {
 	backoffDelay,
 	DELIVERY_ATTEMPT_TIMEOUT_MS,
+	HANDLER_TIMEOUT_MS,
 	retryDueMs,
 } from "../../../src/bus/backoff";
 
@@ -30,5 +31,11 @@ describe("retryDueMs", () => {
 			expect(due).toBeGreaterThanOrEqual(DELIVERY_ATTEMPT_TIMEOUT_MS);
 			expect(due).toBeLessThanOrEqual(DELIVERY_ATTEMPT_TIMEOUT_MS + 24_000);
 		}
+	});
+});
+
+describe("HANDLER_TIMEOUT_MS", () => {
+	it("should end before another replica can claim the entry", () => {
+		expect(HANDLER_TIMEOUT_MS).toBeLessThan(DELIVERY_ATTEMPT_TIMEOUT_MS);
 	});
 });

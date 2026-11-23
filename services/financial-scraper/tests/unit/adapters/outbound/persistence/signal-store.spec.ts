@@ -5,7 +5,7 @@ jest.mock("../../../../../src/config/db", () => ({
 	DATABASE: { promise: () => ({ query: MOCK_QUERY }) },
 }));
 
-import type { Signal } from "@trading-model/validation/wire/signals";
+import type { Signal } from "@trading-model/contracts/wire/signals";
 import { MySqlSignalStore } from "../../../../../src/adapters/outbound/persistence/signal-store";
 
 const PAYLOAD = {
@@ -125,5 +125,20 @@ describe("MySqlSignalStore", () => {
 		});
 
 		expect(MOCK_QUERY.mock.calls[0][1][2]).toEqual([null]);
+	});
+
+	it("answers an empty list without a query when no dimension applies", async () => {
+		const signals = await MySqlSignalStore.findForAsset({
+			assetId: "WHEAT",
+			sector: "agriculture",
+			areas: ["EA"],
+			dimensions: [],
+			from: 0,
+			to: 1,
+			limit: 10,
+		});
+
+		expect(signals).toEqual([]);
+		expect(MOCK_QUERY).not.toHaveBeenCalled();
 	});
 });

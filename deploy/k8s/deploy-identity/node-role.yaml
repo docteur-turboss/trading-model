@@ -9,9 +9,16 @@ rules:
   - apiGroups: [""]
     resources: [configmaps, serviceaccounts]
     verbs: [get, list, watch, create, update, patch, delete]
+  # No create/delete: a DaemonSet in this privileged namespace is root on the
+  # nodes. An admin creates them (deploy-identity.sh cluster); this identity
+  # only updates the four that exist.
   - apiGroups: [apps]
     resources: [daemonsets]
-    verbs: [get, list, watch, create, update, patch, delete]
+    verbs: [list, watch]
+  - apiGroups: [apps]
+    resources: [daemonsets]
+    resourceNames: [spire-agent, spiffe-csi-driver, promtail, node-exporter]
+    verbs: [get, update, patch]
   - apiGroups: [rbac.authorization.k8s.io]
     resources: [roles, rolebindings]
     verbs: [get, list, watch, create, update, patch, delete]

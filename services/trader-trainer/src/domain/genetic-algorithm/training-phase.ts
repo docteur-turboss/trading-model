@@ -13,6 +13,8 @@ interface TrainPhaseContext {
 	backend: RLBackend;
 	trainData: MarketStep[];
 	genome: DeepReadonly<LamarckGenome>;
+	/** Seeded draw in [0, 1) picking where the episode starts; without it, at the first bar. */
+	rng?: () => number;
 }
 
 /** A decision waiting for its n-step return. */
@@ -96,9 +98,12 @@ class TransitionWriter {
  * genome discounts by the bars elapsed, not by the decisions. Only complete n-step transitions are
  * stored: the last n decisions of the window, whose return the window cuts
  * short, are not.
+ *
+ * The episode covers `maxEpisodeLength` bars from a seeded random offset, so
+ * successive episodes see the whole training segment.
  */
 export function trainPhase(ctx: TrainPhaseContext): void {
-	const { backend, trainData, genome } = ctx;
+	const { backend, genome, rng } = ctx;
 	const { horizon, gamma } = genome.rl;
 	const shaper = new RewardShaper(
 		genome.rl.rewardShaping,
@@ -106,8 +111,11 @@ export function trainPhase(ctx: TrainPhaseContext): void {
 	);
 	const writer = new TransitionWriter(backend, genome);
 	const eventDriven = isEventDriven(horizon);
-	const maxT = Math.min(trainData.length, horizon.maxEpisodeLength);
-	const bars = decisionBars(trainData.slice(0, maxT), horizon);
+	const maxT = Math.min(ctx.trainData.length, horizon.maxEpisodeLength);
+	const start = rng ? Math.floor(rng() * (ctx.trainData.length - maxT + 1)) : 0;
+	// bar indexes below are relative to this slice
+	const trainData = ctx.trainData.slice(start, start + maxT);
+	const bars = decisionBars(trainData, horizon);
 	const pending: PendingDecision[] = [];
 
 	for (const [rank, index] of bars.entries()) {

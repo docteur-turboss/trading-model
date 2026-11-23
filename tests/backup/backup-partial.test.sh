@@ -40,7 +40,7 @@ new_run() {
 	MANIFEST_ENTRIES=()
 }
 
-# Restore dry-run of `$1` (restore.sh or restore-k8s.sh) with the remaining
+# Restore dry-run of `$1` (restore-k8s.sh) with the remaining
 # arguments: output and exit status (no cluster, no Docker: selection and
 # verification happen before any pod or container lookup).
 restore_dry() {
@@ -89,6 +89,16 @@ open_backup "$manifest" | grep -q "\"component\":\"mysql\",\"path\":\"mysql/fina
 open_backup "$manifest" | node -e 'JSON.parse(require("fs").readFileSync(0, "utf8"))' 2>/dev/null &&
 	pass "the manifest is valid JSON" || failed "the manifest is not valid JSON"
 
+echo "row counts ride on the entry and old entries without rows stay readable"
+new_run 2026-10-31_030000
+DUMP_ROWS='{"financial_scraper.signals":7}' write_dump mysql "$BACKUP_DIR/mysql/financial_scraper_${TIMESTAMP}.sql.gz.age" dump_ok 2>/dev/null
+write_manifest 2>/dev/null
+open_backup "$BACKUP_DIR/manifests/manifest_${TIMESTAMP}.json.age" | grep -q '"rows":{"financial_scraper.signals":7}}' &&
+	pass "entry carries rows" || failed "no rows in the manifest"
+manifest_entry "$BACKUP_DIR/manifests/manifest_${TIMESTAMP}.json.age" mysql | grep -q "^mysql/financial_scraper_${TIMESTAMP}" &&
+	pass "entry with rows is still read" || failed "entry with rows refused"
+rm -f "$BACKUP_DIR/manifests/manifest_${TIMESTAMP}.json.age" "$BACKUP_DIR/mysql/financial_scraper_${TIMESTAMP}.sql.gz.age" # later cases read the newest runs
+
 echo "latest = the newest run whose manifest lists the component"
 # Run 2026-11-02: MySQL failed, SPIRE succeeded. A truncated dump of that run,
 # as backups written before the fix left them, sits next to the good one.
@@ -97,7 +107,7 @@ write_dump spire "$BACKUP_DIR/spire/keys_${TIMESTAMP}.json.age" printf '{"keys":
 write_dump mysql "$BACKUP_DIR/mysql/financial_scraper_${TIMESTAMP}.sql.gz.age" dump_cut 2>/dev/null || true
 write_manifest 2>/dev/null
 (printf 'DROP TABLE IF EXISTS t;\nCREATE TABLE t' | gzip | seal) >"$BACKUP_DIR/mysql/financial_scraper_2026-11-02_020000.sql.gz.age"
-for script in restore.sh restore-k8s.sh; do
+for script in restore-k8s.sh; do
 	# Issue #330: MySQL and SPIRE come from the same run, the last one that
 	# holds both (11-01), not SPIRE of 11-02 next to MySQL of 11-01.
 	out="$(restore_dry "$script" --components mysql,spire || true)"
@@ -137,7 +147,7 @@ for script in restore.sh restore-k8s.sh; do
 done
 
 echo "--timestamp refuses a component the run did not back up"
-for script in restore.sh restore-k8s.sh; do
+for script in restore-k8s.sh; do
 	if out="$(restore_dry "$script" --components mysql --timestamp 2026-11-02_020000)"; then
 		failed "$script restored MySQL from a run whose MySQL dump failed"
 	elif echo "$out" | grep -q 'mysql: run 2026-11-02_020000 did not back it up successfully'; then
@@ -155,7 +165,7 @@ cp "$good" "$WORK/good.age"
 cp "$manifest" "$WORK/manifest.age"
 # Same file, same size, another recorded sha256: only the checksum differs.
 open_backup "$WORK/manifest.age" | sed "s/${plain_sha}/$(printf '%064d' 0)/" | seal >"$manifest"
-for script in restore.sh restore-k8s.sh; do
+for script in restore-k8s.sh; do
 	out="$(restore_dry "$script" --components mysql || true)"
 	echo "$out" | grep -q 'differs from the run manifest' && ! echo "$out" | grep -q 'Would restore MySQL' &&
 		pass "$script refuses a sha256 mismatch" || {
@@ -175,7 +185,7 @@ new_run 2026-11-03_020000
 write_dump mysql "$BACKUP_DIR/mysql/financial_scraper_${TIMESTAMP}.sql.gz.age" \
 	sh -c "printf 'DROP TABLE IF EXISTS t;\nCREATE TABLE t (id INT);\n' | gzip" 2>/dev/null
 write_manifest 2>/dev/null
-for script in restore.sh restore-k8s.sh; do
+for script in restore-k8s.sh; do
 	out="$(restore_dry "$script" --components mysql --timestamp 2026-11-03_020000 || true)"
 	echo "$out" | grep -q "does not end with '-- Dump completed'" && ! echo "$out" | grep -q 'Would restore MySQL' &&
 		pass "$script refuses the truncated dump" || {
@@ -197,7 +207,7 @@ expect_refusal() {
 		shift
 	done
 	shift
-	for script in restore.sh restore-k8s.sh; do
+	for script in restore-k8s.sh; do
 		status=0
 		out="$(env "${envs[@]}" BACKUP_DIR="$BACKUP_DIR" bash "$ROOT/scripts/$script" --dry-run "$@" 2>&1)" || status=$?
 		if [ "$status" -eq 1 ] && echo "$out" | grep -q "✗ .*${expected}" &&
@@ -226,7 +236,7 @@ expect_refusal "corrupt newest manifest (latest)" "cannot read the run manifest 
 	BACKUP_AGE_IDENTITY="$BACKUP_AGE_IDENTITY" -- --components mysql
 mv "$WORK/newest.age" "$newest"
 
-echo "a corrupt plaintext run manifest (Docker default: no encryption) is refused too"
+echo "a corrupt plaintext run manifest is refused too"
 # `cat` reads any plaintext file: only the structure check tells a corrupt
 # manifest from a run that did not back the component up.
 ENCRYPTED_DIR="$BACKUP_DIR" SAVED_SUFFIX="$AGE_SUFFIX"
@@ -238,7 +248,7 @@ for ts in 2026-11-01_020000 2026-11-02_020000; do
 	write_manifest 2>/dev/null
 done
 newest="$BACKUP_DIR/manifests/manifest_2026-11-02_020000.json"
-out="$(restore_dry restore.sh --components mysql 2>&1 || true)"
+out="$(restore_dry restore-k8s.sh --components mysql 2>&1 || true)"
 echo "$out" | grep -q 'Restoring mysql from: .*2026-11-02_020000' &&
 	pass "control: the valid plaintext manifest of 11-02 is used" || failed "plaintext manifest not used: $out"
 cp "$newest" "$WORK/newest.json"

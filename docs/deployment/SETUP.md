@@ -54,10 +54,9 @@ Compiles the monorepo packages in this order (topological dependency chain):
 5. `model-runtime` (`packages/model-runtime`)
 6. `persistence` (`packages/persistence`)
 7. `http` (`packages/http`)
-8. `validation` (`packages/validation`)
-9. `crypto` (`packages/crypto`)
-10. `address-manager` (`packages/address-manager`)
-11. `broker-message` (`packages/broker-message`)
+8. `crypto` (`packages/crypto`)
+9. `address-manager` (`packages/address-manager`)
+10. `broker-message` (`packages/broker-message`)
 
 Packages are used by the microservices as `@trading-model/*` workspace dependencies.
 

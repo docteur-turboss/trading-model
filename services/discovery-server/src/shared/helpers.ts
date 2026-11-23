@@ -1,3 +1,4 @@
+import { isNonEmptyString } from "@trading-model/contracts/wire/primitives";
 import { ResponseException } from "@trading-model/http/response-exception";
 import {
 	type InstanceId,
@@ -5,7 +6,6 @@ import {
 	toInstanceId,
 } from "@trading-model/primitives/primitives";
 import type { TokenValidation } from "@trading-model/primitives/token-validation";
-import { isNonEmptyString } from "@trading-model/validation/wire/primitives";
 
 import type { ServiceRegistry } from "../domain/service-registry";
 

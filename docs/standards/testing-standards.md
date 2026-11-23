@@ -89,7 +89,6 @@ All workspaces enforce an **80%** global threshold (statements, branches, functi
 | Package / Service              | Branches | Functions | Lines | Statements | Framework |
 | ------------------------------ | -------- | --------- | ----- | ---------- | --------- |
 | @trading-model/common          | 80%      | 80%       | 80%   | 80%        | Jest      |
-| @trading-model/validation      | 80%      | 80%       | 80%   | 80%        | Jest      |
 | @trading-model/http    | 80%      | 80%       | 80%   | 80%        | Jest      |
 | @trading-model/crypto          | 80%      | 80%       | 80%   | 80%        | Jest      |
 | @trading-model/address-manager | 80%      | 80%       | 80%   | 80%        | Jest      |
@@ -192,7 +191,7 @@ export const logger = {
   warn: jest.fn(),
 };
 
-export const createSecureServer = jest.fn();
+export const createServiceServer = jest.fn();
 ```
 
 ### Unit Tests

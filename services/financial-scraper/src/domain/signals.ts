@@ -5,7 +5,7 @@ import {
 	Dimension,
 	SectorId,
 	SourceId,
-} from "@trading-model/validation/wire/signals";
+} from "@trading-model/contracts/wire/signals";
 import { z } from "zod";
 import { _field } from "./cron-period";
 
@@ -165,31 +165,6 @@ export const Source = z.strictObject({
 	/** §1.3: the (asset type, dimension) pairs the source can feed. */
 	covers: z.array(Coverage).min(1),
 	accessPolicy: AccessPolicy,
-	/**
-	 * History request of `signal-backfill`: `url` holds `{from}` and `{to}` (YYYY-MM-DD,
-	 * inclusive) and the asset holes of a template; `pageDays` is the widest window one request may cover.
-	 * Absent: the source cannot be backfilled.
-	 */
-	history: z
-		.strictObject({
-			url: z
-				.string()
-				.startsWith("https://")
-				.refine(
-					(url) =>
-						url.includes("{from}") &&
-						url.includes("{to}") &&
-						!/\{/.test(
-							url
-								.replace(/\{asset\.(ticker|isin|alias\.[a-z][a-z0-9_]*)\}/g, "")
-								.replace(/\{(from|to)\}/g, "")
-						) &&
-						!/^https:\/\/[^/?#]*\{/.test(url),
-					"history url needs {from} and {to}, no other hole than asset ones, none in the host"
-				),
-			pageDays: z.number().int().positive(),
-		})
-		.optional(),
 	requests: z.array(SourceRequest).min(1),
 });
 export type Source = z.infer<typeof Source>;

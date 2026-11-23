@@ -54,6 +54,29 @@ describe("dlq-cli", () => {
 		);
 	});
 
+	it("publishes the audit event for the entries done before an error, then rethrows", async () => {
+		const { run, publish, streams, err } = cli();
+		streams.replay
+			.mockResolvedValueOnce(true)
+			.mockRejectedValueOnce(new Error("redis down"));
+
+		await expect(run(["alice", "replay", "t", "1-0", "2-0"])).rejects.toThrow(
+			"redis down"
+		);
+		expect(publish).toHaveBeenCalledWith(
+			"dlq.replay.completed",
+			expect.objectContaining({ replayed: 1, failed: 1 })
+		);
+		expect(err).toEqual([]);
+
+		publish.mockRejectedValueOnce(new Error("bus down"));
+		streams.delete.mockRejectedValueOnce(new Error("redis down"));
+		await expect(run(["alice", "delete", "t", "1-0"])).rejects.toThrow(
+			"redis down"
+		);
+		expect(err[0]).toContain("bus down");
+	});
+
 	it("deletes entries and records dlq.entries.deleted", async () => {
 		const { run, publish, streams } = cli();
 

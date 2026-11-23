@@ -13,7 +13,11 @@ import type { EVALUATOR_API } from "./api-routes";
 function createModelPublishedHandler(
 	evaluate: ReturnType<typeof createEvaluateModel>
 ) {
-	return async (payload: unknown, metadata: DeliveredMetadata) => {
+	return async (
+		payload: unknown,
+		metadata: DeliveredMetadata,
+		signal?: AbortSignal
+	) => {
 		const event = PublishedModel.safeParse(payload);
 		if (!event.success) {
 			getLogger().warn("Invalid training.model.published payload rejected", {
@@ -23,7 +27,7 @@ function createModelPublishedHandler(
 			});
 			return;
 		}
-		const outcome = await evaluate(event.data);
+		const outcome = await evaluate(event.data, signal);
 		MODEL_EVALUATIONS_TOTAL.inc({ outcome });
 		return outcome;
 	};
@@ -36,9 +40,10 @@ export function createModelPublishedListener(
 	const handle = createModelPublishedHandler(evaluate);
 	return async (
 		payload: unknown,
-		metadata: DeliveredMetadata
+		metadata: DeliveredMetadata,
+		signal?: AbortSignal
 	): Promise<void> => {
-		if (!(await handle(payload, metadata))) {
+		if (!(await handle(payload, metadata, signal))) {
 			throw deadLetterError("Invalid training.model.published payload", {
 				reason: "REJECTED_BY_SUBSCRIBER",
 			});

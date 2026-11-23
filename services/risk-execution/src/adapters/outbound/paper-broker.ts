@@ -19,7 +19,7 @@ interface Ledger {
  * Simulated broker (ADR-0064 §6): an internal paper ledger, no exchange, no key.
  * Fills at the reference price moved against the order by `slippageBps`, with
  * `feeBps` of fee (the simulator's costs, rl-backend.ts); a limit that is not
- * marketable rests open until cancelled or expired.
+ * marketable is cancelled at once (no matching engine would ever fill it).
  * shortcut: fills are all-or-nothing, partial fills come with a real adapter.
  */
 export class PaperBroker implements BrokerPort {
@@ -55,7 +55,8 @@ export class PaperBroker implements BrokerPort {
 			sign * (order.limitPrice - fillPrice) >= 0;
 		const view = {
 			clientOrderId: order.clientOrderId,
-			status: "open" as BrokerOrderView["status"],
+			// cancelled, not rejected: a rejection counts toward the `rejects` kill switch
+			status: "cancelled" as BrokerOrderView["status"],
 			filledQty: 0,
 			quoteQty: 0,
 			fee: 0,
