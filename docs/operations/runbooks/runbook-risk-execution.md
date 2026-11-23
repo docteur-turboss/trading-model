@@ -54,7 +54,7 @@ Three or more intents of the decision consumer rejected in an hour with the same
 
 1. Read the `Intent rejected by risk-execution` log lines of `decision-consumer` (symbol, model, reason).
 2. `price_band`, `price_gap`, `stale_intent`: the bar read from financial-scraper is far from the price risk-execution reads, or old; check the feed ([runbook-market-data-stale](runbook-market-data-stale.md)).
-3. A sell with no position or a buy at the cap (`insufficient_balance`, `instrument_exposure`, `global_exposure`) is expected at times: the consumer sizes on a simulated wallet that drifts from the real paper position (ADR-0087 §3). Only a steady stream of them is a finding.
+3. A buy at the cap (`instrument_exposure`, `global_exposure`) is expected at times: the consumer sizes buys on a simulated wallet, sales on the real position (ADR-0087 §3). Only a steady stream of them is a finding; a rejected sale is one (it is bounded by `GET /positions/:symbol`).
 4. `instrument_exposure`, `global_exposure`, `max_quantity`: the size of the model exceeds a limit of risk-execution; the limit stays, lower `PROMOTED_MODELS` by a PR if the model is the cause.
 
 ## RiskMarketDataStale

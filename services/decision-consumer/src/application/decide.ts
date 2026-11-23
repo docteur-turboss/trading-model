@@ -33,6 +33,7 @@ interface Scraper {
 }
 
 interface Risk {
+	position(symbol: string): Promise<number>;
 	send(
 		intent: Intent
 	): Promise<{ status: string; clientOrderId: string; reason?: string }>;
@@ -145,12 +146,20 @@ export function createDecisionTick(deps: {
 			skip(model, "missing-bar");
 			return;
 		}
-		if (decision.order) {
+		// A sale never exceeds the real position (ADR-0087 §3); a failed read throws: no intent, retried next pass.
+		const held =
+			decision.order?.side === "sell"
+				? await deps.risk.position(model.symbol)
+				: Number.POSITIVE_INFINITY;
+		const quantity = decision.order
+			? Math.floor(Math.min(decision.order.quantity, held) * 1e8) / 1e8
+			: 0;
+		if (decision.order && quantity > 0) {
 			const result = await deps.risk.send({
 				decisionId: decisionId(model, bar),
 				symbol: model.symbol,
 				side: decision.order.side,
-				quantity: Math.floor(decision.order.quantity * 1e8) / 1e8,
+				quantity,
 				referencePrice: decision.price,
 				referenceAt: bar + intervalMs,
 				model,
