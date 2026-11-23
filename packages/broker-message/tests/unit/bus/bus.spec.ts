@@ -10,10 +10,7 @@ import type { Message } from "@trading-model/contracts/message-types";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import * as backoff from "../../../src/bus/backoff";
 import { BusConsumer } from "../../../src/bus/consumer";
-import {
-	DEAD_LETTER_RETENTION_MS,
-	DeadStreams,
-} from "../../../src/bus/dead-streams";
+import { DeadStreams } from "../../../src/bus/dead-streams";
 import {
 	MESSAGES_DELIVERED_TOTAL,
 	MESSAGES_DLQ_TOTAL,
@@ -510,17 +507,19 @@ describe("DeadStreams", () => {
 		const call = jest.spyOn(redis, "call");
 		jest.spyOn(Date, "now").mockReturnValue(1_000_000_000_000);
 
-		await streams.deadLetter(GROUP, "1-0", createMockMessage("x"), "R", 1);
+		try {
+			await streams.deadLetter(GROUP, "1-0", createMockMessage("x"), "R", 1);
+		} finally {
+			jest.restoreAllMocks();
+		}
 
-		expect(DEAD_LETTER_RETENTION_MS).toBe(7 * 24 * 60 * 60 * 1000);
 		expect(call.mock.calls[0]?.slice(0, 5)).toEqual([
 			"XADD",
 			`p:dead:${TOPIC}`,
 			"MINID",
 			"~",
-			String(1_000_000_000_000 - DEAD_LETTER_RETENTION_MS),
+			String(1_000_000_000_000 - 7 * 24 * 60 * 60 * 1000),
 		]);
-		jest.restoreAllMocks();
 	});
 
 	it("should throw when the transaction fails, so the entry stays pending", async () => {

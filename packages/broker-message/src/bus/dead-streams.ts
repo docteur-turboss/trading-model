@@ -21,7 +21,7 @@ export interface DeadLetter {
  * let an operator replay or delete after `BusDeadLetters`; the `dlq.entry.added` audit
  * event outlives the purge.
  */
-export const DEAD_LETTER_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const DEAD_LETTER_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * Dead streams (ADR-0073): `<prefix>:dead:<topic>`, trimmed by age
