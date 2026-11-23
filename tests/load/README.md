@@ -82,7 +82,7 @@ Run on a production-sized host. Nothing here is run by CI; no figure is committe
    k6 run -e API_KEY=e2e-api-key-0123456789abcdef0123456789abcdef -e SOAK_DURATION=4h --summary-export=out/soak.json tests/load/k6/soak-test.js
    kill %1
    ```
-5. **GA benchmark**: `bun services/trader-trainer/bench/ga-generation.bench.ts > out/ga-bench.json` (twice: generations and fitness must match).
+5. **GA benchmark**: `bun run --filter trader-trainer bench > out/ga-bench.json` (runs under Node, like the trainer image) (twice: generations and fitness must match).
 6. **Record**: fill the table below (date, commit, host, figure), keep the raw files (`out/*`) outside the repository or attach them to the issue. Then tear down: `docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml down -v --rmi local`.
 
 ### Soak
@@ -108,7 +108,7 @@ Set the env vars `ci.yml` sets for the stack (`MYSQL_ROOT_PASSWORD`, `MYSQL_EXPO
 
 ### GA benchmark
 
-`services/trader-trainer/bench/ga-generation.bench.ts` (bun, outside Jest and `src`, never run in CI): `runInProcess` on fixed synthetic data (random walk, 2 windows) with fixed seeds. Env: `BENCH_GENERATIONS` (10), `BENCH_POPULATION` (20), `BENCH_EPISODES` (1), `BENCH_STEPS` (500 bars per window), `BENCH_SEED` (0, added to the PRNG seeds). JSON on stdout:
+`services/trader-trainer/bench/ga-generation.bench.ts` (`bench` script, Node via ts-node, outside Jest and `src`, never run in CI): `runInProcess` on fixed synthetic data (random walk, 2 windows) with fixed seeds. Env: `BENCH_GENERATIONS` (10), `BENCH_POPULATION` (20), `BENCH_EPISODES` (1), `BENCH_STEPS` (500 bars per window), `BENCH_SEED` (0, added to the PRNG seeds). JSON on stdout:
 
 | Field | Meaning |
 | ----- | ------- |

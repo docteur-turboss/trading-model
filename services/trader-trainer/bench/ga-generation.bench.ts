@@ -108,7 +108,9 @@ async function main() {
 					seedOffset,
 				},
 				env: {
-					runtime: `bun ${process.versions.bun}`,
+					runtime: process.versions.bun
+						? `bun ${process.versions.bun}`
+						: `node ${process.version}`,
 					platform: process.platform,
 					arch: process.arch,
 				},
