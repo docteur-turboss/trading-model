@@ -2,9 +2,6 @@ import type { BrandedNumber } from "./branded-utils";
 import { createNumberBrand } from "./branded-utils";
 
 export type DurationMs = BrandedNumber<"DurationMs">;
-export function toDurationMs(value: number): DurationMs {
-	return DurationMs.of(value);
-}
 export const DurationMs = {
 	...createNumberBrand("DurationMs", {
 		min: 0,

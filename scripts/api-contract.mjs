@@ -76,7 +76,7 @@ const SERVICE_TO_SERVICE = {
 	],
 	"audit-logger": ["POST /message"],
 	"model-evaluator": ["POST /message"],
-	"risk-execution": ["POST /intents", "POST /orders/:clientOrderId/cancel", "GET /positions/:symbol", "GET /admin/status", "POST /admin/kill-switch", "POST /admin/kill-switch/rearm"],
+	"risk-execution": ["POST /intents", "POST /orders/:clientOrderId/cancel", "GET /positions/:symbol", "GET /admin/status"],
 	"message-manager": ["POST /message", "POST /message/replay", "POST /subscribe", "DELETE /subscribe"],
 	// Model weights: never through the gateway (ADR-0022).
 	"trader-trainer": ["GET /models/:symbol/:version/weights"],
@@ -112,8 +112,6 @@ const AWAITING_CALLER = {
 	"risk-execution POST /orders/:clientOrderId/cancel": "no decision consumer cancel yet",
 	// The operator calls them from the pod (kubectl exec, docs/operations/runbook-risk-execution.md), not from the repository.
 	"risk-execution GET /admin/status": "operator, from the pod",
-	"risk-execution POST /admin/kill-switch": "operator, from the pod",
-	"risk-execution POST /admin/kill-switch/rearm": "operator, from the pod",
 };
 
 /** A WebSocket server needs a client in the repository; none exists (ADR-0029). */
