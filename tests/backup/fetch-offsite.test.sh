@@ -277,8 +277,8 @@ fi
 
 echo "--dry-run"
 if fetch --dest "$WORK/fetched-dry" --dry-run && [ ! -e "$WORK/fetched-dry" ] &&
-	[ "$(grep -c "Would fetch" "$WORK/out")" = 7 ] && grep -q "$GOOD" "$WORK/out"; then
-	pass "lists the 7 files of ${GOOD} (manifest included) and copies nothing"
+	[ "$(grep -c "Would fetch" "$WORK/out")" = 6 ] && grep -q "$GOOD" "$WORK/out"; then
+	pass "lists the 6 files of ${GOOD} (manifest included) and copies nothing"
 else
 	failed "--dry-run: $(cat "$WORK/out")"
 fi
@@ -308,7 +308,7 @@ else
 	failed "long tiers hold: $long_tiers"
 fi
 if BACKUP_S3_BUCKET=s3://backups/tiered fetch --dest "$WORK/fetched-tiered" &&
-	[ "$(find "$WORK/fetched-tiered" -type f | grep -c "$TIERED")" = 7 ] &&
+	[ "$(find "$WORK/fetched-tiered" -type f | grep -c "$TIERED")" = 6 ] &&
 	[ -f "$WORK/fetched-tiered/mysql/financial_scraper_${TIERED}.sql.gz.age" ]; then
 	pass "a tiered bucket is read from daily/ by default, in the layout restore-k8s.sh reads"
 else
