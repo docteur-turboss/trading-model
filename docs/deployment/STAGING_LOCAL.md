@@ -248,7 +248,7 @@ ConfigMap again:
 cm=$(kubectl -n "$NS" get deploy financial-scraper -o jsonpath='{.spec.template.spec.containers[0].envFrom[0].configMapRef.name}')
 kubectl -n "$NS" patch configmap "$cm" --type merge -p '{"data":{"DB_SSL_CA":"/etc/mysql-tls/ca.crt","DB_SSL_CERT":"/etc/mysql-tls/tls.crt","DB_SSL_KEY":"/etc/mysql-tls/tls.key"}}'
 kubectl -n "$NS" rollout restart deploy/financial-scraper deploy/financial-scraper-collector
-bash deploy/k8s/scripts/run-migrations.sh "$NS" user-only   # prints no "auto-generated certificate" line
+bash deploy/k8s/scripts/run-migrations.sh "$NS" user-only
 ```
 
 Check that model-evaluator reads its topic in process:
