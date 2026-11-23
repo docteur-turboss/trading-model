@@ -740,21 +740,21 @@ groups:
   - name: trading-model-slo-recording
     interval: 1m
     rules:
+      # No requests (service down) falls back to the blackbox failure rate; the numerator is guarded so a job with no 5xx series has a ratio of 0, not no data.
       - record: slo:sli_error:ratio_rate5m
-        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[5m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[5m]))
+        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[5m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[5m])) or 1 - avg by (job) (label_replace(avg_over_time(probe_success[5m]), "job", "$1", "service", "(.*)"))
       - record: slo:sli_error:ratio_rate1h
-        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[1h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[1h]))
+        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[1h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[1h])) or sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[1h])) * 0 or 1 - avg by (job) (label_replace(avg_over_time(probe_success[1h]), "job", "$1", "service", "(.*)"))
       - record: slo:sli_error:ratio_rate30m
-        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[30m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30m]))
+        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[30m])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30m])) or 1 - avg by (job) (label_replace(avg_over_time(probe_success[30m]), "job", "$1", "service", "(.*)"))
       - record: slo:sli_error:ratio_rate6h
-        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[6h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[6h]))
-      # Numerator guarded: a job with no 5xx series yet has a ratio of 0, not no data.
-      - record: slo:sli_error:ratio_rate30d
-        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[30d])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30d])) or sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[30d])) * 0
+        expr: sum by (job) (rate(http_requests_total{status=~"5..",path!~"/ping|/health/ready|/metrics"}[6h])) / sum by (job) (rate(http_requests_total{path!~"/ping|/health/ready|/metrics"}[6h])) or 1 - avg by (job) (label_replace(avg_over_time(probe_success[6h]), "job", "$1", "service", "(.*)"))
 
   - name: trading-model-slo-budget
     interval: 5m
     rules:
+      - record: slo:sli_error:ratio_rate30d
+        expr: avg_over_time(slo:sli_error:ratio_rate1h[30d])
       - alert: SLOErrorBudgetLow
         expr: (1 - slo:sli_error:ratio_rate30d / 0.001) * 100 < 20
         for: 1h
