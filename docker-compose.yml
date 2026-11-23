@@ -898,6 +898,7 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=30d'
       - '--storage.tsdb.retention.size=10GB'
+      - '--enable-feature=exemplar-storage'
     extra_hosts:
       - 'host.docker.internal:host-gateway'
 

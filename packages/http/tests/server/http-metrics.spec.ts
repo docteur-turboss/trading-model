@@ -1,4 +1,5 @@
 import http from "node:http";
+import { trace } from "@opentelemetry/api";
 import express from "express";
 import promClient from "prom-client";
 import { httpMetricsMiddleware, UNMATCHED_ROUTE } from "../../src/http-metrics";
@@ -96,6 +97,24 @@ describe("httpMetricsMiddleware", () => {
 				value: 2,
 			}),
 		]);
+	});
+
+	it.each([
+		["under a valid span", "0af7651916cd43dd8448eb211c80319c", true],
+		["without a valid span", "00000000000000000000000000000000", false],
+	])("exemplar trace_id %s: %s -> %s", async (_name, traceId, expected) => {
+		const spy = jest.spyOn(trace, "getActiveSpan").mockReturnValue({
+			spanContext: () => ({
+				traceId,
+				spanId: "b7ad6b7169203331",
+				traceFlags: 1,
+			}),
+		} as never);
+		await get(buildApp(), "/ok");
+		spy.mockRestore();
+
+		const text = await promClient.register.metrics();
+		expect(text.includes(`# {trace_id="${traceId}"}`)).toBe(expected);
 	});
 
 	it("records the latency with buckets above the 5s alert threshold", async () => {
