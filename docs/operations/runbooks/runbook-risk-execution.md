@@ -8,7 +8,7 @@
 
 ## Operate the service
 
-The admin routes accept only the service's own identity, so `scripts/risk-admin.sh` runs them from the pod (the `kubectl exec` right is the authentication). The logged actor is your Kubernetes identity (`kubectl auth whoami`); `ACTOR=<name>` forces it (owner name for a `drawdown` re-arm, or kubectl < 1.28).
+`GET /admin/status` accepts only the service's own identity: `scripts/risk-admin.sh status` runs it from the pod. Engaging and re-arming go through the gateway with an API key of scope `risk:admin` (`RISK_ADMIN_URL` = edge-proxy base URL, `RISK_ADMIN_KEY`): the key name is the actor recorded in the audit trail, and the owner is the key named `RISK_OWNER_ACTOR` (default `owner`). With the gateway down, no one can engage or re-arm.
 
 ```bash
 bash scripts/risk-admin.sh status
