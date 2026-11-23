@@ -212,7 +212,7 @@ export class ModelArtifactService {
 		if (candles.length === 0 || testFrom === undefined) {
 			return;
 		}
-		const costs = this._deps.dailyCosts?.(symbol);
+		const costs = this._deps.dailyCosts(symbol);
 		return {
 			from: candles[0].timestamp,
 			testFrom,
