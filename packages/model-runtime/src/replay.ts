@@ -107,14 +107,14 @@ export function policyAgentConfig(
 }
 
 function emptyLayer(fanIn: number, fanOut: number): LayerMemory {
-	const zeros = () => new Float32Array(fanOut);
 	return {
 		fanIn: PositiveInt.of(fanIn),
 		fanOut: PositiveInt.of(fanOut),
 		weights: new Float32Array(fanIn * fanOut),
-		bias: zeros(),
-		gradW: new Float32Array(fanIn * fanOut),
-		gradB: zeros(),
+		bias: new Float32Array(fanOut),
+		// Inference only: no backprop reads the gradients.
+		gradW: new Float32Array(0),
+		gradB: new Float32Array(0),
 	};
 }
 
