@@ -79,15 +79,17 @@ describe("createHttpClient", () => {
 		>;
 		instance.mockClear();
 		jest.useFakeTimers();
-		// third retry: 1200 ms base, jitter ±20 % => at least 960 ms; 900 stays below it
+		// random 0.5 gives jitter 0: third retry waits exactly 300 * 4 = 1200 ms
+		const random = jest.spyOn(Math, "random").mockReturnValue(0.5);
 		const error = { config: { retryCount: 2 }, response: { status: 500 } };
 		const promise = mockResponseRejectedHandler!(error);
-		jest.advanceTimersByTime(900);
+		jest.advanceTimersByTime(1000);
 		await Promise.resolve();
 		expect(instance).not.toHaveBeenCalled();
 		jest.advanceTimersByTime(20000);
 		await promise;
 		expect(instance).toHaveBeenCalledTimes(1);
+		random.mockRestore();
 		jest.useRealTimers();
 	});
 
