@@ -35,7 +35,7 @@ CLUSTER="${KIND_CLUSTER:-trading-model-ci}"
 NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
 CERT_MANAGER="v1.21.3" # same as deploy/staging-local/bootstrap.sh
-API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write[+risk:admin]:<secret> injected by ci-render.mjs
+API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
 SERVICES="$(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$ROOT/deploy/k8s/services/kustomization.yaml" | grep -vx edge-proxy | tr '\n' ' ')" # edge-proxy is not a first-party image
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
@@ -288,7 +288,7 @@ migrations() {
 # crash broke the pipe in runs 43321359421 and 43328471185).
 render_kind() {
 	release_script render "$1/deploy/k8s/overlays/${KIND_OVERLAY:-staging}" ghcr.io/trading-model "$2" >"$3.raw" || return 1
-	node "$ROOT/tests/k8s/ci-render.mjs" $([ "$1" = "$ROOT" ] && echo --risk-admin) <"$3.raw" >"$3" || return 1
+	node "$ROOT/tests/k8s/ci-render.mjs" <"$3.raw" >"$3" || return 1
 	rm -f "$3.raw"
 }
 
@@ -1361,6 +1361,10 @@ verify_backup() {
 	mysql_root "INSERT INTO financial_scraper.market_tickers (symbol, market, source, open, high, low, last, volume, timestamp, close_time) VALUES ('DRILLEXP', 'spot', 'drill', 1, 1, 1, 1, 1, NOW() - INTERVAL 2000 DAY, NOW() - INTERVAL 2000 DAY);"
 	local bundle_before
 	bundle_before="$(spire_bundle)"
+	# risk:admin only now: in the Secret from the N-1 deploy on, the upgrade under probe dropped requests (N-1 refuses the unknown scope).
+	$K -n "$NS" patch secret trading-model-secrets -p "{\"stringData\":{\"AUTH_TOKENS\":\"dev:read+dlq:write+risk:admin:$API_KEY\"}}" >/dev/null
+	$K -n "$NS" rollout restart deployment/api-gateway >/dev/null
+	$K -n "$NS" rollout status deployment/api-gateway --timeout=240s >/dev/null
 	# Engaged before the backup, re-armed after it: the restore must bring it back (issue #1933).
 	risk_admin kill-switch '{"scope":"symbol","symbol":"BTCUSDT","reason":"restore_drill"}' >/dev/null
 
