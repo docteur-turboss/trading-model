@@ -25,6 +25,7 @@ describe("createBootstrap", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 		setLogger(NoopLogger);
+		jest.spyOn(process, "exit").mockImplementation((() => undefined) as never);
 	});
 
 	it("should call setupProcessHandlers", () => {
