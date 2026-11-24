@@ -41,7 +41,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 | ----------------------- | ---- | -------------------------------------------------------------- |
 | `discovery-server`      | 8443 | Service registry with TTL-based lease management + HMAC tokens |
 | `message-manager`       | 8444 | Topic-based pub/sub broker with DLQ routing                    |
-| `financial-scraper`     | 8445 | Binance market data ingestion (candles, trades, order books)   |
+| `financial-scraper`     | 8445 | Market data (Binance) and public signal ingestion              |
 | `trader-trainer`        | 8446 | GA + DQN agent evolution engine                                |
 | `api-gateway`           | 8448 | Single external entry point: auth, rate-limit, cache, proxy    |
 | `audit-logger`          | 8450 | Immutable event traceability (hash-chained audit trail)        |
@@ -122,7 +122,7 @@ The pre-push git hook is `.husky/pre-push`.
 
 ## Monitoring
 
-- **Dashboards:** 4 Grafana dashboards (SLO, services, message-manager, trader-trainer)
+- **Dashboards:** Grafana dashboards (SLO, services, message-manager, trader-trainer, risk-execution)
 - **Alerts:** Prometheus rules in `deploy/k8s/infra/config/alerting.yml` (SLO burn rates + operational, shared by compose and K8s), checked by `scripts/observability-gate.mjs` and unit-tested with promtool (`tests/alerts`) → Alertmanager → Slack/Pushover, with a `Watchdog` dead man's switch ([Alerting](docs/operations/ALERTING.md))
 - **Traces:** OpenTelemetry → OTLP Collector → Jaeger (every service instrumented)
 - **Logs:** structured JSON → Promtail → Loki
