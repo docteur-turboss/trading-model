@@ -562,6 +562,26 @@ describe("DeadStreams", () => {
 		expect(await streams.replay(TOPIC, "0-1")).toBe(false);
 	});
 
+	it("should trim entries older than 7 days on each dead letter", async () => {
+		const { streams, redis } = bus();
+		const call = jest.spyOn(redis, "call");
+		jest.spyOn(Date, "now").mockReturnValue(1_000_000_000_000);
+
+		try {
+			await streams.deadLetter(GROUP, "1-0", createMockMessage("x"), "R", 1);
+		} finally {
+			jest.restoreAllMocks();
+		}
+
+		expect(call.mock.calls[0]?.slice(0, 5)).toEqual([
+			"XADD",
+			`p:dead:${TOPIC}`,
+			"MINID",
+			"~",
+			String(1_000_000_000_000 - 7 * 24 * 60 * 60 * 1000),
+		]);
+	});
+
 	it("should throw when the transaction fails, so the entry stays pending", async () => {
 		const { streams, redis } = await dead();
 		redis.failures.set("XACK", new Error("READONLY"));
