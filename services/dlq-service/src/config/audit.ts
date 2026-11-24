@@ -9,9 +9,9 @@ import type {
 	DlqEventMap,
 } from "@trading-model/contracts/dlq-events";
 import {
-	toInstanceId,
-	toServiceId,
-	toTopic,
+	InstanceId,
+	ServiceId,
+	Topic,
 } from "@trading-model/primitives/primitives";
 import { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
 import { ENV } from "../infrastructure/config/env";
@@ -29,7 +29,7 @@ function _messageManager(): MessageManager {
 	messageManager ??= createMessageManager({
 		addressManagerClient: AddressManager,
 		tlsPaths: buildTlsFromEnv(ENV),
-		instanceId: toInstanceId(ENV.INSTANCE_ID),
+		instanceId: InstanceId.of(ENV.INSTANCE_ID),
 		serviceName: parseServiceName(ENV.SERVICE_NAME),
 		callbackPath: ENV.MESSAGE_CALLBACK_PATH,
 	}).messageManager;
@@ -49,9 +49,9 @@ export async function publishDlqEvent<TEvent extends DlqEvent>(
 	payload: DlqEventMap[TEvent]
 ): Promise<boolean> {
 	try {
-		const metadata = new HELPER.metadataBuilder(toTopic(event), event, {
-			instanceId: toInstanceId(ENV.INSTANCE_ID),
-			serviceName: toServiceId(ServiceInstanceName.DlqService),
+		const metadata = new HELPER.metadataBuilder(Topic.of(event), event, {
+			instanceId: InstanceId.of(ENV.INSTANCE_ID),
+			serviceName: ServiceId.of(ServiceInstanceName.DlqService),
 		})
 			.setDelivery({ mode: DeliveryMode.AtLeastOnce })
 			.toJSON();

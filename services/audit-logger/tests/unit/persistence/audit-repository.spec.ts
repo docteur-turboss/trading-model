@@ -26,11 +26,11 @@ jest.mock("mongodb", () => ({
 
 import { DateRange } from "@trading-model/primitives/date-range";
 import {
-	toCorrelationId,
-	toInstanceId,
-	toMessageId,
-	toServiceId,
-	toTopic,
+	CorrelationId,
+	InstanceId,
+	MessageId,
+	ServiceId,
+	Topic,
 } from "@trading-model/primitives/primitives";
 import {
 	type AuditEventDocument,
@@ -45,12 +45,12 @@ function makeEvent(
 		ttl: new Date(Date.now() + 90 * 86_400_000),
 		dataHash: "abc123",
 		metadata: {
-			topic: toTopic("test-topic"),
+			topic: Topic.of("test-topic"),
 			eventType: "test.event" as any,
-			publisher: toServiceId("test-service"),
-			instanceId: toInstanceId("instance-1"),
-			messageId: toMessageId("msg-1"),
-			correlationId: toCorrelationId("corr-1"),
+			publisher: ServiceId.of("test-service"),
+			instanceId: InstanceId.of("instance-1"),
+			messageId: MessageId.of("msg-1"),
+			correlationId: CorrelationId.of("corr-1"),
 		},
 		payload: { key: "value" },
 		...overrides,
@@ -115,7 +115,10 @@ describe("AuditRepository", () => {
 		});
 		const withId = (n: number) =>
 			makeEvent({
-				metadata: { ...makeEvent().metadata, messageId: toMessageId(`m-${n}`) },
+				metadata: {
+					...makeEvent().metadata,
+					messageId: MessageId.of(`m-${n}`),
+				},
 			});
 
 		it("should insertMany the chained event, stored as hashed", async () => {

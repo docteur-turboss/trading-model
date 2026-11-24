@@ -25,8 +25,6 @@ describe("domain/primitives/index", () => {
 		"UnixTimestamp",
 		"URLString",
 		"Volume",
-		"fromSymbol",
-		"toSymbol",
 		"AuthToken",
 		"CaPem",
 		"CertPem",
@@ -50,19 +48,6 @@ describe("domain/primitives/index", () => {
 		"TenantId",
 		"Topic",
 		"Version",
-		"toAuthToken",
-		"toEnvironment",
-		"toRegion",
-		"toCorrelationId",
-		"toDurationMs",
-		"toInstanceId",
-		"toMessageId",
-		"toRole",
-		"toServiceId",
-		"toSubject",
-		"toTenantId",
-		"toTopic",
-		"toVersion",
 	];
 
 	for (const name of runtimeExports) {

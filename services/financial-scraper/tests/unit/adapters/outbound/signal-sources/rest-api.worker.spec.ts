@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterAll, beforeAll, describe, expect, it } from "@jest/globals";
+import { afterAll, beforeAll, describe, expect, it, jest } from "@jest/globals";
 import { createRestApiWorker } from "../../../../../src/adapters/outbound/signal-sources/rest-api.worker";
 import {
 	InvalidPayloadError,
@@ -103,6 +103,27 @@ describe("rest_api worker", () => {
 		await expect(fetchPath("/down")).rejects.toThrow(
 			`HTTP 503 from ${new URL(base).host}`
 		);
+	});
+
+	it("retries a timeout in the same call, and gives up after 3 attempts", async () => {
+		const timeout = () =>
+			Promise.reject(
+				Object.assign(new Error("timed out"), { name: "TimeoutError" })
+			);
+		const real = globalThis.fetch;
+		const spy = jest
+			.spyOn(globalThis, "fetch")
+			.mockImplementationOnce(timeout)
+			.mockImplementationOnce(timeout);
+		try {
+			await expect(fetchPath("/json")).resolves.toEqual({ lastPrice: "1.5" });
+			expect(spy).toHaveBeenCalledTimes(3);
+			spy.mockReset().mockImplementation(timeout);
+			await expect(fetchPath("/json")).rejects.toThrow("TimeoutError from");
+			expect(spy).toHaveBeenCalledTimes(3);
+		} finally {
+			globalThis.fetch = real;
+		}
 	});
 
 	it("rejects with an InvalidPayloadError on a body that is not JSON", async () => {

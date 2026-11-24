@@ -1,5 +1,5 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
-import { PositiveInt, toMessageId } from "@trading-model/primitives/primitives";
+import { MessageId, PositiveInt } from "@trading-model/primitives/primitives";
 import { REPLAY_BATCH_TIMEOUT_MS } from "../../domain/dlq-constants";
 import type { EntryDeliveryPort } from "../../domain/ports/replay.port";
 import type {
@@ -71,7 +71,7 @@ function _recordFailedEntry(
 ): void {
 	const errorMsg = (result.reason as Error)?.message ?? "unknown error";
 	ctx.errors.push({
-		id: entry?.id ?? toMessageId("unknown"),
+		id: entry?.id ?? MessageId.of("unknown"),
 		error: errorMsg,
 	});
 	getLogger().error("DLQ replay entry failed", {

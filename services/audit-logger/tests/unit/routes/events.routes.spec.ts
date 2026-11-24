@@ -68,7 +68,7 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 
 	/** GET the path, check the response against the route's entry. */
 	async function get(route: ApiRoute, path: string) {
-		const res = await fetch(`${baseUrl}${path}`);
+		const res = await fetch(`${baseUrl}/v1${path}`);
 		const body = await res.json();
 		expect(responseIssues(route, res.status, body)).toEqual([]);
 		return { status: res.status, body };

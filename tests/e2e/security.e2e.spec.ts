@@ -95,7 +95,7 @@ describe("Security E2E", () => {
 					"--rm",
 					"--network",
 					"trading-docker-api-network",
-					"curlimages/curl",
+					"curlimages/curl:8.11.1@sha256:c1fe1679c34d9784c1b0d1e5f62ac0a79fca01fb6377cdd33e90473c6f9f9a69",
 					"-s",
 					"-o",
 					format === "%{http_code}" ? "/dev/null" : "-",
@@ -128,7 +128,7 @@ describe("Security E2E", () => {
 				"com.docker.compose.project=another-project",
 				"-e",
 				"OTHER_SECRET=leak",
-				"curlimages/curl",
+				"curlimages/curl:8.11.1@sha256:c1fe1679c34d9784c1b0d1e5f62ac0a79fca01fb6377cdd33e90473c6f9f9a69",
 				"sleep",
 				"300"
 			);

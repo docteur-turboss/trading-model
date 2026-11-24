@@ -56,7 +56,7 @@ For each symbol, `getAllWindows()`:
    - `backendFactory`: function that creates RLBackends from genomes
    - `initialControl`: population size, generations, time budget, episodes
    - `onGeneration` callback: logs progress, stores best genome
-   - `onArchiveUpdate` callback: updates archived best genome
+   - archive updated with the Pareto front each generation
 
 2. Calls `runner.run()` which executes the full GA evolution loop
 

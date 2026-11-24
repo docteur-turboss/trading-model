@@ -58,9 +58,9 @@ describe("Discovery E2E", () => {
 	});
 
 	it("lists the registered instance", () => {
-		const services = JSON.parse(discovery("/services").body);
+		const services = JSON.parse(discovery("/v1/services").body);
 		expect(services).toContain(SERVICE);
-		const instances = JSON.parse(discovery(`/services/${SERVICE}`).body);
+		const instances = JSON.parse(discovery(`/v1/services/${SERVICE}`).body);
 		expect(
 			instances.map((i: { instanceId: string }) => i.instanceId)
 		).toContain(INSTANCE);
@@ -77,6 +77,6 @@ describe("Discovery E2E", () => {
 	it("unregisters the instance with its token", () => {
 		const identity = { serviceName: SERVICE, instanceId: INSTANCE };
 		expect(discovery("/unregister", "POST", identity, token).status).toBe(204);
-		expect(discovery(`/services/${SERVICE}/${INSTANCE}`).status).toBe(404);
+		expect(discovery(`/v1/services/${SERVICE}/${INSTANCE}`).status).toBe(404);
 	});
 });

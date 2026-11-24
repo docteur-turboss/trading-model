@@ -3,10 +3,7 @@ import type {
 	Message,
 	MessageMetadata,
 } from "@trading-model/contracts/message-types";
-import {
-	toMessageId,
-	UnixTimestamp,
-} from "@trading-model/primitives/primitives";
+import { MessageId, UnixTimestamp } from "@trading-model/primitives/primitives";
 import { sanitizePayload } from "./payload-sanitizer";
 
 export function createMessage(
@@ -17,7 +14,7 @@ export function createMessage(
 		metadata: {
 			...metadata,
 			emittedAt: UnixTimestamp.now(),
-			messageId: toMessageId(randomUUID()),
+			messageId: MessageId.of(randomUUID()),
 		},
 		payload: sanitizePayload(payload),
 	};

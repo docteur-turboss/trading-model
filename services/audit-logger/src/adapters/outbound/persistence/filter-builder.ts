@@ -17,7 +17,7 @@ export interface AuditEventDocument {
 	chainSequence: number;
 	metadata: {
 		topic: Topic;
-		eventType: EventEnumMap;
+		eventType: EventEnumMap | string;
 		publisher: ServiceId;
 		instanceId: InstanceId;
 		messageId: MessageId;

@@ -1,10 +1,9 @@
 import { AssetType } from "@trading-model/contracts/wire/signals";
-import { toSymbol } from "@trading-model/primitives/primitives";
+import { TradingSymbol } from "@trading-model/primitives/primitives";
 import {
 	SIMULATOR_PARAMS,
 	type SimulatorCosts,
 } from "./genetic-algorithm/rl-backend";
-import type { TradingSymbol } from "./market-data-types";
 
 /**
  * Execution costs of a daily asset by type (ADR-0083): a fee plus the
@@ -34,7 +33,7 @@ export function parseAssets(csv: string[]): Map<TradingSymbol, AssetType> {
 					`TRAINER_ASSETS entry "${pair}" must be ASSET:type, type one of ${AssetType.options.join(", ")}`
 				);
 			}
-			return [toSymbol(asset), parsed.data];
+			return [TradingSymbol.of(asset), parsed.data];
 		})
 	);
 }
