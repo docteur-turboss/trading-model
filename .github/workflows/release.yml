@@ -31,6 +31,8 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
       latest: ${{ steps.version.outputs.latest }}
       registry: ${{ steps.version.outputs.registry }}
+      services: ${{ steps.version.outputs.services }}
+      images: ${{ steps.version.outputs.images }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -59,10 +61,16 @@ jobs:
             [ "$version" = "$highest" ] && latest=true
           fi
           registry="${IMAGE_REGISTRY:-ghcr.io/$OWNER}"
+          # Single source of the image list: deploy.yml IMAGES. Services have a Dockerfile; tools do not.
+          list=$(yq '.env.IMAGES' .github/workflows/deploy.yml)
+          services=$(for i in $list; do [ -f "services/$i/Dockerfile" ] && echo "$i"; done | jq -R . | jq -sc .)
+          images=$(for i in $list; do echo "$i"; done | jq -R . | jq -sc .)
           {
             echo "tag=$version"
             echo "latest=$latest"
             echo "registry=${registry,,}"
+            echo "images=$images"
+            echo "services=$services"
           } >> "$GITHUB_OUTPUT"
           echo "Release $version to ${registry,,} (latest: $latest)"
 
@@ -111,17 +119,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service:
-          - discovery-server
-          - message-manager
-          - financial-scraper
-          - trader-trainer
-          - api-gateway
-          - audit-logger
-          - dlq-service
-          - model-evaluator
-          - risk-execution
-          - decision-consumer
+        service: ${{ fromJSON(needs.version.outputs.services) }}
 
     steps:
       - name: Checkout repository
@@ -220,17 +218,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service:
-          - discovery-server
-          - message-manager
-          - financial-scraper
-          - trader-trainer
-          - api-gateway
-          - audit-logger
-          - dlq-service
-          - model-evaluator
-          - risk-execution
-          - decision-consumer
+        service: ${{ fromJSON(needs.version.outputs.services) }}
 
     steps:
       - name: Checkout repository
@@ -340,20 +328,7 @@ jobs:
       id-token: write
     strategy:
       matrix:
-        image:
-          - discovery-server
-          - message-manager
-          - financial-scraper
-          - trader-trainer
-          - api-gateway
-          - audit-logger
-          - dlq-service
-          - model-evaluator
-          - risk-execution
-          - decision-consumer
-          - spire-tools
-          - backup-tools
-          - db-migrate
+        image: ${{ fromJSON(needs.version.outputs.images) }}
     steps:
       - name: Install cosign
         uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3

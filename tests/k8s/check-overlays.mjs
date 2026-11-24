@@ -3,9 +3,8 @@
 //   - every overlay renders
 //   - every first-party image (ghcr.io/trading-model/<image>) is published by
 //     release.yml and rewritten by deploy.yml (IMAGES): an image missing there
-//     would stay on the logical name, which no registry serves; and every
-//     deploy.yml IMAGES entry is built by release.yml; the release.yml sign
-//     matrix holds exactly the deploy.yml IMAGES entries
+//     would stay on the logical name, which no registry serves (release.yml
+//     builds and signs exactly the deploy.yml IMAGES entries)
 //   - every overlay gets its application secrets from SealedSecrets only, never
 //     from a plain Secret (issue #417); staging-local renders no AgCHANGE_ME
 //     placeholder (issue #1065)
@@ -255,25 +254,6 @@ function deployImages() {
 	return new Set(block[1].trim().split(/\s+/));
 }
 
-function releaseImages() {
-	const workflow = readFileSync(".github/workflows/release.yml", "utf8");
-	const services = workflow.match(/^ {8}service:\n((?: {10}- .*\n)+)/m);
-	if (!services) throw new Error("release.yml: service matrix not found");
-	const names = services[1].match(/- (\S+)/g).map((item) => item.slice(2));
-	for (const [, image] of workflow.matchAll(/^ {10}- image: (\S+)$/gm)) {
-		names.push(image);
-	}
-	return new Set(names);
-}
-
-/** Images of the release.yml sign matrix (the only `image:` list at this indent). */
-function signedImages() {
-	const workflow = readFileSync(".github/workflows/release.yml", "utf8");
-	const images = workflow.match(/^ {8}image:\n((?: {10}- .*\n)+)/m);
-	if (!images) throw new Error("release.yml: sign image matrix not found");
-	return new Set(images[1].match(/- (\S+)/g).map((item) => item.slice(2)));
-}
-
 /** Singletons named by a deploy.yml step that runs `deploy-k8s.sh canary*`: a canary is a second pod. */
 function canarySingletons() {
 	const workflow = readFileSync(".github/workflows/deploy.yml", "utf8");
@@ -291,19 +271,6 @@ function canarySingletons() {
 
 const errors = [...canarySingletons()];
 const deployed = deployImages();
-const released = releaseImages();
-const signed = signedImages();
-
-// release.yml verify-images resolves deploy.yml IMAGES: one never built fails every release.
-// deploy.yml also refuses any IMAGES digest without a release.yml signature (ADR-0041).
-for (const image of deployed) {
-	if (!released.has(image)) errors.push(`deploy.yml IMAGES: ${image} is not built by release.yml`);
-	if (!signed.has(image)) errors.push(`deploy.yml IMAGES: ${image} is not signed by release.yml`);
-}
-for (const image of signed) {
-	if (!deployed.has(image)) errors.push(`release.yml sign: ${image} is not in deploy.yml IMAGES`);
-}
-
 for (const env of OVERLAYS) {
 	const app = render(`deploy/k8s/overlays/${env}`);
 	const nodeAgents = render(`deploy/k8s/overlays/${env}/node-agents`);
@@ -313,9 +280,6 @@ for (const env of OVERLAYS) {
 	for (const [, image] of rendered.matchAll(IMAGE)) {
 		if (!deployed.has(image)) {
 			errors.push(`${env}: image ${image} is not in deploy.yml IMAGES`);
-		}
-		if (!released.has(image)) {
-			errors.push(`${env}: image ${image} is not built by release.yml`);
 		}
 	}
 
