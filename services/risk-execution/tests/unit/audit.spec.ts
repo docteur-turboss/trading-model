@@ -70,4 +70,28 @@ describe("publishRiskEvent", () => {
 		expect(payload).toMatchObject({ mode: "paper" });
 		expect(payload.eventId).toEqual(expect.any(String));
 	});
+
+	// Until Redis restarts with the new ACL user (#1241): the auth refusal must reach the outbox.
+	it.each([
+		"WRONGPASS invalid username-password pair or user is disabled.",
+		"NOPERM User risk-execution has no permissions to run the 'xadd' command",
+	])("keeps an event refused by Redis auth in the file: %s", async (reply) => {
+		CREATE.mockReturnValue({ messageManager: { post: { indirect: POST } } });
+		let saved: unknown[] = [];
+		await initRiskOutbox({
+			load: async () => [] as any[],
+			save: async (doc: any[]) => {
+				saved = structuredClone(doc);
+			},
+		});
+		POST.mockReset();
+		POST.mockRejectedValue(new Error(reply));
+		publishRiskEvent("kill_switch.engaged", { mode: "paper" });
+		await new Promise((resolve) => setImmediate(resolve));
+		await replayRiskEvents();
+
+		expect(saved).toEqual([
+			expect.objectContaining({ topic: "risk.kill-switch.engaged" }),
+		]);
+	});
 });

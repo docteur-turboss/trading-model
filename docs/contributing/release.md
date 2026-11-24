@@ -40,6 +40,8 @@ A release that adds or changes a ClusterRole or ClusterRoleBinding of an overlay
 
 The release that retires message-manager and dlq-service (ADR-0073, issue #1241) ships the manifests without `mongo-dlq`, and `deploy.yml` never prunes: the running `mongo-dlq` StatefulSet, its Services, PVCs, Secret keys and Jobs survive the deploy. Entries still in MongoDB are copied once to the dead streams by the audit-logger CLI, **before** those objects are deleted.
 
+The same release moves risk-execution and decision-consumer onto the bus, with the new Redis users `risk-execution` and `decision-consumer` (`redis-ha.sh`). Redis only creates them when its pods restart: `deploy.yml` applies Redis last, and in staging-local `redis-0` is held by `partition: 1`, so restart Redis as [STAGING_LOCAL.md](../deployment/STAGING_LOCAL.md) describes right after the deploy. Until then Redis refuses both users: risk-execution keeps its `risk.*` events in its outbox file and replays them once Redis accepts it, and decision-consumer makes no decision (its `risk.promotion.loaded` publish fails, retried at each tick). Neither has a Redis readiness check, so the rollout itself is not blocked.
+
 1. Deploy the release ([DEPLOY.md](../deployment/DEPLOY.md)). Rollback to the previous release is still possible here.
 2. Import from an audit-logger pod, against the still-running `mongo-dlq` (values from the old Secret `trading-model-secrets`):
 
