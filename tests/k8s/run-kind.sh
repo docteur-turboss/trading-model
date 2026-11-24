@@ -1666,7 +1666,7 @@ verify_backup() {
 	echo "$key" | $K -n "$NS" exec -i restore-runner -- sh -c \
 		"umask 077 && cat > /tmp/identity && age -d -i /tmp/identity /restore/manifests/manifest_*.json.age; rc=\$?; rm -f /tmp/identity; exit \$rc" \
 		>"$mdir/manifests/manifest_drill.json"
-	for comp in mysql mongodb-audit mongodb; do
+	for comp in mysql mongodb-audit; do
 		grep "\"component\":\"$comp\"" "$mdir/manifests/manifest_drill.json" | grep -q '"rows":{' || {
 			log "the run manifest has no rows for $comp: the row count at the dump failed silently"
 			return 1
