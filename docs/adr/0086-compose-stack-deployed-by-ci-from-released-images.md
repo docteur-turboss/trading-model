@@ -11,7 +11,7 @@ Issue #2312: the compose stack of the host ran from an operator's clone, compile
 
 ## Decision
 
-- Compose is a **deployed environment**, next to `staging` (kind) and production (K8s), changed only by the `deploy-compose.yml` workflow on the self-hosted runner. It differs from `staging`: same host, plain Docker, project `trading-model`, its volumes kept across releases.
+- Compose is a **deployed environment**, next to `staging` (kind) and production (K8s), changed only by the `deploy-compose.yml` workflow on the self-hosted runner. It differs from `staging`: same host, plain Docker, project `trading-model`, its volumes kept across releases only so a redeploy does not re-trigger collection: they hold no reference data (audit trail, market history live in K8s) and are not backed up, so the stack stays disposable.
 - `docker-compose.yml` has no `build:`: it names the released images. `docker-compose.build.yml` adds the builds (local dev, CI E2E).
 - The workflow resolves the tag to digests (failing before any change), unpacks the tag below `COMPOSE_RELEASES_DIR`, runs `spire-bootstrap` then the migration then `up -d --wait`, smoke-tests through `edge-proxy`, and on failure reruns `spire-bootstrap`, then redeploys the images (kept under a local `trading-model-rollback/<service>:prev` tag) and the directory recorded before. The first run therefore rolls back to the operator's clone `trading-model-release`, which is then retired.
 - `spire-agent` is not released (SPIRE binaries on alpine, `deploy/spire`): the workflow builds it from the tag, so it stays out of the release matrices. Accepted gap to the issue: this service has a tag, not an `@sha256:` digest.
