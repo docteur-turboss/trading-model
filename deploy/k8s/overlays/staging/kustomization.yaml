@@ -87,7 +87,10 @@ patches:
                 - source_labels: [__name__]
                   regex: 'container_(cpu_usage_seconds_total|memory_working_set_bytes|spec_memory_limit_bytes|oom_events_total)'
                   action: keep
-  # Badger outgrew its PVC on the staging disk (#1773): keep one day of traces.
+  # Badger outgrew its PVC (#1773), then was OOMKilled every 80 min and re-read
+  # ~8 GB of the shared HDD at each start (#2583): staging keeps traces in an
+  # ephemeral store (lost on restart; /tmp is an emptyDir, the root FS is
+  # read-only) with a short TTL. Production keeps the PVC (ADR-0055).
   - target:
       kind: Deployment
       name: jaeger
@@ -102,8 +105,17 @@ patches:
             containers:
               - name: jaeger
                 env:
+                  - name: BADGER_EPHEMERAL
+                    value: "true"
                   - name: BADGER_SPAN_STORE_TTL
-                    value: 24h
+                    value: 2h
+                volumeMounts:
+                  - name: tmp
+                    mountPath: /tmp
+            volumes:
+              - name: tmp
+                emptyDir:
+                  sizeLimit: 1Gi
   - target:
       kind: StatefulSet
       name: "^(mysql|redis|redis-sentinel|mongo-dlq|mongo-audit)$"
