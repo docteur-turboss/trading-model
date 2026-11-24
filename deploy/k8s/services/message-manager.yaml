@@ -160,41 +160,32 @@ spec:
           livenessProbe:
             exec:
               command:
-                - curl
-                - -skf
-                - --cert
-                - /run/spire/svid/svid.pem
-                - --key
-                - /run/spire/svid/svid_key.pem
+                - node
+                - -e
+                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
                 - https://localhost:3000/ping
             initialDelaySeconds: 20
             periodSeconds: 15
-            timeoutSeconds: 5
+            timeoutSeconds: 10
             failureThreshold: 3
           readinessProbe:
             exec:
               command:
-                - curl
-                - -skf
-                - --cert
-                - /run/spire/svid/svid.pem
-                - --key
-                - /run/spire/svid/svid_key.pem
+                - node
+                - -e
+                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
                 - https://localhost:3000/health/ready
             initialDelaySeconds: 10
             periodSeconds: 10
             # Two ping attempts of connectTimeout 2 s (issue #725): 4 s < 5 s.
-            timeoutSeconds: 5
+            timeoutSeconds: 10
             successThreshold: 1
           startupProbe:
             exec:
               command:
-                - curl
-                - -skf
-                - --cert
-                - /run/spire/svid/svid.pem
-                - --key
-                - /run/spire/svid/svid_key.pem
+                - node
+                - -e
+                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
                 - https://localhost:3000/ping
             initialDelaySeconds: 30
             periodSeconds: 5

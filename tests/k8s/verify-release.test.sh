@@ -38,7 +38,7 @@ run() { : >"$WORK/kubectl.log"; : >"$WORK/sleep.log"; bash "$DEPLOY" verify-rele
 
 echo "healthy release"
 if run; then pass "passes"; else failed "should pass"; cat "$WORK/out"; fi
-grep -q "x-api-key: secret-key" "$WORK/stdin" && pass "first gateway key sent on stdin" || failed "key not sent"
+grep -qx "secret-key" "$WORK/stdin" && pass "first gateway key sent on stdin" || failed "key not sent"
 grep -q "secret-key" "$WORK/kubectl.log" && failed "key on a command line" || pass "key not on a command line"
 
 echo "API call fails"
