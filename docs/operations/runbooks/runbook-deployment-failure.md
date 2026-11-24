@@ -33,8 +33,7 @@ kubectl rollout status -n trading-model deployment/<service-name>
 
 # Verify service is healthy
 kubectl exec -n trading-model deployment/<service-name> -c <service-name> -- \
-  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/ping
+  node -e "$SVID_GET" https://localhost:3000/ping
 ```
 
 ### Rollback to Specific Version

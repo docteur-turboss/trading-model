@@ -10,7 +10,7 @@ import {
 	type RedisEnv,
 	redisConnectionFromEnv,
 } from "@trading-model/persistence/redis-env";
-import { toInstanceId } from "@trading-model/primitives/primitives";
+import { InstanceId } from "@trading-model/primitives/primitives";
 import MessageManagerClass from "./broker-message";
 import { openJournalWriter, RedisMessageJournal } from "./bus/redis-journal";
 import type { MessageManagerConfig } from "./types/config";
@@ -92,7 +92,7 @@ export function createServiceMessageManager(
 		journal: busJournalFromEnv(env),
 		addressManagerClient,
 		tlsPaths: buildTlsFromEnv(env),
-		instanceId: toInstanceId(env.INSTANCE_ID),
+		instanceId: InstanceId.of(env.INSTANCE_ID),
 		serviceName: parseServiceName(env.SERVICE_NAME),
 		callbackPath: env.MESSAGE_CALLBACK_PATH,
 	});

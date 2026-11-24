@@ -41,7 +41,6 @@ function buildNet(
 		connectionType: options.connectionType,
 		learningRate: (options.learningRate ?? 0) as never,
 		gradientClipNorm: options.gradientClipNorm ?? 0,
-		enablePool: false,
 		rng: makePRNG(11),
 	});
 	return {
@@ -111,7 +110,52 @@ function buildTinyNet(
 	return net;
 }
 
+// Captured before the backprop classes were folded into functions.
+const FROZEN = [
+	[
+		[
+			0.02134462259709835, 0.033319711685180664, 0.21567684412002563,
+			0.16852140426635742, 0.6279916763305664, 0.0857999250292778,
+			-0.7790957093238831, 0.05062602087855339, 0.20361340045928955,
+			-0.09220357239246368, -0.042985089123249054, 0.6402009129524231,
+		],
+		[
+			-0.18734152615070343, 0.3334723114967346, 0.31872349977493286,
+			-0.6440894603729248,
+		],
+	],
+	[
+		[
+			-0.5499256253242493, -0.3051784634590149, -0.08787896484136581,
+			-0.1888655424118042, 0.0690685585141182, -0.8593025803565979,
+			0.07704747468233109, 0.07687833160161972,
+		],
+		[0.04674727842211723, 0.48249712586402893],
+	],
+];
+
 describe("BackpropEngine", () => {
+	it("keeps weights bit-identical after 5 SGD steps", () => {
+		const net = buildNet(
+			[3, 4, 2],
+			[ActivationType.Sigmoid, ActivationType.Linear],
+			{ learningRate: 0.1, gradientClipNorm: 1 }
+		);
+		const rng = makePRNG(5);
+		for (let step = 0; step < 5; step++) {
+			backpropOnce(
+				net,
+				Float32Array.from({ length: 3 }, () => rng() * 2 - 1),
+				Float32Array.from({ length: 2 }, () => rng() * 2 - 1)
+			);
+		}
+		const bits = net.deps.layers.map((l) => [
+			Array.from(l.weights),
+			Array.from(l.bias),
+		]);
+		expect(bits).toEqual(FROZEN);
+	});
+
 	describe("known values on a 2 → 2 → 1 network", () => {
 		it("should compute the forward pass and the MSE loss", () => {
 			const net = buildTinyNet();

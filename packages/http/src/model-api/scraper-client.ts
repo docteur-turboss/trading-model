@@ -10,7 +10,7 @@ import {
 } from "@trading-model/contracts/market-data.types";
 import {
 	ServiceId,
-	toSymbol,
+	TradingSymbol,
 	UnixTimestamp,
 	URLString,
 } from "@trading-model/primitives/primitives";
@@ -70,7 +70,7 @@ export class ScraperClient {
 		if (intervalMs === DAY_MS) {
 			// The history ends at `to`; its size only has to reach back to `from`.
 			const bars = await this._daily.loadWindow(
-				toSymbol(symbol),
+				TradingSymbol.of(symbol),
 				to,
 				Math.ceil((to - from) / DAY_MS) + 1
 			);
@@ -104,7 +104,7 @@ export class ScraperClient {
 				candles.push({
 					...row,
 					interval: CandleInterval.Min1,
-					symbol: toSymbol(symbol),
+					symbol: TradingSymbol.of(symbol),
 					timestamp: UnixTimestamp.of(timestamp),
 					closeTimestamp: UnixTimestamp.of(Date.parse(row.closeTimestamp)),
 				});

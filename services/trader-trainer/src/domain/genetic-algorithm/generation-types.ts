@@ -25,7 +25,6 @@ export interface GARunnerConfig {
 	windowSets: WindowSet[];
 	backendFactory: BackendFactory;
 	onGeneration?: (ctx: GenerationContext) => void;
-	onArchiveUpdate?: (archive: DeepReadonly<LamarckGenome>[]) => void;
 	initialControl?: Partial<GAControlGenome>;
 	/** Observability hooks (no-op when omitted). */
 	telemetry?: GaTelemetry;
