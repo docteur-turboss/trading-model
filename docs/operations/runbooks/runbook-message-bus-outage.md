@@ -43,8 +43,7 @@ kubectl logs -n trading-model deployment/message-manager --tail=50
 
 # 4. Readiness (the server demands a client certificate: use the SVID)
 kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
-  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/health/ready
+  node -e "$SVID_GET" https://localhost:3000/health/ready
 ```
 
 ## Common Causes
@@ -70,8 +69,7 @@ Subscriptions come back on their own within 15 s once Redis answers (subscribers
 
 ```bash
 kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
-  curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/metrics | grep -E 'mm_subscriber_delivery_concurrency|mm_circuit_breaker_state|mm_messages_dlq_total'
+  node -e "$SVID_GET" https://localhost:3000/metrics | grep -E 'mm_subscriber_delivery_concurrency|mm_circuit_breaker_state|mm_messages_dlq_total'
 ```
 
 **Fix:** restore the subscriber named by the metrics (its own runbook). While its circuit breaker is open, its messages go straight to the dead-letter file.
@@ -122,8 +120,7 @@ The undelivered entries of that group are lost. A group of a live topic that a s
 ```bash
 # 1. Readiness
 kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
-  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/health/ready
+  node -e "$SVID_GET" https://localhost:3000/health/ready
 
 # 2. Subscriptions are back (one hash per topic)
 kubectl exec -n trading-model "$REDIS_MASTER" -- redis-cli --scan --pattern 'trading-model:message-manager:subscriptions:*'
