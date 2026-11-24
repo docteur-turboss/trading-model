@@ -142,12 +142,6 @@ forget() {
 # and on a first deploy (no HPA yet).
 release_replicas() {
 	local ns="$1" ann='kubectl.kubernetes.io/last-applied-configuration' dep last
-	# Retired HPAs: apply never prunes, and a live one would keep scaling its
-	# Deployment. trader-trainer is a singleton (ADR-0044, issue #501);
-	# audit-logger runs 2 fixed pods (one lease holder writes, issue #1395).
-	kubectl delete hpa/trader-trainer-hpa hpa/audit-logger-hpa -n "$ns" --ignore-not-found
-	# Retired redis-cert-cache (unused, unauthenticated; issue #1993).
-	kubectl delete deployment/redis-cert-cache service/redis-cert -n "$ns" --ignore-not-found
 	# A Job's pod template is immutable: apply fails on a finished init Job
 	# whose template changed (labels, issues #727 and #771). All are idempotent and
 	# run again from the overlay.
@@ -314,34 +308,6 @@ wait_rollout() {
 # Every undo is issued before any wait, as apply does: a Redis server rolled
 # back alone restarts while the sentinels still name its old pod IP, waits for
 # that dead master and fails its startup probe (PR #579).
-# Release N makes MySQL refuse plain connections (require_secure_transport=ON,
-# users bound to a client certificate, issue #767). The mysql StatefulSet is
-# not rolled back, so pods of release N-1 (plain, no certificate) would never
-# turn ready (readiness runs SELECT 1): lift both through the local socket,
-# which TLS rules do not touch, before the undo. A mysqld restart re-applies
-# the ON of mysql.cnf; the next deploy binds the users again.
-# Only `scraper` (financial-scraper and its collector, the Deployments that
-# come back to N-1) is released: `exporter` (sidecar of the mysql pod) and
-# `retention` (CronJob) are not rolled back and keep their certificate, `migrator`
-# only runs in release N Jobs, and no N-1 pod connects as root over the network.
-relax_mysql() {
-	local ns="$1" pod
-	# The apply of N may be rolling it: wait for the whole StatefulSet, so no pod is missing from the
-	# list below and none of them is an old one still Terminating (run 45425544444).
-	kubectl rollout status statefulset/mysql -n "$ns" --timeout="$((300 * FACTOR))s" || return 1
-	# Not the label alone: Job pods carry it too (no mysql container).
-	for pod in $(kubectl get pods -n "$ns" -l app.kubernetes.io/component=mysql -o name | grep -E "/mysql-[0-9]+$"); do
-		kubectl wait -n "$ns" --for=condition=Ready "$pod" --timeout="$((300 * FACTOR))s" || return 1
-		kubectl exec -n "$ns" "$pod" -c mysql -- sh -c '
-			m() { MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N -e "$1"; }
-			m "SET GLOBAL require_secure_transport=OFF"
-			# Only the writable member can alter users (replicated to the others).
-			if [ "$(m "SELECT @@super_read_only")" = 0 ]; then
-				m "ALTER USER IF EXISTS \"scraper\"@\"%\" REQUIRE NONE"
-			fi' || return 1
-	done
-}
-
 # An OrderedReady StatefulSet waits for a pod of the failed revision to turn
 # ready before replacing it, which a stuck pod never does (Kubernetes "forced
 # rollback"). Once the controller has seen the undo, delete the pods that are
@@ -383,12 +349,6 @@ rollback() {
 		sleep 10
 		waited=$((waited + 10))
 	done
-	if relax_mysql "$ns"; then
-		echo "::warning::MySQL TLS relaxed by the rollback: redeploy release N to restore it (alert MySQLSecureTransportOff)"
-	else
-		echo "::error::Could not lift the MySQL TLS requirement: pods of the previous release cannot connect"
-		failed=1
-	fi
 	while read -r dep rev; do
 		target="$dep"
 		[[ $dep == */* ]] || target="deployment/$dep"

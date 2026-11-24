@@ -856,7 +856,7 @@ groups:
           severity: warning
         annotations:
           summary: 'MySQL {{ $labels.instance }} accepts plain connections'
-          description: 'require_secure_transport has been OFF on {{ $labels.instance }} for 15 minutes: a deploy rollback relaxed MySQL TLS (scraper no longer needs a client certificate) and nothing restored it.'
+          description: 'require_secure_transport has been OFF on {{ $labels.instance }} for 15 minutes: it was set OFF by hand or mysql.cnf was not applied.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mysqlsecuretransportoff'
 
       - alert: RedisDown

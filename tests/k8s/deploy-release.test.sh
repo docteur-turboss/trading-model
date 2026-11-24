@@ -92,28 +92,6 @@ STUB_UNDO_FAILS="" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 printf '#!/bin/sh\necho "sleep $*" >>"$STUB_LOG"\n' >"$WORK/bin/sleep"
 chmod +x "$WORK/bin/sleep"
 
-out="$(bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
-	[[ $out == *"::warning::MySQL TLS relaxed by the rollback: redeploy release N to restore it"* ]] &&
-	ok "rollback warns that MySQL TLS stays relaxed" || ko "rollback TLS warning: $out"
-: >"$WORK/log"
-STUB_PODS="pod/mysql-0
-" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null 2>&1
-[ -n "$(log_line "rollout status statefulset/mysql -n ns")" ] &&
-	[ "$(log_line "rollout status statefulset/mysql -n ns")" -lt "$(log_line "get pods -n ns -l app.kubernetes.io/component=mysql")" ] &&
-	[ "$(log_line "wait -n ns --for=condition=Ready pod/mysql-0")" -lt "$(log_line "exec -n ns pod/mysql-0 -c mysql")" ] &&
-	ok "rollback waits for the MySQL StatefulSet, then each pod Ready, before relaxing TLS" || ko "relax_mysql wait: $(cat "$WORK/log")"
-: >"$WORK/log"
-rc=0
-out="$(STUB_PODS="pod/mysql-0
-" STUB_WAIT_FAILS=pod/mysql-0 bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" || rc=$?
-[ "$rc" != 0 ] && [[ $out == *"::error::Could not lift the MySQL TLS requirement"* ]] && ! grep -q "^exec " "$WORK/log" &&
-	ok "rollback reports a MySQL pod that never gets Ready, without an exec" || ko "relax_mysql not ready (rc $rc): $out"
-: >"$WORK/log"
-rc=0
-out="$(STUB_PODS="pod/mysql-0
-" STUB_STATUS_FAILS=mysql bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" || rc=$?
-[ "$rc" != 0 ] && [[ $out == *"::error::Could not lift the MySQL TLS requirement"* ]] && ! grep -q "^get pods -n ns -l app.kubernetes.io/component=mysql" "$WORK/log" &&
-	ok "rollback reports a MySQL StatefulSet that does not finish rolling, without touching its pods" || ko "relax_mysql rollout (rc $rc): $out"
 echo 2 >"$WORK/api-down"
 : >"$WORK/log"
 STUB_API_DOWN="$WORK/api-down" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null 2>&1 &&
