@@ -55,6 +55,8 @@ fi
 if [ "$1" = get ] && [ "$2" = pods ]; then printf "%b" "${STUB_PODS:-}"; exit 0; fi
 if [ "$1" = get ] && [[ $2 == statefulset/* ]]; then [[ $* == *updateRevision* ]] && printf '%s-abc' "${2#*/}"; exit 0; fi
 if [ "$1" = get ] && [ "$2" = statefulset ]; then [ -z "${STUB_NO_REDIS:-}" ] || exit 1; [ "$3" = redis ] && printf 'redis-abc'; exit 0; fi
+if [ "$1" = wait ] && [ -n "${STUB_WAIT_FAILS:-}" ] && [[ $* == *"$STUB_WAIT_FAILS"* ]]; then exit 1; fi
+[ "$1" = exec ] && exit 0
 if [ "$1" = wait ] || [ "$1" = delete ] || [ "$1" = create ] || [ "$2" = configmap ] || [ "$2" = deployments ]; then exit 0; fi
 if [ "$1" = get ] && [ "$2" = controllerrevision ]; then [ "$3" = redis-abc ] && printf '3'; exit 0; fi
 if [ "$1" = rollout ] && [ "$2" = status ]; then [ "$3" = "deployment/${STUB_STATUS_FAILS:-}" ] || [ "$3" = "statefulset/${STUB_STATUS_FAILS:-}" ] && exit 1; exit 0; fi
@@ -73,6 +75,7 @@ exit 2
 STUB
 chmod +x "$WORK/bin/kubectl"
 export PATH="$WORK/bin:$PATH" STUB_LOG="$WORK/log" STUB_APPLIED="$WORK/applied"
+log_line() { grep -n "$1" "$WORK/log" | tail -1 | cut -d: -f1; }
 
 STUB_REVS="discovery-server=4 api-gateway=7" bash "$SCRIPT" record ns "$WORK/revs" >/dev/null
 grep -qx "discovery-server 4" "$WORK/revs" && grep -qx "api-gateway 7" "$WORK/revs" &&
@@ -92,6 +95,25 @@ chmod +x "$WORK/bin/sleep"
 out="$(bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
 	[[ $out == *"::warning::MySQL TLS relaxed by the rollback: redeploy release N to restore it"* ]] &&
 	ok "rollback warns that MySQL TLS stays relaxed" || ko "rollback TLS warning: $out"
+: >"$WORK/log"
+STUB_PODS="pod/mysql-0
+" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null 2>&1
+[ -n "$(log_line "rollout status statefulset/mysql -n ns")" ] &&
+	[ "$(log_line "rollout status statefulset/mysql -n ns")" -lt "$(log_line "get pods -n ns -l app.kubernetes.io/component=mysql")" ] &&
+	[ "$(log_line "wait -n ns --for=condition=Ready pod/mysql-0")" -lt "$(log_line "exec -n ns pod/mysql-0 -c mysql")" ] &&
+	ok "rollback waits for the MySQL StatefulSet, then each pod Ready, before relaxing TLS" || ko "relax_mysql wait: $(cat "$WORK/log")"
+: >"$WORK/log"
+rc=0
+out="$(STUB_PODS="pod/mysql-0
+" STUB_WAIT_FAILS=pod/mysql-0 bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" || rc=$?
+[ "$rc" != 0 ] && [[ $out == *"::error::Could not lift the MySQL TLS requirement"* ]] && ! grep -q "^exec " "$WORK/log" &&
+	ok "rollback reports a MySQL pod that never gets Ready, without an exec" || ko "relax_mysql not ready (rc $rc): $out"
+: >"$WORK/log"
+rc=0
+out="$(STUB_PODS="pod/mysql-0
+" STUB_STATUS_FAILS=mysql bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" || rc=$?
+[ "$rc" != 0 ] && [[ $out == *"::error::Could not lift the MySQL TLS requirement"* ]] && ! grep -q "^get pods -n ns -l app.kubernetes.io/component=mysql" "$WORK/log" &&
+	ok "rollback reports a MySQL StatefulSet that does not finish rolling, without touching its pods" || ko "relax_mysql rollout (rc $rc): $out"
 echo 2 >"$WORK/api-down"
 : >"$WORK/log"
 STUB_API_DOWN="$WORK/api-down" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null 2>&1 &&
@@ -135,7 +157,7 @@ printf 'statefulset/redis 3\n' >"$WORK/revs"
 : >"$WORK/log"
 STUB_PODS='redis-0 redis-abc False\nredis-1 redis-new True\nredis-2 redis-new False\nredis-3 redis-new\n' bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 	grep -qx "delete pod redis-2 redis-3 -n ns" "$WORK/log" &&
-	[ "$(grep -n 'delete pod' "$WORK/log" | cut -d: -f1)" -lt "$(grep -n 'rollout status' "$WORK/log" | cut -d: -f1)" ] &&
+	[ "$(grep -n 'delete pod' "$WORK/log" | cut -d: -f1)" -lt "$(grep -n 'rollout status statefulset/redis ' "$WORK/log" | cut -d: -f1)" ] &&
 	ok "rollback deletes the not-ready pods of the failed revision only, before waiting" || ko "stuck pods: $(cat "$WORK/log")"
 
 : >"$WORK/log"
@@ -168,7 +190,6 @@ bash "$ROOT/scripts/split-cluster-scope.sh" app <"$WORK/render.yaml" >"$WORK/app
 : >"$WORK/log"
 bash "$SCRIPT" without-redis ns <"$WORK/app.yaml" >"$WORK/overlay.yaml"
 bash "$SCRIPT" wait ns >/dev/null && bash "$SCRIPT" redis-last ns <"$WORK/app.yaml" >/dev/null || ko "wait / redis-last failed"
-log_line() { grep -n "$1" "$WORK/log" | tail -1 | cut -d: -f1; }
 sts_names() { awk '/^---/ { k = "" } /^kind:/ { k = $2 } k == "StatefulSet" && /^  name:/ { printf " %s", $2 }' "$1"; }
 { grep -q 'kind: Deployment' "$WORK/overlay.yaml" && grep -A5 '^kind: Certificate$' "$WORK/overlay.yaml" | grep -q '^  name: redis-tls$' &&
 	[[ "$(sts_names "$WORK/overlay.yaml") " == *" mysql "* && "$(sts_names "$WORK/overlay.yaml") " != *" redis"* ]] &&
