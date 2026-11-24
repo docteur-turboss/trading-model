@@ -60,7 +60,7 @@ Proxies the public routes listed in `PUBLIC_ROUTES` (`services/api-gateway/src/s
 
 ## Rate Limiting
 
-- **Algorithm:** `express-rate-limit` (sliding window)
+- **Algorithm:** `express-rate-limit` (fixed window)
 - **Default:** 100 requests per 60s window (configurable via `RATE_LIMIT_WINDOW_MS` and `RATE_LIMIT_MAX`)
 - **Response:** `429 Too Many Requests` with `retryAfter` in seconds
 - **Key:** the authenticated API client (`clientIdentity` from the token), falling back to the remote address. External requests all arrive from the `edge-proxy`, so a per-address limit would put every client in one bucket
@@ -93,6 +93,7 @@ Client → edge-proxy (HTTP, /v1) → mTLS → API Gateway → auth → rate-lim
 | `PORT`                  | `3000`                          | Service listen port          |
 | `RATE_LIMIT_WINDOW_MS`  | `60000`                         | Rate limit window (ms)       |
 | `RATE_LIMIT_MAX`        | `100`                           | Max requests per window      |
+| `ALLOWED_PROXY_CIDRS`   | private ranges                  | CIDRs the resolved target IP must be in; required non-empty in production ([ENV.md](../deployment/ENV.md)) |
 | `CACHE_TTL_MS`          | `30000`                         | In-memory cache TTL (ms)     |
 | `AUTH_TOKEN_HEADER`     | `x-api-key`                     | Header name for auth token   |
 | `AUTH_TOKENS`           | `''`                            | Comma-separated API keys `name:scope1+scope2:secret` (ADR-0059); required in production (the gateway refuses to start, as with a malformed key) |
