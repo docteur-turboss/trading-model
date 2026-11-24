@@ -20,4 +20,11 @@ export interface GracefulShutdownOptions {
 	beforeClose?: () => Promise<void>;
 	/** How long in-flight requests may take to finish (default 5 s). */
 	closeTimeoutMs?: DurationMs;
+	/** How long `onStop` may take; past it the shutdown exits 1 (default 3 s). */
+	onStopTimeoutMs?: DurationMs;
+	/**
+	 * Whole shutdown (beforeClose + close + onStop): past it, forced exit 1
+	 * (default 8 s). Keep it, plus the 5 s forced-exit delay, under the grace.
+	 */
+	deadlineMs?: DurationMs;
 }
