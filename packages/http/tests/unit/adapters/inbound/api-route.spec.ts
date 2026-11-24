@@ -255,10 +255,14 @@ describe("mountRoute", () => {
 		expect(responseIssues(download, res.status, bytes)).toEqual([]);
 	});
 
-	it("mounts a versioned route at its major only", async () => {
-		expect((await fetch(`${baseUrl}/v2/files/x`)).status).toBe(200);
-		expect((await fetch(`${baseUrl}/files/x`)).status).toBe(404);
-	});
+	// ADR-0072: a public route also answers without its /v<major> for v3.1.0 gateways (#2531, removed by #2587).
+	it.each(["/v2/files/x", "/files/x"])(
+		"mounts a versioned route at %s",
+		async (path) => {
+			const res = await fetch(`${baseUrl}${path}`);
+			expect(res.status).toBe(200);
+		}
+	);
 
 	it("passes a handler error to the Express error handler", async () => {
 		const res = await fetch(`${baseUrl}/entries`, {

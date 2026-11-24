@@ -128,7 +128,7 @@ services:
   # ---------------------------------------------------------------------------
   mysql:
     logging: *default-logging
-    image: mysql:8.4.11@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
+    image: mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
     container_name: trading-mysql
     stop_grace_period: 2m
     restart: unless-stopped
@@ -410,7 +410,7 @@ services:
       TRAINER_GENERATIONS: ${TRAINER_GENERATIONS:-50}
       TRAINER_POPULATION_SIZE: ${TRAINER_POPULATION_SIZE:-20}
       TRAINER_TIME_BUDGET_MS: ${TRAINER_TIME_BUDGET_MS:-300000}
-      TRAINER_INTERVAL_MS: ${TRAINER_INTERVAL_MS:-3600000}
+      TRAINER_INTERVAL_MS: ${TRAINER_INTERVAL_MS:-14400000}
       TRAINER_MAX_DATA_AGE_MS: ${TRAINER_MAX_DATA_AGE_MS:-900000}
       TRAINER_EPISODES_PER_INDIVIDUAL: ${TRAINER_EPISODES_PER_INDIVIDUAL:-10}
       TRAINER_FITNESS_TYPE: ${TRAINER_FITNESS_TYPE:-total_pnl}
@@ -851,7 +851,7 @@ services:
   # ---------------------------------------------------------------------------
   edge-proxy:
     logging: *default-logging
-    image: nginx:1.27.3-alpine@sha256:814a8e88df978ade80e584cc5b333144b9372a8e3c98872d07137dbf3b44d0e4  # nginx 1.27.3-alpine
+    image: nginx:1.31.9-alpine@sha256:fb4658584bd9a916ffb6f6e365f97c25cfdb2923801f551ea08356e695f14ff7  # nginx 1.31.9-alpine
     container_name: trading-edge
     restart: unless-stopped
     mem_limit: 128m
@@ -920,7 +920,7 @@ services:
   # creates it. Idempotent: runs at every `up`.
   mysql-exporter-user:
     logging: *default-logging
-    image: mysql:8.4.11@sha256:85b9bf2e29cf836ecb8c2a15a935d4ba0c606631dff1dd79531a11983c638f2a
+    image: mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
     container_name: trading-mysql-exporter-user
     restart: "no"
     environment:
@@ -1128,7 +1128,7 @@ services:
   # Remaining limit: /networks lists every network of the daemon (names only).
   docker-socket-proxy:
     logging: *default-logging
-    image: nginx:1.31.8-alpine@sha256:fed7e14be83cbd2661a75cdc5b872d936cf155d46c327084d30b8df19ae88d72  # nginx 1.31.8-alpine
+    image: nginx:1.31.9-alpine@sha256:fb4658584bd9a916ffb6f6e365f97c25cfdb2923801f551ea08356e695f14ff7  # nginx 1.31.9-alpine
     container_name: trading-docker-socket-proxy
     restart: unless-stopped
     # Root to read the root-owned socket; SETGID only for nginx's worker initgroups.

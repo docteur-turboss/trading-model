@@ -137,7 +137,7 @@ jobs:
               printf '  %s:\n    image: trading-model-rollback/%s:prev\n' "$svc" "$svc" >> "$RUNNER_TEMP/prev.yml"
             fi
           done
-          docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' trading-discovery > "$RUNNER_TEMP/prev.dir" || true
+          docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' trading-message > "$RUNNER_TEMP/prev.dir" || true
 
       - name: Deploy
         shell: bash

@@ -72,6 +72,7 @@ jobs:
     permissions:
       contents: read
       packages: read
+      pull-requests: read # asked by the ci.yml lint job (PR title step, skipped on a tag push)
 
   # No `environment:` here, on purpose: it would create the environment
   # unprotected. Reading the settings needs ENVIRONMENT_READ_TOKEN
@@ -111,7 +112,6 @@ jobs:
       fail-fast: false
       matrix:
         service:
-          - discovery-server
           - message-manager
           - financial-scraper
           - trader-trainer

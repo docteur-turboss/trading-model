@@ -42,15 +42,15 @@ describe("DLQ Routes", () => {
 			expect.arrayContaining([
 				// Public routes: /v1 plus the release N alias (ADR-0072).
 				expect.objectContaining({
-					path: "/v1/dlq",
+					path: ["/v1/dlq", "/dlq"],
 					methods: expect.arrayContaining(["get"]),
 				}),
 				expect.objectContaining({
-					path: "/v1/dlq",
+					path: ["/v1/dlq", "/dlq"],
 					methods: expect.arrayContaining(["delete"]),
 				}),
 				expect.objectContaining({
-					path: "/v1/dlq/replay",
+					path: ["/v1/dlq/replay", "/dlq/replay"],
 					methods: expect.arrayContaining(["post"]),
 				}),
 				expect.objectContaining({

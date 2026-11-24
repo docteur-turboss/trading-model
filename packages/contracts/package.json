@@ -19,7 +19,7 @@
     "./message-types": "./dist/message-types.js",
     "./order-intent": "./dist/order-intent.js",
     "./publish-timeout": "./dist/publish-timeout.js",
-		"./risk-events": "./dist/risk-events.js",
+    "./risk-events": "./dist/risk-events.js",
     "./signed-request": "./dist/signed-request.js",
     "./training-events": "./dist/training-events.js",
     "./wire/brand": "./dist/wire/brand.js",
