@@ -123,7 +123,14 @@ build_images() {
 	export IMAGE_TAG="$tag"
 	retry 3 docker compose $f build $have spire-bootstrap
 	# shellcheck disable=SC2086
-	[ -z "$missing" ] || retry 3 docker compose -f "$ROOT/docker-compose.yml" -f "$ROOT/docker-compose.build.yml" build $missing
+	# Not built by its compose file: its own Dockerfile if it has one (N-1 probes may need what N dropped, e.g. curl), else this checkout's.
+	for svc in $missing; do
+		if [ -f "$root/services/$svc/Dockerfile" ]; then
+			retry 3 docker build -q -t "ghcr.io/trading-model/$svc:$tag" -f "$root/services/$svc/Dockerfile" "$root"
+		else
+			retry 3 docker compose -f "$ROOT/docker-compose.yml" -f "$ROOT/docker-compose.build.yml" build "$svc"
+		fi
+	done
 	retry 3 docker build -q -t "ghcr.io/trading-model/backup-tools:$tag" "$root/deploy/backup"
 	# N-1 may predate the image: its digest entry is a stand-in built from this checkout.
 	local mroot="$root"
@@ -838,9 +845,11 @@ verify_network() {
 	log "  training status: $(curl -s -H "x-api-key: $API_KEY" "$url")"
 
 	# Release N only (ADR-0072): N-1 gateways still read the registry. Removed in N+1.
-	local registry="curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://discovery-server:3000/v1/services"
-	wait_for 120 "$K -n $NS exec deployment/financial-scraper -c financial-scraper -- $registry | grep -q financial-scraper"
-	log "  registered: $($K -n "$NS" exec deployment/financial-scraper -c financial-scraper -- $registry)"
+	registry() {
+		$K -n "$NS" exec deployment/financial-scraper -c financial-scraper -- node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://discovery-server:3000/v1/services
+	}
+	wait_for 120 "registry | grep -q financial-scraper"
+	log "  registered: $(registry)"
 }
 
 verify_observability() {
@@ -1084,7 +1093,7 @@ verify_redis_tls() {
 bus_delivered() {
 	local pod
 	for pod in $($K -n "$NS" get pods -l "app.kubernetes.io/component=$1" -o jsonpath='{.items[*].metadata.name}'); do
-		$K -n "$NS" exec "$pod" -c "$1" -- curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/metrics |
+		$K -n "$NS" exec "$pod" -c "$1" -- node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/metrics |
 			grep '^mm_messages_delivered_total{.*topic="training.model.published"'
 	done
 }
@@ -1303,7 +1312,7 @@ inspector() {
 # `kill-switch[/rearm]` with body `$2` through edge-proxy and the risk:admin key, actor = key name (ADR-0059).
 risk_admin() {
 	if [ "$1" = status ]; then
-		$K -n "$NS" exec deployment/risk-execution -c risk-execution -- sh -c 			"curl -sfk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/admin/status"
+		$K -n "$NS" exec deployment/risk-execution -c risk-execution -- node -e 'const f=require("fs"),d="/run/spire/svid/",[m,u]=process.argv.slice(1);const q=require("https").request(u,{method:m,headers:{"content-type":"application/json"},cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>r.pipe(process.stdout));q.on("error",()=>process.exit(1));q.end()' GET https://localhost:3000/admin/status
 		return
 	fi
 	$K -n "$NS" port-forward svc/edge-proxy 18452:8080 >/dev/null 2>&1 &
@@ -1369,7 +1378,7 @@ dlq_ids() {
 audit_metric() {
 	local pod
 	for pod in $($K -n "$NS" get pods -l app.kubernetes.io/component=audit-logger -o jsonpath='{.items[*].metadata.name}'); do
-		$K -n "$NS" exec "$pod" -c audit-logger -- curl -sk --cert /run/spire/svid/svid.pem 			--key /run/spire/svid/svid_key.pem https://localhost:3000/metrics 2>/dev/null |
+		$K -n "$NS" exec "$pod" -c audit-logger -- node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/metrics 2>/dev/null |
 			awk -v name="$1" '$1 == name {print int($2)}'
 	done
 }
