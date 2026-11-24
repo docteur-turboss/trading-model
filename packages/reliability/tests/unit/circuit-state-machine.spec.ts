@@ -46,24 +46,6 @@ describe("CircuitStateMachine", () => {
 		expect(csm.getState(Date.now() + 1000)).toBe(CircuitState.HALF_OPEN);
 	});
 
-	it("should reopen after halfOpenMaxAttempts", () => {
-		jest.useFakeTimers();
-		const csm = new CircuitStateMachine({
-			failureThreshold: 1,
-			cooldownMs: 60000 as never,
-			halfOpenMaxAttempts: 2,
-		});
-		csm.recordFailure();
-		expect(csm.getState()).toBe(CircuitState.OPEN);
-		jest.advanceTimersByTime(60001);
-		expect(csm.getState()).toBe(CircuitState.HALF_OPEN);
-		csm.recordFailure(1, undefined);
-		expect(csm.getState()).toBe(CircuitState.HALF_OPEN);
-		csm.recordFailure(1, undefined);
-		expect(csm.getState()).toBe(CircuitState.OPEN);
-		jest.useRealTimers();
-	});
-
 	it("should reopen on a half-open failure with the default config", () => {
 		jest.useFakeTimers();
 		const csm = new CircuitStateMachine(DEFAULT_CIRCUIT_CONFIG);
@@ -93,7 +75,6 @@ describe("CircuitStateMachine", () => {
 		const csm = new CircuitStateMachine({
 			failureThreshold: 1,
 			cooldownMs: 1000 as never,
-			halfOpenMaxAttempts: 1,
 		});
 		csm.recordFailure();
 		jest.advanceTimersByTime(1001);

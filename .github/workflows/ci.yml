@@ -27,7 +27,7 @@ jobs:
   gate:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       k8s: ${{ steps.changes.outputs.k8s }}
@@ -57,7 +57,7 @@ jobs:
 
   lint:
     needs: gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -106,7 +106,7 @@ jobs:
   security:
     # Not in pre-push: bun audit needs the network, gitleaks the full history (release tags only; PRs scan their commits).
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -136,7 +136,7 @@ jobs:
     needs: gate
     # Also on the merge push to development (gate skipped, see its if), like test.
     if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -171,7 +171,7 @@ jobs:
     needs: gate
     # Also on the merge push to development (gate skipped, see its if): two green PRs can still break the unit tests together.
     if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -191,7 +191,7 @@ jobs:
 
   db-integration:
     needs: gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -212,7 +212,7 @@ jobs:
 
   observability:
     needs: gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -233,11 +233,14 @@ jobs:
       # silent) on the scenarios of tests/alerts/alerting.test.yml.
       - name: Alert rule tests
         run: bash tests/alerts/run.sh
+      # Pinned Grafana image on an existing volume (Loki without uid), issue #2414.
+      - name: Grafana upgrade on an existing database
+        run: bash tests/observability/grafana-upgrade.test.sh
 
   # The k8s job only deploys staging: production is checked by rendering.
   k8s-overlays:
     needs: gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -278,7 +281,7 @@ jobs:
     needs: gate
     # Also on the merge push to development (gate skipped, see its if), like test.
     if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -319,7 +322,7 @@ jobs:
 
   e2e:
     needs: gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       # Compose names the images <project>-<service>; the bake step below tags them the same way.
@@ -445,7 +448,7 @@ jobs:
     needs: gate
     # The merge push to development skips gate (see its if): kind, typecheck, test and contract still run there, the other jobs stay skipped.
     if: ${{ !cancelled() && (needs.gate.outputs.k8s == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: read
@@ -495,7 +498,7 @@ jobs:
     needs: [gate, k8s-images]
     if: ${{ !cancelled() && needs.k8s-images.result == 'success' }}
     name: k8s (${{ matrix.group }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # One job per group of checks (run-kind.sh verify_group): each deploys N-1, upgrades to N,
     # then runs its own checks. fail-fast off: a red group does not hide the others.
     # Not measured per group yet: first runs decide the timeout (the single job was 30 min measured, 48 min on PR #460).
@@ -615,7 +618,7 @@ jobs:
   k8s-result:
     needs: [gate, lint, security, typecheck, test, db-integration, observability, k8s-overlays, contract, e2e, k8s-images, k8s]
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - env:

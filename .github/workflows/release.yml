@@ -26,7 +26,7 @@ permissions:
 
 jobs:
   version:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       tag: ${{ steps.version.outputs.tag }}
       latest: ${{ steps.version.outputs.latest }}
@@ -77,7 +77,7 @@ jobs:
   # unprotected. Reading the settings needs ENVIRONMENT_READ_TOKEN
   # (fine-grained PAT, "Administration: read"); without it the check fails.
   check-environment:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -96,7 +96,7 @@ jobs:
   # The only approval point of a release: publication and signature depend on it (ADR-0038).
   approve:
     needs: [version, ci, check-environment]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 1440
     environment: release
     steps:
@@ -104,7 +104,7 @@ jobs:
 
   scan-services:
     needs: [version, approve]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     strategy:
@@ -162,7 +162,7 @@ jobs:
   # db-migrate (deploy/migrate): migrate.mjs + migrations + locked mysql2 for the db-migrate Jobs.
   scan-tools:
     needs: [version, approve]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     strategy:
@@ -212,7 +212,7 @@ jobs:
   # under the tag. The images are rebuilt from the same inputs, without cache (ADR-0038).
   build-and-push:
     needs: [version, approve, scan-services, scan-tools]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
@@ -272,7 +272,7 @@ jobs:
 
   build-tools:
     needs: [version, approve, scan-services, scan-tools]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
@@ -331,7 +331,7 @@ jobs:
   # only; deploy.yml verifies the identity of this workflow.
   sign:
     needs: [version, approve, build-and-push, build-tools]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
@@ -376,7 +376,7 @@ jobs:
   # deploy.yml reads, <registry>/<image>:X.Y.Z. Read-only: publishes nothing.
   verify-images:
     needs: [version, build-and-push, build-tools]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: read

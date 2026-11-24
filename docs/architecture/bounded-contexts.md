@@ -98,7 +98,7 @@ graph TD
 - **Owner:** `risk-execution` ([ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md)), separate from the model and from the decision consumer
 - **Core entities:** Intent, Order, Position, KillSwitch
 - **Responsibilities:** pre-trade checks, order lifecycle, kill switch, reconciliation; paper only (simulated broker, no live adapter)
-- **Consumes:** intents over HTTP (`POST /intents`), only `decision-consumer` sends them ([ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md), [ADR-0087](../adr/0087-paper-decision-consumer.md)); the last closed candle of each instrument from financial-scraper (`SCRAPER_API.candlesBySymbol`)
+- **Consumes:** intents over HTTP (`POST /intents`), only `decision-consumer` sends them ([ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md), [ADR-0087](../adr/0087-paper-decision-consumer.md)); the last closed candle of each instrument from financial-scraper (`SCRAPER_API.candlesLatest`)
 - **Publishes:** `risk.*` events (order transitions, kill switch), chained by audit-logger
 
 ## Integration Patterns
