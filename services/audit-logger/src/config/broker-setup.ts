@@ -4,7 +4,7 @@ import { ServiceInstanceName } from "@trading-model/common/config/services.types
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
 import type { EventMap } from "@trading-model/contracts/event-map";
 import { logger } from "@trading-model/http/logger";
-import { toInstanceId } from "@trading-model/primitives/primitives";
+import { InstanceId } from "@trading-model/primitives/primitives";
 import type { createAuditRecorder } from "../adapters/inbound/subscription/audit-subscriber";
 import type { DeliveredEnvelope } from "../adapters/outbound/persistence/audit-document-builder";
 import { ENV } from "../infrastructure/config/env";
@@ -20,7 +20,7 @@ export async function createBrokerMessage(
 		journal: busJournalFromEnv(ENV),
 		addressManagerClient: AddressManager,
 		tlsPaths: buildTlsFromEnv(ENV),
-		instanceId: toInstanceId(ENV.INSTANCE_ID),
+		instanceId: InstanceId.of(ENV.INSTANCE_ID),
 		serviceName: ServiceInstanceName.AuditLoggerService,
 	});
 	const allTopics = auditedTopics();

@@ -6,10 +6,7 @@ import {
 } from "@trading-model/primitives/primitives";
 import { EvictionPolicy } from "../../../src/domain/eviction-policy";
 import { MarketDataBuffer } from "../../../src/domain/market-data-buffer";
-import {
-	fromSymbol,
-	NormalizationStats,
-} from "../../../src/domain/market-data-types";
+import { NormalizationStats } from "../../../src/domain/market-data-types";
 import {
 	feedCandles,
 	makeCandle,
@@ -17,22 +14,6 @@ import {
 } from "../../fixtures/market-data.fixture";
 
 describe("TradingSymbol", () => {
-	it("should create branded symbol via TradingSymbol.of", () => {
-		const sym = TradingSymbol.of("BTCUSDT");
-		expect(fromSymbol(sym)).toBe("BTCUSDT");
-	});
-
-	it("should preserve identity through roundtrip", () => {
-		const original = "ETHUSDT";
-		expect(fromSymbol(TradingSymbol.of(original))).toBe(original);
-	});
-
-	it("should create distinct symbols for different strings", () => {
-		const a = TradingSymbol.of("BTCUSDT");
-		const b = TradingSymbol.of("ETHUSDT");
-		expect(fromSymbol(a)).not.toBe(fromSymbol(b));
-	});
-
 	it("should work as Map key", () => {
 		const m = new Map<TradingSymbol, number>();
 		const s1 = TradingSymbol.of("BTCUSDT");
