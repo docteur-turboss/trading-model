@@ -59,11 +59,10 @@ describe("validateTrainingPrerequisites", () => {
 		const buffer = new MarketDataBuffer();
 		feedCandles(buffer, "BTCUSDT", 100);
 		const state = buffer.getSymbolState(BTC) as SymbolState;
-		// Restored state bypasses the ingestion dedup.
-		buffer.restoreSymbolState(BTC, {
-			...state,
-			candles: [...state.candles, state.candles[state.candles.length - 1]],
-		});
+		// Writing the live state bypasses the ingestion dedup.
+		(state.candles as SymbolState["candles"][number][]).push(
+			state.candles[state.candles.length - 1]
+		);
 
 		const result = validateTrainingPrerequisites(
 			buffer,

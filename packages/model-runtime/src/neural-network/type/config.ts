@@ -16,7 +16,6 @@ export interface NetworkArchitecture {
 	activationType?: ActivationType[];
 	connectionType?: ConnectionType;
 	normalisationType?: NormalisationType;
-	enablePool?: boolean;
 	poolMaxSize?: PositiveInt;
 	perEnabled?: boolean;
 	perAlpha?: number;
@@ -67,7 +66,6 @@ export function mergeConfig(
 ): Required<NeuralNetworkConfig> {
 	return {
 		useBias: cfg.useBias ?? true,
-		enablePool: cfg.enablePool ?? true,
 		neuronsByLayer: cfg.neuronsByLayer,
 		poolMaxSize: (cfg.poolMaxSize ?? 10_000) as PositiveInt,
 		learningRate: cfg.learningRate ?? Percentage.of(0.001),

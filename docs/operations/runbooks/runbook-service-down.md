@@ -104,8 +104,7 @@ kubectl get pods -n trading-model -l app.kubernetes.io/component=<service-name>
 # 2. Health endpoint responds
 #    (mTLS only: use the pod SVID, a curl without --cert always fails)
 kubectl exec -n trading-model deployment/<service-name> -c <service-name> -- \
-  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/ping
+  node -e "$SVID_GET" https://localhost:3000/ping
 
 # 3. Dependent services are healthy
 # 4. Alertmanager alert resolves

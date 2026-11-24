@@ -6,7 +6,7 @@ import { EVENT_SUBSCRIBERS } from "@trading-model/contracts/event-routes";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
 import { ScraperClient } from "@trading-model/http/model-api/scraper-client";
 import { TrainerClient } from "@trading-model/http/model-api/trainer-client";
-import { toInstanceId } from "@trading-model/primitives/primitives";
+import { InstanceId } from "@trading-model/primitives/primitives";
 import {
 	createMessageHandler,
 	createModelPublishedListener,
@@ -27,7 +27,12 @@ export async function createModelEvaluatorApp() {
 	const tls = buildTlsFromEnv(ENV);
 	const evaluate = createEvaluateModel({
 		store: new FileEvaluationStore(ENV.EVALUATIONS_DIR),
-		trainer: new TrainerClient(tls, FIND_A_SERVICE, ModelManifest),
+		trainer: new TrainerClient(
+			tls,
+			FIND_A_SERVICE,
+			ModelManifest,
+			ENV.TRAINER_MODEL_DIR
+		),
 		scraper: new ScraperClient(tls, FIND_A_SERVICE),
 	});
 	const server = await createServer(createMessageHandler(evaluate));
@@ -35,7 +40,7 @@ export async function createModelEvaluatorApp() {
 		journal: busJournalFromEnv(ENV),
 		addressManagerClient: AddressManager,
 		tlsPaths: tls,
-		instanceId: toInstanceId(ENV.INSTANCE_ID),
+		instanceId: InstanceId.of(ENV.INSTANCE_ID),
 		serviceName: ServiceInstanceName.ModelEvaluatorService,
 	});
 	brokerMessage.on(

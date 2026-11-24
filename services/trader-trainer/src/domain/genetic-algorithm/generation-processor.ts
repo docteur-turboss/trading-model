@@ -50,9 +50,6 @@ export class GenerationProcessor {
 	get generation(): number {
 		return this._generation;
 	}
-	getArchiveMembers(): DeepReadonly<LamarckGenome>[] {
-		return this._archive.members;
-	}
 	/** Front member with the highest fitness: the genome a run publishes. */
 	get archiveBest(): ArchiveBest | undefined {
 		return this._finalBest ?? this._archive.best();
@@ -167,18 +164,14 @@ export class GenerationProcessor {
 			}
 			return acc;
 		}, [] as number[]);
-		if (
-			this._archive.update(
-				frontIdx.map((idx) => popWithMeta[idx].genome),
-				frontIdx.map((idx) => objectives[idx]),
-				frontIdx.map((idx) => ({
-					fitness: popWithMeta[idx].fitness,
-					meta: popWithMeta[idx].fitnessMeta,
-				}))
-			)
-		) {
-			this._cfg.onArchiveUpdate?.(this._archive.members);
-		}
+		this._archive.update(
+			frontIdx.map((idx) => popWithMeta[idx].genome),
+			frontIdx.map((idx) => objectives[idx]),
+			frontIdx.map((idx) => ({
+				fitness: popWithMeta[idx].fitness,
+				meta: popWithMeta[idx].fitnessMeta,
+			}))
+		);
 	}
 
 	private _initRunParams(): {

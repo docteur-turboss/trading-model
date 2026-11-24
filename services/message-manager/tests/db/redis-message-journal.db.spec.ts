@@ -129,6 +129,28 @@ describe("accepted message interrupted by a process stop — real Redis", () => 
 		expect(of("reader")?.pending).toBe(2);
 		expect(of(GROUP.service)?.oldestPendingAgeMs).toBeGreaterThanOrEqual(0);
 	});
+
+	it("should refuse a publish once Redis reaches maxmemory, and stay reachable", async () => {
+		const redis = replica();
+		const used = Number(
+			/used_memory:(\d+)/.exec(await redis.info("memory"))?.[1]
+		);
+		await redis.config("SET", "maxmemory", String(used + 1024 * 1024));
+		try {
+			const journal = journalOn(redis);
+			const big = "x".repeat(64 * 1024);
+			const fill = async () => {
+				for (let i = 0; i < 100; i++) {
+					await journal.append(createMockMessage(big), [GROUP.service]);
+				}
+			};
+
+			await expect(fill()).rejects.toThrow(/OOM command not allowed/);
+			await expect(redis.ping()).resolves.toBe("PONG");
+		} finally {
+			await redis.config("SET", "maxmemory", "0");
+		}
+	});
 });
 
 describe("subscription expired while the group exists — real Redis", () => {

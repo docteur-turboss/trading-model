@@ -1,10 +1,10 @@
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import {
-	toCorrelationId,
-	toInstanceId,
-	toMessageId,
-	toServiceId,
-	toTopic,
+	CorrelationId,
+	InstanceId,
+	MessageId,
+	ServiceId,
+	Topic,
 } from "@trading-model/primitives/primitives";
 import { MS_PER_DAY } from "../../../domain/audit-chain";
 import type { AuditEventDocument } from "./audit-repository";
@@ -33,15 +33,14 @@ export function buildAuditDocument(
 		previousHash: "",
 		chainSequence: 0,
 		metadata: {
-			topic: toTopic(metadata.topic),
-			eventType:
-				// as unknown as: topic string stands in for the event enum, as stored today
-				metadata.eventType ?? (metadata.topic as unknown as EventEnumMap),
-			publisher: toServiceId(metadata.publisher?.serviceName ?? "unknown"),
-			instanceId: toInstanceId(metadata.publisher?.instanceId ?? "unknown"),
-			messageId: toMessageId(metadata.messageId ?? "unknown"),
+			topic: Topic.of(metadata.topic),
+			// Without an event type the topic is stored as is.
+			eventType: metadata.eventType ?? metadata.topic,
+			publisher: ServiceId.of(metadata.publisher?.serviceName ?? "unknown"),
+			instanceId: InstanceId.of(metadata.publisher?.instanceId ?? "unknown"),
+			messageId: MessageId.of(metadata.messageId ?? "unknown"),
 			correlationId: metadata.correlationId
-				? toCorrelationId(metadata.correlationId)
+				? CorrelationId.of(metadata.correlationId)
 				: undefined,
 		},
 		payload,

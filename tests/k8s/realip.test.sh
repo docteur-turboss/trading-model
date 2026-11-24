@@ -9,6 +9,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 export MSYS_NO_PATHCONV=1
 IMAGE=$(grep -oE 'nginx:[^ ]+@sha256:[0-9a-f]+' docker-compose.yml | head -1)
+CURL_IMAGE="curlimages/curl:8.11.1@sha256:c1fe1679c34d9784c1b0d1e5f62ac0a79fca01fb6377cdd33e90473c6f9f9a69" # multi-arch index
 P=realip-test-$$
 W="$PWD/.realip-test-$$"
 mkdir "$W"
@@ -27,7 +28,7 @@ check() { # overlay net peer-ip want
     -v "$W/server.conf:/etc/nginx/conf.d/default.conf:ro" -v "$PWD/deploy/k8s/overlays/$1/realip.inc:/etc/nginx/conf.d/realip.inc:ro" "$IMAGE" >/dev/null
   ip=$(docker inspect -f "{{(index .NetworkSettings.Networks \"$P-$2\").IPAddress}}" "$P-nginx")
   sleep 1
-  docker run --rm --network "$P-$2" curlimages/curl -s -o /dev/null -H 'X-Forwarded-For: 1.2.3.4, 5.6.7.8' "http://$ip:8080/"
+  docker run --rm --network "$P-$2" "$CURL_IMAGE" -s -o /dev/null -H 'X-Forwarded-For: 1.2.3.4, 5.6.7.8' "http://$ip:8080/"
   got=$(docker logs "$P-nginx" 2>&1 | grep -o '"remote_addr":"[^"]*"' | tail -1)
   if [ "$got" = "\"remote_addr\":\"$4\"" ]; then echo "ok   $1 $2 $got"; else echo "FAIL $1 $2: got $got, want $4"; fail=1; fi
 }
