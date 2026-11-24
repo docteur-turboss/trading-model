@@ -207,7 +207,7 @@ spec:
         # Exporter of this node (issue #601, ADR-0056), as ACL user `exporter`:
         # INFO and read-only commands, no key, no CONFIG GET (masterauth).
         - name: redis-exporter
-          image: oliver006/redis_exporter:v1.97.0@sha256:f5f903fbe77571d455ede0453b084d6840bc62fc105efac001034421cab83b99
+          image: oliver006/redis_exporter:v1.98.0@sha256:2b68665248d909bb25de9d175c648932a8c358ba143e5dbed1eb48f91cc9d2e1
           env:
             - name: REDIS_ADDR
               value: redis://127.0.0.1:6379
@@ -433,7 +433,7 @@ spec:
         # Exporter of this sentinel (issue #601, ADR-0056), as ACL user `exporter`:
         # INFO and read-only commands, no key, no CONFIG GET (masterauth).
         - name: redis-exporter
-          image: oliver006/redis_exporter:v1.97.0@sha256:f5f903fbe77571d455ede0453b084d6840bc62fc105efac001034421cab83b99
+          image: oliver006/redis_exporter:v1.98.0@sha256:2b68665248d909bb25de9d175c648932a8c358ba143e5dbed1eb48f91cc9d2e1
           env:
             - name: REDIS_ADDR
               value: redis://127.0.0.1:26379
