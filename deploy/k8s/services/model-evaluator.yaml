@@ -53,7 +53,7 @@ spec:
           type: RuntimeDefault
       initContainers:
         - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+          image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
           imagePullPolicy: IfNotPresent
           restartPolicy: Always
           startupProbe:
