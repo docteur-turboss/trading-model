@@ -38,7 +38,7 @@ describe("Smoke", () => {
 	it("refuses a client without a certificate at the TLS handshake", () => {
 		const { status } = meshRequest(
 			CALLER.scraper,
-			"https://discovery-server:3000/services",
+			"https://discovery-server:3000/v1/services",
 			{ withoutCert: true }
 		);
 		expect(status).toBe(0);

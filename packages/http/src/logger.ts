@@ -21,31 +21,14 @@ export class Logger {
 		if (!isLogLevelAtLeast(level, this._logLevel)) {
 			return;
 		}
-		const { label, consoleFn } = this._consoleTarget(level);
-		consoleFn(
+		console[level](
 			formatLogEntry({
-				label,
+				label: level.toUpperCase(),
 				timestamp: UnixTimestamp.now(),
 				message,
 				context,
 			})
 		);
-	}
-
-	private _consoleTarget(level: LogLevel): {
-		label: string;
-		consoleFn: (message?: unknown, ...optionalParams: unknown[]) => void;
-	} {
-		switch (level) {
-			case LogLevel.Debug:
-				return { label: "DEBUG", consoleFn: console.debug };
-			case LogLevel.Warn:
-				return { label: "WARN", consoleFn: console.warn };
-			case LogLevel.Error:
-				return { label: "ERROR", consoleFn: console.error };
-			default:
-				return { label: "INFO", consoleFn: console.info };
-		}
 	}
 
 	debug(message: string, context?: JsonObject) {

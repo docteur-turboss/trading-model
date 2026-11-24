@@ -1,4 +1,5 @@
 import { computeExponentialBackoffWithJitter } from "@trading-model/common/utils/backoff-config";
+import { sleep } from "@trading-model/common/utils/sleep";
 import { isRetryableStatusPermissive } from "@trading-model/http/http-retry";
 import { DataSource, DurationMs } from "@trading-model/primitives/primitives";
 import axios, {
@@ -30,25 +31,6 @@ type RetryConfig = AxiosRequestConfig & {
 	deadline?: number;
 };
 
-/** Backoff wait that ends early when `signal` fires. */
-function _sleepUnlessAborted(
-	ms: number,
-	signal?: AxiosRequestConfig["signal"]
-): Promise<void> {
-	return new Promise((resolve) => {
-		const timer = setTimeout(resolve, ms);
-		timer.unref();
-		signal?.addEventListener?.(
-			"abort",
-			() => {
-				clearTimeout(timer);
-				resolve();
-			},
-			{ once: true }
-		);
-	});
-}
-
 function _attachRetryInterceptor(instance: AxiosInstance): void {
 	instance.interceptors.request.use((config) => {
 		(config as RetryConfig).deadline ??= Date.now() + RETRY_DEADLINE_MS;
@@ -72,7 +54,7 @@ function _attachRetryInterceptor(instance: AxiosInstance): void {
 			throw error;
 		}
 		const delay = computeExponentialBackoffWithJitter(
-			config.retryCount + 1,
+			config.retryCount,
 			RETRY_CONFIG
 		);
 		// the next attempt may run a full timeout: it must end before the deadline
@@ -83,7 +65,7 @@ function _attachRetryInterceptor(instance: AxiosInstance): void {
 			throw error;
 		}
 		config.retryCount++;
-		return _sleepUnlessAborted(delay, config.signal).then(() => {
+		return sleep(delay, config.signal as AbortSignal | undefined).then(() => {
 			if (config.signal?.aborted) {
 				throw error;
 			}
