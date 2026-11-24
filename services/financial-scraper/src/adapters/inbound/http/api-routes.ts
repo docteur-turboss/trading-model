@@ -196,6 +196,30 @@ export const SCRAPER_API = {
 		BY_SYMBOL,
 		Candle
 	),
+	candlesLatest: defineRoute({
+		method: "GET",
+		path: "/v2/candles/latest",
+		summary:
+			"Newest closed candle of each listed symbol (any source, interval)",
+		query: z.object({
+			symbols: z
+				.string()
+				.transform((list) => list.split(",").filter(Boolean))
+				.pipe(z.array(z.string()).min(1).max(100)),
+		}),
+		responses: {
+			200: z.object({
+				rows: z.array(
+					z.object({
+						symbol: z.string(),
+						close: z.number(),
+						closeTimestamp: DATE_TIME,
+					})
+				),
+			}),
+			400: ErrorResponse,
+		},
+	}),
 	candlesSince: query(
 		"/v2/candles/timestamp/:timestamp",
 		"Candles opened after a date",

@@ -12,7 +12,6 @@ Depends on `@trading-model/primitives` and `@trading-model/contracts` only (no `
 |-------------|---------|---------|
 | `@trading-model/reliability/circuit-state-machine` | `CircuitStateMachine`, `CircuitBreakerConfig`, `DEFAULT_CIRCUIT_CONFIG` | Closed / open / half-open transitions (the one services import) |
 | `@trading-model/reliability/circuit-breaker` | `CircuitBreaker` | Wraps a call with a state machine |
-| `@trading-model/reliability/heartbeat-sender.port` | heartbeat ports | Contracts for heartbeat senders |
 
 ## Example
 

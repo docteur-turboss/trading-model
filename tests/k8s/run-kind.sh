@@ -339,7 +339,9 @@ migrations() {
 # crash broke the pipe in runs 43321359421 and 43328471185).
 render_kind() {
 	release_script render "$1/deploy/k8s/overlays/${KIND_OVERLAY:-staging}" ghcr.io/trading-model "$2" >"$3.raw" || return 1
-	node "$ROOT/tests/k8s/ci-render.mjs" <"$3.raw" >"$3" || return 1
+	local scopes="read+dlq:write+risk:admin"
+	[ "$1" = "$ROOT" ] || scopes="read+dlq:write"
+	CI_RENDER_SCOPES="$scopes" node "$ROOT/tests/k8s/ci-render.mjs" <"$3.raw" >"$3" || return 1
 	rm -f "$3.raw"
 }
 
@@ -480,9 +482,9 @@ release() {
 release_under_probe() {
 	local stop="$WORK/probe.stop" out="$WORK/probe.count" max="${PROBE_MAX_FAILURES:-0}" pid start rc=0 began=$SECONDS
 	local requests failures row candles gap need
-	rm -f "$stop" "$out"
+	rm -f "$stop" "$out" "$out.err"
 	echo "0 0" >"$out"
-	probe_availability "$stop" "$out" &
+	probe_availability "$stop" "$out" 2> >(tee "$out.err" >&2) &
 	pid=$!
 	# A failing command under errexit must not leave the probe running.
 	# Expanded now: the locals are gone when a RETURN trap runs.
@@ -506,7 +508,9 @@ release_under_probe() {
 		return 1
 	}
 	[ "$failures" -le "$max" ] || {
-		log "the upgrade dropped $failures request(s) (threshold $max): a Deployment went to 0 ready pods"
+		# 000 is a timeout or refused connection (a route without ready pod); 4xx/5xx come from the route itself.
+		log "the upgrade dropped $failures request(s) (threshold $max); status codes: $(sed -n 's/^probe: .* answered //p' "$out.err" | sort | uniq -c | tr -s ' 
+' ' ')"
 		return 1
 	}
 	# Candles written in the window and the largest gap between consecutive ones
