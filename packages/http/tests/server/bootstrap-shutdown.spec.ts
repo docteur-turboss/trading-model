@@ -159,6 +159,7 @@ describe("gracefulShutdown", () => {
 		expect(server.close).toHaveBeenCalled();
 		expect(onStop).toHaveBeenCalled();
 		expect(process.exitCode).toBe(originalExitCode);
+		expect(process.exit).toHaveBeenCalledWith(0);
 	});
 
 	it("should handle null server gracefully", async () => {
@@ -243,7 +244,9 @@ describe("gracefulShutdown", () => {
 					})
 			),
 		};
-		const options = createOptions({ shutdown: { closeTimeoutMs: 60_000 } });
+		const options = createOptions({
+			shutdown: { closeTimeoutMs: 60_000, deadlineMs: 90_000 },
+		});
 
 		const promise = gracefulShutdown("SIGTERM", server, options);
 		await jest.advanceTimersByTimeAsync(30_000);
@@ -267,13 +270,71 @@ describe("gracefulShutdown", () => {
 		expect(stopped).toBe(true);
 	});
 
-	it("should log, not fail, when onStop rejects", async () => {
+	it("should bound an onStop that never settles", async () => {
+		const onStop = jest.fn(() => new Promise<never>(() => {}));
+		const promise = gracefulShutdown(
+			"SIGTERM",
+			null,
+			createOptions({ onStop })
+		);
+
+		await jest.advanceTimersByTimeAsync(3000);
+		await promise;
+
+		expect(process.exit).toHaveBeenCalledWith(1);
+	});
+
+	it("should wait onStopTimeoutMs for a slow onStop", async () => {
+		const onStop = () => new Promise<void>((r) => setTimeout(r, 20_000));
+		const promise = gracefulShutdown(
+			"SIGTERM",
+			null,
+			createOptions({ onStop, shutdown: { onStopTimeoutMs: 30_000 } })
+		);
+
+		await jest.advanceTimersByTimeAsync(20_000);
+		await promise;
+
+		expect(process.exit).toHaveBeenCalledWith(0);
+	});
+
+	it("should force exit 1 at the deadline when beforeClose never settles", async () => {
+		const server = createMockServer();
+		const promise = gracefulShutdown(
+			"SIGTERM",
+			server,
+			createOptions({
+				shutdown: { beforeClose: () => new Promise<void>(() => {}) },
+			})
+		);
+
+		await jest.advanceTimersByTimeAsync(8000);
+		expect(server.close).toHaveBeenCalledTimes(1);
+		await jest.advanceTimersByTimeAsync(5000);
+
+		expect(process.exit).toHaveBeenCalledWith(1);
+		void promise;
+	});
+
+	it("should call onStop once when the shutdown falls back to hardShutdown", async () => {
+		const onStop = jest.fn();
+		const server = { close: jest.fn().mockRejectedValue(new Error("x")) };
+
+		const options = createOptions({ onStop });
+
+		await gracefulShutdown("SIGTERM", server, options);
+		hardShutdown(1, server, options);
+
+		expect(onStop).toHaveBeenCalledTimes(1);
+	});
+
+	it("should log and exit 1 when onStop rejects", async () => {
 		const options = createOptions({
 			onStop: jest.fn().mockRejectedValue(new Error("stop failed")),
 		});
 
 		await gracefulShutdown("SIGTERM", null, options);
 
-		expect(process.exitCode).toBe(originalExitCode);
+		expect(process.exit).toHaveBeenCalledWith(1);
 	});
 });

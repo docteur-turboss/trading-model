@@ -4,6 +4,7 @@ import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated
 import { createBootstrap } from "@trading-model/http/bootstrap";
 import { ScraperSignalHistory } from "@trading-model/http/signals/scraper-signal-history";
 import { shutdownTelemetry } from "@trading-model/http/telemetry";
+import { DurationMs } from "@trading-model/primitives/primitives";
 import type { Leadership } from "@trading-model/reliability/leadership";
 import { ScraperCandleHistory } from "../adapters/outbound/scraper-candle-history";
 import {
@@ -52,6 +53,11 @@ createBootstrap({
 			stop: () => trainingLoop.stop(),
 		});
 		leadership.start();
+	},
+	// Grace 120 s: close 5 s + onStop 60 s, 100 s + 5 s forced exit.
+	shutdown: {
+		onStopTimeoutMs: DurationMs.of(60_000),
+		deadlineMs: DurationMs.of(100_000),
 	},
 	onStop: async () => {
 		// Before leaving discovery: the model of the session ended early is
