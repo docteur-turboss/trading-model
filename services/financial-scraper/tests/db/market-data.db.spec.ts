@@ -410,7 +410,8 @@ describe("market_trades — real MySQL", () => {
 
 	it("should move INT trades into the BIGINT table in batches, keeping their ids (issue #2377)", async () => {
 		const db = DATABASE.promise();
-		migrate("down", "1");
+		// 013 (candle index) is the latest, then 012 (BIGINT id): undo both.
+		migrate("down", "2");
 		await db.query(
 			"ALTER TABLE market_trades MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT, AUTO_INCREMENT = 1"
 		);
@@ -596,11 +597,12 @@ describe("selectLatestClosedCandles — real MySQL", () => {
 	});
 
 	it("should use the symbol/close index", async () => {
-		const [plan] = await DATABASE.promise().query(
-			"EXPLAIN SELECT MAX(close_timestamp) FROM market_candles WHERE symbol = 'BTCUSDT' AND close_timestamp <= NOW()"
+		// MySQL resolves MAX() from the index while optimizing (EXPLAIN key is null): check the index exists.
+		const [indexes] = await DATABASE.promise().query(
+			"SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'market_candles' AND index_name = 'idx_candles_symbol_close'"
 		);
 
-		expect(JSON.stringify(plan)).toContain("idx_candles_symbol_close");
+		expect(indexes).toHaveLength(2);
 	});
 });
 

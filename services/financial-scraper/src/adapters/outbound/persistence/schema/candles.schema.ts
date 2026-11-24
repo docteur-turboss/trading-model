@@ -129,7 +129,7 @@ export async function selectLatestClosedCandles(
 	now: Date
 ): Promise<LatestRow[]> {
 	const [rows] = await DATABASE.promise().query<LatestRow[]>(
-		`SELECT symbol, close, close_timestamp AS closeTimestamp FROM market_candles c
+		`SELECT symbol, CAST(close AS DOUBLE) AS close, close_timestamp AS closeTimestamp FROM market_candles c
 		 WHERE symbol IN (?) AND close_timestamp = (
 		   SELECT MAX(close_timestamp) FROM market_candles WHERE symbol = c.symbol AND close_timestamp <= ?)
 		 ORDER BY id DESC`,
