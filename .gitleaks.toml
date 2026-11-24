@@ -1,11 +1,11 @@
 [extend]
 useDefault = true
 
-# [allowlist], not [[allowlists]]: gitleaks 8.24.3 (CI) did not apply this block as [[allowlists]]
-# (rc.3 back-merge #1674: 10 findings on these series keys and SealedSecret lines).
-[allowlist]
+# [[allowlists]] needs gitleaks >= 8.25 (8.24.3 silently ignores them): the version is pinned in ci.yml.
+[[allowlists]]
 description = "Public series keys, ADR prose and SealedSecret ciphertext (no real credential)"
 stopwords = [
+  "admin:admin", # default login of the throwaway Grafana in tests/observability
   "YC.B.U2.EUR", # public ECB series key, older registry format
   "CRL/revocation", # ADR-0011 prose matched as a key
 ]

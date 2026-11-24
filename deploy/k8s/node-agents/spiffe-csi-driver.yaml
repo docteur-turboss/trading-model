@@ -45,7 +45,7 @@ spec:
       serviceAccountName: spiffe-csi-driver
       containers:
         - name: spiffe-csi-driver
-          image: ghcr.io/spiffe/spiffe-csi-driver:0.2.13@sha256:6f1ba5d635ba9bf55ae69ba11d71bf169c8fa3e0139a5063738cbc227c8b5546
+          image: ghcr.io/spiffe/spiffe-csi-driver:0.3.0@sha256:53bfb07bdde667f7f20f0d46cadca17043064c48d7603902fd090f03f38a40a1
           imagePullPolicy: IfNotPresent
           args:
             - "-workload-api-socket-dir"
@@ -85,7 +85,7 @@ spec:
               drop:
                 - ALL
         - name: node-driver-registrar
-          image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.13.0@sha256:d7138bcc3aa5f267403d45ad4292c95397e421ea17a0035888850f424c7de25d
+          image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.18.1@sha256:f847fb218cdf1d0f0fa79772ca6f46e11d25635eb49c06efb5dccd00b5245ef5
           imagePullPolicy: IfNotPresent
           args:
             - "-csi-address"

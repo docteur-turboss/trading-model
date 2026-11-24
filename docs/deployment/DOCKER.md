@@ -33,7 +33,7 @@ Every TypeScript service uses the same 3-stage pattern, for example [`services/d
 | --------- | ---------- | ---------- |
 | `deps`    | `oven/bun:1.4.4`, pinned by digest | Copy manifests, `bun install --frozen-lockfile --production` (prod dependencies only) |
 | `build`   | `oven/bun:1.4.4`, pinned by digest | Full `bun install --frozen-lockfile`, `bun run build` (shared packages) + `bun run build` (service) |
-| `runtime` | `node:26.13.1-alpine`, pinned by digest | Add `tini` (init process) and `curl` (healthcheck), remove npm/npx, copy artifacts from previous stages, run as `appuser`; `HEALTHCHECK` calls `/health/ready` over mTLS with the SVID; `CMD ["node", ...]` |
+| `runtime` | `node:26.13.1-alpine`, pinned by digest | Add `tini` (init process), remove npm/npx, copy artifacts from previous stages, run as `appuser`; `HEALTHCHECK` runs `node -e` (no curl in the image): GET `/health/ready` over mTLS with the SVID; `CMD ["node", ...]` |
 
 Bun builds, Node runs: Bun exposes neither the peer certificate on HTTPS request sockets nor `server.setSecureContext`, which caller identity and SVID rotation need ([ADR-0011](../adr/0011-spiffe-spire-workload-identity.md)).
 
@@ -121,7 +121,7 @@ mysql ─────┘                          │                     ├─
 | -------------------- | -------------------------------------------------------------------------------------------------- |
 | `mongo`              | `echo 'db.runCommand("ping").ok' \| mongosh --quiet`                                               |
 | `mysql`              | `mysqladmin ping -h localhost -u root`                                                              |
-| All TS services      | `node -e '<SVID_GET one-liner>' https://localhost:3000/ping` (exit 1 on failure; [on-call.md](../operations/on-call.md#health-check-endpoints)) |
+| All TS services      | `node -e <https GET with the SVID> https://localhost:3000/health/ready` (one line, see the service Dockerfiles) |
 | `edge-proxy`         | `wget -q -O /dev/null http://127.0.0.1:8080/health/ready`                                          |
 
 ---
