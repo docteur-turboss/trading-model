@@ -55,6 +55,6 @@ fi
 
 pod=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/component=risk-execution -o jsonpath='{.items[0].metadata.name}')
 [ -n "$pod" ] || die "no risk-execution pod in $NAMESPACE"
-curl_args=(curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem -H content-type:application/json)
-kubectl exec -n "$NAMESPACE" "$pod" -c risk-execution -- "${curl_args[@]}" "https://localhost:3000$path"
+# node -e: the image has no curl.
+kubectl exec -n "$NAMESPACE" "$pod" -c risk-execution -- node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>r.pipe(process.stdout)).on("error",()=>process.exit(1))' "https://localhost:3000$path"
 echo

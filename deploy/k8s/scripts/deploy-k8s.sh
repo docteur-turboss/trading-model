@@ -330,7 +330,7 @@ canary_check() {
   local total_reqs=0 error_reqs=0 pod metrics reqs errs
   for pod in $(kubectl get pods -n "$NAMESPACE" -l "app.kubernetes.io/component=${service},track=canary" -o name); do
     if ! metrics=$(kubectl exec -n "$NAMESPACE" "$pod" -c "$service" -- \
-        curl -sfk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+        node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' \
         https://localhost:3000/metrics 2>/dev/null); then
       abort_canary "$canary_name" "Canary pod ${pod#pod/} did not serve /metrics."
     fi
@@ -445,7 +445,7 @@ cmd_smoke_test() {
     local code="" try
     for try in $(seq 1 12); do
       code=$(kubectl exec -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
-        curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem "$url" -o /dev/null -w '%{http_code}' 2>/dev/null || true)
+        node -e 'const f=require("fs"),d="/run/spire/svid/";require(process.argv[1].split(":")[0]).get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' "$url" >/dev/null 2>&1 && echo 200 || true)
       [[ "$code" == "200" || "$try" -eq 12 ]] && break
       sleep 5
     done
@@ -477,7 +477,7 @@ cmd_verify_market_data() {
   log "Waiting up to ${timeout}s for the collector to persist candles..."
   while [[ "$SECONDS" -lt "$deadline" ]]; do
     if metrics="$(kubectl exec -n "$NAMESPACE" deployment/financial-scraper-collector -c financial-scraper-collector -- \
-        curl -sSk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+        node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' \
         https://localhost:3000/metrics 2>&1)"; then
       persisted="$(printf '%s\n' "$metrics" | awk '/^fs_candles_persisted_total/ {s += $NF} END {print s + 0}')"
       last_err="no fs_candles_persisted_total candle yet (0 persisted)"
@@ -530,7 +530,7 @@ critical_alerts() {
 # own SVID, from its pod); empty when off or unreachable.
 risk_global_reason() {
   kubectl exec -n "$NAMESPACE" deployment/risk-execution -c risk-execution -- \
-    curl -sfk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/admin/status \
+    node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/admin/status \
     | jq -r '.killSwitch.global // empty' || true
 }
 
@@ -552,10 +552,10 @@ release_checks_once() {
     err "  ✗ no gateway API key in Secret trading-model-secrets (AUTH_TOKENS)"
     return 1
   fi
-  # The key goes through stdin (curl -H @-), never on a command line or in a log.
+  # The key goes through stdin, never on a command line or in a log.
   local path="/v1/trader-trainer/training-status"
-  code="$(printf 'x-api-key: %s\n' "$key" | kubectl exec -i -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
-    curl -s -o /dev/null -w '%{http_code}' -H @- "http://edge-proxy:8080${path}")" || code="000"
+  code="$(printf '%s' "$key" | kubectl exec -i -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
+    node -e 'let k="";process.stdin.on("data",d=>k+=d).on("end",()=>require("http").get(process.argv[1],{headers:{"x-api-key":k}},r=>{console.log(r.statusCode);r.resume()}).on("error",()=>console.log("000")))' "http://edge-proxy:8080${path}")" || code="000"
   if [[ "$code" != "200" ]]; then
     err "  ✗ GET ${path} through edge-proxy answered ${code}, expected 200"
     return 1

@@ -112,12 +112,10 @@ jobs:
       matrix:
         service:
           - discovery-server
-          - message-manager
           - financial-scraper
           - trader-trainer
           - api-gateway
           - audit-logger
-          - dlq-service
           - model-evaluator
           - risk-execution
           - decision-consumer

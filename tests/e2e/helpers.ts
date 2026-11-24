@@ -39,14 +39,11 @@ const EDGE_URL = `http://localhost:${process.env.EDGE_PORT ?? 8449}`;
 export const GATEWAY_API_KEY =
 	process.env.E2E_API_KEY ?? "e2e-api-key-0123456789abcdef0123456789abcdef";
 
-const SVID_ARGS = [
-	"--cacert",
-	"/run/spire/svid/bundle.pem",
-	"--cert",
-	"/run/spire/svid/svid.pem",
-	"--key",
-	"/run/spire/svid/svid_key.pem",
-];
+// The service images have no curl: an https request run by node from the container, with its SVID.
+// argv: method, url, headers (JSON), "1" to present no client certificate. Prints the body, then the status.
+const MESH_SCRIPT = `const f=require("fs"),d="/run/spire/svid/",[m,u,h,n]=process.argv.slice(1);
+const q=require("https").request(u,{method:m,headers:JSON.parse(h),ca:f.readFileSync(d+"bundle.pem"),checkServerIdentity:()=>{},...(n?{}:{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem")})},r=>{r.pipe(process.stdout,{end:false});r.on("end",()=>process.stdout.write("\\n__HTTP_STATUS__:"+r.statusCode))});
+q.on("error",()=>process.exit(1));process.stdin.pipe(q)`;
 const STATUS_MARKER = "\n__HTTP_STATUS__:";
 
 export interface MeshRequestOptions {
@@ -63,23 +60,24 @@ export function meshRequest(
 	url: string,
 	options: MeshRequestOptions = {}
 ): HttpResult {
-	const svid = options.withoutCert ? SVID_ARGS.slice(0, 2) : SVID_ARGS;
-	const args = ["exec", "-i", container, "curl", "-s", ...svid];
-	args.push(
-		"-X",
-		options.method ?? "GET",
-		"-w",
-		`${STATUS_MARKER}%{http_code}`
-	);
-	for (const [name, value] of Object.entries(options.headers ?? {})) {
-		args.push("-H", `${name}: ${value}`);
-	}
+	const headers: Record<string, string> = { ...options.headers };
 	if (options.body !== undefined) {
-		args.push("-H", "Content-Type: application/json", "--data-binary", "@-");
+		headers["Content-Type"] = "application/json";
 	}
-	args.push(url);
+	const args = [
+		"exec",
+		"-i",
+		container,
+		"node",
+		"-e",
+		MESH_SCRIPT,
+		options.method ?? "GET",
+		url,
+		JSON.stringify(headers),
+		options.withoutCert ? "1" : "",
+	];
 	let output: string;
-	// A refused TLS handshake makes curl exit non-zero: keep what it printed.
+	// A refused TLS handshake makes node exit non-zero: keep what it printed.
 	try {
 		output = execFileSync("docker", args, {
 			encoding: "utf8",
