@@ -1,9 +1,8 @@
 [extend]
 useDefault = true
 
-# [allowlist], not [[allowlists]]: gitleaks 8.24.3 (CI) did not apply this block as [[allowlists]]
-# (rc.3 back-merge #1674: 10 findings on these series keys and SealedSecret lines).
-[allowlist]
+# Only [[allowlists]]: gitleaks 8.30.1 (CI) refuses [allowlist] next to [[allowlists]], 8.24.3 ignored them (#2577).
+[[allowlists]]
 description = "Public series keys, ADR prose and SealedSecret ciphertext (no real credential)"
 stopwords = [
   "admin:admin", # default login of the throwaway Grafana in tests/observability
