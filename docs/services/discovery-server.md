@@ -11,7 +11,7 @@ Centralised service instance registry with TTL-based lease management and HMAC-S
 | Port (container) | `3000`                                  |
 | Dependencies     | `@trading-model/primitives`, `@trading-model/contracts`, `@trading-model/common`, `@trading-model/persistence`, `@trading-model/crypto`, `@trading-model/http`, `@trading-model/http` |
 | TLS              | mTLS required (client certificate)      |
-| Storage          | In-memory with TTL-based lease eviction |
+| Storage          | Redis when `REDIS_URL` is set, in-memory otherwise; TTL-based lease eviction |
 
 ## REST Endpoints
 

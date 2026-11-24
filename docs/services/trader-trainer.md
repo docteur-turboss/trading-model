@@ -161,7 +161,7 @@ The trader-trainer implements a **self-adaptive multi-objective genetic algorith
 
 | Doc | Content |
 | --- | ------- |
-| [Service Architecture](../../services/trader-trainer/ARCHITECTURE.md) | Full module breakdown, design decisions, training loop, performance metrics |
+| [Service Architecture](../../services/trader-trainer/ARCHITECTURE.md) | Module layout, design decisions |
 | [GA Reference](../reference/genetic-algorithm.md) | Genome structure, genetic operators, NSGA-II, adaptive control |
 | [NN Reference](../reference/neural-network.md) | Network architecture, activation functions, optimizers, loss functions |
 
