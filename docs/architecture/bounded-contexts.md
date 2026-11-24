@@ -34,12 +34,17 @@ graph TD
         RE["risk-execution"]
     end
 
-    TT -->|"AgentPayload (published)"| BUS
+    TT -->|"training.model.published"| BUS
+    TT -->|"GET /candles (ADR-0078)"| FS
+    BUS -->|"training.model.published"| ME
+    ME -->|"weights"| TT
+    ME -->|"candles for replay"| FS
     BUS -->|"events"| AL
-    AL -.->|"subscribe (audit, training, dlq topics)"| BUS
-    BUS -->|"dead letters"| AL
+    AL -.->|"subscribe (audit, training, dlq, risk topics)"| BUS
+    BUS -->|"dead letters"| DS2
+    DS2 -->|"replay"| BUS
     DS --> GW
-    RE -->|"risk.* events"| MM
+    RE -->|"risk.* events"| BUS
     RE -.->|"model admission"| TT
     GW --> DS
 ```

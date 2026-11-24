@@ -44,7 +44,6 @@ const LIST = process.argv.includes('--list');
 const ALLOWED_UNSET = {
   MONGO_DLQ_URI: "one-off import of the retired mongo-dlq (dlq-cli import-mongo, release runbook): set by the operator at the command",
   MONGO_DLQ_USERNAME: "same one-off import",
-  MONGO_DLQ_PASSWORD: "same one-off import",
   BROKER_API_KEY: "live keys exist in the production Secret only and no live adapter ships yet (ADR-0064 §6): the code refuses to start paper mode when they are present",
   BROKER_API_SECRET: "same as BROKER_API_KEY",
 };

@@ -1,6 +1,6 @@
 # Runbook: Message Bus Outage
 
-**Alerts:** `BusDeadLetters`, `MarketDataUnpublished`  
+**Alerts:** `MessageDeliveryLowSuccessRate`, `BusDeadLetters`, `JournalBacklogOld`, `JournalEntriesTrimmed`  
 **Severity:** L1
 
 ## Architecture Context
@@ -17,6 +17,7 @@ An outage affects:
 
 ## Detection
 
+- `MessageDeliveryLowSuccessRate`: more than 0.5 % of messages dead-lettered over 5 min.
 - `BusDeadLetters`: a dead stream holds entries waiting for an operator.
 - `JournalBacklogOld`: a subscriber has not acknowledged an entry for 15 min (see 3).
 - `JournalEntriesTrimmed`: undelivered journal entries were trimmed after 24 h: messages lost (see 5).
@@ -49,7 +50,7 @@ kubectl exec -n trading-model redis-sentinel-0 -- redis-cli -p 26379 sentinel ma
 kubectl delete pod -n trading-model "$REDIS_MASTER"
 ```
 
-Consumers reconnect on their own once Redis answers. Publishes refused meanwhile are retried by the publisher (candles: see 5).
+Consumers reconnect on their own once Redis answers. Publishes refused meanwhile fail at the publisher, which logs them.
 
 ### 2. Subscriber failing or refusing messages
 
@@ -60,6 +61,16 @@ Consumers reconnect on their own once Redis answers. Publishes refused meanwhile
 
 **Symptoms:** `XPENDING <journal key> <service>` shows old entries; the subscriber is down or its handler throws.  
 **Fix:** bring the service back; the backlog drains by itself, oldest first. Past 24 h the entries are trimmed and lost: recover what it missed from the source (re-scrape the candles for `market.*` topics; for `audit-logger`, accept the gap and run `chain-cli.js acknowledge-loss` if its chain reports a loss, runbook-audit-chain-broken).
+
+**Retired topic or a service that dropped a topic (issue #2479):** a consumer group lives until an operator removes it (ADR-0073 §2), so its backlog never drains. A topic no longer in the contracts (`EVENT_VALIDATORS`) leaves the gauges by itself, and a service's consumer reports only the topics it consumes. The group and its stream stay in Redis. Remove them by hand once the code without the topic runs everywhere (no N-1 left that publishes or reads it). Run this in the Redis master as the ACL user `message-manager` (kept until issue #2619), once per group of the topic:
+
+```sh
+P=trading-model:message-manager
+redis-cli --user message-manager XGROUP DESTROY "$P:journal:<topic>" <service>
+redis-cli --user message-manager SREM "$P:journal-groups" "<topic>|<service>"
+```
+
+The undelivered entries of that group are lost. A group of a live topic that a subscriber still declares is recreated at its next start: remove it only after that service stopped consuming the topic.
 
 ### 4. Dead letters stuck, refused or lost
 

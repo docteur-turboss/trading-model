@@ -451,6 +451,25 @@ describe("BusConsumer", () => {
 		expect(pendingOf(parts.redis)).toBe(0);
 	});
 
+	it("should claim and handle an entry the retired message-manager read but never acknowledged (#1241)", async () => {
+		const parts = bus();
+		await parts.journal.register(GROUP);
+		await publishToBus(parts.journal, "in-flight", METADATA);
+		// Same stream and group as message-manager N-1, another consumer name.
+		await parts.journal.readNew(GROUP, "message-manager-n-1", 1);
+		const handled: unknown[] = [];
+		const { consumer: c } = consumer(async (m) => {
+			handled.push(m.payload);
+		}, parts);
+
+		await c.start([TOPIC]);
+		await until(() => handled.length === 1 && pendingOf(parts.redis) === 0);
+		await c.stop();
+
+		expect(handled).toEqual(["in-flight"]);
+		expect(pendingOf(parts.redis)).toBe(0);
+	});
+
 	it("should keep delivering when pruning consumers fails", async () => {
 		const handled: unknown[] = [];
 		const { consumer: c, journal } = consumer(async (m) => {

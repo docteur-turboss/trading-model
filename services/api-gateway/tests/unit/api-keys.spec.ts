@@ -1,5 +1,9 @@
 import { describe, expect, it } from "@jest/globals";
-import { parseApiKey, requiredScope } from "../../src/shared/api-keys";
+import {
+	hasRetiredScope,
+	parseApiKey,
+	requiredScope,
+} from "../../src/shared/api-keys";
 import { PUBLIC_ROUTES } from "../../src/shared/public-routes";
 
 describe("parseApiKey", () => {
@@ -25,6 +29,24 @@ describe("parseApiKey", () => {
 
 		expect(result.error).toContain(reason);
 		expect(result.error).not.toContain(":s");
+	});
+
+	it("accepts then ignores the retired dlq:write scope of an N-1 token (#1241)", () => {
+		expect(parseApiKey("ops:read+dlq:write:s3cr3t")).toEqual({
+			name: "ops",
+			scopes: ["read"],
+			secret: "s3cr3t",
+		});
+		expect(parseApiKey("old:dlq:write:s3cr3t")).toEqual({
+			name: "old",
+			scopes: [],
+			secret: "s3cr3t",
+		});
+	});
+
+	it("flags the keys that still declare dlq:write, for the startup warning", () => {
+		expect(hasRetiredScope(["a:read:x", "ops:read+dlq:write:y"])).toBe(true);
+		expect(hasRetiredScope(["a:read+risk:admin:x", "bare"])).toBe(false);
 	});
 
 	it("refuses a bare secret without quoting it", () => {

@@ -469,6 +469,11 @@ jobs:
             echo "::error::trading-model-secrets of $ENV lacks:$missing (run bash scripts/init-sealed-secrets.sh and commit deploy/k8s/secrets)"
             exit 1
           fi
+          # Keys of the retired message-manager, dlq-service and mongo-dlq (#1241): optional,
+          # kept one release for N-1 pods and a rollback (ADR-0040); removed by issue #2619.
+          for key in REDIS_MESSAGE_MANAGER_PASSWORD REDIS_DLQ_PASSWORD MONGO_DLQ_PASSWORD MONGO_DLQ_KEYFILE DLQ_AUTH_HMAC_SECRET; do
+            grep -qE "^ +$key: " <<<"$rendered" || echo "::warning::trading-model-secrets of $ENV lacks $key: a release N-1 pod restart or a rollback would fail (CreateContainerConfigError)"
+          done
           # A SealedSecret the controller cannot sync (e.g. the Secret exists but is
           # not managed by it) leaves the Secret frozen: new keys never arrive and
           # removed ones are never deleted. Absent on a first deploy: nothing to check.

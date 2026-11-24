@@ -50,17 +50,17 @@ The release that retires message-manager and dlq-service (ADR-0073, issue #1241)
 
    Compose: `docker compose exec -e MONGO_DLQ_URI='mongodb://mongo:27017/dlq?authSource=admin' -e MONGO_DLQ_USERNAME=dlq-service -e MONGO_DLQ_PASSWORD="$MONGO_DLQ_PASSWORD" audit-logger node services/audit-logger/dist/application/dlq-cli.js <operator> import-mongo`. `MONGO_DLQ_DB` defaults to `dlq`; the collection is `dlq_entries`.
 3. Verify. It copies the entries whose status is not `completed` to `trading-model:message-manager:dead:<topic>`, once per Mongo `_id` (Redis set `…:dead-imported`), and prints `{eligible, written, alreadyImported, unusable[]}`. The exit code is 0 only when `written + alreadyImported == eligible`, so a rerun after a failure is safe. Also compare `dlq-cli.js <operator> list <topic>` with what you expect; review `unusable`.
-4. Only then delete the orphaned objects by hand:
+4. Only then, in the release after this one (contract step, issue #2619), delete the orphaned objects by hand. This release keeps them, with the Secret keys `REDIS_MESSAGE_MANAGER_PASSWORD`, `REDIS_DLQ_PASSWORD`, `MONGO_DLQ_PASSWORD`, `MONGO_DLQ_KEYFILE` and `DLQ_AUTH_HMAC_SECRET` and the Redis users `message-manager` / `dlq-service`, so that an N-1 pod restart or a rollback still starts:
 
    ```bash
    kubectl -n "$NS" delete statefulset/mongo-dlq service/mongo-dlq service/mongo-dlq-headless      job/mongo-dlq-users pdb/mongo-dlq-pdb certificate/mongo-dlq-tls networkpolicy/mongodb-network-policy
    kubectl -n "$NS" delete pvc -l app=mongo-dlq   # data-mongo-dlq-N claims; check the label with `kubectl get pvc` first
-   # Secret keys MONGO_DLQ_PASSWORD and MONGO_DLQ_KEYFILE: remove them from the sealed file, reseal, deploy.
+   # The Secret keys above leave the sealed files with issue #2619, in the same release.
    ```
 
    Also delete the `mongodb-exporter` target of `mongo-dlq` if your environment added one by hand. Compose: `docker compose exec mongo mongosh -u root -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval 'db.getSiblingDB("dlq").dropDatabase()'`.
 
-**No return to the previous release after step 4**: it needs `mongo-dlq` and `dlq-service`. The `import-mongo` subcommand and `MONGO_DLQ_*` go from the CLI in the release after this one.
+**No return to the previous release after step 4**: it needs `mongo-dlq` and `dlq-service`. The `import-mongo` subcommand and `MONGO_DLQ_*` go from the CLI in the release after this one (issue #2619).
 
 ## Compatibility with the previous release (ADR-0061)
 

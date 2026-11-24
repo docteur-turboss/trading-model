@@ -40,16 +40,7 @@ git ls-files --eol | grep "w/crlf" | grep "eol=lf"   # must print nothing
 cp .env.example .env
 ```
 
-Edit `.env` and replace the example values of these variables with your own secrets (`openssl rand -hex 32`):
-
-- `MYSQL_ROOT_PASSWORD` — MySQL root password
-- `GRAFANA_PASSWORD` — Grafana admin password (required, no default)
-- `MYSQL_EXPORTER_PASSWORD` — password of the read-only MySQL user of the metrics exporter (required, no default)
-- `MONGO_ROOT_PASSWORD`, `MONGO_EXPORTER_PASSWORD`, `MONGO_BACKUP_PASSWORD`, `MONGO_AUDIT_PASSWORD` — MongoDB users, one per client (required, no default; ADR-0067). A Mongo volume created before authentication needs `docker compose down -v` (or the localhost exception, see the `mongo` service)
-- `GATEWAY_AUTH_TOKENS` — gateway API keys (`x-api-key`), comma-separated; you use one in Step 3
-- `SIGNING_SECRET` — HMAC secret of the discovery instance tokens
-
-The Compose stack runs with `NODE_ENV=production` by default: without these values the gateway and discovery-server refuse to start.
+Edit `.env` and replace every `change-me` / `changeme` value of `.env.example` with your own secret (`openssl rand -hex 32`); `.env.example` lists every required variable. The `GATEWAY_AUTH_TOKENS` key is used in Step 3. A Mongo volume created before authentication needs `docker compose down -v`.
 
 > **Development only.** The Docker Compose stack has no scheduled backup: do not store real data in it. See [SETUP.md](../deployment/SETUP.md#local-development-setup) for the full local setup.
 
@@ -97,7 +88,7 @@ curl -s http://localhost:8449/v1/discovery-server/services \
   -H "x-api-key: $ADMIN_TOKEN"
 ```
 
-You should see `discovery-server` listed.
+You should see `[]`: the services with a registered instance (discovery-server does not register itself, and no other service runs yet). This route goes away with discovery-server (ADR-0072, issue #1244).
 
 ## Step 4: Let the Scraper Publish Market Data
 

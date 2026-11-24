@@ -49,7 +49,7 @@ trading-model/
 │   ├── jobs/                 # Worker protocol, orphan recovery
 │   ├── address-manager/      # Service discovery client
 │   └── broker-message/       # Message bus protocol types
-├── services/     # 5 microservices (kebab-case directory names)
+├── services/     # microservices (kebab-case directory names)
 │   ├── discovery-server/
 │   ├── financial-scraper/
 │   ├── trader-trainer/      # bun name: trader-trainer

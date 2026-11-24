@@ -72,17 +72,6 @@ Services obtain HMAC-SHA256 tokens from the discovery-server upon registration. 
 
 The default ACL maps each target service to the callers allowed to reach it (`"*"` = any platform service). Its single source is [`packages/http/src/acl-config.ts`](../../packages/http/src/acl-config.ts).
 
-```typescript
-// Simplified example of the DEFAULT_ACL mapping
-const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
-  'discovery-server':   [ '*' ],
-  'audit-logger':       [ 'api-gateway' ],  // the gateway relays the public reads
-  'financial-scraper':  [ 'api-gateway', 'trader-trainer' ],   // trader-trainer: reads the data supply (ADR-0036)
-  'trader-trainer':     [ 'api-gateway', 'financial-scraper', 'discovery-server', 'model-evaluator', 'risk-execution' ],
-  'api-gateway':        [ 'edge-proxy' ],   // external entry point (ADR-0018)
-};
-```
-
 **Enforcement:** Every incoming request passes through `mtls-authorization.ts` middleware. If the caller's identity is not found in the target service's authorised callers, the request is rejected with HTTP 403.
 
 ### 4.2 ACL Change Procedure

@@ -39,7 +39,7 @@ NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
 CERT_MANAGER="v1.21.3" # same as deploy/staging-local/bootstrap.sh
 CURL_IMAGE="curlimages/curl:8.11.1@sha256:c1fe1679c34d9784c1b0d1e5f62ac0a79fca01fb6377cdd33e90473c6f9f9a69" # multi-arch index, as realip.test.sh
-API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read:<secret> injected by ci-render.mjs
+API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
 SERVICES="$(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$ROOT/deploy/k8s/services/kustomization.yaml" | grep -vx edge-proxy | tr '\n' ' ')" # edge-proxy is not a first-party image
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
@@ -344,7 +344,8 @@ migrations() {
 # crash broke the pipe in runs 43321359421 and 43328471185).
 render_kind() {
 	release_script render "$1/deploy/k8s/overlays/${KIND_OVERLAY:-staging}" ghcr.io/trading-model "$2" >"$3.raw" || return 1
-	local scopes="read+risk:admin"
+	# dlq:write kept in N: N-1 tokens carry it, N must start with them and ignore it (#1241).
+	local scopes="read+dlq:write+risk:admin"
 	[ "$1" = "$ROOT" ] || scopes="read+dlq:write"
 	CI_RENDER_SCOPES="$scopes" node "$ROOT/tests/k8s/ci-render.mjs" <"$3.raw" >"$3" || return 1
 	rm -f "$3.raw"
@@ -1417,7 +1418,7 @@ verify_backup() {
 	local bundle_before
 	bundle_before="$(spire_bundle)"
 	# risk:admin only now: in the Secret from the N-1 deploy on, the upgrade under probe dropped requests (N-1 refuses the unknown scope).
-	$K -n "$NS" patch secret trading-model-secrets -p "{\"stringData\":{\"AUTH_TOKENS\":\"dev:read+risk:admin:$API_KEY\"}}" >/dev/null
+	$K -n "$NS" patch secret trading-model-secrets -p "{\"stringData\":{\"AUTH_TOKENS\":\"dev:read+dlq:write+risk:admin:$API_KEY\"}}" >/dev/null
 	$K -n "$NS" rollout restart deployment/api-gateway >/dev/null
 	$K -n "$NS" rollout status deployment/api-gateway --timeout=240s >/dev/null
 	# Engaged before the backup, re-armed after it: the restore must bring it back (issue #1933).

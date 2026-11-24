@@ -42,7 +42,7 @@ This register documents the processing activities of the trading-model platform,
 | **Personal data**        | None                                                                                                      |
 | **Recipients**           | Internal platform services only                                                                           |
 | **Transfers outside EU** | None — all services are self-hosted                                                                       |
-| **Retention period**     | payloads journaled 24 h in Redis Streams (`JOURNAL_RETENTION_MS` = 24 h, `XADD … MINID` trim; AOF + replication; one ACL user per service, ADR-0048, ADR-0073), no personal data by design. Dead letters stay in the dead streams until an operator replays or deletes them (never trimmed) |
+| **Retention period**     | payloads journaled 24 h in Redis Streams (`JOURNAL_RETENTION_MS` = 24 h, `XADD … MINID` trim; AOF + replication; one ACL user per service, ADR-0048, ADR-0073), no personal data by design. Dead letters stay in the dead streams until an operator replays or deletes them, 7 days at most (`DEAD_LETTER_RETENTION_MS`, `XADD … MINID` trim) |
 | **Technical measures**   | mTLS between services (databases: TLS offered, not yet required, #1580), payload sanitization, deduplication                                                      |
 | **System**               | bus library in each service (Redis Streams journal, consumed in process) → dead streams (Redis)                                       |
 

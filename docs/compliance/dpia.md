@@ -10,7 +10,7 @@ The trading-model platform is a microservices-based algorithmic trading research
 
 **Key characteristics:**
 
-- 7 backend microservices (Node.js/TypeScript/Express)
+- Backend microservices (Node.js/TypeScript/Express)
 - Event-driven architecture (bus library in each service, durable Redis Streams journal 24 h, ADR-0048, ADR-0073)
 - mTLS via SPIFFE/SPIRE workload identity (ADR-0011)
 - Self-hosted databases (MongoDB, MySQL, Redis)

@@ -32,23 +32,29 @@ flowchart TB
     fs["financial-scraper"]
     tt["trader-trainer<br/>(npm name trader-trainer)"]
     al["audit-logger"]
+    me["model-evaluator"]
+    re["risk-execution<br/>(paper broker, kill switch)"]
   end
 
   gw -->|"PUBLIC_ROUTES only"| al
   gw --> fs
   gw --> disc
   gw --> tt
-  fs -->|"XADD candles"| redis
-  tt -->|"XADD model events"| redis
-  redis -->|"XREADGROUP (audit, training, dlq topics)"| al
+  tt -->|"GET /candles (ADR-0078)"| fs
+  tt -->|"XADD training.model.published"| redis
+  re -->|"XADD risk.* events"| redis
+  redis -->|"XREADGROUP (audit, training, dlq, risk topics)"| al
+  redis -->|"XREADGROUP training.model.published"| me
+  me -->|"weights"| tt
+  me -->|"candles for replay"| fs
+  re -->|"model admission"| tt
+  re --> rpvc[("risk-execution volume<br/>state, paper ledger")]
   services -.->|"register + heartbeat (address-manager)"| disc
 
   binance["Binance"] --> fs
   fs --> mysql[("MySQL<br/>market data")]
   al --> mongoA[("MongoDB audit<br/>mongo-audit in K8s")]
-  fs --> redis[("Redis HA<br/>sentinels in K8s")]
-  tt --> redis
-  al --> redis
+  al --> redis[("Redis HA<br/>sentinels in K8s")]
   disc --> redis
   tt --> ckpt[("checkpoints volume")]
 
@@ -75,7 +81,7 @@ The bus is a library linked in each service (ADR-0073): the durable message jour
 flowchart TB
   subgraph tm["namespace trading-model (Pod Security: restricted)"]
     ing["Ingress gateway / grafana"] --> edge["Deployment edge-proxy"]
-    edge --> svc["Deployments: api-gateway, discovery-server,<br/>financial-scraper, audit-logger<br/>(HPA, PDB, topologySpreadConstraints);<br/>trader-trainer: 1 replica, training on the Lease holder only (ADR-0058);<br/>financial-scraper-collector: 1 replica, crons on the Lease holder only (ADR-0057)"]
+    edge --> svc["Deployments: api-gateway, discovery-server,<br/>financial-scraper, audit-logger<br/>(HPA, PDB, topologySpreadConstraints);<br/>model-evaluator, risk-execution: 1 replica, own PVC;<br/>trader-trainer: 1 replica, training on the Lease holder only (ADR-0058);<br/>financial-scraper-collector: 1 replica, crons on the Lease holder only (ADR-0057)"]
     svc --> mysql["StatefulSet mysql"]
     svc --> mA["StatefulSet mongo-audit"]
     svc --> rd["StatefulSet redis (master + 2 replicas)"]

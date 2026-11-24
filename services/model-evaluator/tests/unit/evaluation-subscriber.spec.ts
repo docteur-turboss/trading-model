@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { setLogger } from "@trading-model/contracts/logger-registry";
 import { createMessageHandler } from "../../src/adapters/inbound/evaluation-subscriber";
 
 const SHA = "a".repeat(64);
@@ -24,11 +25,12 @@ describe("training.model.published handler", () => {
 		);
 	});
 
-	it("rejects a malformed payload without evaluating", async () => {
+	it("dead-letters a malformed payload at once, without evaluating", async () => {
+		setLogger({ warn: jest.fn() } as never);
 		const evaluate = jest.fn<(...args: any[]) => any>();
 		await expect(
 			call(createMessageHandler(evaluate as never), { symbol: "../x" })
-		).rejects.toThrow();
+		).rejects.toMatchObject({ reason: "REJECTED_BY_SUBSCRIBER" });
 		expect(evaluate).not.toHaveBeenCalled();
 	});
 });

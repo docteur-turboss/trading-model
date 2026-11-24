@@ -111,6 +111,11 @@ describe("env", () => {
 			}
 		);
 
+		it("should still start with the retired dlq:write scope of an N-1 token (#1241)", () => {
+			process.env.AUTH_TOKENS = `ops:read+dlq:write:${STRONG_KEY.split(":").pop()}`;
+			expect(loadEnv().AUTH_TOKENS).toContain("dlq:write");
+		});
+
 		it("should refuse to start with a malformed API key, without logging its secret", () => {
 			process.env.AUTH_TOKENS = "ops:admin:top-secret-value";
 			const issues = refusal();

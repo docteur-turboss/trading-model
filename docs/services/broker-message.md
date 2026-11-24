@@ -172,13 +172,3 @@ await broker.stopMessageManager();
 ```
 
 Dead letters wait in the dead stream of their topic; the audit-logger `dlq-cli` lists, replays and deletes them.
-
-## Deployment
-
-This package is built as a workspace dependency. Consuming services reference it in their `package.json`:
-
-```json
-"dependencies": { "@trading-model/broker-message": "*" }
-```
-
-Build: `bun run build` (tsc, Node16 module output). The compiled output goes to `dist/`.

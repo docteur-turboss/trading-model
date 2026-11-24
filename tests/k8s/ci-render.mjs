@@ -40,7 +40,7 @@ metadata:
     app.kubernetes.io/part-of: trading-model
 type: Opaque
 stringData:
-  AUTH_TOKENS: dev:${process.env.CI_RENDER_SCOPES ?? "read+risk:admin"}:dev-token-0123456789abcdef0123456789abcdef
+  AUTH_TOKENS: dev:${process.env.CI_RENDER_SCOPES ?? "read+dlq:write+risk:admin"}:dev-token-0123456789abcdef0123456789abcdef
   SIGNING_SECRET: dev-signing-0123456789abcdef0123456789abcdef
   SERVICE_BOOTSTRAP_TOKEN: dev-bootstrap-change-me
   MYSQL_ROOT_PASSWORD: dev-mysql-root

@@ -130,6 +130,9 @@ spec:
             - configMapRef:
                 name: trader-trainer-config
           env:
+            # Only its holder trains (ADR-0058).
+            - name: TRAINER_LEASE_NAME
+              value: trader-trainer
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -140,9 +143,6 @@ spec:
                 secretKeyRef:
                   name: trading-model-secrets
                   key: REDIS_INTERNAL_PASSWORD
-            # Only its holder trains (ADR-0058).
-            - name: TRAINER_LEASE_NAME
-              value: trader-trainer
             - name: INSTANCE_ID
               valueFrom:
                 fieldRef:
@@ -155,9 +155,6 @@ spec:
               cpu: "1"
               memory: 1Gi
           volumeMounts:
-            - name: redis-tls
-              mountPath: /etc/redis-tls
-              readOnly: true
             - name: svid
               mountPath: /run/spire/svid
             - name: tmp
@@ -207,12 +204,6 @@ spec:
                   - -c
                   - sleep 10
       volumes:
-        - name: redis-tls
-          secret:
-            secretName: redis-tls
-            items:
-              - key: ca.crt
-                path: ca.crt
         - name: spiffe-helper-config
           configMap:
             name: spiffe-helper-config
