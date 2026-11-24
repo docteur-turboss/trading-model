@@ -328,6 +328,8 @@ relax_mysql() {
 	local ns="$1" pod
 	# Not the label alone: Job pods carry it too (no mysql container).
 	for pod in $(kubectl get pods -n "$ns" -l app.kubernetes.io/component=mysql -o name | grep -E "/mysql-[0-9]+$"); do
+		# The apply of N may be restarting it: an exec into a container being recreated fails (run 45425544444).
+		kubectl wait -n "$ns" --for=condition=Ready "$pod" --timeout="$((300 * FACTOR))s" || return 1
 		kubectl exec -n "$ns" "$pod" -c mysql -- sh -c '
 			m() { MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N -e "$1"; }
 			m "SET GLOBAL require_secure_transport=OFF"
