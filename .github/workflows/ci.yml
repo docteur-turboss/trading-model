@@ -506,8 +506,8 @@ jobs:
     runs-on: ubuntu-24.04
     # One job per group of checks (run-kind.sh verify_group): each deploys N-1, upgrades to N,
     # then runs its own checks. fail-fast off: a red group does not hide the others.
-    # Not measured per group yet: first runs decide the timeout (the single job was 30 min measured, 48 min on PR #460).
-    timeout-minutes: 45
+    # backup runs the restore drill: 29-30 min on 3 recent runs, 37 min in run 45464740056 (audit 2026-11-24), so 45 left 8 min.
+    timeout-minutes: ${{ matrix.group == 'backup' && 60 || 45 }}
     strategy:
       fail-fast: false
       matrix:
