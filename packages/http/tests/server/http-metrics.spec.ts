@@ -72,6 +72,24 @@ describe("httpMetricsMiddleware", () => {
 		]);
 	});
 
+	it("labels a route mounted on several paths with its first one", async () => {
+		const app = express();
+		app.use(httpMetricsMiddleware);
+		app.get(["/v2/items/:id", "/items/:id"], (_req, res) => {
+			res.send("ok");
+		});
+		await get(app, "/v2/items/1");
+		await get(app, "/items/2");
+
+		const counter = await metric("http_requests_total");
+		expect(counter.values).toEqual([
+			expect.objectContaining({
+				labels: { method: "GET", path: "/v2/items/:id", status: "200" },
+				value: 2,
+			}),
+		]);
+	});
+
 	it("prefers the pattern a handler left in res.locals.routeLabel", async () => {
 		const app = express();
 		app.use(httpMetricsMiddleware);
