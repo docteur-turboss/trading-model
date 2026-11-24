@@ -21,6 +21,8 @@ import type { MarketPrice, PricePort } from "../../domain/ports";
  */
 const PRICE_TIMEOUT_MS = DurationMs.of(2_000);
 const PRICE_RETRY_COUNT = 1;
+/** Whole read, 404 fallback included: under the 5 s `submitTimeoutMs`. */
+const PRICE_BUDGET_MS = 4_500;
 
 const Row = z.object({
 	close: z.number().positive(),
@@ -89,13 +91,21 @@ export class ScraperPrices implements PricePort {
 			}
 			// shortcut: repli N-1, à retirer quand toutes les releases déployées servent /v2/candles/latest (#2597).
 			const from = new Date(oldest).toISOString();
+			// One attempt each, bounded by what the 404 left of the budget.
+			const fallback = {
+				...options,
+				timeoutMs: DurationMs.of(
+					Math.max(0, PRICE_BUDGET_MS - (this._now() - now))
+				),
+				retryCount: 0,
+			};
 			await Promise.all(
 				symbols.map(async (symbol) => {
 					const page = await this._http.get(
 						URLString.of(
 							`https://${address}/v2/candles/symbols/${encodeURIComponent(symbol)}?from=${from}`
 						),
-						options,
+						fallback,
 						SymbolPage
 					);
 					for (const row of page?.rows ?? []) {

@@ -105,3 +105,29 @@ it("bounds the price call under the default submit deadline, retry included (#22
 		RiskLimits.shape.submitTimeoutMs.parse(undefined)
 	);
 });
+
+it("bounds the 404 fallback by what the first call left of the submit deadline", async () => {
+	get.mockReset();
+	let clock = NOW;
+	get.mockImplementationOnce(
+		async (_url: string, { timeoutMs, retryCount }) => {
+			// Worst first call: an attempt times out, the retry answers 404.
+			clock += timeoutMs * (retryCount + 1) + 240;
+			throw createHttpClientError("HTTP 404", HTTP_STATUS.NOT_FOUND);
+		}
+	);
+	get.mockResolvedValue({ rows: [] });
+	await new ScraperPrices({} as never, () => clock).latest([
+		"BTCUSDT",
+		"ETHUSDT",
+	]);
+	expect(get).toHaveBeenCalledTimes(3);
+	for (const [, { timeoutMs, retryCount }] of get.mock.calls.slice(1)) {
+		expect(retryCount).toBe(0);
+		expect(timeoutMs).toBeGreaterThan(0);
+		// Fallback calls run in parallel: one attempt each after the first call.
+		expect(clock - NOW + timeoutMs).toBeLessThan(
+			RiskLimits.shape.submitTimeoutMs.parse(undefined)
+		);
+	}
+});
