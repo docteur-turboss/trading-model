@@ -13,6 +13,7 @@ services/audit-logger/
 │   │   ├── index.ts              # Entry point: bootstrap, MongoDB connect, broker subscription
 │   │   ├── server.ts             # Express server factory
 │   │   ├── chain-cli.ts          # Operator CLI (package.json bin "audit-chain", ADR-0027)
+│   │   ├── dlq-cli.ts            # Operator CLI for the DLQ
 │   │   └── audit-chain/          # Chain verification + anchoring scheduler
 │   ├── adapters/
 │   │   ├── inbound/
@@ -27,6 +28,8 @@ services/audit-logger/
 │       ├── container.ts          # Composition root: Mongo repositories, chain audit, message handler,
 │       │                         # server — createAuditLoggerApp()
 │       ├── broker-setup.ts       # Message bus subscription wiring
+│       ├── audited-topics.ts     # Topics the audit trail subscribes to
+│       ├── dlq-cli.ts            # DLQ CLI wiring
 │       ├── metrics.ts            # Prometheus collectors
 │       └── address-manager.ts
 ├── tests/

@@ -20,62 +20,33 @@ Routes, delivery modes, retry, journal, DLQ and security: [docs/services/message
 │    enriches messageId + emittedAt                   │
 │    topic → subscriptions from the shared store      │
 │    one subscription per instanceId                  │
-│    parallel dispatch via Promise.allSettled         │
+│    publishes into the journal                       │
 │  Subscription (subscription.ts)                     │
 │    per-instance delivery: retry, TTL, DLQ routing   │
-│    policy decided by DeliveryErrorClassifier        │
-│    (domain/delivery-error-classifier.ts)            │
+│    policy decided by classifyDeliveryError          │
+│    (packages/broker-message, bus/)                  │
 ├────────────────────────────────────────────────────┤
 │                   Contracts                         │
 │  @trading-model/contracts message envelope          │
 └────────────────────────────────────────────────────┘
 ```
 
-## Delivery Decision Flow (per Subscription)
+## Delivery Decision Flow (per journal entry)
+
+The delivery worker (`delivery-worker.ts`) reads entries from the journal and calls `Subscription` for one attempt. Retry state (attempts, last attempt) lives in the journal pending list shared by the replicas, not in the process.
 
 ```
-             ┌──────────┐
-             │ dispatch │
-             └────┬─────┘
-                  │
-                  ▼
-         ┌────────────────┐
-         │ resolveTarget  │
-         │ (via discovery)│
-         └───────┬────────┘
-                 │
-                 ▼
-         ┌──────────────────┐     success     ┌──────┐
-         │ POST to callback │───────────────→ │ ack()│
-         └───────┬──────────┘                 └──────┘
-                 │ error
-                 ▼
-         ┌──────────────────┐
-         │ 400/413/415/422? │──yes──→ sendToDLQ("REJECTED_BY_SUBSCRIBER") ──→ return
-         └───────┬──────────┘
-                 │ no
-                 ▼
-         ┌──────────────────┐
-         │ is TTL expired?  │──yes──→ sendToDLQ("TTL_EXPIRED") ──→ return
-         └───────┬──────────┘
-                 │ no
-                 ▼
-         ┌──────────────────┐
-         │ AT_MOST_ONCE?    │──yes──→ drop ──→ return
-         └───────┬──────────┘
-                 │ no
-                 ▼
-         ┌──────────────────┐
-         │ EXACTLY_ONCE?    │──yes──→ sendToDLQ("SINGLE_ATTEMPT_FAILED") ──→ return
-         └───────┬──────────┘
-                 │ no (AT_LEAST_ONCE)
-                 ▼
-         ┌──────────────────┐
-         │ 10 attempts done?│──yes──→ sendToDLQ("MAX_RETRIES_EXCEEDED") ──→ return
-         └───────┬──────────┘
-                 │ no
-                 ▼
-          ┌──────────────┐
-          │ backoff+retry│─────────→ back to POST
-          └──────────────┘
+ resolveTarget → POST callback ──success──→ delivered (ack)
+                       │ error
+                       ▼
+        classifyDeliveryError (packages/broker-message/src/bus/delivery-error-classifier.ts)
+                       │
+     ┌─────────────────┼──────────────────────┐
+     ▼                 ▼                      ▼
+ DLQ action         SWALLOW                 retry
+ markDeadLetter     settled (dropped,       left pending, next attempt
+ (rejected 400/413/ acked)                  due after backoff
+ 415/422 first,
+ then TTL, delivery
+ mode, max attempts)
 ```
