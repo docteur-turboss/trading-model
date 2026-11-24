@@ -1618,7 +1618,7 @@ verify_backup() {
 
 	drill_disaster
 	step_started=$SECONDS
-	log "restore drill: disaster (audit + dlq databases, markers, market_candles dropped, SPIRE volume deleted)"
+	log "restore drill: disaster (audit + dlq databases, markers, MySQL volume deleted, SPIRE volume deleted)"
 	for label in mongodb mongodb-audit; do
 		mongo_eval "$label" "db.getSiblingDB('restore_drill').dropDatabase()" >/dev/null
 	done
@@ -1628,7 +1628,13 @@ verify_backup() {
 		log "the audit database survived its drop: the drill tests nothing"
 		return 1
 	}
-	mysql_root "DROP DATABASE restore_drill; DROP TABLE financial_scraper.market_candles;"
+	# The MySQL volume itself: empty `mysql` schema (no migrator/retention/exporter), new server_uuid.
+	$K -n "$NS" scale statefulset/mysql --replicas=0
+	$K -n "$NS" wait --for=delete pod/mysql-0 --timeout=120s
+	$K -n "$NS" delete pvc mysql-data-mysql-0 --wait=true
+	$K -n "$NS" scale statefulset/mysql --replicas=1
+	$K -n "$NS" rollout status statefulset/mysql --timeout=300s
+	migrations "$ROOT" user-only || return 1
 	local claim
 	claim="$($K -n "$NS" get pvc spire-server-data -o json |
 		node -e 'const p=JSON.parse(require("fs").readFileSync(0,"utf8"));
@@ -1726,6 +1732,10 @@ verify_backup() {
 	mysql_markers="$(mysql_root "SELECT GROUP_CONCAT(id ORDER BY id) FROM restore_drill.markers")"
 	[ "$mysql_markers" = "1,2,3,4" ] || {
 		log "MySQL: drill markers $mysql_markers instead of 1,2,3,4"
+		return 1
+	}
+	[ "$(mysql_root "SELECT COUNT(*) FROM mysql.user WHERE user IN ('migrator','retention','exporter')" | tr -d '')" = "3" ] || {
+		log "MySQL: migrator, retention or exporter missing after the restore"
 		return 1
 	}
 	[ "$(mysql_count market_candles)" -gt 0 ] || {
