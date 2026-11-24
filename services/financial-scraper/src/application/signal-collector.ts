@@ -233,6 +233,22 @@ export class SignalCollector {
 		);
 	}
 
+	/**
+	 * Fetches and stores one history page (`signal-backfill`). Throws on any
+	 * failure, and on an observation the adapter leaves undated: dated at the
+	 * first collection, a backfilled value would claim today (ADR-0030).
+	 */
+	async backfillPage(source: Source, request: SourceRequest): Promise<void> {
+		const worker = this._deps.workers[source.protocol];
+		const payload = await worker(request, source.accessPolicy.auth, source);
+		if (payload === NOT_MODIFIED) {
+			return;
+		}
+		await this._deps.store.save(
+			this._toSignals(source, request, payload, this._deps.now(), true)
+		);
+	}
+
 	private async _collectRequest(
 		source: Source,
 		request: SourceRequest
@@ -310,7 +326,8 @@ export class SignalCollector {
 		source: Source,
 		request: SourceRequest,
 		payload: unknown,
-		ingestedAt: number
+		ingestedAt: number,
+		requireObservedAt = false
 	): Signal[] {
 		const adapter = this._deps.adapters.get(source.adapter);
 		if (!adapter) {
@@ -319,11 +336,16 @@ export class SignalCollector {
 		const { subject, dimension } = request;
 		const observations = adapter.normalize(payload, {
 			params: request.params,
-			ingestedAt,
+			ingestedAt: requireObservedAt ? undefined : ingestedAt,
 		});
 		const ingestedIso = new Date(ingestedAt).toISOString();
 		// One parse: Signal checks the payload against its dimension, and metric has no transform.
 		return observations.map((observation) => {
+			if (requireObservedAt && observation.observedAt === undefined) {
+				throw new InvalidPayloadError(
+					`Adapter ${source.adapter} leaves observedAt to the collection time: no point-in-time history`
+				);
+			}
 			return Signal.parse({
 				id: signalId(
 					source.id,

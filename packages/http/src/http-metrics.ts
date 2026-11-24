@@ -57,7 +57,9 @@ function _routeLabel(req: Request, res: Response): string {
 	if (typeof label === "string") {
 		return label;
 	}
-	const route = (req.route as { path?: unknown } | undefined)?.path;
+	const path = (req.route as { path?: unknown } | undefined)?.path;
+	// A route mounted on several paths (mountRoute alias, ADR-0072) counts under its first one.
+	const route = Array.isArray(path) ? path[0] : path;
 	if (typeof route !== "string") {
 		return UNMATCHED_ROUTE;
 	}
