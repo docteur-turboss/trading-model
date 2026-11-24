@@ -29,6 +29,12 @@ function _quarterCpu(_match, indent, value, unit) {
 	return `${indent}cpu: ${Math.max(1, Math.round(millis / 4))}m`;
 }
 
+// risk:admin (kill switch, ADR-0059) only for release N (`--risk-admin`, `--secret`): the N-1 gateway of v3.1.0
+// refuses an unknown scope at startup.
+const SCOPES = ["--risk-admin", "--secret"].some((flag) => process.argv.includes(flag))
+	? "read+dlq:write+risk:admin"
+	: "read+dlq:write";
+
 // Public test values, for the throwaway kind cluster only (run-kind.sh API_KEY).
 const TEST_SECRET = `apiVersion: v1
 kind: Secret
@@ -39,7 +45,7 @@ metadata:
     app.kubernetes.io/part-of: trading-model
 type: Opaque
 stringData:
-  AUTH_TOKENS: dev:read+dlq:write:dev-token-0123456789abcdef0123456789abcdef
+  AUTH_TOKENS: dev:${SCOPES}:dev-token-0123456789abcdef0123456789abcdef
   SIGNING_SECRET: dev-signing-0123456789abcdef0123456789abcdef
   SERVICE_BOOTSTRAP_TOKEN: dev-bootstrap-change-me
   MYSQL_ROOT_PASSWORD: dev-mysql-root

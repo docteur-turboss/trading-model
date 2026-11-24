@@ -35,7 +35,7 @@ CLUSTER="${KIND_CLUSTER:-trading-model-ci}"
 NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
 CERT_MANAGER="v1.21.3" # same as deploy/staging-local/bootstrap.sh
-API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
+API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write[+risk:admin]:<secret> injected by ci-render.mjs
 SERVICES="$(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$ROOT/deploy/k8s/services/kustomization.yaml" | grep -vx edge-proxy | tr '\n' ' ')" # edge-proxy is not a first-party image
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
@@ -288,7 +288,7 @@ migrations() {
 # crash broke the pipe in runs 43321359421 and 43328471185).
 render_kind() {
 	release_script render "$1/deploy/k8s/overlays/${KIND_OVERLAY:-staging}" ghcr.io/trading-model "$2" >"$3.raw" || return 1
-	node "$ROOT/tests/k8s/ci-render.mjs" <"$3.raw" >"$3" || return 1
+	node "$ROOT/tests/k8s/ci-render.mjs" $([ "$1" = "$ROOT" ] && echo --risk-admin) <"$3.raw" >"$3" || return 1
 	rm -f "$3.raw"
 }
 
@@ -1250,10 +1250,18 @@ inspector() {
 	$K -n "$NS" exec backup-inspector -- sh -c "$1"
 }
 
-# risk-execution admin route `$1` (POST body `$2` when given), from its own pod
-# (docs/operations/runbooks/runbook-risk-execution.md).
+# risk-execution admin route `$1` as scripts/risk-admin.sh: `status` from its own pod (service SVID),
+# `kill-switch[/rearm]` with body `$2` through edge-proxy and the risk:admin key, actor = key name (ADR-0059).
 risk_admin() {
-	$K -n "$NS" exec deployment/risk-execution -c risk-execution -- sh -c 		"curl -sfk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem -H content-type:application/json https://localhost:3000/admin/$1${2:+ -d '$2'}"
+	if [ "$1" = status ]; then
+		$K -n "$NS" exec deployment/risk-execution -c risk-execution -- sh -c 			"curl -sfk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/admin/status"
+		return
+	fi
+	$K -n "$NS" port-forward svc/edge-proxy 18452:8080 >/dev/null 2>&1 &
+	local forward=$!
+	trap "kill $forward 2>/dev/null || true; trap - RETURN" RETURN
+	wait_for 30 'curl -s -o /dev/null http://localhost:18452/'
+	curl -sf -H "x-api-key: $API_KEY" -H content-type:application/json -d "${2:-}" "http://localhost:18452/v1/risk-execution/admin/$1"
 }
 
 # The real audit trail: tests/backup/audit-chain.js on the `audit` database
@@ -1354,7 +1362,7 @@ verify_backup() {
 	local bundle_before
 	bundle_before="$(spire_bundle)"
 	# Engaged before the backup, re-armed after it: the restore must bring it back (issue #1933).
-	risk_admin kill-switch '{"scope":"symbol","symbol":"BTCUSDT","reason":"restore_drill","actor":"drill"}' >/dev/null
+	risk_admin kill-switch '{"scope":"symbol","symbol":"BTCUSDT","reason":"restore_drill"}' >/dev/null
 
 	log "restore drill: recording the real audit trail and dead letters"
 	audit_grows count 0
@@ -1426,7 +1434,7 @@ verify_backup() {
 		return 1
 	}
 	log "  every file is age-encrypted, $offsite copied off-site, run manifest written"
-	risk_admin kill-switch/rearm '{"scope":"symbol","symbol":"BTCUSDT","reason":"after the backup","actor":"drill"}' >/dev/null
+	risk_admin kill-switch/rearm '{"scope":"symbol","symbol":"BTCUSDT","reason":"after the backup"}' >/dev/null
 
 	log "point-in-time: writes after the daily dump (markers, audit events, a dead letter)"
 	local audit_dumped
