@@ -23,8 +23,8 @@ Marketstack was dropped: its terms redirect to a page of links, nothing to read.
 
 1. Collect with Twelve Data (`twelvedata-daily-prices`): `terms: non-commercial`, `commercialLicence: available`, key `SIGNAL_KEY_TWELVEDATA` in the query parameter `apikey`, 1 request per asset and day against 800.
 2. Signals of dimension `market`, in `signals`, not in `market_candles`: metrics `open`, `high`, `low`, `close`, `volume`; `period` = observation key = session day. The API's `close` is split-adjusted; no `adjusted_close` (no separate field).
-3. `observedAt` left out: the API gives no release time, so the collection time stands (ADR-0036 decision 3). The schedule (01:30 UTC, Tuesday to Saturday) runs after the US close.
-4. No `startDate`: the answer holds the last session, so a day missed by the collector is a gap for the history catch-up issue.
+3. Daily collection: `observedAt` left out, the API gives no release time, so the collection time stands (ADR-0036 decision 3). The schedule (01:30 UTC, Tuesday to Saturday) runs after the US close.
+4. History (issue #1483, owner decision 2026-11-24, restores `signal-backfill` removed by #2345): the registry entry `history` (`outputsize=500`, `start_date`/`end_date`, `pageDays` 700: one request per asset for about 500 bars, within 8 a minute and 800 a day, shared with the daily collection). A backfill dates each bar at 21:00 UTC of its session day, after the US close all year, so the point-in-time read (ADR-0083) never sees a bar before its session ended. The first collection of a day later keeps the stored row (same id).
 
 ## Consequences
 

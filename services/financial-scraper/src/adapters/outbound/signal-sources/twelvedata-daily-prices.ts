@@ -31,15 +31,17 @@ const ErrorBody = z.object({
 
 /**
  * Daily prices of one equity or ETF from Twelve Data (free key, internal use,
- * ADR-0078): the last session as `market` signals, `period` = the session day.
- * The API gives no release time: no `observedAt`, the collector stamps the
- * first collection, which the schedule runs after the US close. `close` is
+ * ADR-0078): sessions as `market` signals, `period` = the session day.
+ * The API gives no release time: the collector stamps the first collection,
+ * which the schedule runs after the US close. A backfill (no `ingestedAt`)
+ * dates each bar at 21:00 UTC of its day, after the US close all year, so a
+ * point-in-time read sees it no earlier than the session ended. `close` is
  * split-adjusted by the API; there is no separate adjusted close. A missing or
  * non-numeric field, or an error answer, throws.
  */
 export const TWELVEDATA_DAILY_PRICES: SourceAdapter = {
 	dimensions: ["market"],
-	normalize(payload) {
+	normalize(payload, { ingestedAt }) {
 		const error = ErrorBody.safeParse(payload);
 		if (error.success && error.data.code === 429) {
 			throw new HttpStatusError(error.data.message ?? "rate limited", 429);
@@ -53,8 +55,11 @@ export const TWELVEDATA_DAILY_PRICES: SourceAdapter = {
 				close: [row.close, "USD"],
 				volume: [row.volume, "shares"],
 			} as const;
+			const observedAt =
+				ingestedAt === undefined ? Date.parse(`${day}T21:00:00Z`) : undefined;
 			return Object.entries(measures).map(([metric, [value, unit]]) => ({
 				key: day,
+				observedAt,
 				payload: { metric, value, unit, period: { start: day, end: day } },
 			}));
 		});
