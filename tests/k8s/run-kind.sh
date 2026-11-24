@@ -475,7 +475,8 @@ release_under_probe() {
 	local requests failures row candles gap need
 	rm -f "$stop" "$out"
 	echo "0 0" >"$out"
-	probe_availability "$stop" "$out" &
+	probe_wait_ready || return 1
+	probe_availability "$stop" "$out" 2>"$out.err" &
 	pid=$!
 	# A failing command under errexit must not leave the probe running.
 	# Expanded now: the locals are gone when a RETURN trap runs.
@@ -499,7 +500,13 @@ release_under_probe() {
 		return 1
 	}
 	[ "$failures" -le "$max" ] || {
-		log "the upgrade dropped $failures request(s) (threshold $max): a Deployment went to 0 ready pods"
+		log "the upgrade dropped $failures request(s) (threshold $max):"
+		sort "$out.err" | uniq -c | head -20
+		local svc
+		for svc in api-gateway financial-scraper; do
+			echo "--- logs $svc since the probe start"
+			$K -n "$NS" logs -l "app.kubernetes.io/component=$svc" --all-containers --prefix --since="$((SECONDS - began + 30))s" --tail=200 2>&1 || true
+		done
 		return 1
 	}
 	# Candles written in the window and the largest gap between consecutive ones

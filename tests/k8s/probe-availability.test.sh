@@ -22,7 +22,7 @@ const fs = require("fs");
 require("http").createServer((q, r) => {
   fs.appendFileSync(process.env.STUB_PATHS_FILE, `${q.url}\n`);
   r.statusCode = Number(fs.readFileSync(process.env.STUB_STATUS_FILE, "utf8"));
-  r.end();
+  r.end("stub-body");
 }).listen(Number(process.argv[1]));' "$port"
 STUB
 chmod +x "$WORK/bin/kubectl"
@@ -51,6 +51,16 @@ done
 
 run 503 3
 [ "$failures" -ge 1 ] && ok "503: $failures of $requests failed" || ko "503 not detected: $requests requests, $failures failed"
+
+grep -q "answered 503: stub-body" "$WORK/log" && ok "failure keeps the body" || ko "body missing from the failure line"
+
+# probe_wait_ready: 503 never turns 2xx -> fails with the body; 200 -> passes.
+(
+	trap 'kill $(jobs -p) 2>/dev/null || true' EXIT
+	PROBE_READY_TIMEOUT=3 probe_wait_ready 2>"$WORK/wait.log"
+) && ko "wait_ready passed on 503" || grep -q "not ready before the upgrade, answered 503: stub-body" "$WORK/wait.log" && ok "wait_ready fails on 503 with the body" || ko "wait_ready 503 not reported"
+echo 200 >"$STUB_STATUS_FILE"
+( trap 'kill $(jobs -p) 2>/dev/null || true' EXIT; probe_wait_ready ) && ok "wait_ready passes on 200" || ko "wait_ready failed on 200"
 
 ! grep -q "secret-key-value" "$WORK/log" && ok "key not logged" || ko "key leaked in the log"
 
