@@ -59,8 +59,8 @@ spec:
   ingress:
     # Callers of :3000 (same namespace as the policy, whatever the overlay's):
     # edge-proxy (only caller of the SVID ACL), Prometheus (/metrics scrape),
-    # blackbox-exporter (/ping probe), discovery-server (deploy-k8s.sh
-    # smoke-test runs curl from it). The canary gate execs into the pod itself.
+    # blackbox-exporter (/ping probe). The canary gate and the deploy probes
+    # (deploy-k8s.sh smoke-test, verify-release) exec into the pod itself.
     - from:
         - podSelector:
             matchExpressions:
@@ -70,7 +70,6 @@ spec:
                   - edge-proxy
                   - prometheus
                   - blackbox-exporter
-                  - discovery-server
       ports:
         - port: 3000
           protocol: TCP
@@ -80,6 +79,14 @@ spec:
         - podSelector: {}
       ports:
         - port: 3000
+          protocol: TCP
+    # The deploy probes run from this pod and call edge-proxy on its plain HTTP port.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: edge-proxy
+      ports:
+        - port: 8080
           protocol: TCP
 ---
 apiVersion: v1

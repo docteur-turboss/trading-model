@@ -445,7 +445,7 @@ cmd_smoke_test() {
     # its Sentinel clients need time to resolve the master again (run 43634583251).
     local code="" try
     for try in $(seq 1 12); do
-      code=$(kubectl exec -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
+      code=$(kubectl exec -n "$NAMESPACE" deployment/api-gateway -c api-gateway -- \
         node -e 'const f=require("fs"),d="/run/spire/svid/";require(process.argv[1].split(":")[0]).get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' "$url" >/dev/null 2>&1 && echo 200 || true)
       [[ "$code" == "200" || "$try" -eq 12 ]] && break
       sleep 5
@@ -555,7 +555,7 @@ release_checks_once() {
   fi
   # The key goes through stdin, never on a command line or in a log.
   local path="/v1/trader-trainer/training-status"
-  code="$(printf '%s' "$key" | kubectl exec -i -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
+  code="$(printf '%s' "$key" | kubectl exec -i -n "$NAMESPACE" deployment/api-gateway -c api-gateway -- \
     node -e 'let k="";process.stdin.on("data",d=>k+=d).on("end",()=>require("http").get(process.argv[1],{headers:{"x-api-key":k}},r=>{console.log(r.statusCode);r.resume()}).on("error",()=>console.log("000")))' "http://edge-proxy:8080${path}")" || code="000"
   if [[ "$code" != "200" ]]; then
     err "  ✗ GET ${path} through edge-proxy answered ${code}, expected 200"
