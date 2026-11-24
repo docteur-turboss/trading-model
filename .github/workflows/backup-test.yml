@@ -165,7 +165,8 @@ jobs:
 
       - name: Test rotate-secrets.sh
         run: bash tests/backup/rotate-secrets.test.sh
-n      - name: Test compose-secrets.sh
+
+      - name: Test compose-secrets.sh
         run: bash tests/backup/compose-secrets.test.sh
 
       - name: Build backup-tools
