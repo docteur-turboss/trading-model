@@ -51,7 +51,7 @@ export class TrainerClient<Manifest> {
 			return this._manifest.parse(stored);
 		}
 		const url = URLString.of(
-			`${await this._base()}/models/${symbol}/${version}`
+			`${await this._base()}/v1/models/${symbol}/${version}`
 		);
 		const body = await this._http.get(
 			url,

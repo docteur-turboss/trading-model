@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
+import type {
+	Intent,
+	Order,
+	OrderStatus,
+} from "@trading-model/contracts/order-intent";
 import { PaperBroker } from "../../src/adapters/outbound/paper-broker";
 import {
 	RiskExecution,
@@ -6,18 +11,13 @@ import {
 } from "../../src/application/risk-execution";
 import { assertExecutionLock } from "../../src/domain/execution-mode";
 import { HARD_CEILINGS, RiskLimits } from "../../src/domain/limits";
-import {
-	FINAL,
-	type Order,
-	type OrderStatus,
-	transition,
-} from "../../src/domain/order";
+import { FINAL, transition } from "../../src/domain/order";
 import type {
 	BrokerOrderView,
 	BrokerPort,
 	StatePort,
 } from "../../src/domain/ports";
-import { type Intent, preTradeReject } from "../../src/domain/pre-trade";
+import { preTradeReject } from "../../src/domain/pre-trade";
 import { equity, newState, type RiskState } from "../../src/domain/state";
 import { RestingBroker } from "../resting-broker";
 

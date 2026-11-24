@@ -66,7 +66,7 @@ describe("TrainerClient", () => {
 			).manifest("BTCUSDT", "v1")
 		).resolves.toEqual(manifest);
 		expect(String(manifestGet.mock.calls[0][0])).toBe(
-			"https://trainer:3000/models/BTCUSDT/v1"
+			"https://trainer:3000/v1/models/BTCUSDT/v1"
 		);
 	});
 
