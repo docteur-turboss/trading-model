@@ -66,7 +66,7 @@ describe("TrainerClient", () => {
 			).manifest("BTCUSDT", "v1")
 		).resolves.toEqual(manifest);
 		expect(String(manifestGet.mock.calls[0][0])).toBe(
-			"https://trainer:3000/models/BTCUSDT/v1"
+			"https://trainer:3000/v1/models/BTCUSDT/v1"
 		);
 	});
 
@@ -180,6 +180,18 @@ describe("ScraperClient", () => {
 			"https://trainer:3000/v2/candles/symbols/BTCUSDT?from=1970-01-01T00:00:00.000Z&to=1970-01-01T00:01:59.999Z&limit=5000"
 		);
 		expect(String(manifestGet.mock.calls[1][0])).toMatch(/&after=c1$/);
+	});
+	it("rejects a page whose candle has a non-positive price", async () => {
+		manifestGet.mockReset();
+		manifestGet.mockImplementation(async (_u, _o, schema) =>
+			schema.parse({
+				rows: [{ ...row(0), source: "binance", market: "spot", open: -1 }],
+				nextCursor: null,
+			})
+		);
+		await expect(
+			new ScraperClient(TLS, FIND).candles("BTCUSDT", 0, 119_999, 60_000)
+		).rejects.toThrow();
 	});
 	it("rebuilds daily bars from signals: bars from `from`, nothing observed after `to`", async () => {
 		const day = (date: string, close: number) =>

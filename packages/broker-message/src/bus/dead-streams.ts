@@ -16,8 +16,17 @@ export interface DeadLetter {
 }
 
 /**
- * Dead streams (ADR-0073): `<prefix>:dead:<topic>`, never trimmed. A message is
- * copied there and acknowledged in the journal in one `MULTI`/`EXEC`.
+ * Age kept in a dead stream (ADR-0073 §4, issue #2195): each new dead letter trims the
+ * entries older than this with `MINID ~`, so a full Redis cannot stop the bus. Seven days
+ * let an operator replay or delete after `BusDeadLetters`; the `dlq.entry.added` audit
+ * event outlives the purge.
+ */
+const DEAD_LETTER_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Dead streams (ADR-0073): `<prefix>:dead:<topic>`, trimmed by age
+ * ({@link DEAD_LETTER_RETENTION_MS}) on write. A message is copied there and
+ * acknowledged in the journal in one `MULTI`/`EXEC`.
  */
 export class DeadStreams {
 	constructor(private readonly _journal: RedisMessageJournal) {}
@@ -33,10 +42,14 @@ export class DeadStreams {
 		reason: string,
 		attempts: number
 	): Promise<string> {
+		const now = Date.now();
 		const tx = this._journal.redis.multi();
 		tx.call(
 			"XADD",
 			this._dead(group.topic),
+			"MINID",
+			"~",
+			String(now - DEAD_LETTER_RETENTION_MS),
 			"*",
 			"group",
 			group.service,
@@ -45,7 +58,7 @@ export class DeadStreams {
 			"reason",
 			reason,
 			"deadAt",
-			String(Date.now()),
+			String(now),
 			"message",
 			JSON.stringify(message)
 		);

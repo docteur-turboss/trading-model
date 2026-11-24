@@ -43,8 +43,7 @@ kubectl logs -n trading-model deployment/message-manager --tail=50
 
 # 4. Readiness (the server demands a client certificate: use the SVID)
 kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
-  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/health/ready
+  node -e "$SVID_GET" https://localhost:3000/health/ready
 ```
 
 ## Common Causes
@@ -70,8 +69,7 @@ Subscriptions come back on their own within 15 s once Redis answers (subscribers
 
 ```bash
 kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
-  curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/metrics | grep -E 'mm_subscriber_delivery_concurrency|mm_circuit_breaker_state|mm_messages_dlq_total'
+  node -e "$SVID_GET" https://localhost:3000/metrics | grep -E 'mm_subscriber_delivery_concurrency|mm_circuit_breaker_state|mm_messages_dlq_total'
 ```
 
 **Fix:** restore the subscriber named by the metrics (its own runbook). While its circuit breaker is open, its messages go straight to the dead-letter file.
@@ -93,7 +91,7 @@ node services/audit-logger/dist/application/dlq-cli.js <operator> replay <topic>
 node services/audit-logger/dist/application/dlq-cli.js <operator> delete <topic> <id>...
 ```
 
-A replay gives the entry back to the one group that failed, under its own `messageId`, then removes it from the dead stream. Fix the cause first (a payload the subscriber refuses, a schema drift), or it is dead-lettered again. Dead streams are never trimmed: the alert stays until they are empty.
+A replay gives the entry back to the one group that failed, under its own `messageId`, then removes it from the dead stream. Fix the cause first (a payload the subscriber refuses, a schema drift), or it is dead-lettered again. Each new dead letter of a topic purges the entries of that dead stream older than 7 days (ADR-0073 §4): replay or delete within a week, or the message is lost (its `dlq.entry.added` audit event stays). The alert stays until the dead streams are empty.
 
 ### 5. Journal entries trimmed before delivery
 
@@ -122,8 +120,7 @@ The undelivered entries of that group are lost. A group of a live topic that a s
 ```bash
 # 1. Readiness
 kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
-  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/health/ready
+  node -e "$SVID_GET" https://localhost:3000/health/ready
 
 # 2. Subscriptions are back (one hash per topic)
 kubectl exec -n trading-model "$REDIS_MASTER" -- redis-cli --scan --pattern 'trading-model:message-manager:subscriptions:*'
