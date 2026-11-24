@@ -110,6 +110,9 @@ services:
       - --appendonly
       - ${REDIS_APPENDONLY:-no}
       # A full Redis refuses writes (a publish fails visibly) instead of evicting journal entries (ADR-0073).
+      # 384mb = 75 % of mem_limit: room for the AOF rewrite fork, so Redis refuses writes before an OOM kill.
+      - --maxmemory
+      - 384mb
       - --maxmemory-policy
       - noeviction
       - --save
