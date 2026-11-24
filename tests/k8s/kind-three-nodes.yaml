@@ -1,0 +1,14 @@
+# kind cluster of the CI group that proves the production topology (issue #2657): 3 nodes, so
+# Redis (master + 2 replicas, 3 sentinels) and the DoNotSchedule spread have somewhere to go.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    # Untainted: the 3 nodes all take pods, the runner has no more.
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          taints: []
+  - role: worker
+  - role: worker

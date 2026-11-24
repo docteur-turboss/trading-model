@@ -44,6 +44,7 @@ SERVICES="$(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$ROOT/deploy/k8s/services/kustom
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
 PREVIOUS_REF="${KIND_PREVIOUS_REF:-HEAD^1}"
+[ "${KIND_NODES:-1}" != 3 ] || export CI_RENDER_HA=1 # 3 nodes: Redis HA and spread patches of ci-render.mjs
 # Release N-1 checkout, image digests, recorded revisions: kept between the
 # steps of the CI job, removed by `delete`.
 WORK="$(dirname "$ROOT")/.kind-${CLUSTER}"
@@ -257,7 +258,10 @@ cluster() {
 		log "cluster $CLUSTER already exists"
 	else
 		# A failed create (kindest/node pull) leaves a half-made cluster: drop it between attempts.
-		retry 3 bash -c '"$0" delete cluster --name "$1" >/dev/null 2>&1; "$0" create cluster --name "$1" --wait 180s' "$KIND" "$CLUSTER"
+		# KIND_NODES=3: the group that proves the production topology (tests/k8s/kind-three-nodes.yaml, #2657).
+		local config=()
+		[ "${KIND_NODES:-1}" != 3 ] || config=(--config "$ROOT/tests/k8s/kind-three-nodes.yaml")
+		retry 3 bash -c '"$0" delete cluster --name "$1" >/dev/null 2>&1; "$0" create cluster --name "$1" --wait 180s "${@:2}"' "$KIND" "$CLUSTER" "${config[@]}"
 	fi
 	# Prerequisite of mysql-tls.yaml (ADR-0060), as on a real cluster (deploy/staging-local/bootstrap.sh).
 	kubectl config use-context "kind-${CLUSTER}" >/dev/null
@@ -861,6 +865,7 @@ verify_network() {
 	verify_mysql_tls
 	verify_redis_tls
 	verify_bus
+	[ "${KIND_NODES:-1}" != 3 ] || verify_ha
 
 	log "external path: edge-proxy → api-gateway → trader-trainer"
 	$K -n "$NS" port-forward svc/edge-proxy 18449:8080 >/dev/null 2>&1 &
@@ -881,6 +886,50 @@ verify_network() {
 	}
 	wait_for 120 "registry | grep -q financial-scraper"
 	log "  registered: $(registry)"
+}
+
+# Production topology on 3 nodes (KIND_NODES=3, ci-render.mjs CI_RENDER_HA): Redis master + 2
+# replicas on 3 nodes, a journal write held by a replica (WAIT 1, JOURNAL_MIN_REPLICAS=1), a
+# Sentinel failover, a rolling restart of a 3-replica Deployment that never drops below 2 ready.
+verify_ha() {
+	log "Redis HA: 3 pods on 3 nodes, WAIT 1, Sentinel failover"
+	local redis="$K -n $NS exec redis-sentinel-0 -c sentinel --" tls="--tls --cacert /etc/redis-tls/ca.crt --sni redis"
+	[ "$($K -n "$NS" get pod -l app.kubernetes.io/component=redis -o jsonpath='{range .items[*]}{.spec.nodeName}{"
+"}{end}' | sort -u | wc -l)" -eq 3 ] || {
+		log "the 3 Redis pods are not on 3 nodes"
+		return 1
+	}
+	master() {
+		local ip
+		ip="$($redis sh -c "REDISCLI_AUTH=\$REDIS_INTERNAL_PASSWORD redis-cli $tls -p 26380 --raw SENTINEL get-master-addr-by-name mymaster" | head -n 1)"
+		$K -n "$NS" get pod -l app.kubernetes.io/component=redis -o jsonpath="{range .items[?(@.status.podIP==\"$ip\")]}{.metadata.name}{end}"
+	}
+	local old new
+	old="$(master)"
+	[ -n "$old" ] || { log "Sentinel names no Redis master"; return 1; }
+	# message-manager's ACL user: HSET under its prefix, then the replicas that hold it.
+	[ "$($K -n "$NS" exec "$old" -c redis -- sh -c "c() { REDISCLI_AUTH=\$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli $tls -p 6380 --user message-manager --raw \"\$@\"; }; c HSET trading-model:message-manager:ha-probe a 1 >/dev/null && c WAIT 1 5000")" -ge 1 ] || {
+		log "WAIT 1 on $old: no replica acknowledged"
+		return 1
+	}
+	$K -n "$NS" delete pod "$old" --wait=false
+	wait_for 180 '[ -n "$(master)" ] && [ "$(master)" != "'"$old"'" ]' || { log "Sentinel did not elect another master than $old"; return 1; }
+	new="$(master)"
+	$K -n "$NS" rollout status statefulset/redis --timeout=300s
+	log "  master $old -> $new, 3 pods back"
+
+	log "rolling restart of message-manager (3 replicas): at least 2 ready throughout"
+	$K -n "$NS" scale deployment/message-manager --replicas=3
+	$K -n "$NS" rollout status deployment/message-manager --timeout=300s
+	$K -n "$NS" rollout restart deployment/message-manager
+	local low=3 ready
+	until $K -n "$NS" rollout status deployment/message-manager --timeout=5s >/dev/null 2>&1; do
+		ready="$($K -n "$NS" get deployment message-manager -o jsonpath='{.status.readyReplicas}')"
+		[ "${ready:-0}" -ge "$low" ] || low="${ready:-0}"
+	done
+	[ "$low" -ge 2 ] || { log "message-manager fell to $low ready pods during the rolling restart"; return 1; }
+	log "  never below $low ready pods"
+	$K -n "$NS" scale deployment/message-manager --replicas=1
 }
 
 verify_observability() {

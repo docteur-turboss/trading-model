@@ -17,6 +17,8 @@
 //     instead of reaching the real service
 //   - keeps 100 % of the traces: verify_traces needs the api-gateway and
 //     trader-trainer spans of one request, the 20 % sampler makes it random
+//   - CI_RENDER_HA=1 (the 3-node group, issue #2657): Redis and its sentinels at 3 pods spread
+//     over the nodes (DoNotSchedule) and JOURNAL_MIN_REPLICAS=1, as the production overlay
 //   - suspends the CronJobs: a cluster kept after the test must not run the
 //     nightly backup on the host disk (the drill starts its job by hand)
 // Usage: kubectl kustomize ... | node tests/k8s/ci-render.mjs > out.yaml
@@ -123,7 +125,31 @@ const documents = readFileSync(0, "utf8")
 	.filter((doc) => !DROPPED_KINDS.test(doc))
 	.map((doc) => (/^kind: SealedSecret$/m.test(doc) ? `
 ${TEST_SECRET}` : doc))
+	.map((doc) => (process.env.CI_RENDER_HA === "1" ? haPatch(doc) : doc))
 	.map((doc) => (/^kind: CronJob$/m.test(doc) ? doc.replace(/^spec:\n/m, "spec:\n  suspend: true\n") : doc));
+// shortcut: textual patch of the rendered YAML, like adapt(); the staging overlay pins these to 1.
+function haPatch(doc) {
+	if (/^kind: StatefulSet$/m.test(doc) && /^ {2}name: redis(-sentinel)?$/m.test(doc)) {
+		const component = doc.match(/^ {2}name: (redis(?:-sentinel)?)$/m)[1];
+		return doc
+			.replace(/^( {2}replicas:) 1$/m, "$1 3")
+			.replace(
+				/^( {6})terminationGracePeriodSeconds:/m,
+				`$1topologySpreadConstraints:
+$1  - maxSkew: 1
+$1    topologyKey: kubernetes.io/hostname
+$1    whenUnsatisfiable: DoNotSchedule
+$1    labelSelector:
+$1      matchLabels:
+$1        app.kubernetes.io/component: ${component}
+$1terminationGracePeriodSeconds:`
+			);
+	}
+	return /^ {2}name: (message-manager|audit-logger|trader-trainer|model-evaluator)-config-/m.test(doc)
+		? doc.replace(/^ {2}JOURNAL_MIN_REPLICAS: .*\n/m, "").replace(/^data:\n/m, 'data:\n  JOURNAL_MIN_REPLICAS: "1"\n')
+		: doc;
+}
+
 const rendered = adapt(documents.join("---"));
 if (!rendered.includes(STUB_URL) || /BINANCE_BASE_URL: "?https:/.test(rendered)) {
 	process.stderr.write("ci-render: BINANCE_BASE_URL not pointed at the stub\n");
