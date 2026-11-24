@@ -410,7 +410,14 @@ describe("market_trades — real MySQL", () => {
 
 	it("should move INT trades into the BIGINT table in batches, keeping their ids (issue #2377)", async () => {
 		const db = DATABASE.promise();
-		migrate("down", "1");
+		// Undo 012 (INT to BIGINT) and every migration after it.
+		migrate(
+			"down",
+			String(
+				MIGRATION_IDS.length -
+					MIGRATION_IDS.findIndex((id) => id.startsWith("012_"))
+			)
+		);
 		await db.query(
 			"ALTER TABLE market_trades MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT, AUTO_INCREMENT = 1"
 		);
