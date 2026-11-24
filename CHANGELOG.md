@@ -1,3 +1,245 @@
+## [3.2.0] - 2026-11-24
+
+### @trading-model/broker-message (1.3.0 → 1.3.1)
+
+#### Fix
+
+- 04023b5 **broker:** dead-letter une entrée livrée plus de MAX_RETRIES fois et retirer les consommateurs morts (#2453)
+- ff66cd8 **broker:** ne plus publier le retard des groupes d'un topic retiré (#2479) (#2486)
+- e0aa429 **broker:** passer un AbortSignal aux handlers du bus et borner l'évaluation de model-evaluator (#2307)
+
+#### Perf
+
+- aadf192 **broker:** réclamer les entrées du journal avec un XCLAIM par valeur de min-idle (#2065) (#2347)
+
+#### Refactor
+
+- 1cd1df9 **broker:** retirer les paramètres inutilisés de MessageMetadataBuilder et factoriser le test des erreurs Redis (#2260) (#2461)
+
+#### Test
+
+- 799832c **broker:** déplacer les specs Redis réel de la bibliothèque du bus vers broker-message (#2314)
+
+### @trading-model/http (1.2.0 → 1.3.0)
+
+#### Feat
+
+- 03da2ba **http:** joindre le trace id actif en exemplar à http_request_duration_seconds (#2383)
+- 8b83f96 **http:** exécuter chaque job périodique dans son span racine et son correlationId (#2095)
+
+#### Fix
+
+- d9fdabc **http:** journaliser les réponses 4xx hors 404 en warn et retirer le champ ip toujours masqué (#2350)
+- 922ce7d **http:** ne passer que les chaînes et les Error par sanitizeForLog pour garder les Date imbriquées (#2248) (#2309)
+
+#### Refactor
+
+- 54fa469 **http:** réduire les lignes et la complexité du package http sans changer son comportement (#2521)
+- bfa0687 **http:** partager le parcours des pages /v2/candles entre trainer et évaluateur (#2258) (#2522)
+- 0f46013 **http:** release N+2, retirer l'alias sans version de mountRoute (#1244) (#2346)
+- ad7676e **http:** aplatir le contexte imbriqué des logs dans formatLogEntry (#2086) (#2351)
+- e2f5977 **http:** fusionner les trois fabriques de serveur en un createServiceServer et aplatir le bootstrap (#2250) (#2310)
+- 8636f42 **http:** retirer les quatre entrées d'ACL d'appelants disparus vers financial-scraper et trader-trainer (#2098)
+
+#### Test
+
+- c54c3f0 **http:** relever le timeout des specs http sous charge (#2390)
+- aeba5ad **http:** allonger les timeouts des tests gzip 17 Mo et telemetry (#2108) (#2395)
+
+#### Security
+
+- 78079d7 **http:** retirer User-Agent et query string des spans HTTP entrants (#2428)
+
+### @trading-model/common (1.3.2 → 1.3.3)
+
+#### Fix
+
+- 5ebdcab **common:** tronquer toute IPv6 à /48 dans anonymizeIp et retirer ses appels redondants (#2134) (#2418)
+
+#### Refactor
+
+- 69a7d98 **common:** réutiliser le backoff avec jitter plafonné et le sleep annulable (#2506)
+- b6d5984 **common:** déplacer runCli dans common et fusionner les fichiers d'erreurs dans base (#2259) (#2460)
+
+#### Security
+
+- 8aecce6 **common:** refuser root ou un mot de passe vide en production, utilisateur MySQL dédié dans compose (#2449)
+- 94b475d **common:** n'accepter comme identité de service que les SVID du trust domain et du namespace, sans repli CN (#2177) (#2294)
+
+### Root
+
+#### Feat
+
+- 6171929 **database:** élargir market_trades.id en BIGINT UNSIGNED avant l'épuisement de INT (#2017) (#2143)
+- 65e8adf **scripts:** rotation sans coupure des mots de passe MySQL et Redis dans rotate-secrets.sh (#2301)
+- 7623d90 **scripts:** ajouter risk-admin.sh pour le kill switch avec l'identité Kubernetes comme acteur (#2154) (#2265)
+- df3b320 **risk-execution:** route de lecture de position pour decision-consumer (#2467)
+- 71f5263 **risk-execution:** conserver les événements d'ordre et de kill switch refusés par le bus dans une outbox locale (#2133) (#2282)
+
+#### Fix
+
+- c0bde1e **database:** borner l'attente de verrou de métadonnées de index-build et la retenter (#2509)
+- 7264338 **database:** supprimer la table market_publish_cursors (release N+1) (#2511)
+- c6e20fc **k8s:** borner Redis par maxmemory et purger les dead streams au-delà de 7 jours (#2415)
+- 262c473 **k8s:** passer decision-consumer en RollingUpdate pour ne perdre aucune barre au déploiement (#2471)
+- 8751780 **k8s:** ouvrir aux pods backup de staging-local l'egress vers le MinIO 172.18.0.200:9000 (#2378) (#2384)
+- a9fe536 **k8s:** accepter un Role deploy-app vivant qui contient les règles attendues (#2367) (#2387)
+- a1bb711 **k8s:** retenter l'export de spans 15 min pour couvrir le redémarrage de Jaeger (#2326) (#2333)
+- 3c9aace **k8s:** tolérer la lenteur de mongosh dans la liveness des pods Mongo (#2325) (#2332)
+- e643632 **k8s:** promouvoir à froid le dernier maître Redis au lieu de toujours redis-0 (#2298)
+- 752e1dc **k8s:** accorder 120 s de grâce à model-evaluator et un stop_grace_period aux services compose (#2205) (#2304)
+- e59f70b **k8s:** ajouter chaque pod Mongo au replica set au démarrage, pas seulement ceux qui répondaient au rs.initiate (#2285)
+- 3ed6c64 **scripts:** sceller dans un fichier temporaire pour ne pas vider le SealedSecret si kubeseal échoue (#2280) (#2469)
+- a8fd6f3 **scripts:** passer la région du bucket à rclone pour la copie hors site (#2336)
+- eec4a1f **scripts:** supprimer les scripts de sauvegarde et restauration Docker et leur drill compose (#1960)
+- 52a488b **docker:** épingler mysql-community-client 8.4.13.1 sur main, 8.4.13 retiré du dépôt MySQL (#2484) (#2487)
+- 3bb1f08 **model-runtime:** MinMax sans NaN sur entrée constante, Border retiré de la mutation (#2011) (#2126)
+- e3d0e55 **release:** refuser --version avec --publish et un arbre sale avant le merge (#2358) (#2476)
+- c423e1d **risk-execution:** contrôler l'exposition par instrument et globale au prix de l'ordre (#2193) (#2450)
+- 2189951 **risk-execution:** garder les échecs broker récents dans l'état persisté (#2192) (#2452)
+- 8df84f4 **risk-execution:** engager le kill switch sur un état absent et sauvegarder le volume de risk-execution (#1969)
+- 19cddb3 **risk-execution:** drawdown remplace une autre raison du kill switch (#2012) (#2127)
+- 76d81b1 **risk-execution:** annuler un ordre limite non exécutable du broker simulé et réserver le slippage au contrôle de solde (#2151)
+- f287830 **risk-execution:** fsync du fichier temporaire et du dossier autour du rename de l'état (#2208) (#2308)
+- 563fb32 **risk-execution:** republier les jauges et compter l'échec quand un tick échoue, alerter sur les échecs répétés (#2291)
+- 526a0a0 **risk-execution:** engager le kill switch hors de la file et borner l'admission et les appels broker (#2281)
+- 593bd27 **risk-execution:** tester le stop drawdown automatique et repartir de l'équité courante au réarmement du propriétaire (#2189) (#2295)
+- 0bd97a1 **persistence:** oublier la promesse de connexion échouée et borner la connexion Redis (#2200) (#2296)
+- 13c162d **persistence:** vérifier le Redis du bus dans la readiness de model-evaluator et trader-trainer (#2199) (#2289)
+- 2547597 **observability:** faire baisser le budget d'erreur en panne totale et calculer le ratio 30 jours depuis la recording 1 h (#2382)
+- 210416d **observability:** sonder kube-state-metrics sur /healthz, plus sur /livez qui interroge l'API server (#2330) (#2335)
+- f52ca1a **staging:** laisser 15 min à Jaeger pour ouvrir Badger au démarrage (#2329) (#2334)
+
+#### Perf
+
+- caa621f **database:** construire les index (symbol, timestamp, id) hors du Job de migration et retirer les routes par source (#2425)
+- 5bcd5cc **database:** élargir market_trades.id par permutation et copie par lots, sans figer la collecte (#2391)
+- 8e36064 **database:** indexer signals.observed_at pour que chaque lot de purge cesse de balayer la table (#2092)
+- d00b89d **model-runtime:** ne plus allouer de gradients au replay ni copier l'entrée sans normalisation (#2257) (#2458)
+
+#### Refactor
+
+- 5509c30 **scripts:** retirer DB_SSL_VERIFY et la détection mysql-tls, le migrateur vérifie toujours le certificat MySQL (#2174) (#2483)
+- fad6f4e **github-actions:** construire le job typecheck avec build:ts (#2376) (#2481)
+- 4f0a6e7 **contracts:** retirer les réexports et le helper d'enum inutiles (#2519)
+- 5fc0f16 **contracts:** déplacer les types Intent, Order et OrderStatus de risk-execution dans contracts (#2470)
+- f408abd **multiple:** remplacer les casts as unknown as du topic d'audit, des bornes de récompense et des pages de bougies (#2412)
+- cc68e0e **multiple:** ne plus enregistrer risk-execution ni model-evaluator auprès de discovery-server ni en faire dépendre leur readiness (#2429)
+- b385948 **multiple:** exclure les racines de composition de la couverture et retirer les specs qui n'assertent que des mocks (#2106) (#2392)
+- a0583ed **multiple:** interdire les imports d'infrastructure depuis domain/ dans arch:check et corriger les deux fuites (#2114) (#2146)
+- 505c45d **multiple:** partager un seul schéma de manifeste de modèle entre trader-trainer, model-evaluator et risk-execution (#2112) (#2152)
+- 8d65667 **model-runtime:** retirer distributeAroundWeights, code mort testé seul (#2501)
+- 031fdc8 **model-runtime:** lire manifeste et poids des modèles depuis le volume d'artefacts en lecture seule (#2417)
+- 976bbe2 **model-runtime:** fusionner le Wallet passe-plat dans createWallet et dériver FEATURE_LOOKBACK de SlidingWindowSize (#2311)
+- db39323 **primitives:** supprimer les wrappers toX, fromSymbol, registerServiceName et les branches de message mortes (#2261) (#2464)
+- 29963b6 **risk-execution:** déplacer les règles pures de fills, limites, jour et réconciliation dans domain/ (#2115) (#2316)
+- 16c7ef2 **persistence:** déduire RedisEnv du schéma zod et retirer la branche chaîne de createRedisClient (#2262) (#2463)
+
+#### Docs
+
+- 42859e2 **reliability:** retirer le module circuit-machine-registry inexistant de la doc (#2517)
+- 693e322 **docker:** corriger le commentaire d'arrêt du financial-scraper (#2503)
+- 777a3e6 **docker:** consigner le risque accepté du proxy du socket Docker sur un hôte partagé (#2184) (#2410)
+- 02e65f3 **docs:** remplacer les curl --cert des runbooks par un one-liner node -e (#2457) (#2498)
+- 2f03013 **docs:** renseigner Discord, Pushover et healthchecks.io dans les fiches des sous-traitants (#2142) (#2399)
+- b25edd5 **docs:** consigner le risque accepté du runner de staging persistant (#2182) (#2408)
+- 9a25662 **docs:** chiffrer le coût mensuel de la production et le rendement minimal qu'il impose (#2219) (#2411)
+- ba3e758 **docs:** aligner DPIA, politique et registre sur TLS transitoire MongoDB/Redis et Jaeger 72 h (#2137) (#2430)
+- 8141001 **docs:** déclarer finalité et durée du state risk-execution, des évaluations et des checkpoints (#2138) (#2431)
+- 6a3d493 **docs:** retirer les conventions de nommage de fichiers que aucun fichier ne suit (#2120) (#2398)
+- 1addfb4 **docs:** abaisser le plafond d'exposition globale à 10 % faute de réduction automatique des positions (#2194) (#2402)
+- 1152b87 **docs:** garder risk-execution dans tous les overlays avant son premier appelant (#1995) (#2389)
+- bb7729c **docs:** accepter le risque d'une copie hors site unique jusqu'à la prod (#1943) (#2321)
+- cd63711 **docs:** exiger l'exercice de réconciliation avant le réel sur le testnet et corriger l'état de la piste d'audit (#2191) (#2284)
+- b474406 **docs:** corriger le volume de minutes CI et la mention CodeQL (#2214) (#2306)
+- e1273a3 **docs:** corriger les effectifs train / validation / test d'ADR-0068 et ADR-0069 (#2144)
+- d753f11 **docs:** corriger le README racine (ligne http, dlq-service sans auto-retry, deploy.yml, table CI) (#1965)
+- 2c28fcf **docs:** réduire compliance-framework à sa matrice et son calendrier, corriger les chiffres et statuts périmés (#2132) (#2264)
+- 58b3858 **redis:** réécrire l'AOF sous Redis 7.4 avant le passage à 8.10, que 8.10.3 ne rejoue pas (#2407) (#2421)
+- 7a84312 **adr:** consigner dans ADR-0038 l'approbation de l'environnement release par l'orchestrateur (#2406)
+
+#### Test
+
+- b610b30 **tests:** contrat manifeste d'admission trainer vers risk-execution (#2104) (#2516)
+- e261daa **tests:** exercer risk-execution déployé dans l'E2E compose (#2124)
+- f2c435c **multiple:** remplacer les attentes réelles fixes des specs bus et client HTTP (#2105) (#2394)
+- d5e979f **docs:** mesurer la campagne de capacité sur la pile isolée et compléter l'overlay (#1381) (#2462)
+- db1fbc2 **risk-execution:** log the kill switch drill run on the deployed paper environment (#2319)
+
+#### Chore
+
+- 508692c Bump oven/bun in /services/financial-scraper (#2221)
+- 24cc56d Bump oven/bun in /services/discovery-server (#2222)
+- ec53ee7 Bump oven/bun in /services/message-manager (#2223)
+- b5b4168 Bump oven/bun from 1.4.4 to 1.4.5 in /services/trader-trainer (#2224)
+- 34d8d20 Bump oven/bun from 1.4.4 to 1.4.5 in /services/api-gateway (#2225)
+- f33bc7f Bump oven/bun from 1.4.4 to 1.4.5 in /services/audit-logger (#2226)
+- d586090 Bump oven/bun from 1.4.4 to 1.4.5 in /services/dlq-service (#2227)
+- cf33bb8 Bump mongo from 7.0.43 to 7.0.45 (#2228)
+- cf5f120 Bump knip from 6.45.1 to 6.46.1 (#2229)
+- 460a7c9 Bump mongo from 7.0.43 to 7.0.45 in /deploy/k8s/infra (#2230)
+- 99ba806 Bump @aws-sdk/client-s3 from 3.1170.0 to 3.1172.0 (#2231)
+- db9e701 Bump express-rate-limit from 8.7.4 to 8.7.5 (#2232)
+- 9545ba7 **k8s:** ramener le PVC des checkpoints du trainer à 1Gi en production (#2393) (#2482)
+- e43449e **k8s:** expirer les binlogs MySQL après 4 jours au lieu de 30 (#2212) (#2446)
+- 07065e1 **k8s:** retirer les contournements de la couche données de staging-local (#1982) (#2405)
+- b47bcbd **k8s:** laisser prometheus et alertmanager du staging local prendre la config de chaque release (#2323) (#2388)
+- 7013c09 **k8s:** scaler les services Node sur le CPU seul, sans métrique mémoire (#2063) (#2343)
+- 6680024 **k8s:** refuser tout flux par défaut dans le namespace applicatif et déclarer les flux de chaque composant (#2181) (#2287)
+- 2a1b456 **scripts:** retirer la liste EXCLUDED vide et la branche skip de typecheck-tests (#2502)
+- 9b7711e **scripts:** ajouter contracts:check au hook pre-push (#2478)
+- 6ea4a0e **tests:** lancer le bench GA sous Node, comme l'image du trainer (#2499)
+- 7c86085 **husky:** quote the message file argument of the commit-msg hook (#2515)
+- 0616ef0 **docker:** borner la mémoire et le CPU du nœud kind, du runner et de MinIO de staging-local (#2160) (#2404)
+- 5c8cbba **docker:** monter un volume nommé sur /alertmanager du stack compose (#2213) (#2447)
+- 18a7bb2 **config:** set CACHE_TTL_MS to 30000 in the remaining .env.example files (#2496)
+- 2d4d4a1 **deps:** surveiller les Dockerfiles, manifests K8s et compose staging-local restants (#2444)
+- 37f07da **observability:** rétrograder en warning cinq alertes critical dont l'action peut attendre les heures ouvrées (#2158) (#2433)
+- 6ad19a7 **observability:** supprimer TrainerEventLoopBlocked et décrire les alertes de latence SLO comme des seuils de p95 (#2344)
+
+#### Ci
+
+- d3e2f3f **k8s:** passer le kill switch du drill de restauration par edge-proxy et la clé risk:admin (#2514)
+- 0e5e468 **github-actions:** déployer en N-1 sur kind les images signées du dernier tag stable au lieu de reconstruire origin/main (#2386)
+- f5a331b **github-actions:** contrôler le titre de PR avec commitlint dans le job lint (#2477)
+- 7a3d318 **github-actions:** retirer le déclencheur push de mutation-testing (#2355) (#2474)
+- 699cfcd **github-actions:** borner chaque job de ci.yml avec timeout-minutes (#2216) (#2448)
+- 3bdfb25 **github-actions:** contrôler la région de l'ancre d'audit aussi avec le Secret existant (#2136) (#2427)
+- b89bbde **github-actions:** scanner tout l'historique avec gitleaks sur les tags et limiter les stopwords de fixtures aux chemins de test (#2167) (#2437)
+- 55d0077 **github-actions:** poser persist-credentials: false sur chaque actions/checkout (#2168) (#2438)
+- 84d7f34 **github-actions:** lancer typecheck et contract sur le push de merge vers development et ne plus annuler les runs de push (#2361) (#2385)
+- d60affa **github-actions:** rejeter l'arithmétique dans timeout-minutes, que actionlint laisse passer (#2363) (#2379)
+- c39ce31 **github-actions:** déployer le stack compose par la CI depuis les images publiées (#2315)
+- c7f5d53 **github-actions:** k8s-result agrège tous les jobs, test tourne sur le push de merge (#2123)
+- f9202a5 **github-actions:** agréger lint dans k8s-result pour bloquer le merge sur un workflow invalide (#2157) (#2266)
+- f369e2a **github-actions:** muter le domaine risk-execution (break 80) et le lancer sur development (#2103) (#2128)
+- c37d4e1 **docker:** épingler mysql-community-client 8.4.13.1, 8.4.13 retiré du dépôt MySQL (#2484) (#2491)
+- 5f4f369 **release:** ne pousser aucune image avant que les 12 scans Trivy soient verts (#2380)
+- df1efe9 **release:** approuver la publication des images via l'environnement release, sans cache gha (#2180) (#2283)
+- 2285c23 **risk-execution:** passer une KillTarget à rearm dans les specs du kill switch (#2339)
+
+#### Security
+
+- f7ad35e **k8s:** require TLS and authentication on MongoDB, TLS only on Redis (#2320)
+- fad6a68 **k8s:** retirer à deploy-cluster le droit de relabelliser les namespaces et de créer des DaemonSets node-agents (#2286)
+- e0c3055 **scripts:** retirer eu-west-2 (Londres) de la liste UE par défaut des régions S3 (#2505)
+- 2537eda **scripts:** écrire les secrets en clair de init-sealed-secrets.sh dans un mktemp privé supprimé à la sortie (#2176) (#2263)
+- d6bd1d9 **github-actions:** vérifier la protection de l'environnement sealed-secrets-key-backup avant la sauvegarde (#2169) (#2439)
+- 0c46158 **github-actions:** passer les clés S3 et webhooks du déploiement à kubectl par fichier d'env privé, supprimer workflow_call (#2445)
+- 4d8420d **github-actions:** reprendre dans deploy-compose les garde-fous de deploy (environnement, cosign, approbation des forks) (#2381)
+- cc98c12 **tests:** épingler curlimages/curl par digest dans security.e2e.spec.ts (#2524)
+- a78a68c **tests:** épingler par digest l'image curl des scripts k8s (#2500)
+- afd64e5 **docker:** masquer Config.Env et les conteneurs hors projet dans le proxy du socket Docker (#2409) (#2419)
+- d14830b **risk-execution:** dériver l'acteur du kill switch de la clé API nommée de la gateway (#2420)
+- 6d49e1a **risk-execution:** marquer, dater et contrôler les ordres sur le prix lu au scraper, plus sur celui du consommateur (#2293)
+- ffc0c9e **persistence:** suivre le maître Redis en TLS quand Sentinel annonce le port clair (#2434) (#2495)
+- 1fd7d2a **deps:** retirer l'ignore GHSA-fc5q et le workflow picomatch-fix-check (#1604) (#2340)
+
+#### Other
+
+- a042973 **github-actions:** corriger les 5 constats shellcheck et l'activer dans actionlint (#2413)
+
+
 ## [3.1.0] - 2026-11-22
 
 ### Upgrade notes

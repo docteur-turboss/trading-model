@@ -124,7 +124,8 @@ good (point-in-time sources, ADR-0036).
 | Binance candles | not lost | each series restarts from its newest stored candle (`market_candles`) |
 
 The table follows `services/financial-scraper/src/config/signal-registry.json`:
-a new source gets a row here. No command backfills a gap.
+a new source gets a row here. No source has a `history` block yet, so
+`signal-backfill` cannot recover a gap.
 
 A value collected late (after a weekend, for instance) gets a later
 `observedAt` than if it had been collected on time: features stay

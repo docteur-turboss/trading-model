@@ -140,6 +140,7 @@ Schema v1, the model of the design note's §1: `src/domain/signals.ts`
   exchange MIC, `isin`, `contract`, `insee`, `series`), the
   `applicableDimensions` (signals of other dimensions are neither collected nor
   served for it) and its `sector`.
+- **History** (optional `history` of a source: `url` with `{from}`/`{to}`, `pageDays`): read by the `signal-backfill` command, see [the runbook](../operations/runbooks/runbook-market-data-stale.md#backfill-a-signal-sources-history).
 - **Source**: `protocol` (only `rest_api` has a worker), `covers` (the
   (asset type, dimension) pairs it can feed), `accessPolicy`,
   `reliabilityScore`, an adapter, a cron `schedule` and its requests (subject
