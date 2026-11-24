@@ -791,7 +791,7 @@ verify_network() {
 	log "  training status: $(curl -s -H "x-api-key: $API_KEY" "$url")"
 
 	# Release N only (ADR-0072): N-1 gateways still read the registry. Removed in N+1.
-	local registry="curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://discovery-server:3000/services"
+	local registry="curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://discovery-server:3000/v1/services"
 	wait_for 120 "$K -n $NS exec deployment/financial-scraper -c financial-scraper -- $registry | grep -q financial-scraper"
 	log "  registered: $($K -n "$NS" exec deployment/financial-scraper -c financial-scraper -- $registry)"
 }
