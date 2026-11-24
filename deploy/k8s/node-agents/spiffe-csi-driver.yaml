@@ -85,7 +85,7 @@ spec:
               drop:
                 - ALL
         - name: node-driver-registrar
-          image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.13.0@sha256:d7138bcc3aa5f267403d45ad4292c95397e421ea17a0035888850f424c7de25d
+          image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.18.1@sha256:f847fb218cdf1d0f0fa79772ca6f46e11d25635eb49c06efb5dccd00b5245ef5
           imagePullPolicy: IfNotPresent
           args:
             - "-csi-address"
