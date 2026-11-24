@@ -480,16 +480,47 @@ release() {
 # requests or when a candle of BTCUSDT is missing (gap above one interval,
 # 1 minute: the stub serves 1m klines) during the window.
 release_under_probe() {
-	local stop="$WORK/probe.stop" out="$WORK/probe.count" max="${PROBE_MAX_FAILURES:-0}" pid start rc=0 began=$SECONDS
+	local rc=0
+	rm -rf "$WORK/probe-logs"
+	mkdir -p "$WORK/probe-logs"
+	_release_under_probe || rc=$?
+	[ "$rc" = 0 ] || probe_failure_report
+	return "$rc"
+}
+
+# Failed responses (route, status, body) and the gateway / scraper logs of the
+# window, followed per pod from before `release`: the rollout deletes the N-1
+# pods, after which `kubectl logs` can no longer read them.
+probe_failure_report() {
+	local f
+	echo "--- failed probe responses"
+	sort "$WORK/probe.count.err" 2>/dev/null | uniq -c | head -20
+	for f in "$WORK"/probe-logs/*.log; do
+		[ -e "$f" ] || continue
+		echo "--- log $(basename "$f")"
+		cat "$f"
+	done
+}
+
+_release_under_probe() {
+	local stop="$WORK/probe.stop" out="$WORK/probe.count" max="${PROBE_MAX_FAILURES:-0}" pid start rc=0 began svc pod
 	local requests failures row candles gap need
 	rm -f "$stop" "$out" "$out.err"
 	echo "0 0" >"$out"
+	probe_wait_ready || return 1
+	# After the wait: the candle window below must not include it.
+	began=$SECONDS
+	for svc in api-gateway financial-scraper; do
+		for pod in $($K -n "$NS" get pods -l "app.kubernetes.io/component=$svc" -o name); do
+			$K -n "$NS" logs -f "$pod" --all-containers --prefix >"$WORK/probe-logs/${pod#pod/}.log" 2>&1 &
+		done
+	done
 	probe_availability "$stop" "$out" 2> >(tee "$out.err" >&2) &
 	pid=$!
-	# A failing command under errexit must not leave the probe running.
-	# Expanded now: the locals are gone when a RETURN trap runs.
+	# A failing command under errexit must not leave the probe or the log
+	# followers running.
 	# shellcheck disable=SC2064
-	trap "touch '$stop'; kill $pid 2>/dev/null || true; trap - RETURN" RETURN
+	trap "touch '$stop'; kill $pid \$(jobs -p) 2>/dev/null || true; trap - RETURN" RETURN
 	start="$(mysql_root "SELECT UTC_TIMESTAMP(3)" | tr -d '\r')"
 	[ -n "$start" ] || {
 		log "could not read the window start from MySQL"
