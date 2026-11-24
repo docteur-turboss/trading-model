@@ -28,7 +28,7 @@ All endpoints are mTLS-secured and served on **container port 3000**:
 | `DELETE` | `/v1/dlq`       | Delete entries by id (body `{ "ids": [...] }`, 1 to 1000 ids)                                                                                                      |
 | `POST`   | `/v1/dlq/replay` | Replay entries to message-manager (query `topic`, `limit`, `batchId`)                                                                                              |
 | `GET`    | `/health`       | Health check                                                                                                                                                       |
-| `GET`    | `/health/ready` | Readiness (registered with discovery once)                                                                                                                         |
+| `GET`    | `/health/ready` | Readiness (MongoDB ping)                                                                                                                                          |
 
 The `/dlq` routes also require a signed request: `x-service-name` (one of
 `DLQ_ALLOWED_SERVICES`), `x-timestamp` (ms, at most 5 minutes old) and

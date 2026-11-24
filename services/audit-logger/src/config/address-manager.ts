@@ -5,5 +5,4 @@ export const {
 	ADDRESS_MANAGER_ROUTES,
 	AddressManager,
 	BOOTSTRAP_ADDRESS_MANAGER,
-	REGISTRATION_READINESS,
 } = createServiceAddressManager(ENV);

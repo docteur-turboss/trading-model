@@ -23,9 +23,8 @@ const { AddressManager, BOOTSTRAP_ADDRESS_MANAGER, ADDRESS_MANAGER_ROUTES, FIND_
 | `BOOTSTRAP_ADDRESS_MANAGER()`| Starts registration and heartbeats; returns `{ ready, stop, leave }`   |
 | `ADDRESS_MANAGER_ROUTES(app)`| Mounts `/status`, `/metrics`                                         |
 | `FIND_A_SERVICE(name)`       | `Promise<{ host, port }>`: the DNS name of the service, port 3000      |
-| `REGISTRATION_READINESS`     | Readiness check `discovery-registration` (release N only)              |
 
-`REGISTRATION_READINESS` (`discovery-registration`): not Ready until the first registration, so release N-1 gateways find the pod in the registry. Release N only; removed with discovery-server in N+1 (ADR-0072).
+Readiness never waits for the registration: a pod becomes Ready while discovery-server is down, and registration keeps retrying in the background (ADR-0072).
 
 ## Lifecycle (release N)
 

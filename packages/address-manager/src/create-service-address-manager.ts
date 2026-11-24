@@ -15,14 +15,5 @@ export function createServiceAddressManager(env: AddressManagerEnv) {
 			am.metricsCollector.listenExpress(app),
 		FIND_A_SERVICE: (serviceName: ServiceInstanceName) =>
 			am.findService(serviceName),
-		/**
-		 * Readiness check: false until this instance has registered with discovery once, then
-		 * true. Kept in release N only, for N-1 gateways that still read the registry; removed
-		 * with discovery-server in N+1 (ADR-0072).
-		 */
-		REGISTRATION_READINESS: {
-			name: "discovery-registration",
-			check: () => am.tokenManager.getTokenOrUndefined() !== undefined,
-		},
 	};
 }

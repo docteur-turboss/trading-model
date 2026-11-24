@@ -8,10 +8,7 @@ import { AUDIT_API } from "../adapters/inbound/http/api-routes";
 import { eventsRoutes } from "../adapters/inbound/http/events.routes";
 import type { createMessageHandler } from "../adapters/inbound/subscription/audit-subscriber";
 import type { AuditRepository } from "../adapters/outbound/persistence/audit-repository";
-import {
-	ADDRESS_MANAGER_ROUTES,
-	REGISTRATION_READINESS,
-} from "../config/address-manager";
+import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
 import { metricsHandler } from "../config/metrics";
 import { ENV } from "../infrastructure/config/env";
 
@@ -30,7 +27,6 @@ export function createServer(
 			_registerRoutes(app, auditRepo, messageHandler);
 		},
 		readiness: [
-			REGISTRATION_READINESS,
 			{
 				name: "mongo",
 				check: async () => {
