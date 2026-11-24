@@ -844,17 +844,17 @@ groups:
           description: 'redis_exporter of {{ $labels.instance }} ({{ $labels.job }}) cannot query Redis for 5 minutes: the node or sentinel is down, or the exporter ACL user is missing (WRONGPASS in the redis-exporter logs).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redisdown'
 
-      # Redis has no maxmemory (noeviction) and the journal is only trimmed by
-      # age (MINID 24 h, ADR-0048): a burst grows the container until it is
-      # OOMKilled, so the container limit is the bound to watch.
+      # Redis runs with maxmemory (75 % of the container limit) and noeviction:
+      # at 100 % it refuses every write, so a publish fails. The journal is only
+      # trimmed by age (MINID 24 h, ADR-0048), so a burst fills it.
       - alert: RedisMemoryHigh
-        expr: sum by (namespace, pod) (container_memory_working_set_bytes{container="redis"}) / sum by (namespace, pod) (container_spec_memory_limit_bytes{container="redis"} > 0) > 0.8
+        expr: sum by (pod) (redis_memory_used_bytes{job="redis"}) / sum by (pod) (redis_memory_max_bytes{job="redis"} > 0) > 0.8
         for: 10m
         labels:
           severity: warning
         annotations:
-          summary: 'Redis {{ $labels.pod }} uses over 80 % of its memory limit'
-          description: 'Redis {{ $labels.pod }} has used {{ $value | humanizePercentage }} of its container memory limit for 10 minutes. The journal is trimmed by age only (24 h), so a burst of messages is not cut: at the limit the container is OOMKilled.'
+          summary: 'Redis {{ $labels.pod }} uses over 80 % of its maxmemory'
+          description: 'Redis {{ $labels.pod }} has used {{ $value | humanizePercentage }} of its maxmemory for 10 minutes. At 100 % it refuses writes (noeviction): publishes fail with OOM command not allowed until entries are consumed or trimmed.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redismemoryhigh'
 
       # Expected replicas = the StatefulSet size minus the master: single-node

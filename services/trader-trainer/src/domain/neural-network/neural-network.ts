@@ -1,7 +1,6 @@
 import { agentError } from "@trading-model/model-runtime/errors";
 import { FeedForwardEngine } from "@trading-model/model-runtime/neural-network/feed-forward-engine";
 import {
-	distributeAroundWeights as distributeAroundWeightsFn,
 	getWeights as getWeightsFn,
 	parameterCount as parameterCountFn,
 	setWeights as setWeightsFn,
@@ -52,15 +51,6 @@ export class NeuralNetwork {
 
 	public setWeights(buffer: Float32Array): void {
 		setWeightsFn(this._layers, buffer);
-	}
-
-	public distributeAroundWeights(
-		reference: NeuralNetwork | number,
-		sigma = 0.1
-	): void {
-		const ref =
-			typeof reference === "number" ? reference : reference.getWeights();
-		distributeAroundWeightsFn(this._layers, ref, sigma);
 	}
 
 	public parameterCount(): number {

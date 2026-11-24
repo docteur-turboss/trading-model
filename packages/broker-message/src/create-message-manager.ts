@@ -4,7 +4,7 @@ import {
 	type RedisEnv,
 	redisConnectionFromEnv,
 } from "@trading-model/persistence/redis-env";
-import { toInstanceId } from "@trading-model/primitives/primitives";
+import { InstanceId } from "@trading-model/primitives/primitives";
 import BrokerMessage from "./broker-message";
 import { openJournalWriter, RedisMessageJournal } from "./bus/redis-journal";
 
@@ -44,7 +44,7 @@ export function createServiceMessageManager(env: ServiceEnv) {
 	return {
 		messageManager: new BrokerMessage({
 			journal: busJournalFromEnv(env),
-			instanceId: toInstanceId(env.INSTANCE_ID),
+			instanceId: InstanceId.of(env.INSTANCE_ID),
 			serviceName: parseServiceName(env.SERVICE_NAME),
 		}),
 	};

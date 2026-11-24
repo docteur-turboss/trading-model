@@ -4,9 +4,9 @@ import {
 	ErrorResponse,
 } from "@trading-model/http/api-route/api-route";
 import {
-	toCorrelationId,
-	toServiceId,
-	toTopic,
+	CorrelationId,
+	ServiceId,
+	Topic,
 } from "@trading-model/primitives/primitives";
 import { z } from "zod";
 
@@ -56,9 +56,9 @@ export const AUDIT_API = {
 		path: "/v1/events",
 		summary: "List stored events, newest first",
 		query: z.object({
-			topic: optionalFilter(toTopic),
-			publisher: optionalFilter(toServiceId),
-			correlationId: optionalFilter(toCorrelationId),
+			topic: optionalFilter(Topic.of),
+			publisher: optionalFilter(ServiceId.of),
+			correlationId: optionalFilter(CorrelationId.of),
 			/** Inclusive bounds on `receivedAt`. */
 			startDate: DATE.optional(),
 			endDate: DATE.optional(),

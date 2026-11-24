@@ -73,7 +73,7 @@ node services/audit-logger/dist/application/dlq-cli.js <operator> replay <topic>
 node services/audit-logger/dist/application/dlq-cli.js <operator> delete <topic> <id>...
 ```
 
-A replay gives the entry back to the one group that failed, under its own `messageId`, then removes it from the dead stream. Fix the cause first (a payload the subscriber refuses, a schema drift), or it is dead-lettered again. Dead streams are never trimmed: the alert stays until they are empty.
+A replay gives the entry back to the one group that failed, under its own `messageId`, then removes it from the dead stream. Fix the cause first (a payload the subscriber refuses, a schema drift), or it is dead-lettered again. Each new dead letter of a topic purges the entries of that dead stream older than 7 days (ADR-0073 §4): replay or delete within a week, or the message is lost (its `dlq.entry.added` audit event stays). The alert stays until the dead streams are empty.
 
 ### 5. Journal entries trimmed before delivery
 
@@ -85,7 +85,7 @@ A replay gives the entry back to the one group that failed, under its own `messa
 
 ```bash
 # 1. Readiness of the affected service
-kubectl exec -n trading-model deployment/<service> --   curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem   https://localhost:3000/health/ready
+kubectl exec -n trading-model deployment/<service> -- node -e "$SVID_GET" https://localhost:3000/health/ready
 
 # 2. Pending entries drain: `XPENDING <journal key> <service>` falls to 0, JournalBacklogOld resolves
 ```

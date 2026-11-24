@@ -11,8 +11,8 @@ import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { MessageMetadata } from "@trading-model/contracts/message-types";
 import {
 	type InstanceId,
-	toServiceId,
-	toTopic,
+	ServiceId,
+	Topic,
 } from "@trading-model/primitives/primitives";
 import { BusConsumer } from "./bus/consumer";
 import { DeadStreams } from "./bus/dead-streams";
@@ -123,9 +123,9 @@ export default class BrokerMessage {
 	): Promise<void> {
 		return this.post.indirect(
 			payload,
-			new MessageMetadataBuilder(toTopic(event), event, {
+			new MessageMetadataBuilder(Topic.of(event), event, {
 				instanceId: this._instanceId,
-				serviceName: toServiceId(this._serviceName),
+				serviceName: ServiceId.of(this._serviceName),
 			})
 				.setDelivery({ mode: DeliveryMode.AtLeastOnce })
 				.toJSON()

@@ -104,7 +104,7 @@ test('prerelease number is numeric: rc.10 follows rc.9', () => {
 });
 
 test('refuses a missing or invalid prerelease id, --prerelease with --version, and unknown options', () => {
-  for (const args of [['--prerelease'], ['--prerelease', 'rc.1'], ['--prerelease', 'rc', '--version', '3.1.0'], ['--pre-release', 'rc']]) {
+  for (const args of [['--prerelease'], ['--prerelease', 'rc.1'], ['--prerelease', 'rc', '--version', '3.1.0'], ['--pre-release', 'rc'], ['--publish', '--version', '3.1.0']]) {
     const { status, out } = release('--dry-run', ...args);
     assert.equal(status, 1, `${args.join(' ')}: ${out}`);
   }
@@ -116,6 +116,17 @@ test('an option is never taken as the value of the option before it (a dry run s
     assert.equal(status, 1, `${args.join(' ')}: ${out}`);
     assert.equal(git('status', '--porcelain'), '', `${args.join(' ')} wrote files`);
   }
+});
+
+test('--publish refuses a dirty tree before merging', () => {
+  git('checkout', '-q', '-B', 'main');
+  writeFileSync(join(repo, 'dirty.txt'), 'x');
+  const head = git('rev-parse', 'HEAD');
+  const { status, out } = release('--publish', '--prerelease', 'beta');
+  rmSync(join(repo, 'dirty.txt'));
+  assert.equal(status, 1, out);
+  assert.match(out, /clean working tree/);
+  assert.equal(git('rev-parse', 'HEAD'), head);
 });
 
 test('--publish exits 1 with the failing command when the push fails (no remote), never prints "published"', () => {

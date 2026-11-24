@@ -131,6 +131,7 @@
         "@opentelemetry/semantic-conventions": "^1.45.0",
         "@trading-model/common": "*",
         "@trading-model/contracts": "*",
+        "@trading-model/model-runtime": "*",
         "@trading-model/primitives": "*",
         "@trading-model/reliability": "*",
         "express": "^5.3.0",

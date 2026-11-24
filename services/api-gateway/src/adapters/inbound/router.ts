@@ -164,11 +164,15 @@ const createCatchAllRoute = (env: Env) => {
 			);
 		}
 
-		// shortcut: release N forwards without /v<n> so N-1 services answer; N+1 forwards `/v${majorVersion}${path}` (ADR-0072).
 		const response = await proxyAndCache(
 			req,
 			target,
-			{ serviceName, majorVersion, cacheKey, path: `${path}${search}` },
+			{
+				serviceName,
+				majorVersion,
+				cacheKey,
+				path: `/v${majorVersion}${path}${search}`,
+			},
 			{
 				forward: (opts) => forwardRequest(opts, env),
 				cache: cache,

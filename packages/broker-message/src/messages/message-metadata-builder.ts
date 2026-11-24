@@ -4,12 +4,7 @@ import type {
 	MessageMetadata as MetadataType,
 	ServiceIdentity,
 } from "@trading-model/contracts/message-types";
-import {
-	type CorrelationId,
-	type Topic,
-	toCorrelationId,
-	toTopic,
-} from "@trading-model/primitives/primitives";
+import { CorrelationId, Topic } from "@trading-model/primitives/primitives";
 import {
 	DELIVERY_METADATA_MODE_PREDICATE,
 	EVENT_TYPE_METADATA_PREDICATE,
@@ -25,7 +20,7 @@ export interface ChainingIds {
 }
 
 const toId = (id: CorrelationId | undefined) =>
-	id ? toCorrelationId(IDS_METADATA_PREDICATE.parse(id) as string) : undefined;
+	id ? CorrelationId.of(IDS_METADATA_PREDICATE.parse(id) as string) : undefined;
 
 /** Builds the metadata of an outgoing message. */
 export class MessageMetadataBuilder {
@@ -45,7 +40,7 @@ export class MessageMetadataBuilder {
 		TOPIC_METADATA_PREDICATE.parse(topic);
 		EVENT_TYPE_METADATA_PREDICATE.parse(eventType);
 		PUBLISHER_METADATA_CONTEXT_PREDICATE.parse(publisher);
-		this.topic = toTopic(topic);
+		this.topic = Topic.of(topic);
 		this.eventType = eventType;
 		this.publisher = publisher;
 	}

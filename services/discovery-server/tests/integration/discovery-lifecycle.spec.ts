@@ -194,7 +194,7 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 			ip: "10.0.0.2",
 			port: 8445,
 		});
-		const result = await getJson("/services");
+		const result = await getJson("/v1/services");
 		expect(result.status).toBe(200);
 		expect(result.body).toContain("financial-scraper");
 		expect(result.body).toContain("audit-logger");
@@ -231,7 +231,9 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 			.token as string;
 		expect(newToken).not.toBe(token);
 
-		const instanceResult = await getJson("/services/financial-scraper/node-1");
+		const instanceResult = await getJson(
+			"/v1/services/financial-scraper/node-1"
+		);
 		expect(instanceResult.status).toBe(200);
 		expect(instanceResult.body).toHaveProperty("instanceId", "node-1");
 	});
@@ -268,9 +270,9 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 			401
 		);
 		expect((await postJson("/unregister", identity, token)).status).toBe(204);
-		expect((await getJson("/services/financial-scraper/node-1")).status).toBe(
-			404
-		);
+		expect(
+			(await getJson("/v1/services/financial-scraper/node-1")).status
+		).toBe(404);
 	});
 
 	it("should get all instances for a service via GET /services/:name", async () => {
@@ -292,7 +294,7 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 			await postJson("/register", inst);
 		}
 
-		const result = await getJson("/services/financial-scraper");
+		const result = await getJson("/v1/services/financial-scraper");
 		expect(result.status).toBe(200);
 		expect(Array.isArray(result.body)).toBe(true);
 		expect((result.body as unknown[]).length).toBe(2);
@@ -308,7 +310,7 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 		const now = Date.now();
 		const clock = jest.spyOn(Date, "now").mockReturnValue(now + 60_000);
 
-		const result = await getJson("/services/financial-scraper");
+		const result = await getJson("/v1/services/financial-scraper");
 
 		clock.mockRestore();
 		expect(result.status).toBe(200);
@@ -316,12 +318,12 @@ describe("Discovery Lifecycle — Full HTTP Integration", () => {
 	});
 
 	it("should return 404 for unknown service on GET /services/:name", async () => {
-		const result = await getJson("/services/unknown-service");
+		const result = await getJson("/v1/services/unknown-service");
 		expect(result.status).toBe(404);
 	});
 
 	it("should return 404 for unknown instance on GET /services/:name/:id", async () => {
-		const result = await getJson("/services/financial-scraper/non-existent");
+		const result = await getJson("/v1/services/financial-scraper/non-existent");
 		expect(result.status).toBe(404);
 	});
 });

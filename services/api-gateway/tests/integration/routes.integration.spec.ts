@@ -195,7 +195,7 @@ describe("API Gateway — Routes Integration", () => {
 		});
 		const call = (forwardRequest as jest.Mock<(...args: any[]) => any>).mock
 			.calls[0][0];
-		expect(call).toMatchObject({ path: "/events/stats" });
+		expect(call).toMatchObject({ path: "/v1/events/stats" });
 	});
 
 	it("should return 503 when the service name does not resolve", async () => {

@@ -3,7 +3,7 @@ import { busJournalFromEnv } from "@trading-model/broker-message/create-message-
 import type { DeliveredMessage } from "@trading-model/broker-message/messages.controller";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { logger } from "@trading-model/http/logger";
-import { toInstanceId } from "@trading-model/primitives/primitives";
+import { InstanceId } from "@trading-model/primitives/primitives";
 import { ENV } from "../infrastructure/config/env";
 import { auditedTopics } from "./audited-topics";
 
@@ -15,7 +15,7 @@ export async function createBrokerMessage(
 	const journal = busJournalFromEnv(ENV);
 	const brokerMessage = new BrokerMessage({
 		journal,
-		instanceId: toInstanceId(ENV.INSTANCE_ID),
+		instanceId: InstanceId.of(ENV.INSTANCE_ID),
 		serviceName: ServiceInstanceName.AuditLoggerService,
 	});
 	const allTopics = auditedTopics();

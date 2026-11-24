@@ -1844,25 +1844,30 @@ tests:
               description: 'StatefulSet mysql has pods on a revision other than its update revision for 24 hours: a partition holds the rollout back, so new sidecars (exporters) and their alerts are not running.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#statefulsetstuckonoldrevision'
 
-  - name: a Redis container near its memory limit is reported
+  - name: a Redis node near its maxmemory is reported
     interval: 1m
     input_series:
-      - series: 'container_memory_working_set_bytes{namespace="trading-model",pod="redis-0",container="redis"}'
-        values: '450000000x15'
-      - series: 'container_spec_memory_limit_bytes{namespace="trading-model",pod="redis-0",container="redis"}'
-        values: '500000000x15'
-      - series: 'container_memory_working_set_bytes{namespace="trading-model",pod="redis-1",container="redis"}'
+      - series: 'redis_memory_used_bytes{job="redis",pod="redis-0"}'
+        values: '360000000x15'
+      - series: 'redis_memory_max_bytes{job="redis",pod="redis-0"}'
+        values: '400000000x15'
+      - series: 'redis_memory_used_bytes{job="redis",pod="redis-1"}'
         values: '100000000x15'
-      - series: 'container_spec_memory_limit_bytes{namespace="trading-model",pod="redis-1",container="redis"}'
-        values: '500000000x15'
+      - series: 'redis_memory_max_bytes{job="redis",pod="redis-1"}'
+        values: '400000000x15'
+      # No maxmemory (0): never divided by.
+      - series: 'redis_memory_used_bytes{job="redis",pod="redis-2"}'
+        values: '360000000x15'
+      - series: 'redis_memory_max_bytes{job="redis",pod="redis-2"}'
+        values: '0x15'
     alert_rule_test:
       - eval_time: 12m
         alertname: RedisMemoryHigh
         exp_alerts:
-          - exp_labels: {severity: warning, namespace: trading-model, pod: redis-0}
+          - exp_labels: {severity: warning, pod: redis-0}
             exp_annotations:
-              summary: 'Redis redis-0 uses over 80 % of its memory limit'
-              description: 'Redis redis-0 has used 90% of its container memory limit for 10 minutes. The journal is trimmed by age only (24 h), so a burst of messages is not cut: at the limit the container is OOMKilled.'
+              summary: 'Redis redis-0 uses over 80 % of its maxmemory'
+              description: 'Redis redis-0 has used 90% of its maxmemory for 10 minutes. At 100 % it refuses writes (noeviction): publishes fail with OOM command not allowed until entries are consumed or trimmed.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redismemoryhigh'
 
   # 3 Redis nodes: the master must have 2 replicas; it has 1.

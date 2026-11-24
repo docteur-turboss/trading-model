@@ -41,7 +41,7 @@ The audit finding A6 (`KEYS` on the keyspace, full cache refresh on every heartb
 ### Negative
 
 - Discovery depends on Redis HA: while Redis is unreachable, registrations and heartbeats fail (readiness reports it).
-- A new service name must be added to `ServiceInstanceName`; names added only with `registerServiceName` (tests) are not listed.
+- A new service name must be added to `ServiceInstanceName`.
 
 ### Open
 

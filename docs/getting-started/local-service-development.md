@@ -48,12 +48,10 @@ Use `--no-deps` only after step 1 has run once; with it Compose does not start m
 
 - Raise verbosity: set `LOG_LEVEL=debug` in `.env`, then `docker compose -p tm up -d --no-deps <service>`. At the default `info` level a healthy `api-gateway` prints nothing.
 - Shell in: `docker compose -p tm exec <service> sh`.
-- `curl` from the host fails (no SVID). Call a service from inside its container with its own SVID (this is the Compose healthcheck):
+- `curl` from the host fails (no SVID). Call a service from inside its container with its own SVID (this is the Compose healthcheck; `SVID_GET` is defined in [on-call.md](../operations/on-call.md#health-check-endpoints)):
 
   ```bash
-  docker compose -p tm exec <service> curl -skf \
-    --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-    https://localhost:3000/health/ready
+  docker compose -p tm exec <service> node -e "$SVID_GET" https://localhost:3000/health/ready
   ```
 
   Verified on `api-gateway`: `{"status":"ok","checks":{"discovery":"ok"}}`. Gateway routes from outside go through `edge-proxy` on port 8449 (see [Quick Start](quickstart.md)).

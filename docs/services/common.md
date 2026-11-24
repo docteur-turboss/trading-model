@@ -42,7 +42,7 @@ The monorepo has shared packages under the `@trading-model/*` scope. Build order
 
 | File | Purpose |
 |------|---------|
-| `services.types.ts` | Re-exports `ServiceInstanceName`, `ALL_SERVICE_NAMES`, `parseServiceName`, `registerServiceName` (canonical definitions live in `@trading-model/primitives/service-instance-name`) |
+| `services.types.ts` | Re-exports `ServiceInstanceName`, `ALL_SERVICE_NAMES`, `parseServiceName` (canonical definitions live in `@trading-model/primitives/service-instance-name`) |
 | `delivery-mode.types.ts` | `DeliveryMode` enum: `AtMostOnce`, `AtLeastOnce`, `ExactlyOnce` |
 | `event.types.ts` | **Deprecated** facade — re-exports per-context types from `@trading-model/contracts`. Import directly from `contracts` for new code (see [Event Types](#event-types)) |
 | `db-connection-config.ts` | `createDbConfigFromEnv()` — builds `DbConnectionConfig` from `DB_HOST`/`DB_PORT`/`DB_USER`/`DB_PASSWORD`/`DB_NAME` |

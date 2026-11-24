@@ -69,8 +69,7 @@ Two cases:
 
    ```bash
    kubectl exec -n $NS deployment/discovery-server -c discovery-server -- \
-     curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-     https://localhost:3000/ping
+     node -e "$SVID_GET" https://localhost:3000/ping
    kubectl -n $NS logs deploy/discovery-server --tail=200 | grep -iE "error|redis"
    ```
 
@@ -104,8 +103,7 @@ TTL, discovery drops them and callers can no longer resolve the service.
 # 1. Are the instances alive?
 kubectl -n $NS get pods -l app.kubernetes.io/component=$SVC
 kubectl exec -n $NS deployment/$SVC -c $SVC -- \
-  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/health/ready
+  node -e "$SVID_GET" https://localhost:3000/health/ready
 
 # 2. What the instances say about their heartbeats
 kubectl -n $NS logs deploy/$SVC --tail=200 | grep -iE "heartbeat|re-regist"

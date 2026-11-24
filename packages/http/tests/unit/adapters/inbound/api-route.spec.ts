@@ -245,7 +245,7 @@ describe("mountRoute", () => {
 	});
 
 	it("sends a binary body with its media type and headers", async () => {
-		const res = await fetch(`${baseUrl}/files/a.bin`);
+		const res = await fetch(`${baseUrl}/v2/files/a.bin`);
 
 		expect(res.status).toBe(200);
 		expect(res.headers.get("content-type")).toBe("application/octet-stream");
@@ -255,14 +255,10 @@ describe("mountRoute", () => {
 		expect(responseIssues(download, res.status, bytes)).toEqual([]);
 	});
 
-	// ADR-0072 release N: a public route also answers without its /v<major> for N-1 gateways.
-	it.each(["/v2/files/x", "/files/x"])(
-		"mounts a versioned route at %s",
-		async (path) => {
-			const res = await fetch(`${baseUrl}${path}`);
-			expect(res.status).toBe(200);
-		}
-	);
+	it("mounts a versioned route at its major only", async () => {
+		expect((await fetch(`${baseUrl}/v2/files/x`)).status).toBe(200);
+		expect((await fetch(`${baseUrl}/files/x`)).status).toBe(404);
+	});
 
 	it("passes a handler error to the Express error handler", async () => {
 		const res = await fetch(`${baseUrl}/entries`, {

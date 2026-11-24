@@ -82,7 +82,7 @@ done
 [[ "$MAX_DAYS" =~ ^[0-9]+$ ]] || usage_error "--max-days must be a number of days, not '${MAX_DAYS}'"
 [ "$MIN_DAYS" -le "$MAX_DAYS" ] || usage_error "--min-days (${MIN_DAYS}) is greater than --max-days (${MAX_DAYS})"
 
-ALLOWED_REGIONS="${BACKUP_S3_ALLOWED_REGIONS:-eu-central-1 eu-central-2 eu-west-1 eu-west-2 eu-west-3 eu-north-1 eu-south-1 eu-south-2 fr-par nl-ams pl-waw gra sbg rbx par}"
+ALLOWED_REGIONS="${BACKUP_S3_ALLOWED_REGIONS:-eu-central-1 eu-central-2 eu-west-1 eu-west-3 eu-north-1 eu-south-1 eu-south-2 fr-par nl-ams pl-waw gra sbg rbx par}"
 MODE="${BACKUP_S3_IMMUTABILITY_CHECK:-}"
 if [ -z "$MODE" ]; then
 	if [ "$ENVIRONMENT" = production ]; then MODE=enforce; else MODE=warn; fi

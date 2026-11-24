@@ -18,14 +18,6 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-/**
- * Workspaces whose specs still carry type errors, with the count at the time
- * of exclusion. Remove an entry once its specs pass; never add one
- * (trader-trainer must never be listed).
- */
-const EXCLUDED = new Map([
-]);
-
 const workspaces = ['packages', 'services'].flatMap((group) =>
   readdirSync(join(ROOT, group))
     .map((name) => `${group}/${name}`)
@@ -39,10 +31,6 @@ if (missing.length > 0) {
 }
 
 for (const dir of workspaces) {
-  if (EXCLUDED.has(dir)) {
-    console.log(`skip  ${dir} (${EXCLUDED.get(dir)} known errors, see EXCLUDED)`);
-    continue;
-  }
   const tsc = createRequire(join(ROOT, dir, 'package.json')).resolve('typescript/bin/tsc');
   const result = spawnSync(process.execPath, [tsc, '-p', 'tsconfig.test.json'], {
     cwd: join(ROOT, dir),

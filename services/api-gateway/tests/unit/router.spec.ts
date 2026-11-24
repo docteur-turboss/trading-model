@@ -210,7 +210,7 @@ describe("router", () => {
 			expect(forwardRequest).toHaveBeenCalledWith(
 				expect.objectContaining({
 					target: { host: "10.0.1.5", port: 3000 },
-					path: "/signals/assets/BTC?from=2026-11-01&to=2026-11-02",
+					path: "/v2/signals/assets/BTC?from=2026-11-01&to=2026-11-02",
 				}),
 				ENV
 			);

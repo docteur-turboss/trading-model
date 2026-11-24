@@ -46,14 +46,12 @@ kubectl -n $NS get pods -l app.kubernetes.io/component=$JOB
 # 3. Dependencies: errors and timeouts in the logs
 kubectl -n $NS logs deploy/$JOB --tail=200 | grep -iE "timeout|ECONN|slow|circuit"
 
-# 4. The service itself (mTLS only: use its SVID)
+# 4. The service itself (mTLS only: use its SVID, `SVID_GET` from on-call.md; prefix with `time` for the latency)
 kubectl exec -n $NS deployment/$JOB -c $JOB -- \
-  curl -skf -w '%{time_total}s\n' --cert /run/spire/svid/svid.pem \
-  --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready
+  node -e "$SVID_GET" https://localhost:3000/health/ready
 ```
 
-Compose: `docker exec <container> curl -skf -w '%{time_total}s\n' --cert
-/run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem
+Compose: `docker exec <container> node -e "$SVID_GET"
 https://localhost:3000/<route>` (containers and routes:
 [on-call.md](../on-call.md#health-check-endpoints)).
 

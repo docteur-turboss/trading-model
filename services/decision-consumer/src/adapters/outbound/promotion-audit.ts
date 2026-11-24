@@ -4,8 +4,8 @@ import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import { RiskEvent } from "@trading-model/contracts/risk-events";
 import {
 	type InstanceId,
-	toServiceId,
-	toTopic,
+	ServiceId,
+	Topic,
 } from "@trading-model/primitives/primitives";
 import { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
 import { ENV } from "../../infrastructure/config/env";
@@ -29,11 +29,11 @@ export class PromotionAudit {
 		sha256: string;
 	}): Promise<void> {
 		const metadata = new HELPER.metadataBuilder(
-			toTopic(RiskEvent.PromotionLoaded),
+			Topic.of(RiskEvent.PromotionLoaded),
 			RiskEvent.PromotionLoaded,
 			{
 				instanceId: this._instanceId,
-				serviceName: toServiceId(ServiceInstanceName.DecisionConsumerService),
+				serviceName: ServiceId.of(ServiceInstanceName.DecisionConsumerService),
 			}
 		)
 			.setDelivery({ mode: DeliveryMode.AtLeastOnce })

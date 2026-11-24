@@ -134,6 +134,9 @@ spec:
               readOnly: true
             - name: state
               mountPath: /data/risk-execution
+            - name: trainer-models
+              mountPath: /data/checkpoints
+              readOnly: true
           livenessProbe:
             exec:
               command:
@@ -205,6 +208,10 @@ spec:
         - name: state
           persistentVolumeClaim:
             claimName: risk-execution-pvc
+        - name: trainer-models
+          persistentVolumeClaim:
+            claimName: trainer-checkpoints-pvc
+            readOnly: true
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

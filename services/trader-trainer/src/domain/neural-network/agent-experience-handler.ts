@@ -1,10 +1,13 @@
 import { agentError } from "@trading-model/model-runtime/errors";
 import type {
 	Experience,
-	NetworkArchitecture,
+	NeuralNetworkConfig,
 	QLearningExperience,
 } from "@trading-model/model-runtime/neural-network/type";
-import { ExperienceKind } from "@trading-model/model-runtime/neural-network/type";
+import {
+	ExperienceKind,
+	mergeConfig,
+} from "@trading-model/model-runtime/neural-network/type";
 import {
 	createExperiencePool,
 	type ExperiencePoolPort,
@@ -41,19 +44,17 @@ function _trainReplayed(
 export class AgentExperienceHandler {
 	private readonly _pool: ExperiencePoolPort;
 
-	constructor(cfg: NetworkArchitecture) {
-		const enablePool = cfg.enablePool ?? true;
-		const poolMaxSize = cfg.poolMaxSize ?? 10_000;
+	constructor(cfg: NeuralNetworkConfig) {
+		const merged = mergeConfig(cfg);
 		this._pool = createExperiencePool(
-			enablePool,
-			poolMaxSize,
+			merged.poolMaxSize,
 			{
-				prioritized: cfg.perEnabled ?? false,
-				alpha: cfg.perAlpha ?? 0.6,
-				beta: cfg.perBeta ?? 0.4,
-				betaAnneal: cfg.perBetaAnneal ?? false,
+				prioritized: merged.perEnabled,
+				alpha: merged.perAlpha,
+				beta: merged.perBeta,
+				betaAnneal: merged.perBetaAnneal,
 			},
-			cfg.rng
+			merged.rng
 		);
 	}
 

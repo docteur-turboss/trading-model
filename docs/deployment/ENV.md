@@ -142,10 +142,10 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `TRAINER_SEED_OFFSET`             | int          | `0`               | no       | Added to the default PRNG seeds: same value and same data give the same run (A/B measures, ADR-0030) | TT       |
 | `TRAINER_OBSERVE_POSITION`        | boolean      | `true`            | no       | Show the agent its position (`false`: a constant input, to measure what it is worth, ADR-0025) | TT       |
 | `TRAINER_WALK_FORWARD_FOLDS`      | number (1-20)| `1`               | no       | Walk-forward folds per training run (ADR-0030); `1`: a single train/validation split | TT       |
-| `TRAINER_MODEL_DIR`               | string       | `/data/checkpoints/models` | no | Model artifact directory (ADR-0022), on the checkpoint volume shared by the replicas | TT       |
+| `TRAINER_MODEL_DIR`               | string       | `/data/checkpoints/models` | no | Model artifact directory (ADR-0022), on the checkpoint volume shared by the replicas; model-evaluator and risk-execution mount it read-only (ADR-0089) | TT, ME, RX |
 | `TRAINER_MODEL_RETENTION`         | number (≥1)  | `20`              | no       | Model versions kept per symbol           | TT       |
 | `TRAINER_LEASE_NAME` | string | (empty) | no | Kubernetes Lease the trainer pods compete for; only its holder trains, every pod serves the read routes (ADR-0058). Set on `trader-trainer` in K8s; empty (compose, dev): this instance trains | TT |
-| `MODEL_DOWNLOAD_CALLERS`          | string       | _(empty)_         | no       | Comma-separated services allowed to download model weights (ADR-0022). Empty: nobody; `model-evaluator,decision-consumer` in compose and K8s (ADR-0049, ADR-0087) | TT       |
+| `MODEL_DOWNLOAD_CALLERS`          | string       | _(empty)_         | no       | Comma-separated services allowed to download model weights (ADR-0022). Empty: nobody; `model-evaluator,decision-consumer` in compose and K8s (ADR-0049, ADR-0089) | TT       |
 
 ---
 
@@ -176,7 +176,7 @@ ADR-0064. Limits are validated at startup and refuse to start above their hard c
 
 ## Decision Consumer
 
-ADR-0087. Paper only: no broker key, no kill switch, no mode choice (ADR-0064 §1, §5, §6).
+ADR-0089. Paper only: no broker key, no kill switch, no mode choice (ADR-0064 §1, §5, §6).
 
 | Variable | Type | Default | Required | Description | Services |
 | --- | --- | --- | --- | --- | --- |

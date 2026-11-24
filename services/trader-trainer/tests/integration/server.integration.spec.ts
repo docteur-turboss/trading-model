@@ -155,7 +155,7 @@ function fetchJson(
 			reject(new Error("Server not listening"));
 			return;
 		}
-		const req = http.get(`http://localhost:${addr.port}${path}`, (res) => {
+		const req = http.get(`http://localhost:${addr.port}/v1${path}`, (res) => {
 			let data = "";
 			res.on("data", (chunk: string) => {
 				data += chunk;

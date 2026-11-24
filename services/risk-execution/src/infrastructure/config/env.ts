@@ -14,6 +14,8 @@ const RISK_EXECUTION_ENV_SHAPE = {
 	/** Live broker keys: only the production Secret holds them; never set in paper mode. */
 	BROKER_API_KEY: z.string().min(1).optional(),
 	BROKER_API_SECRET: z.string().min(1).optional(),
+	/** Model artifacts of the trainer, mounted read-only (ADR-0022, ADR-0089). */
+	TRAINER_MODEL_DIR: z.string().min(1).default("/data/checkpoints/models"),
 	/** Directory of the durable state (a PVC in K8s): kill switch, orders, paper ledger. */
 	RISK_STATE_DIR: z.string().min(1).default("/data/risk-execution"),
 	/** Allocated capital of the mode (policy §2). */

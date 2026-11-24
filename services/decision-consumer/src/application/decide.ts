@@ -1,6 +1,7 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { CandleData } from "@trading-model/contracts/market-data.types";
+import type { Intent } from "@trading-model/contracts/order-intent";
 import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
 import { DAY_MS } from "@trading-model/model-runtime/features/feature-builder";
 import { decideOnLastBar } from "@trading-model/model-runtime/replay";
@@ -10,7 +11,6 @@ import {
 } from "../config/metrics";
 import {
 	decisionId,
-	type Intent,
 	type ModelManifest,
 	type PromotedModel,
 	verifyModel,

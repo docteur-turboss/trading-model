@@ -127,8 +127,7 @@ trading-edge       Up (healthy)
 for c in trading-discovery trading-message trading-scraper trading-trainer \
          trading-gateway trading-audit trading-dlq; do
   printf '%s: ' "$c"
-  docker exec "$c" curl -sk --cert /run/spire/svid/svid.pem \
-    --key /run/spire/svid/svid_key.pem https://localhost:3000/ping; echo
+  docker exec "$c" node -e "$SVID_GET" https://localhost:3000/ping; echo
 done
 curl -s http://localhost:8449/ping       # edge-proxy (HTTP entry to the gateway under /v1 and /v2)
 
@@ -409,8 +408,7 @@ Individual health checks:
 for c in trading-discovery trading-message trading-scraper trading-trainer \
          trading-gateway trading-audit trading-dlq; do
   printf '%s: ' "$c"
-  docker exec "$c" curl -sk --cert /run/spire/svid/svid.pem \
-    --key /run/spire/svid/svid_key.pem https://localhost:3000/ping; echo
+  docker exec "$c" node -e "$SVID_GET" https://localhost:3000/ping; echo
 done
 curl -s http://localhost:8449/ping      # Edge proxy (HTTP)
 ```

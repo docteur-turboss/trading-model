@@ -191,8 +191,7 @@ kubectl exec -n trading-model mongo-audit-0 -c mongodb -- mongosh --quiet --eval
 
 # Services see their database (client SVID)
 kubectl exec -n trading-model deployment/audit-logger -c audit-logger -- \
-  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/health/ready
+  node -e "$SVID_GET" https://localhost:3000/health/ready
 ```
 
 ### No primary elected

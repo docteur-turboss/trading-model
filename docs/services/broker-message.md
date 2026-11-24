@@ -8,6 +8,21 @@ Message bus library: publish to and consume from the Redis Streams journal, in p
 
 Every microservice uses this package to send and receive typed, validated messages through the bus; no broker service sits in between.
 
+## Bus library (`src/bus/`)
+
+`busJournalFromEnv(env)` (`@trading-model/broker-message/create-message-manager`) returns a `RedisMessageJournal` and throws without Redis settings (`REDIS_URL` or `REDIS_SENTINELS`, `REDIS_SENTINEL_MASTER_NAME`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_SENTINEL_PASSWORD`, `REDIS_TLS_MODE`, `REDIS_TLS_CA`, `REDIS_TLS_SERVERNAME`, plus `JOURNAL_MIN_REPLICAS`). `createServiceMessageManager` passes it to `BrokerMessage`. Keys keep the prefix `trading-model:message-manager`.
+
+| Export (`@trading-model/broker-message/bus/…`) | Role |
+| ---------------------------------------------- | ---- |
+| `publisher` — `publishToBus` | `XADD` into the topic stream; rejects when Redis refuses the write or when `delivery.requireSubscriber` is set and nobody subscribes |
+| `consumer` — `BusConsumer` | One loop per topic, `XREADGROUP` + `XCLAIM` retries, `XACK` on success; one consumer group per subscriber service |
+| `redis-journal`, `journal.port` | Journal over Redis Streams (`RedisMessageJournal`, `MessageJournalPort`) |
+| `dead-streams` — `DeadStreams` | Entries over the delivery limit (10 for `at-least-once`) expired TTL, failed `exactly-once` attempt, or rejected with a `DeadLetterError` are copied to `trading-model:message-manager:dead:<topic>`, entries older than 7 days trimmed on each new dead letter (`DEAD_LETTER_RETENTION_MS`) |
+| `metrics` | `mm_messages_delivered_total`, `mm_messages_dlq_total`, `mm_journal_*`, `bus_dead_letters`, `bus_publisher_rejected_total` |
+| `backoff`, `delivery-error-classifier`, `delivery-metadata-extractor`, `message-factory` | Retry delay, error classification, delivery metadata, message construction |
+
+Dead letters are read, replayed and deleted with the `audit-dlq` CLI of audit-logger (`dlq-cli.js <operator> list|replay|delete`), see [runbook-message-bus-outage](../operations/runbooks/runbook-message-bus-outage.md). Replicas of a service share the group: one of them gets each entry, never both.
+
 ## Dependencies
 
 - `@trading-model/http` — HttpClient, middleware (`catchSync`, `ResponseException`)
