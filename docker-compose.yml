@@ -921,7 +921,7 @@ services:
   # ---------------------------------------------------------------------------
   edge-proxy:
     logging: *default-logging
-    image: nginx:1.31.8-alpine@sha256:fed7e14be83cbd2661a75cdc5b872d936cf155d46c327084d30b8df19ae88d72  # nginx 1.31.8-alpine
+    image: nginx:1.31.9-alpine@sha256:fb4658584bd9a916ffb6f6e365f97c25cfdb2923801f551ea08356e695f14ff7  # nginx 1.31.8-alpine
     container_name: trading-edge
     restart: unless-stopped
     mem_limit: 128m
@@ -1198,7 +1198,7 @@ services:
   # Remaining limit: /networks lists every network of the daemon (names only).
   docker-socket-proxy:
     logging: *default-logging
-    image: nginx:1.31.8-alpine@sha256:fed7e14be83cbd2661a75cdc5b872d936cf155d46c327084d30b8df19ae88d72  # nginx 1.31.8-alpine
+    image: nginx:1.31.9-alpine@sha256:fb4658584bd9a916ffb6f6e365f97c25cfdb2923801f551ea08356e695f14ff7  # nginx 1.31.8-alpine
     container_name: trading-docker-socket-proxy
     restart: unless-stopped
     # Root to read the root-owned socket; SETGID only for nginx's worker initgroups.
