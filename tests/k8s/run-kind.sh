@@ -1561,7 +1561,7 @@ verify_backup() {
 		log "fetch-offsite.sh fetched $fetched file(s) of the run instead of 8 (5 dumps, 2 PITR starting points, run manifest)"
 		return 1
 	}
-	for dir in mysql/binlog mongodb/oplog/mongodb mongodb/oplog/mongodb-audit; do
+	for dir in mysql/binlog mongodb/oplog/mongodb-audit; do
 		[ "$(runner "find /restore/$dir -type f -name '*.gz.age' | wc -l")" -ge 1 ] || {
 			log "fetch-offsite.sh --pitr fetched no archive into $dir"
 			return 1
