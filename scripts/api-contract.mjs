@@ -100,7 +100,7 @@ const CALLERS = {
 	"message-manager POST /message/replay": { caller: "services/dlq-service", call: /"\/message\/replay"/ },
 	"audit-logger POST /message": { caller: "services/audit-logger", call: /\.intents\(/ },
 	"model-evaluator POST /message": { caller: "services/model-evaluator", call: /\.intents\(/ },
-	"trader-trainer GET /models/:symbol/:version/weights": { caller: "packages/http", call: /\/weights`/ },
+	"trader-trainer GET /models/:symbol/:version/weights": { caller: "packages/model-runtime", call: /\/weights`/ },
 	"financial-scraper GET /v2/candles/latest": { caller: "services/risk-execution", call: /\/v2\/candles\/latest/ },
 	"risk-execution POST /intents": { caller: "services/decision-consumer", call: /\/intents`/ },
 	"risk-execution GET /positions/:symbol": { caller: "services/decision-consumer", call: /\/positions\// },
