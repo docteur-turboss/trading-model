@@ -39,9 +39,9 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 
 | Service                 | Port | Purpose                                                        |
 | ----------------------- | ---- | -------------------------------------------------------------- |
-| `discovery-server`      | 8443 | Service registry with TTL-based lease management + HMAC tokens |
+| `discovery-server`      | 8443 | Service registry with TTL-based lease management + HMAC tokens (retired in N+1, ADR-0072) |
 | `message-manager`       | 8444 | Topic-based pub/sub broker with DLQ routing                    |
-| `financial-scraper`     | 8445 | Binance market data ingestion (candles, trades, order books)   |
+| `financial-scraper`     | 8445 | Market data (Binance) and public signal ingestion              |
 | `trader-trainer`        | 8446 | GA + DQN agent evolution engine                                |
 | `api-gateway`           | 8448 | Single external entry point: auth, rate-limit, cache, proxy    |
 | `audit-logger`          | 8450 | Immutable event traceability (hash-chained audit trail)        |
@@ -58,12 +58,12 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 | `@trading-model/primitives` | Pure domain primitives: branded types, pagination, circuit-state, retry-policy. Zero dependencies |
 | `@trading-model/contracts` | Shared runtime-free contracts: events, message envelope, service registry, `http-status`/`http-headers`, `LoggerPort` registry |
 | `@trading-model/reliability` | Circuit breaker, circuit-state machine, heartbeat, leader lease |
-| `@trading-model/model-runtime` | Network forward pass, feature codec, portfolio simulator shared by trader-trainer and model-evaluator |
+| `@trading-model/model-runtime` | Network forward pass, feature codec, portfolio simulator shared by trader-trainer, model-evaluator, decision-consumer, risk-execution and `http` |
 | `@trading-model/common` | Residual shared infra: `AppError`/`ErrorCodes`, retry/backoff, SPIFFE identity, TLS path config, cache abstractions, shared Zod schemas |
 | `@trading-model/persistence` | Redis/Mongo connection managers, store adapters, key builders |
 | `@trading-model/http` | HTTP middleware (mTLS auth, response protocol), HTTP client, logging pipeline, secure HTTPS server factory, TLS watcher, bootstrap and shutdown, telemetry |
 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness |
-| `@trading-model/address-manager` | Service discovery client with health-checking and token rotation |
+| `@trading-model/address-manager` | Service DNS names (ADR-0072); registration with discovery-server until release N+1 |
 | `@trading-model/broker-message` | Inter-service messaging SDK with typed event subscriptions |
 
 ### Workload identity
@@ -122,7 +122,7 @@ The pre-push git hook is `.husky/pre-push`.
 
 ## Monitoring
 
-- **Dashboards:** 4 Grafana dashboards (SLO, services, message-manager, trader-trainer)
+- **Dashboards:** Grafana dashboards (SLO, services, message-manager, trader-trainer, risk-execution)
 - **Alerts:** Prometheus rules in `deploy/k8s/infra/config/alerting.yml` (SLO burn rates + operational, shared by compose and K8s), checked by `scripts/observability-gate.mjs` and unit-tested with promtool (`tests/alerts`) → Alertmanager → Slack/Pushover, with a `Watchdog` dead man's switch ([Alerting](docs/operations/ALERTING.md))
 - **Traces:** OpenTelemetry → OTLP Collector → Jaeger (every service instrumented)
 - **Logs:** structured JSON → Promtail → Loki
