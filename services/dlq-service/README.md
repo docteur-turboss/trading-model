@@ -1,6 +1,6 @@
 # DLQ Service
 
-Stores messages the broker could not deliver, with replay, automatic retry and pruning.
+Stores messages the broker could not deliver, with replay and pruning.
 
 - Service doc (API, config, dependencies): [docs/services/dlq-service.md](../../docs/services/dlq-service.md)
 - Architecture: [ARCHITECTURE.md](./ARCHITECTURE.md)
