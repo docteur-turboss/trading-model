@@ -656,9 +656,6 @@ run_components() {
       checkpoints) restore_checkpoints ;;
       spire)       restore_spire ;;
       risk)        restore_risk ;;
-      # Derived state only (discovery registrations and tokens, DLQ retry queue
-      # rebuilt from MongoDB): rebuilt by the services, never restored.
-      redis)       warn "Redis is not backed up: its content is rebuilt by the services" ;;
       *)           fail "Unknown component: ${part}" ;;
     esac
     $DRY_RUN || log "restore-timing component=${part} seconds=$((SECONDS - started))"
