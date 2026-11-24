@@ -25,7 +25,7 @@ The compose stack keeps `http://localhost:8449` (edge-proxy). It is deployed by 
   `check-environment` reports a missing rule as `::error::` in the preflight
   summary without blocking the deploy ([DEPLOY.md](DEPLOY.md#prerequisites-secrets)).
 - Repository variable `STAGING_RUNNER` (`trading-staging`): `runs-on` label of the
-  staging job. Unset: `ubuntu-latest`.
+  staging job. Unset: `ubuntu-24.04`.
 - Variable `K8S_OVERLAY` of the environment `staging` (`staging-local`): the
   overlay directory. Unset: the environment name.
 - Variable `DEPLOY_TIMEOUT_FACTOR` of the environment `staging` (`4`): integer
@@ -285,7 +285,7 @@ kubectl -n "$NS" exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=$REDIS_MESSAGE_MA
 
 The cluster may be stopped between two deploys. Nothing calls it except
 `deploy.yml` and, when `vars.SEALED_SECRETS_BACKUP_RUNNER` is set,
-`sealed-secrets-key-backup.yml` (default `ubuntu-latest`), and staging holds no data that
+`sealed-secrets-key-backup.yml` (default `ubuntu-24.04`), and staging holds no data that
 the compose stack or production needs. The price is a blind period: nothing
 runs in the cluster while it is down.
 

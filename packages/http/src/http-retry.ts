@@ -1,7 +1,4 @@
-import {
-	type BackoffConfig,
-	computeExponentialBackoffWithJitter,
-} from "@trading-model/common/utils/backoff-config";
+import { computeExponentialBackoffWithJitter } from "@trading-model/common/utils/backoff-config";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
 import { DurationMs } from "@trading-model/primitives/primitives";
@@ -24,17 +21,11 @@ function isRetryableStatusPermissive(code: number): boolean {
 	return isRetryableStatus(code) || code === HTTP_STATUS.REQUEST_TIMEOUT;
 }
 
-function computeRetryDelay(
-	attempt: number,
-	options?: BackoffConfig
-): DurationMs {
-	return computeExponentialBackoffWithJitter(
-		attempt,
-		options ?? {
-			baseDelayMs: DurationMs.of(200),
-			maxDelayMs: DurationMs.of(5000),
-		}
-	);
+function computeRetryDelay(attempt: number): DurationMs {
+	return computeExponentialBackoffWithJitter(attempt, {
+		baseDelayMs: DurationMs.of(200),
+		maxDelayMs: DurationMs.of(5000),
+	});
 }
 
 export {
