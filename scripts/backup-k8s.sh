@@ -234,9 +234,6 @@ for part in "${PARTS[@]}"; do
   case "$part" in
     mongodb)      backup_mongodb ;;
     mysql)        backup_mysql ;;
-    # Derived state only (discovery registrations and tokens, DLQ retry queue
-    # rebuilt from MongoDB): rebuilt by the services, never restored.
-    redis)        warn "Redis is not backed up: its content is rebuilt by the services" ;;
     checkpoints)  backup_volume checkpoints trader-trainer tar czf - -C /data/checkpoints . ;;
     # *.json only: never a half-written tmp file (JsonFile renames it into place).
     risk)         backup_volume risk risk-execution sh -c 'cd /data/risk-execution && tar czf - *.json' ;;
