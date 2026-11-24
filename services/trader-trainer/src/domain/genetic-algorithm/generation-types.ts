@@ -25,7 +25,6 @@ export interface GARunnerConfig {
 	windowSets: WindowSet[];
 	backendFactory: BackendFactory;
 	onGeneration?: (ctx: GenerationContext) => void;
-	onArchiveUpdate?: (archive: DeepReadonly<LamarckGenome>[]) => void;
 	initialControl?: Partial<GAControlGenome>;
 	/** Observability hooks (no-op when omitted). */
 	telemetry?: GaTelemetry;
@@ -35,6 +34,8 @@ export interface GARunnerConfig {
 	eventDriven?: boolean;
 	/** FEATURE_INPUT_MASK_GENE: names of the input groups the genome masks; absent: no mask gene. */
 	inputGroups?: string[];
+	/** FEATURE_SHARED_TRUNK: symbols each generation trains and evaluates on (rotating); absent: all. */
+	symbolsPerGeneration?: number;
 	/** The candle group stays active in every mask. */
 	protectCandleGroup?: boolean;
 }

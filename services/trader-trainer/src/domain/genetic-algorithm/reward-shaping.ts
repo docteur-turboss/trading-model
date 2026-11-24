@@ -1,5 +1,4 @@
 import type { NormalizationStats } from "@trading-model/model-runtime/features/normalization-stats";
-import type { NumericRange } from "@trading-model/primitives/numeric-range";
 import type { LamarckGenome } from "./genome";
 import type { DeepReadonly } from "./shared-types";
 
@@ -11,8 +10,11 @@ function _scaleAndClip(raw: number, config: RewardShapingGenes): number {
 		shaped *= config.scaleFactor;
 	}
 	if (config.clip) {
-		// as unknown as: clipBounds is a NumericRange at runtime
-		shaped = (config.clipBounds as unknown as NumericRange).clamp(shaped);
+		// Numbers only: a genome read back from JSON or sent to a worker has no NumericRange methods.
+		shaped = Math.min(
+			config.clipBounds.hi,
+			Math.max(config.clipBounds.lo, shaped)
+		);
 	}
 	return shaped;
 }

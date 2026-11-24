@@ -39,6 +39,40 @@ const wire = (message: Message) => JSON.parse(JSON.stringify(message));
 const stored = (message: Message) => ["message", JSON.stringify(message)];
 
 describe("RedisMessageJournal", () => {
+	it("should remove only idle consumers with nothing pending", async () => {
+		const row = (name: string, pending: number, idle: number) => [
+			"name",
+			name,
+			"pending",
+			pending,
+			"idle",
+			idle,
+		];
+		const { redis, journal } = setup(async (name) =>
+			name === "XINFO"
+				? [
+						row("dead", 0, 9e6),
+						row("busy", 2, 9e6),
+						row("me", 0, 9e6),
+						row("new", 0, 1),
+					]
+				: "OK"
+		);
+
+		await journal.pruneConsumers(GROUP, "me", 600_000);
+
+		const deletes = redis.call.mock.calls.filter(([name]) => name === "XGROUP");
+		expect(deletes).toEqual([
+			[
+				"XGROUP",
+				"DELCONSUMER",
+				"p:journal:test.topic",
+				"trader-trainer",
+				"dead",
+			],
+		]);
+	});
+
 	it("should create the group of each service before writing the message, trimming old entries", async () => {
 		const { redis, journal } = setup();
 		const message = createMockMessage("payload");
@@ -362,34 +396,49 @@ describe("RedisMessageJournal", () => {
 		);
 	});
 
-	it("should issue every XCLAIM before any resolves and keep the XPENDING order", async () => {
+	it("should send one XCLAIM per min-idle value, keep the XPENDING order and skip entries another replica took", async () => {
 		const message = createMockMessage("payload");
-		const release: Array<() => void> = [];
-		const { journal, redis } = setup(async (command) => {
+		const { journal, redis } = setup(async (command, ...args) => {
 			if (command === "XPENDING") {
 				return [
 					["1-0", "d", 20_000, 1],
-					["2-0", "d", 20_000, 1],
+					["2-0", "d", 20_000, 3],
+					["3-0", "d", 20_000, 1],
+					["4-0", "d", 20_000, 1],
 				];
 			}
-			await new Promise<void>((resolve) => release.push(resolve));
-			return [["x", stored(message)]];
+			// Min-idle 1 claims 1-0 and 3-0 (4-0 was taken elsewhere); min-idle 3 claims 2-0.
+			return args[3] === "1"
+				? [
+						["3-0", stored(message)],
+						["1-0", stored(message)],
+					]
+				: [["2-0", stored(message)]];
 		});
 
-		const claimed = journal.claimDue(
+		const claimed = await journal.claimDue(
 			GROUP,
 			"c",
-			{ floorMs: 0, dueAfterMs: () => 0 },
+			{ floorMs: 0, dueAfterMs: (deliveries) => deliveries },
 			10
 		);
-		await new Promise((resolve) => setImmediate(resolve));
-		expect(release).toHaveLength(2);
-		for (const resolve of release.reverse()) {
-			resolve();
-		}
 
-		expect((await claimed).map((entry) => entry.deliveries)).toEqual([2, 2]);
+		expect(claimed.map((entry) => [entry.id, entry.deliveries])).toEqual([
+			["1-0", 2],
+			["2-0", 4],
+			["3-0", 2],
+		]);
 		expect(redis.call).toHaveBeenCalledTimes(3);
+		expect(redis.call).toHaveBeenCalledWith(
+			"XCLAIM",
+			"p:journal:test.topic",
+			"trader-trainer",
+			"c",
+			"1",
+			"1-0",
+			"3-0",
+			"4-0"
+		);
 	});
 
 	it("should skip and acknowledge an entry trimmed from the stream while still pending", async () => {

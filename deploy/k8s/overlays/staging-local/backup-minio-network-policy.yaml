@@ -1,0 +1,22 @@
+# Off-site copy of the backup CronJobs to the local MinIO (fixed address on the
+# `kind` network, plain HTTP on 9000): default-deny-all and apiserver-egress
+# only allow public addresses on 443.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backup-minio-egress
+  labels:
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backup
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 172.18.0.200/32
+      ports:
+        - port: 9000
+          protocol: TCP

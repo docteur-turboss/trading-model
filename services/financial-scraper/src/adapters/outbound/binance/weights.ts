@@ -42,8 +42,4 @@ export const BINANCE_WEIGHTS = {
 		}
 		return WEIGHT.CHANGE_24HR_HIGH;
 	},
-	symbolPriceTicker: (symbolLength: number): ApiWeight =>
-		symbolLength === 1 ? WEIGHT.TICKER_ONE_SYMBOL : WEIGHT.TICKER_MANY_SYMBOLS,
-	orderBookTicker: (symbolLength: number): ApiWeight =>
-		symbolLength === 1 ? WEIGHT.TICKER_ONE_SYMBOL : WEIGHT.TICKER_MANY_SYMBOLS,
 };

@@ -16,9 +16,9 @@ describe("backoffDelay", () => {
 		}
 	});
 
-	it("should cap the delay at 20s plus jitter", () => {
+	it("should cap the delay at 20s, jitter included", () => {
 		for (let i = 0; i < 50; i++) {
-			expect(backoffDelay(9 as SequenceNumber)).toBeLessThanOrEqual(24_000);
+			expect(backoffDelay(9 as SequenceNumber)).toBeLessThanOrEqual(20_000);
 		}
 	});
 });
@@ -29,7 +29,7 @@ describe("retryDueMs", () => {
 		for (let deliveries = 1; deliveries <= 10; deliveries++) {
 			const due = retryDueMs(deliveries);
 			expect(due).toBeGreaterThanOrEqual(DELIVERY_ATTEMPT_TIMEOUT_MS);
-			expect(due).toBeLessThanOrEqual(DELIVERY_ATTEMPT_TIMEOUT_MS + 24_000);
+			expect(due).toBeLessThanOrEqual(DELIVERY_ATTEMPT_TIMEOUT_MS + 20_000);
 		}
 	});
 });

@@ -23,7 +23,7 @@ Replace the in-house CA and the shared static certificate bundle with a **SPIRE*
 ### Identity scheme
 
 - Trust domain: `spiffe://trading-model.local`
-- SVID SPIFFE ID shape: `spiffe://trading-model.local/ns/<namespace>/sa/<service>` where `<service>` is the **canonical service name** and the last path segment (already what `extractServiceName` reads).
+- SVID SPIFFE ID shape: `spiffe://trading-model.local/ns/<namespace>/sa/<service>` where `<service>` is the **canonical service name** and the last path segment.
 - The canonical service name list in `packages/common/src/config/workload-identity.ts` becomes the single source of truth for service identities (K8s SA names, SPIFFE entries, ACL, discovery registration), superseding the diverging `ServiceInstanceName` / `KnownService` / compose `SERVICE_NAME` vocabularies (migration keeps a temporary alias map).
 
 ### SVID consumption
@@ -66,7 +66,7 @@ Replace the in-house CA and the shared static certificate bundle with a **SPIRE*
 ### Negative
 
 - New operational dependency (SPIRE Server/Agent) on both K8s and Compose.
-- Docker Compose attestation requires the Docker API (CI caveat, join-token fallback). Amendment (issue #846): the agent and promtail no longer mount `/var/run/docker.sock`; `docker-socket-proxy` (`wollomatic/socket-proxy`, digest-pinned, issue #1623) is its only holder, read-only, GET allow-list `/_ping`, `/version`, `/containers/json`, `/networks`, `/containers/{id}/json`, `/containers/{id}/logs` only (`archive`, `export`, POST: 403), on the internal network `docker-api-net`. The agent reaches it with `docker_socket_path = "tcp://docker-socket-proxy:2375"`.
+- Docker Compose attestation requires the Docker API (CI caveat, join-token fallback). Amendment (issue #846): the agent and promtail no longer mount `/var/run/docker.sock`; `docker-socket-proxy` (digest-pinned nginx + njs, `deploy/docker-socket-proxy/`, issue #2409; `wollomatic/socket-proxy` until then, issue #1623) is its only holder, read-only, GET allow-list `/_ping`, `/version`, `/containers/json`, `/networks`, `/containers/{id}/json`, `/containers/{id}/logs` only (`archive`, `export`, POST: 403), on the internal network `docker-api-net`. Only the containers of the compose project (label `com.docker.compose.project`) are listed, inspected or have their logs read (403 otherwise), and inspect never returns `Config.Env`: the attestor only needs the `docker:label` selectors, so a compromised agent or promtail no longer reads another project's secrets or logs on a shared Docker host. The agent reaches it with `docker_socket_path = "tcp://docker-socket-proxy:2375"`.
 - Hostname verification must be disabled on outbound clients in favour of trust-bundle + app-layer SPIFFE ID checks.
 
 ### Mitigations

@@ -52,6 +52,8 @@ jest.mock("../../src/adapters/outbound/proxy-handler", () => ({
 
 jest.mock("../../src/adapters/inbound/rate-limiter", () => ({
 	createRateLimiter: () => (_req: any, _res: any, next: () => void) => next(),
+	createAuthFailureLimiter: () => (_req: any, _res: any, next: () => void) =>
+		next(),
 }));
 
 jest.mock("../../src/adapters/inbound/auth", () => ({
@@ -209,7 +211,7 @@ describe("router", () => {
 			expect(forwardRequest).toHaveBeenCalledWith(
 				expect.objectContaining({
 					target: { host: "10.0.1.5", port: 3000 },
-					path: "/signals/assets/BTC?from=2026-11-01&to=2026-11-02",
+					path: "/v2/signals/assets/BTC?from=2026-11-01&to=2026-11-02",
 				}),
 				ENV
 			);

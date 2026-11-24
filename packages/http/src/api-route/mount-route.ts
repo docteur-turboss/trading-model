@@ -1,8 +1,7 @@
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { RequestHandler, Router } from "express";
 import { catchSync } from "../catch-error";
-import type { ResponseObject } from "../response-exception/http-codes";
-import { sendResponse } from "../response-exception/send-response";
+import { type ResponseObject, sendResponse } from "../response-exception";
 import { type ApiRoute, type ApiRouteInput, parseRequest } from "./api-route";
 
 /** Handler of an API route: receives the validated input and the Express request. */
@@ -29,10 +28,8 @@ export function mountRoute<Route extends ApiRoute>(
 	handler: ApiRouteHandler<Route>,
 	options: MountRouteOptions = {}
 ): void {
-	const unversioned = route.path.replace(/^\/v\d+(?=\/)/, "");
 	router[route.method.toLowerCase() as Lowercase<typeof route.method>](
-		// shortcut: release N also mounts a public route without /v<major> for N-1 gateways; removed in N+1 (ADR-0072).
-		unversioned === route.path ? route.path : [route.path, unversioned],
+		route.path,
 		...(options.middlewares ?? []),
 		catchSync((req) => {
 			const parsed = parseRequest(route, req);

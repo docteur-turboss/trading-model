@@ -8,8 +8,10 @@ Start all services:
 
 ```bash
 cp .env.example .env   # then replace the example values
-docker compose up -d
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build   # builds from the sources
 ```
+
+The base `docker-compose.yml` only references released images (`IMAGE_REGISTRY`, `IMAGE_TAG`). The long-running compose stack is deployed by the `deploy-compose.yml` workflow from a release tag, never by `git checkout` + `docker compose up` on the host (ADR-0086).
 
 Follow logs:
 
@@ -132,6 +134,10 @@ environment and prints its secrets):
   branches and tags" with exactly the branches `development` and `main` and the
   tag rule `v*` (the release deploys its tag).
   A required reviewer is advised, not checked.
+- `release` (approval of `release.yml` before any image is published or signed): a required
+  reviewer and the tag rule `v*`. "Prevent self-review" stays off while the owner pushes
+  the tags. `release.yml` checks it first (`ENVIRONMENT_READ_TOKEN`). The orchestrator approves
+  the tags it pushes itself, under the owner's account (ADR-0038 §7).
 - `backup-key-check` (`BACKUP_ESCROW_AGE_IDENTITY`, the key that decrypts every
   backup): "Selected branches and tags" with exactly the branch `main`, **before**
   storing the escrow key. No required reviewer: it would hold the weekly
@@ -161,7 +167,7 @@ bash scripts/deploy-identity.sh app     --namespace trading-model | base64 -w0 |
 bash scripts/deploy-identity.sh cluster --namespace trading-model --environment production | base64 -w0 | gh secret set KUBECONFIG_PRODUCTION_CLUSTER --env production
 ```
 
-**Upgrading to 3.1.0** (existing environment): run both commands again, not only `cluster`. The Role `deploy-app` gained `leases` (collector Lease, ADR-0057) and `delete` on `pods` (rollback of a stuck Redis pod, issue #1142), and the identity cannot grant itself rights. The step "Check deploy-app Role" (`deploy/k8s/scripts/check-app-rbac.sh`) compares the live Role with `app-role.yaml` before any apply and stops with the command when they differ (staging-local: `bash deploy/staging-local/bootstrap.sh identities`).
+**Upgrading to 3.1.0** (existing environment): run both commands again, not only `cluster`. The Role `deploy-app` gained `leases` (collector Lease, ADR-0057) and `delete` on `pods` (rollback of a stuck Redis pod, issue #1142), and the identity cannot grant itself rights. The step "Check deploy-app Role" (`deploy/k8s/scripts/check-app-rbac.sh`) checks before any apply that the live Role holds every right of `app-role.yaml` (a superset passes, so a return to N-1 works) and stops with the command when one is missing (staging-local: `bash deploy/staging-local/bootstrap.sh identities`).
 
 | Identity | Rights | Used by |
 |----------|--------|---------|
@@ -265,7 +271,7 @@ Two cases:
 > **Not production.** Production runs on Kubernetes (see above). This Compose
 > pull is for development hosts only, with no real data.
 
-Instead of building locally, pull published images from GHCR:
+Pull published images from GHCR (what the base file runs):
 
 ```bash
 # Authenticate to GitHub Container Registry
@@ -317,7 +323,10 @@ the repository can check, and lists every gap in one run. What stays manual
    bucket ([Prerequisites (off-site backup bucket)](#prerequisites-off-site-backup-bucket)), `AUDIT_ANCHOR_*` for the audit
    chain anchor bucket (ADR-0027; `AUDIT_ANCHOR_REGION` is required and must be an EU region).
 6. **Compliance**: the `Controller` and `Contact` fields of the
-   [data processing register](../compliance/data-processing-register.md).
+   [data processing register](../compliance/data-processing-register.md);
+   the provider, region and DPA of every operator-chosen service of
+   [third-party-dpas.md](../compliance/third-party-dpas.md#operator-chosen-services)
+   (no "to be confirmed by the operator" left).
 
 Not checked by the preflight: the register, a
 canary or a real rollout (the preflight never starts a pod).
@@ -328,6 +337,53 @@ canary or a real rollout (the preflight never starts a pod).
 2. `bun run release:publish` (on `main`) bumps the versions, writes the CHANGELOG and pushes the tag `vX.Y.Z` ([release.md](../contributing/release.md))
 3. `release.yml` runs the whole CI on the tag, then publishes the images to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release; its last job, `verify-images`, fails if `deploy.yml` cannot resolve one of them.
 4. The `Deploy` workflow is run against the `production` environment (canary enabled for staged rollout)
+
+### Upgrading from 3.0.x: rewrite the Redis AOF first
+
+Redis 8.10.3 (3.1.0 and later) stops on an assertion while it replays an AOF
+increment written by Redis 7.4.11 (3.0.x), and the pod then crash-loops:
+
+```
+# ==> listpack.c:1788 'lpValidateNext(lp, &p, lpbytes)' is not true
+```
+
+The base RDB loads; the increment fails (on staging, at an `XADD <journal> MINID =`
+of the bus journal; issue #2407). Emptying the AOF loses the bus journal
+(ADR-0048), so rewrite it under 7.4 before the first start on 8.x: the increment
+is then empty. No ACL user may run `BGREWRITEAOF` (`redis-ha.sh`), so the
+rewrite is offline, once per data volume, with `scripts/redis-aof-rewrite.sh`
+in a throwaway `redis:7.4.11` container. It prints the key count; the node on
+8.x must then report the same `DBSIZE`. Only a node with the AOF on is concerned:
+every K8s node, a compose host with `REDIS_APPENDONLY=yes` (an RDB alone loads).
+
+Rewrite on a Docker or Kubernetes volume, never on a copy in a Windows bind
+mount: there `BGREWRITEAOF` fails (`aof_last_bgrewrite_status:err`, rename).
+
+Kubernetes, before the `Deploy` of 3.1.x (the bus is down until Redis is back):
+
+```bash
+OLD=redis@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf   # 7.4.11
+kubectl -n "$NS" scale statefulset redis --replicas=0
+kubectl -n "$NS" wait --for=delete pod -l app.kubernetes.io/component=redis --timeout=120s
+for i in 0 1 2; do
+  kubectl -n "$NS" run "redis-aof-rewrite-$i" --rm -i --restart=Never --image="$OLD" --overrides='{"spec":{"securityContext":{"runAsNonRoot":true,"runAsUser":999,"runAsGroup":999,"fsGroup":999,"seccompProfile":{"type":"RuntimeDefault"}},"containers":[{"name":"rewrite","image":"'"$OLD"'","command":["sh","-s"],"stdin":true,"stdinOnce":true,"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}},"volumeMounts":[{"name":"data","mountPath":"/data"}]}],"volumes":[{"name":"data","persistentVolumeClaim":{"claimName":"redis-data-redis-'"$i"'"}}]}}' < scripts/redis-aof-rewrite.sh
+done
+```
+
+Then run the `Deploy` of 3.1.x: its apply brings the StatefulSet back to 3 pods
+on 8.x. A StatefulSet held by `partition` (staging-local) is restarted by hand
+instead (`docs/deployment/STAGING_LOCAL.md`).
+
+Compose, before `docker compose up` on 3.1.x:
+
+```bash
+docker compose stop redis
+docker run --rm -i -u 999 -v trading-model_redis-data:/data "$OLD" sh -s < scripts/redis-aof-rewrite.sh
+```
+
+`bash tests/ops/redis-aof-upgrade.test.sh` (Docker, not in pre-push) checks the
+procedure against the images of `deploy/k8s/infra/redis.yaml`. See "Rollback"
+for the way back.
 
 ---
 
@@ -364,7 +420,12 @@ What the rollback restores:
 - the Redis and Redis Sentinel StatefulSets (ADR-0047: the services' ACL
   credentials only work against nodes of their own release), rolled back first;
   their pods of the failed release that never turned ready are deleted, so the
-  controller recreates them on the restored revision instead of waiting forever;
+  controller recreates them on the restored revision instead of waiting forever.
+  It restores their template, not their data: once a newer Redis major has
+  rewritten the AOF, the older one cannot read it (7.4.11 after 8.10.3: `Can't
+  handle RDB format version 15`, checked by `tests/ops/redis-aof-upgrade.test.sh`),
+  so a rollback of `redis` across 3.0.x / 3.1.x crash-loops: fix forward and keep
+  the Redis of 3.1.x (issue #2407);
 - the service configuration: the ConfigMaps read through `envFrom`
   (`<service>-config`, from `deploy/k8s/config/<service>.properties`) and the
   edge-proxy nginx config are generated by kustomize with a content hash in

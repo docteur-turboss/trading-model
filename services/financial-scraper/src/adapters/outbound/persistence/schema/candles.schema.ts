@@ -1,4 +1,3 @@
-import type { SourceType } from "@trading-model/contracts/market-data.types";
 import {
 	type TradingSymbol,
 	UnixTimestamp,
@@ -98,7 +97,7 @@ export const insertCandles = defineUpsert<CandleData>({
 	],
 });
 
-/** Query helpers for the market_candles table, indexed by symbol, timestamp, and source. */
+/** Query helpers for the market_candles table; index `(symbol, timestamp, id)` serves the paged symbol read (migrate.mjs `index-build`). */
 export const selectCandlesBy = {
 	symbol: (symbol: TradingSymbol, page: MarketDataPage) =>
 		pagedSelect(
@@ -116,13 +115,6 @@ export const selectCandlesBy = {
 				page
 			),
 	},
-	source: (source: SourceType, page: MarketDataPage) =>
-		pagedSelect(
-			T_MARKET_CANDLES,
-			SELECT,
-			T_MARKET_CANDLES.source.equals(source),
-			page
-		),
 };
 
 interface LastRow extends RowDataPacket {

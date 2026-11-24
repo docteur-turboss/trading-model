@@ -1,0 +1,56 @@
+# Build the first-party images from the sources (local dev, CI E2E):
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+# The base file only references the released images (deploy-compose.yml).
+services:
+  migrate:
+    build:
+      context: .
+      dockerfile: deploy/migrate/Dockerfile
+  discovery-server:
+    build:
+      context: .
+      dockerfile: services/discovery-server/Dockerfile
+  spire-bootstrap:
+    build:
+      context: deploy/spire
+      target: bootstrap
+  spire-agent:
+    build:
+      context: deploy/spire
+      target: agent
+  message-manager:
+    build:
+      context: .
+      dockerfile: services/message-manager/Dockerfile
+  financial-scraper:
+    build:
+      context: .
+      dockerfile: services/financial-scraper/Dockerfile
+  trader-trainer:
+    build:
+      context: .
+      dockerfile: services/trader-trainer/Dockerfile
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+  audit-logger:
+    build:
+      context: .
+      dockerfile: services/audit-logger/Dockerfile
+  model-evaluator:
+    build:
+      context: .
+      dockerfile: services/model-evaluator/Dockerfile
+  risk-execution:
+    build:
+      context: .
+      dockerfile: services/risk-execution/Dockerfile
+  decision-consumer:
+    build:
+      context: .
+      dockerfile: services/decision-consumer/Dockerfile
+  dlq-service:
+    build:
+      context: .
+      dockerfile: services/dlq-service/Dockerfile

@@ -8,7 +8,10 @@ import type {
 	TlsPemBundle,
 } from "@trading-model/common/config/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { extractCanonicalServiceName } from "@trading-model/common/utils/spiffe";
+import {
+	extractCanonicalServiceName,
+	normalizeServiceName,
+} from "@trading-model/common/utils/spiffe";
 import { CaPem, CertPem, KeyPem } from "@trading-model/primitives/primitives";
 
 function readTlsFileSync(filePath: string, label: string): string {
@@ -54,16 +57,11 @@ export function loadTlsPemBundleSync(
 	if (!tlsConfig) {
 		return {};
 	}
-	const paths = [
-		tlsConfig.caPath,
-		tlsConfig.certPath,
-		tlsConfig.keyPath,
-	].filter((file): file is NonNullable<typeof file> => Boolean(file));
-	const cacheKey = [
-		tlsConfig.caPath,
-		tlsConfig.certPath,
-		tlsConfig.keyPath,
-	].join("\0");
+	const files = [tlsConfig.caPath, tlsConfig.certPath, tlsConfig.keyPath];
+	const paths = files.filter((file): file is NonNullable<typeof file> =>
+		Boolean(file)
+	);
+	const cacheKey = files.join("\0");
 	const now = Date.now();
 	const cached = bundleCache.get(cacheKey);
 	if (cached && now - cached.checkedAt < TLS_RELOAD_CHECK_INTERVAL_MS) {
@@ -91,21 +89,18 @@ export function loadTlsPemBundleSync(
 }
 
 function readBundleSync(tlsConfig: Partial<TlsPaths>): Partial<TlsPemBundle> {
-	const result: Partial<TlsPemBundle> = {};
-	if (tlsConfig.caPath) {
-		result.caPem = CaPem.of(
-			readTlsFileSync(tlsConfig.caPath, "CA certificate")
-		);
-	}
-	if (tlsConfig.certPath) {
-		result.certPem = CertPem.of(
-			readTlsFileSync(tlsConfig.certPath, "client certificate")
-		);
-	}
-	if (tlsConfig.keyPath) {
-		result.keyPem = KeyPem.of(readTlsFileSync(tlsConfig.keyPath, "client key"));
-	}
-	return result;
+	const { caPath, certPath, keyPath } = tlsConfig;
+	return {
+		...(caPath && {
+			caPem: CaPem.of(readTlsFileSync(caPath, "CA certificate")),
+		}),
+		...(certPath && {
+			certPem: CertPem.of(readTlsFileSync(certPath, "client certificate")),
+		}),
+		...(keyPath && {
+			keyPem: KeyPem.of(readTlsFileSync(keyPath, "client key")),
+		}),
+	};
 }
 
 /** Canonical async version – reads all three files in parallel. */
@@ -135,7 +130,7 @@ export function spiffeServerIdentityCheck(
 			return tls.checkServerIdentity(host, cert);
 		}
 		const actual = extractCanonicalServiceName(cert.subjectaltname ?? "");
-		if (actual !== extractCanonicalServiceName(expectedService)) {
+		if (actual !== normalizeServiceName(expectedService)) {
 			return Object.assign(
 				new Error(
 					`Server SVID is ${actual ?? "unknown"}, expected ${expectedService}`
@@ -151,20 +146,15 @@ export function buildTlsClientOptions(
 	bundle: Partial<TlsPemBundle>,
 	expectedService?: string
 ): https.AgentOptions {
-	const opts: https.AgentOptions = {};
-	if (bundle.caPem) {
-		opts.ca = bundle.caPem;
-	}
-	if (bundle.certPem) {
-		opts.cert = bundle.certPem;
-	}
-	if (bundle.keyPem) {
-		opts.key = bundle.keyPem;
-	}
-	if (bundle.caPem || bundle.certPem) {
-		opts.checkServerIdentity = spiffeServerIdentityCheck(expectedService);
-	}
-	return opts;
+	const { caPem: ca, certPem: cert, keyPem: key } = bundle;
+	return {
+		...(ca && { ca }),
+		...(cert && { cert }),
+		...(key && { key }),
+		...((ca || cert) && {
+			checkServerIdentity: spiffeServerIdentityCheck(expectedService),
+		}),
+	};
 }
 
 /** Builds the HTTPS agent options from the TLS paths; the server must present `expectedService`'s SVID. */

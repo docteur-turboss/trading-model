@@ -6,10 +6,7 @@ export {
 	DAILY_MAX_DATA_AGE_MS,
 	DAY_MS,
 } from "@trading-model/model-runtime/features/feature-builder";
-export {
-	fromSymbol,
-	type TradingSymbol,
-} from "@trading-model/primitives/primitives";
+export type { TradingSymbol } from "@trading-model/primitives/primitives";
 export { NormalizationStats };
 
 import type { CandleNormalizers } from "@trading-model/model-runtime/features/feature-builder";

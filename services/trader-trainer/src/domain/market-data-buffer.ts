@@ -1,6 +1,5 @@
 import type { CandleData } from "@trading-model/contracts/market-data.types";
 import type { Signal } from "@trading-model/contracts/wire/signals";
-import type { DataType } from "./data-handlers/data-types";
 import { EvictionPolicy } from "./eviction-policy";
 import type { WindowSet } from "./genetic-algorithm/generation-types";
 import type { MarketStep } from "./genetic-algorithm/genome";
@@ -22,6 +21,8 @@ export interface MarketDataBufferConfig {
 	evictionPolicy?: EvictionPolicy;
 	/** Signal metrics fed to the network after the market inputs (ADR-0081); empty: none. */
 	signalKeys?: readonly string[];
+	/** Called for each candle dropped because low/high do not bound open/close. */
+	onInconsistentCandle?: (symbol: TradingSymbol) => void;
 	/** Observability hook, called with the per-symbol candle count and the symbol count. */
 	onDataAdded?: (
 		symbol: TradingSymbol,
@@ -40,6 +41,7 @@ export class MarketDataBuffer {
 			maxSize: config.maxSize ?? 10000,
 			maxMemoryBytes: config.maxMemoryBytes ?? 512 * 1024 * 1024,
 			evictionPolicy: config.evictionPolicy ?? EvictionPolicy.None,
+			onInconsistentCandle: config.onInconsistentCandle,
 		});
 		this._windowSplitter = new WindowSplitter(
 			this._stateManager.states,
@@ -52,8 +54,8 @@ export class MarketDataBuffer {
 		return this._stateManager.getMaxSize();
 	}
 
-	addData(dataType: DataType, symbol: TradingSymbol, data: unknown): void {
-		this._stateManager.addData(dataType, symbol, data);
+	addCandle(symbol: TradingSymbol, candle: CandleData): void {
+		this._stateManager.addCandle(symbol, candle);
 		this._onDataAdded?.(
 			symbol,
 			this.getCandleCount(symbol),
@@ -91,10 +93,6 @@ export class MarketDataBuffer {
 	/** The signals the next windows of a symbol may read (point-in-time by observedAt). */
 	setSignals(symbol: TradingSymbol, signals: readonly Signal[]): void {
 		this._windowSplitter.setSignals(symbol, signals);
-	}
-
-	restoreSymbolState(symbol: TradingSymbol, state: SymbolState): void {
-		this._stateManager.states.set(symbol, state);
 	}
 
 	getCandleCount(symbol: TradingSymbol): number {

@@ -4,7 +4,7 @@
 #  docker build -t trading-model/discovery-server -f services/discovery-server/Dockerfile .
 # =============================================================================
 
-FROM oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS deps
+FROM oven/bun:1.4.5@sha256:3aa040e5445efa09d75bb428a64ba50db13e2b3ac9b6b0c7f145615f62b2ee18 AS deps
 WORKDIR /app
 COPY package.json bun.lock ./
 COPY packages/ packages/
@@ -14,7 +14,7 @@ COPY services/ services/
 # links workspaces in isolated mode (per-workspace node_modules) by default.
 RUN bun install --frozen-lockfile --production --ignore-scripts --linker hoisted
 
-FROM oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS build
+FROM oven/bun:1.4.5@sha256:3aa040e5445efa09d75bb428a64ba50db13e2b3ac9b6b0c7f145615f62b2ee18 AS build
 WORKDIR /app
 COPY package.json bun.lock tsconfig.base.json ./
 COPY packages/ packages/

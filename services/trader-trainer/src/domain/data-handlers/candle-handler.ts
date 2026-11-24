@@ -4,31 +4,29 @@ import {
 	isConsistentCandle,
 	updateCandleNorms,
 } from "@trading-model/model-runtime/features/feature-builder";
-import { DAILY_BAR_ISSUES_TOTAL } from "../../config/metrics";
-import type { DataHandler } from "./data-handler";
+import type { SymbolNormalizers, SymbolState } from "../market-data-types";
 import { isAfterLast, pushWithMaxSize } from "./data-handler-utils";
-import { DataType } from "./data-types";
 
-export const candleHandler: DataHandler<CandleData> = {
-	dataType: DataType.Candle,
-	createState() {
+export const candleHandler = {
+	createState(): Pick<SymbolState, "candles"> {
 		return { candles: [] };
 	},
-	createNorms() {
+	createNorms(): SymbolNormalizers {
 		return { candle: createCandleNorms() };
 	},
-	updateNorms(state, candle) {
+	/** Also replays history into fresh statistics (point in time, ADR-0030). */
+	updateNorms(state: Pick<SymbolState, "norm">, candle: CandleData): void {
 		updateCandleNorms(state.norm.candle, candle);
 	},
-	isNew(state, candle) {
+	/** False when `candle` repeats one the state holds: normalizers must not count it twice. */
+	isNew(state: SymbolState, candle: CandleData): boolean {
 		return (
 			isConsistentCandle(candle) &&
 			isAfterLast(state.candles, candle, "timestamp")
 		);
 	},
-	mutateState({ symbol, data, state, maxSize }) {
+	mutateState(state: SymbolState, data: CandleData, maxSize?: number): void {
 		if (!isConsistentCandle(data)) {
-			DAILY_BAR_ISSUES_TOTAL.inc({ symbol, issue: "ohlc_inconsistent" });
 			return;
 		}
 		// The scraper re-sends candles it already published (overlapping fetch
@@ -43,10 +41,10 @@ export const candleHandler: DataHandler<CandleData> = {
 			state.candles[state.candles.length - 1] = data;
 		}
 	},
-	estimateMemoryBytes(state) {
+	estimateMemoryBytes(state: SymbolState): number {
 		return state.candles.length * 200;
 	},
-	serializeNorms(state) {
+	serializeNorms(state: SymbolState): Record<string, unknown> {
 		return {
 			candle: {
 				close: state.norm.candle.close.toJSON(),

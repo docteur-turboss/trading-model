@@ -214,7 +214,10 @@ describe("SignalCollector", () => {
 		await collector().collect(SOURCE);
 
 		expect(worker).toHaveBeenCalledWith(SOURCE.requests[0], "none", SOURCE);
-		expect(normalize).toHaveBeenCalledWith({ payload: true }, { params: {} });
+		expect(normalize).toHaveBeenCalledWith(
+			{ payload: true },
+			{ params: {}, ingestedAt: NOW }
+		);
 		expect(save).toHaveBeenNthCalledWith(1, [
 			{
 				id: signalId(
@@ -506,6 +509,22 @@ describe("quarantine of a failing source", () => {
 		expect(await quarantined()).toBe(0);
 		await c.collect(ONE_REQUEST);
 		expect(worker).toHaveBeenCalledTimes(6);
+	});
+
+	it("counts an HttpStatusError thrown by the adapter as a fetch error and quarantines the source", async () => {
+		worker.mockResolvedValue({ payload: true });
+		normalize.mockImplementation(() => {
+			throw new HttpStatusError("quota in a 200 body", 429);
+		});
+		const c = collector();
+		for (let i = 0; i < 3; i++) {
+			await c.collect(ONE_REQUEST);
+		}
+		expect((await counted())["test-source:fetch_error"]).toBe(3);
+		expect((await counted())["test-source:invalid_payload"]).toBeUndefined();
+		expect(await quarantined()).toBe(1);
+		await c.collect(ONE_REQUEST);
+		expect(worker).toHaveBeenCalledTimes(3);
 	});
 
 	it("honours Retry-After in seconds and as an HTTP date", async () => {

@@ -41,7 +41,7 @@ services:
   # External E2E traffic authenticates with this key (tests/e2e/helpers.ts).
   api-gateway:
     environment:
-      AUTH_TOKENS: e2e:read+dlq:write:e2e-api-key-0123456789abcdef0123456789abcdef
+      AUTH_TOKENS: e2e:read+dlq:write+risk:admin:e2e-api-key-0123456789abcdef0123456789abcdef
       # The k6 smoke sends ~240 req/min from one IP; the default 100/min would answer 429.
       # Scenarios and stress need more: tests/load/README.md, "Rate limit".
       RATE_LIMIT_MAX: '2000'
@@ -73,6 +73,6 @@ services:
       TRAINER_INTERVAL_MS: '60000'
       # The stub serves 1-min candles for the current minute: allow a few of them.
       TRAINER_MAX_DATA_AGE_MS: '300000'
-      # Only the scraper may download weights; message-manager (also in the
+      # Only the gateway may download weights; risk-execution (also in the
       # trainer ACL) is deliberately not listed, to prove the 403.
-      MODEL_DOWNLOAD_CALLERS: financial-scraper,model-evaluator
+      MODEL_DOWNLOAD_CALLERS: api-gateway,model-evaluator

@@ -3,7 +3,7 @@
 #
 #   redis-ha.sh server [redis-server args...]
 #       Joins the current master as a replica. With no master anywhere, the
-#       ordinal-0 pod bootstraps the group as master.
+#       node that was master last bootstraps the group, else ordinal 0.
 #   redis-ha.sh sentinel
 #       Writes a fresh sentinel.conf (Sentinel rewrites its config, so it can't
 #       be a read-only ConfigMap) and monitors the current master.
@@ -46,6 +46,9 @@ DOWN_AFTER_MS="${DOWN_AFTER_MS:-5000}"
 FAILOVER_TIMEOUT_MS="${FAILOVER_TIMEOUT_MS:-30000}"
 MASTER_WAIT_SECONDS="${MASTER_WAIT_SECONDS:-120}"
 SENTINEL_CONF="${SENTINEL_CONF:-/data/sentinel.conf}"
+DATA_DIR="${DATA_DIR:-/data}"
+MASTER_MARKER="${MASTER_MARKER:-$DATA_DIR/was-master}"
+COLD_START_GRACE_SECONDS="${COLD_START_GRACE_SECONDS:-30}"
 REDIS_TLS_MODE="${REDIS_TLS_MODE:-off}"
 REDIS_TLS_DIR="${REDIS_TLS_DIR:-/etc/redis-tls}"
 REDIS_TLS_PORT="${REDIS_TLS_PORT:-6380}"
@@ -136,6 +139,19 @@ master_from_nodes() {
 	return 1
 }
 
+# No grace to wait out when no peer exists (single node) or one already runs as replica
+# (rolling update of redis-0): the group is not cold, the master role is only being replaced.
+no_cold_start() {
+	found=0
+	for host in $REDIS_HOSTS; do
+		ip=$(resolve "$host") || continue
+		[ "$ip" = "$SELF_IP" ] && continue
+		found=1
+		[ "$(node_cli -h "$ip" -p "$REDIS_PORT" --raw ROLE 2>/dev/null | head -n 1)" = "slave" ] && return 0
+	done
+	[ "$found" = 0 ]
+}
+
 give_up_after_wait() {
 	waited=$((waited + 1))
 	if [ "$waited" -ge "$MASTER_WAIT_SECONDS" ]; then
@@ -157,7 +173,7 @@ acl_args() {
 	service_user message-manager "${REDIS_MESSAGE_MANAGER_PASSWORD:-}" "trading-model:message-manager:*" +hset +hgetall +hdel +pexpire +sadd +srem +smembers +exists +xadd +xdel +xlen +xreadgroup +xpending +xclaim +xack +xgroup +xinfo +xrange +wait
 	# Bus users (ADR-0073, #1620): write only the journal of the topics published, consume only the topics subscribed.
 	# Topic lists = EVENT_PUBLISHERS / EVENT_SUBSCRIBERS of @trading-model/contracts/event-routes (checked by bus-acl.spec.ts).
-	bus_user audit-logger "${REDIS_AUDIT_LOGGER_PASSWORD:-}" "audit.heartbeat audit.gap.detected dlq.entry.added dlq.replay.completed dlq.entries.deleted" "audit.heartbeat audit.gap.detected training.model.published dlq.entry.added dlq.replay.completed dlq.entries.deleted risk.order.transitioned risk.kill-switch.engaged risk.kill-switch.rearmed"
+	bus_user audit-logger "${REDIS_AUDIT_LOGGER_PASSWORD:-}" "audit.heartbeat audit.gap.detected dlq.entry.added dlq.replay.completed dlq.entries.deleted" "audit.heartbeat audit.gap.detected training.model.published dlq.entry.added dlq.replay.completed dlq.entries.deleted risk.order.transitioned risk.kill-switch.engaged risk.kill-switch.rearmed risk.promotion.loaded"
 	bus_user trader-trainer "${REDIS_TRADER_TRAINER_PASSWORD:-}" "training.model.published" ""
 	bus_user risk-execution "${REDIS_RISK_EXECUTION_PASSWORD:-}" "risk.order.transitioned risk.kill-switch.engaged risk.kill-switch.rearmed" ""
 	bus_user model-evaluator "${REDIS_MODEL_EVALUATOR_PASSWORD:-}" "dlq.entry.added" "training.model.published"
@@ -206,12 +222,25 @@ bus_user() {
 		print_args "(%RW~$prefix:journal:$topic +xadd +xdel +xgroup|create +xinfo)"
 	done
 	for topic in $4; do
-		print_args "(%RW~$prefix:journal:$topic +xreadgroup +xpending +xclaim +xack +xgroup|create +xinfo +xrange +xlen)"
+		print_args "(%RW~$prefix:journal:$topic +xreadgroup +xpending +xclaim +xack +xgroup|create +xgroup|delconsumer +xinfo +xrange +xlen)"
 		print_args "(%RW~$prefix:dead:$topic +xadd +xdel +xinfo +xrange +xlen)"
 	done
 }
 
+# Keeps a marker on the PVC while this node is master, removes it once it is a replica.
+track_master_role() {
+	while :; do
+		state=$(node_cli -p "$REDIS_PORT" --raw ROLE 2>/dev/null | head -n 1) || true
+		case "$state" in
+		master) : >"$MASTER_MARKER" ;;
+		slave) rm -f "$MASTER_MARKER" ;;
+		esac
+		sleep 2
+	done
+}
+
 start_server() {
+	track_master_role &
 	# Arguments are read line by line: no password may contain a newline.
 	while IFS= read -r line; do
 		[ -n "$line" ] && set -- "$@" "$line"
@@ -234,7 +263,20 @@ ACL
 		elif master=$(master_from_nodes); then
 			log "replica of $master (no sentinel answered)"
 			exec redis-server "$@" --replicaof "$master" "$REDIS_PORT"
-		elif [ "${SELF_NAME##*-}" = "0" ]; then
+		# Cold start (every pod down together). Rule: the node that held the master
+		# role when the group went down (marker on its PVC, see track_master_role)
+		# bootstraps; redis-0 only does so if no marked peer showed up within
+		# COLD_START_GRACE_SECONDS (or when its volume holds no data yet), so a promoted
+		# replica's writes are never overwritten. A pod without marker (release N-1,
+		# lost volume) falls back to redis-0. The StatefulSet is Parallel so every peer
+		# is up during the grace (OrderedReady would start redis-0 alone). Known limit:
+		# two nodes marked together (old master back in the same outage as the promoted
+		# one, or the 2 s before the marker follows a promotion) both bootstrap and
+		# Sentinel picks one; nodes that are not running yet share no channel to break
+		# the tie, and it takes a double fault. No peer, or a peer already running as replica, means
+		# no cold start (single node, rolling update of redis-0): no grace, as before.
+		elif [ -e "$MASTER_MARKER" ] || { [ "${SELF_NAME##*-}" = "0" ] &&
+			{ { [ ! -d "$DATA_DIR/appendonlydir" ] && [ ! -e "$DATA_DIR/dump.rdb" ]; } || [ "$waited" -ge "$COLD_START_GRACE_SECONDS" ] || no_cold_start; }; }; then
 			log "no master anywhere: bootstrapping the group as master"
 			exec redis-server "$@"
 		fi

@@ -17,7 +17,7 @@ This guide covers deploying the Trading Model platform on Kubernetes. The K8s ma
   the trainer checkpoints PVC (`trainer-checkpoints-pvc`)
 - CRDs, installed before the first deploy (operators are not installed by the manifests):
   `verticalpodautoscalers.autoscaling.k8s.io` (VPA, recommendations only: `updateMode: "Off"`,
-  the HPAs own CPU and memory scaling), `sealedsecrets.bitnami.com` (production), cert-manager
+  the HPAs own scaling, on CPU), `sealedsecrets.bitnami.com` (production), cert-manager
   (`ClusterIssuer` `letsencrypt-prod`) and an `IngressClass` named `nginx`
 - `deploy.yml` derives these from the rendered overlay (`deploy/k8s/scripts/check-prereqs.sh`) and
   refuses, listing what is missing, before the first apply
@@ -77,8 +77,8 @@ bash deploy/k8s/scripts/run-migrations.sh trading-model-staging
 - **PDBs:** every PodDisruptionBudget uses `maxUnavailable: 1` in staging (single replicas: `minAvailable: 2` would block `kubectl drain`). HPAs are pinned to 1 pod, so every RollingUpdate Deployment surges first (`maxUnavailable: 0`, `maxSurge: 1`, issue #699): `maxUnavailable: 1` would stop the only pod before its replacement is ready. `tests/k8s/check-overlays.mjs` fails on a Deployment that can run one pod with an effective `maxUnavailable` above 0.
 - **Staging access:** both Ingresses carry `nginx.ingress.kubernetes.io/whitelist-source-range`, set in `overlays/staging/kustomization.yaml`. The committed value (`192.0.2.0/24`, TEST-NET-1) lets nobody in: replace it with the operators' CIDRs, comma separated.
 
-The CI `k8s` job runs the same sequence on kind for release N-1 (the commit
-before: the PR's base branch), upgrades it to N through the release steps of
+The CI `k8s` job runs the same sequence on kind for release N-1 (the last stable
+tag: its manifests and its signed release images), upgrades it to N through the release steps of
 `deploy.yml` (`deploy/k8s/scripts/deploy-release.sh`: images pinned by digest,
 migrations, rollout, rollback), first with a forced failure that must roll every
 Deployment back to N-1, and runs `migrate-down 1` then the migrations again; then the two gates of
@@ -270,26 +270,49 @@ kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/k8s/overlays/pro
       | [$n,$r,.name,.resources.requests.cpu,.resources.requests.memory,.resources.limits.cpu,.resources.limits.memory] | @tsv'
 ```
 
-Persistent volumes: **418 GiB**, in the same rendering (`volumeClaimTemplates` × replicas, plus PVC manifests).
+Persistent volumes: **369 GiB**, in the same rendering (`volumeClaimTemplates` × replicas, plus PVC manifests).
 
 | Component             | Volumes          | GiB |
 | --------------------- | ---------------- | --- |
 | Prometheus            | 2 × 50           | 100 |
 | `backup-data`         | 1 × 100          | 100 |
-| Trainer checkpoints   | 1 × 50           | 50  |
+| Trainer checkpoints   | 1 × 1            | 1   |
 | MongoDB DLQ           | 3 × 20           | 60  |
 | MongoDB audit, Redis  | 3 × 10 each      | 60  |
 | MySQL                 | 1 × 20           | 20  |
 | Grafana, Loki         | 10 each          | 20  |
 | Jaeger, Alertmanager (2 × 1), SPIRE | 5 + 2 + 1 | 8 |
 
+Trainer checkpoints: measured 2026-11-23 in staging, about 28 KB per model (1.1 MB for 2 symbols × 20 models, `TRAINER_MODEL_RETENTION=20`); 100 symbols stay under 60 MB. The production overlay requests 1Gi (about 17× margin over 100 symbols). Staging keeps its 50Gi: a bound PVC cannot shrink, so `kubectl apply` would fail (issue #2393).
+
 ### External dependencies
 
-No price is stated: it depends on the provider, which is not chosen.
+Monthly cost and minimal return (project owner, 2026-11-23, issue #2219). Production
+runs on a server at home (no cloud provider, no exposed IP: Ingress via
+Cloudflare DNS-01). Figures marked *estimate*: the server is estimated from the
+current stack, and the S3 price is a list price, not a quote.
+
+| Item | Basis | € / month |
+| ---- | ----- | --------- |
+| Server (*estimate*, sized on the current stack) | 4 000 € over 36 months | 111.11 |
+| Electricity (upper bound) | 1 000 W at high load × 730 h = 730 kWh × 0.25 €/kWh | 182.50 |
+| Off-site backup and audit anchor buckets, S3 Object Lock (*estimate*) | ≤ 100 GB stored (staging holds 5.8 GB on 2026-11-23) × about 0.007-0.015 €/GB (Backblaze B2 6.95 $/TB, Scaleway Multi-AZ about 0.0146 €/GB) | ≤ 2 |
+| **Total** | | **about 296** |
+
+Allocated capital of the first live tier: 10 000 USDT (`RISK_ALLOCATED_CAPITAL`),
+about 9 000 € at 1 USDT ≈ 0.90 € (*estimate*). Minimal return to pay the
+infrastructure: 296 / 9 000 ≈ **3.3 % per month** net of fees, about 47 % per
+year compounded. The electricity line is an upper bound (1 000 W is the high
+load, not the average): measure the average draw to lower it. The threshold
+falls in proportion to the capital, and more symbols share the same fixed cost.
+Compare it with the walk-forward returns net of fees of model-evaluator
+(ADR-0030, ADR-0066, `executionCostPaid`) before going live.
+
+The other external dependencies are free under the conditions below.
 
 | Dependency | Free only if | Where |
 | ---------- | ------------ | ----- |
-| GitHub Actions (CI, about 10^5 runner-minutes per month per the 2026-11-12 FinOps audit, an estimate) | the repository stays **public**; private repositories bill minutes | `.github/workflows/` |
+| GitHub Actions (CI, about 3×10^5 job-minutes per month, measured on 2026-11-22 over 1000 runs (±50 %); re-measure: `gh run list --limit 1000 --json databaseId,createdAt`, then sum the job durations of `gh run view <id> --json jobs`) | the repository stays **public**; private repositories bill minutes | `.github/workflows/` |
 | GHCR images (`ghcr.io/<owner>`) | the packages stay public | `release.yml` |
 | Data sources | each `accessPolicy.terms` is `public-domain` or `attribution` | `services/financial-scraper/src/config/signal-registry.json`, ADR-0036 |
 | Off-site backup bucket (S3, Object Lock) | never: paid storage, provider not chosen | [BACKUP_DR.md](BACKUP_DR.md), ADR-0033 |
@@ -381,11 +404,10 @@ All services have NetworkPolicies that restrict ingress/egress:
   in other namespaces such as `trading-model-staging` work), except api-gateway
   (ingress controller) and edge-proxy (any namespace, port 8080). edge-proxy may
   only egress to the api-gateway
-- Egress: only to required infrastructure ports, plus the shared
-  `allow-dns-and-telemetry-egress` policy (cluster DNS, OTLP to the collector)
-  for the components with an egress policy. It lists them explicitly: a
-  policy selecting a pod for Egress isolates its egress, so selecting every
-  pod would cut the others (Redis, Mongo, Grafana...) down to DNS + OTLP
+- Default deny: `default-deny-all` (`deploy/k8s/base/network-policies.yaml`)
+  isolates every pod for Ingress and Egress. `allow-dns-and-telemetry-egress`
+  gives every pod cluster DNS and OTLP to the collector; each component's
+  policy adds its own ports (a workload without one reaches nothing)
 - External egress: only for financial-scraper (Binance API)
 
 ### Encryption at Rest

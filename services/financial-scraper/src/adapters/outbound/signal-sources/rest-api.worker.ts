@@ -7,6 +7,7 @@ import {
 } from "../../../domain/ports/signal-source.port";
 
 const TIMEOUT_MS = 10_000;
+const MAX_ATTEMPTS = 3;
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
 const ACCEPT = {
 	json: "application/json",
@@ -84,11 +85,27 @@ async function readBounded(response: Response, host: string): Promise<string> {
 	return Buffer.concat(chunks).toString("utf8").replace(/^﻿/, "");
 }
 
+const MAX_VALIDATORS = 64;
+
+/** Insert as newest; past the bound the oldest entry goes (Map keeps insertion order). */
+function remember(
+	map: Map<string, Record<string, string>>,
+	url: string,
+	value: Record<string, string>
+) {
+	map.delete(url);
+	map.set(url, value);
+	if (map.size > MAX_VALIDATORS) {
+		map.delete(map.keys().next().value as string);
+	}
+}
+
 /**
  * `rest_api` protocol: GET of the request URL, JSON body (or CSV / text, as
  * the source declares), 5 MB at most, JSON included. Rejects on a network
- * error, after 10 s, or on a non-2xx status; no retry here, the collector
- * spaces the next ticks of a failing source. A body that cannot be decoded
+ * error, after 3 attempts of 10 s each (only a timeout is retried, at once: the
+ * ECB API is slow when it publishes), or on a non-2xx status; no other retry
+ * here, the collector spaces the next ticks of a failing source. A body that cannot be decoded
  * rejects with an `InvalidPayloadError`.
  *
  * Validators (`ETag`, `Last-Modified`) of the last 200 are kept in memory per
@@ -96,7 +113,8 @@ async function readBounded(response: Response, host: string): Promise<string> {
  * storing it (a 304 must never hide a body that was not stored); they are sent
  * back and a 304 resolves `NOT_MODIFIED`.
  * A `{date-N}` URL changes every day, so its entry is not reused from one day
- * to the next: left as is on purpose. Lost on restart.
+ * to the next: each map keeps the last `MAX_VALIDATORS` URLs, oldest dropped
+ * first. Lost on restart.
  */
 export function createRestApiWorker(userAgent: string): ProtocolWorker {
 	const validators = new Map<string, Record<string, string>>();
@@ -119,12 +137,20 @@ export function createRestApiWorker(userAgent: string): ProtocolWorker {
 		}
 		Object.assign(headers, validators.get(request.url));
 		// Rethrown with the host only: a query key must not reach a log.
-		const response = await fetch(url, {
-			headers,
-			signal: AbortSignal.timeout(TIMEOUT_MS),
-		}).catch((err: unknown) => {
-			throw new Error(`${normalizeError(err).name} from ${url.host}`);
-		});
+		let response: Response | undefined;
+		// Each attempt lasts TIMEOUT_MS, longer than any source's request spacing (>= 7.5 s).
+		for (let attempt = 1; !response; attempt++) {
+			response = await fetch(url, {
+				headers,
+				signal: AbortSignal.timeout(TIMEOUT_MS),
+			}).catch((err: unknown): undefined => {
+				const { name } = normalizeError(err);
+				if (name === "TimeoutError" && attempt < MAX_ATTEMPTS) {
+					return;
+				}
+				throw new Error(`${name} from ${url.host}`);
+			});
+		}
 		if (response.status === 304) {
 			await response.body?.cancel();
 			return NOT_MODIFIED;
@@ -140,7 +166,7 @@ export function createRestApiWorker(userAgent: string): ProtocolWorker {
 		const etag = response.headers.get("etag");
 		const modified = response.headers.get("last-modified");
 		validators.delete(request.url);
-		pending.set(request.url, {
+		remember(pending, request.url, {
 			...(etag && { "if-none-match": etag }),
 			...(modified && { "if-modified-since": modified }),
 		});
@@ -161,7 +187,7 @@ export function createRestApiWorker(userAgent: string): ProtocolWorker {
 	worker.confirm = (url) => {
 		const entry = pending.get(url);
 		if (entry) {
-			validators.set(url, entry);
+			remember(validators, url, entry);
 			pending.delete(url);
 		}
 	};

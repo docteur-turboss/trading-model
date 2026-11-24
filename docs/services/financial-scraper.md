@@ -24,13 +24,10 @@ A client of 2.x must migrate: see [Breaking changes in 3.0.0](#breaking-changes-
 
 | Route                                    | Returns                                           | Parameter                                   |
 | ---------------------------------------- | ------------------------------------------------- | ------------------------------------------- |
-| `/v2/trade/sources/:source`                 | trades of a source                                | `binance`, `bloomberg` or `nyse`            |
 | `/v2/trade/symbols/:symbol`                 | trades of a symbol                                | e.g. `BTCUSDT`                              |
 | `/v2/trade/timestamp/:timestamp`            | trades at **exactly** this instant                | ISO date or date-time                       |
-| `/v2/ticker/sources/:source`                | 24h tickers of a source                           | source                                      |
 | `/v2/ticker/symbols/:symbol`                | 24h tickers of a symbol                           | symbol                                      |
 | `/v2/ticker/timestamp/:timestamp`           | 24h tickers opened at **exactly** this instant    | ISO date or date-time                       |
-| `/v2/candles/sources/:source`               | candles of a source                               | source                                      |
 | `/v2/candles/symbols/:symbol`               | candles of a symbol                               | symbol                                      |
 | `/v2/candles/timestamp/:timestamp`          | candles opened **after** this instant             | ISO date or date-time                       |
 
@@ -105,8 +102,7 @@ Four tables store market data:
 | `market_tickers`   | 24-hour ticker statistics |
 | `market_order_books` | Order book depth snapshots (migration 008, ADR-0053): `bids` / `asks` as JSON `[price, quantity]` pairs, best first; no API route reads them |
 
-`market_publish_cursors` is unused (dropped in release N+1, ADR-0040) and
-`signals` (migration 006) the signals of every dimension ([Signals](#signals-adr-0036)).
+`signals` (migration 006) holds the signals of every dimension ([Signals](#signals-adr-0036)).
 
 See [`docs/architecture/databases.md`](../architecture/databases.md#mysql--financial-scraper) for the full column definitions, SQL DDL, composite primary keys, index conventions, and TypeScript interfaces.
 
@@ -144,7 +140,6 @@ Schema v1, the model of the design note's §1: `src/domain/signals.ts`
   exchange MIC, `isin`, `contract`, `insee`, `series`), the
   `applicableDimensions` (signals of other dimensions are neither collected nor
   served for it) and its `sector`.
-- **History** (optional `history` of a source: `url` with `{from}`/`{to}`, `pageDays`): read by the `signal-backfill` command, see [the runbook](../operations/runbooks/runbook-market-data-stale.md#backfill-a-signal-sources-history).
 - **Source**: `protocol` (only `rest_api` has a worker), `covers` (the
   (asset type, dimension) pairs it can feed), `accessPolicy`,
   `reliabilityScore`, an adapter, a cron `schedule` and its requests (subject

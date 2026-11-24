@@ -13,13 +13,12 @@ import type {
 	Ratio,
 } from "@trading-model/primitives/primitives";
 import {
+	CorrelationId,
 	DurationMs,
 	Price,
-	toCorrelationId,
 } from "@trading-model/primitives/primitives";
 import { ModelPublisher } from "../../../../src/adapters/outbound/model-publisher";
 import { NETWORK_INPUT_LAYOUT } from "../../../../src/domain/agent/agent-state";
-import { DataType } from "../../../../src/domain/data-handlers/data-types";
 import { evalPhase } from "../../../../src/domain/genetic-algorithm/evaluation-phase";
 import { createDefaultGenome } from "../../../../src/domain/genetic-algorithm/factory";
 import type { LamarckGenome } from "../../../../src/domain/genetic-algorithm/genome";
@@ -119,6 +118,12 @@ describe("metrics of a trained model", () => {
 		expect((await publishedPayload([1, 2, 3])).maxDrawdown).toBe(0);
 	});
 
+	it("training.model.published is refused when no group exists, so the trainer retries it", async () => {
+		expect((await publishedMessage()).metadata.delivery.requireSubscriber).toBe(
+			true
+		);
+	});
+
 	it("an agent without evaluation episodes publishes no drawdown", async () => {
 		expect((await publishedPayload()).maxDrawdown).toBe(0);
 	});
@@ -185,7 +190,7 @@ describe("training.model.published identity of the artifact", () => {
 
 	it("carries the caller's correlation id, or draws one outside a request", async () => {
 		const inRequest = await runWithCorrelationId(
-			toCorrelationId("550e8400-e29b-41d4-a716-446655440000"),
+			CorrelationId.of("550e8400-e29b-41d4-a716-446655440000"),
 			() => publishedMessage()
 		);
 
@@ -256,6 +261,18 @@ describe("admission of a model (ADR-0069)", () => {
 		expect(assessAdmission(testMeta(8766), bars(prices))).toBeDefined();
 	});
 
+	it("asks 30 days of bars and carries the attempt rank", () => {
+		const prices = [5, 4, 3, 2];
+		const perYear = 525_600; // one-minute bars
+		const thirtyDays = 30 * 1440;
+		expect(
+			assessAdmission(testMeta(perYear), bars(prices, thirtyDays - 1))
+		).toBeUndefined();
+		expect(
+			assessAdmission(testMeta(perYear), bars(prices, thirtyDays), 2)?.attempt
+		).toBe(2);
+	});
+
 	it("asks daily bars for a year of them, not 1440", () => {
 		const prices = [5, 4, 3, 2];
 		expect(assessAdmission(testMeta(252), bars(prices, 251))).toBeUndefined();
@@ -324,7 +341,7 @@ describe("replay of a published model (ADR-0079 §3)", () => {
 		(eventDriven) => {
 			const buffer = new MarketDataBuffer();
 			for (const candle of candles) {
-				buffer.addData(DataType.Candle, "BTCUSDT" as never, candle);
+				buffer.addCandle("BTCUSDT" as never, candle);
 			}
 			const test = buffer.getAllWindows("BTCUSDT" as never)![0].test!;
 			const genome = createDefaultGenome("g-1", 1 as PositiveInt, eventDriven);

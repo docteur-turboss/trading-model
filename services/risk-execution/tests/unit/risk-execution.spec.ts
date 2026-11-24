@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
+import type {
+	Intent,
+	Order,
+	OrderStatus,
+} from "@trading-model/contracts/order-intent";
 import { PaperBroker } from "../../src/adapters/outbound/paper-broker";
 import {
 	RiskExecution,
@@ -6,19 +11,15 @@ import {
 } from "../../src/application/risk-execution";
 import { assertExecutionLock } from "../../src/domain/execution-mode";
 import { HARD_CEILINGS, RiskLimits } from "../../src/domain/limits";
-import {
-	FINAL,
-	type Order,
-	type OrderStatus,
-	transition,
-} from "../../src/domain/order";
+import { FINAL, transition } from "../../src/domain/order";
 import type {
 	BrokerOrderView,
 	BrokerPort,
 	StatePort,
 } from "../../src/domain/ports";
-import { type Intent, preTradeReject } from "../../src/domain/pre-trade";
-import { newState, type RiskState } from "../../src/domain/state";
+import { preTradeReject } from "../../src/domain/pre-trade";
+import { equity, newState, type RiskState } from "../../src/domain/state";
+import { RestingBroker } from "../resting-broker";
 
 const T0 = Date.parse("2026-11-20T10:00:00Z");
 const CAPITAL = 100_000;
@@ -45,6 +46,10 @@ class MemoryStore<T> implements StatePort<T> {
 
 let clock = T0;
 let admissible = true;
+/** The market the service reads: price per symbol, observed now unless `marketAt` freezes the feed. */
+let market: Record<string, number> = {};
+let marketAt: number | null = null;
+let feedDown = false;
 let seq = 0;
 const intent = (over: Partial<Intent> = {}): Intent => ({
 	decisionId: `d${++seq}`,
@@ -63,13 +68,27 @@ function build(
 ) {
 	const ledger = new MemoryStore<never>();
 	const store = new MemoryStore<RiskState>();
-	const broker = over.broker ?? new PaperBroker(ledger, CAPITAL);
+	store.value = newState((over.limits ?? LIMITS).allocatedCapital, T0); // an installed service: a missing state engages the switch
+	const broker =
+		over.broker ?? new RestingBroker(new PaperBroker(ledger, CAPITAL));
 	const events: string[] = [];
 	const svc = new RiskExecution({
 		limits: LIMITS,
 		broker,
 		store,
 		admission: { isAdmissible: async () => admissible },
+		prices: {
+			latest: async (symbols) => {
+				if (feedDown) {
+					throw new Error("ECONNREFUSED");
+				}
+				return Object.fromEntries(
+					symbols
+						.filter((sym) => market[sym])
+						.map((sym) => [sym, { price: market[sym], at: marketAt ?? clock }])
+				);
+			},
+		},
 		mode: "paper",
 		ownerActor: "owner",
 		now: () => clock,
@@ -83,6 +102,9 @@ beforeEach(() => {
 	clock = T0;
 	admissible = true;
 	seq = 0;
+	market = { BTCUSDT: 60_000, ETHUSDT: 3_000 };
+	marketAt = null;
+	feedDown = false;
 });
 
 describe("preTradeReject on crafted states", () => {
@@ -97,6 +119,7 @@ describe("preTradeReject on crafted states", () => {
 			admissible: true,
 			reconciled: true,
 			halted: [],
+			price: { price: 60_000, at: T0 },
 		});
 	};
 
@@ -195,18 +218,54 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		expect(await reject({})).toBe("model_not_admitted");
 	});
 
-	it("ignores a price pushed from the future", async () => {
-		const r = await reject({}, (c) =>
-			c.svc.observePrice("BTCUSDT", 61_500, clock + 6000)
-		);
-		expect(r).toBe("accepted");
+	it("rejects a gap between the intent and the price the service reads", async () => {
+		market.BTCUSDT = 61_500;
+		expect(await reject({ referencePrice: 60_000 })).toBe("price_gap");
 	});
 
-	it("rejects a gap between the intent and the service's own price", async () => {
-		const r = await reject({ referencePrice: 60_000 }, (c) =>
-			c.svc.observePrice("BTCUSDT", 61_500, clock)
+	it("fails closed when the price read fails, finds none or finds it too old", async () => {
+		feedDown = true;
+		expect(await reject({})).toBe("stale_price");
+		feedDown = false;
+		delete market.BTCUSDT;
+		expect(await reject({})).toBe("stale_price");
+		market.BTCUSDT = 60_000;
+		marketAt = clock - LIMITS.haltAgeMs - 1;
+		expect(await reject({})).toBe("stale_price");
+	});
+
+	it("values the order at the price read, not at the intent's, and fills there", async () => {
+		market.BTCUSDT = 100_000;
+		// Notional at the read price (6 000 > 5 % of 100 000): at the intent's it would fit, then fail the gap.
+		expect(await reject({ quantity: 0.06, referencePrice: 50_000 })).toBe(
+			"max_notional"
 		);
-		expect(r).toBe("price_gap");
+		// Marked and filled (slippage 5 bps, fee 10 bps) at the read price, not at the intent's.
+		const ctx = build();
+		await ctx.svc.start();
+		await ctx.svc.submitIntent(
+			intent({ quantity: 0.04, referencePrice: 99_500 })
+		);
+		expect(ctx.svc.status().exposureRatio).toBeCloseTo(0.04, 6);
+		expect(CAPITAL - (await ctx.broker.account()).cash).toBeCloseTo(
+			0.04 * 100_000 * 1.0005 * 1.001
+		);
+		// Worst-case loss at the read price: 0.01 x 60 500 x 1 % = 6.05 tips the daily loss past 2 000, 6.00 would not.
+		const state = newState(CAPITAL, T0);
+		state.day.startEquity = CAPITAL + 1_993.98;
+		const lossCheck = (price: number) =>
+			preTradeReject({
+				intent: intent({ quantity: 0.01, allowRepeat: false }),
+				limits: LIMITS,
+				state,
+				now: T0,
+				admissible: true,
+				reconciled: true,
+				halted: [],
+				price: { price, at: T0 },
+			});
+		expect(lossCheck(60_000)).toBeNull();
+		expect(lossCheck(60_500)).toBe("loss_limit_daily");
 	});
 
 	it("caps the exposure per instrument counting open orders as filled", async () => {
@@ -255,8 +314,34 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 				admissible: true,
 				reconciled: true,
 				halted: [],
+				price: { price: 60_000, at: T0 },
 			})
 		).toBe("instrument_exposure");
+		// Exposure is valued at the read price, not the intent's (gap 0.83 % < band).
+		const check = (
+			quantity: number,
+			positions: Record<string, number>,
+			limitPrice?: number
+		) => {
+			const s = newState(CAPITAL, T0);
+			s.positions = positions;
+			s.marks.ETHUSDT = { price: 3_000, at: T0 };
+			return preTradeReject({
+				intent: intent({ quantity, referencePrice: 59_500, limitPrice }),
+				limits: LIMITS,
+				state: s,
+				now: T0,
+				admissible: true,
+				reconciled: true,
+				halted: [],
+				price: { price: 60_000, at: T0 },
+			});
+		};
+		expect(check(0.051, { BTCUSDT: 0.2 })).toBe("instrument_exposure"); // 15 060 > 15 000
+		expect(check(0.001, { BTCUSDT: 0.2, ETHUSDT: 6 })).toBe("global_exposure"); // 30 060 > 30 000
+		// A buy limit is valued at its own price: 0.25 BTC is 15 000 at the read price, 15 125 at 60 500.
+		expect(check(0.05, { BTCUSDT: 0.2 })).toBeNull();
+		expect(check(0.05, { BTCUSDT: 0.2 }, 60_500)).toBe("instrument_exposure");
 	});
 
 	it("caps the global exposure across two instruments (30 %)", async () => {
@@ -349,7 +434,7 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		await ctx.svc.start();
 		const first = intent();
 		const r = await ctx.svc.submitIntent(first);
-		await ctx.svc.engage("global", "operator", "ops");
+		await ctx.svc.engage({ scope: "global" }, "operator", "ops");
 		expect(await ctx.svc.submitIntent(first)).toMatchObject({
 			reason: "duplicate_client_order_id",
 		});
@@ -474,10 +559,52 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 		);
 	});
 
+	it("restart: the broker is reconciled before an accepted order is sent", async () => {
+		const a = build();
+		await a.svc.start();
+		const calls: string[] = [];
+		const broker: BrokerPort = {
+			submit: (o) => {
+				calls.push("submit");
+				return a.broker.submit(o);
+			},
+			query: (id) => a.broker.query(id),
+			cancel: (id) => a.broker.cancel(id),
+			account: () => {
+				calls.push("account");
+				return a.broker.account();
+			},
+			haltedSymbols: async () => [],
+		};
+		const state = a.store.value as RiskState;
+		state.orders = {
+			acc: {
+				clientOrderId: "acc",
+				decisionId: "acc",
+				symbol: "BTCUSDT",
+				side: "buy",
+				quantity: 0.05,
+				referencePrice: 60_000,
+				status: "accepted",
+				filledQty: 0,
+				quoteQty: 0,
+				fee: 0,
+				createdAt: clock,
+				mode: "paper",
+			},
+		};
+		await build({ store: a.store, broker }).svc.start();
+		expect(calls.slice(0, 2)).toEqual(["account", "submit"]);
+	});
+
 	it("restart: an accepted order too old or under a switch expires unsent", async () => {
 		const a = build();
 		await a.svc.start();
-		await a.svc.engage("symbol", "operator", "ops", "ETHUSDT");
+		await a.svc.engage(
+			{ scope: "symbol", symbol: "ETHUSDT" },
+			"operator",
+			"ops"
+		);
 		const accepted = (id: string, symbol: string, createdAt: number) => ({
 			clientOrderId: id,
 			decisionId: id,
@@ -598,6 +725,40 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 		expect(ctx.svc.status().positions.BTCUSDT).toBeCloseTo(0.05);
 	});
 
+	it("the paper broker cancels a non-marketable limit at once, without a rejection", async () => {
+		const ctx = build({
+			broker: new PaperBroker(new MemoryStore<never>(), CAPITAL),
+		});
+		await ctx.svc.start();
+		const r = await ctx.svc.submitIntent(intent({ limitPrice: 59_500 }));
+		expect(await ctx.broker.query(r.clientOrderId)).toMatchObject({
+			status: "cancelled",
+		});
+		expect((await ctx.broker.account()).openOrders).toEqual([]);
+		expect(ctx.events.some((e) => e.includes("rejected"))).toBe(false);
+	});
+
+	it("the balance check reserves the simulated slippage", () => {
+		const state = newState(CAPITAL, T0);
+		state.cash = 1_000; // 999 + 10 bps fee fits; the 5 bps of slippage does not
+		expect(
+			preTradeReject({
+				intent: intent({
+					quantity: 0.01665,
+					referencePrice: 60_000,
+					allowRepeat: false,
+				}),
+				limits: LIMITS,
+				state,
+				now: T0,
+				admissible: true,
+				reconciled: true,
+				halted: [],
+				price: { price: 60_000, at: T0 },
+			})
+		).toBe("insufficient_balance");
+	});
+
 	it("a resting order expires and a broker rejection is final", async () => {
 		const ctx = build();
 		await ctx.svc.start();
@@ -620,7 +781,8 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		const resting = await ctx.svc.submitIntent(
 			intent({ limitPrice: 59_500, quantity: 0.0001 })
 		);
-		await ctx.svc.observePrice("BTCUSDT", 30_000, clock); // -2 400 on 0.08 BTC: past 2 % of 100 000
+		market.BTCUSDT = 30_000; // -2 400 on 0.08 BTC: past 2 % of 100 000
+		await ctx.svc.tick();
 		expect(ctx.svc.status().killSwitch.global).toBe("daily_loss");
 		expect(
 			(ctx.store.value as RiskState).orders[resting.clientOrderId].status
@@ -634,14 +796,22 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		clock += 86_400_000; // a new UTC day re-arms nothing
 		await restarted.svc.tick();
 		expect(restarted.svc.status().killSwitch.global).toBe("daily_loss");
-		await restarted.svc.rearm("global", "cause understood", "operator");
+		await restarted.svc.rearm(
+			{ scope: "global" },
+			"cause understood",
+			"operator"
+		);
 		expect(restarted.svc.status().killSwitch.global).toBeNull();
 	});
 
 	it("per symbol: the other symbol keeps trading; manual engagement works on both scopes", async () => {
 		const ctx = build();
 		await ctx.svc.start();
-		await ctx.svc.engage("symbol", "operator", "ops", "BTCUSDT");
+		await ctx.svc.engage(
+			{ scope: "symbol", symbol: "BTCUSDT" },
+			"operator",
+			"ops"
+		);
 		expect(await ctx.svc.submitIntent(intent())).toMatchObject({
 			reason: "kill_switch",
 		});
@@ -657,18 +827,57 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 				)
 			).status
 		).toBe("filled");
-		await ctx.svc.engage("global", "operator", "ops");
+		await ctx.svc.engage({ scope: "global" }, "operator", "ops");
 		expect(ctx.svc.status().killSwitch.global).toBe("operator");
 	});
 
 	it("drawdown stop: only the owner re-arms", async () => {
 		const ctx = build();
 		await ctx.svc.start();
-		await ctx.svc.engage("global", "drawdown", "system");
+		await ctx.svc.engage({ scope: "global" }, "drawdown", "system");
 		await expect(
-			ctx.svc.rearm("global", "reviewed", "operator")
+			ctx.svc.rearm({ scope: "global" }, "reviewed", "operator")
 		).rejects.toThrow(/owner/);
-		await ctx.svc.rearm("global", "strategy reviewed", "owner");
+		await ctx.svc.rearm({ scope: "global" }, "strategy reviewed", "owner");
+		expect(ctx.svc.status().killSwitch.global).toBeNull();
+	});
+
+	it("drawdown replaces an earlier reason: only the owner re-arms", async () => {
+		const ctx = build();
+		await ctx.svc.start();
+		await ctx.svc.engage({ scope: "global" }, "daily_loss", "system");
+		await ctx.svc.engage({ scope: "global" }, "drawdown", "system");
+		expect(ctx.svc.status().killSwitch.global).toBe("drawdown");
+		await expect(
+			ctx.svc.rearm({ scope: "global" }, "x", "ops")
+		).rejects.toThrow(/owner/);
+		await ctx.svc.rearm({ scope: "global" }, "reviewed", "owner");
+		expect(ctx.svc.status().killSwitch.global).toBeNull();
+	});
+
+	it("drawdown stop engages by itself, cancels open orders, and the owner's re-arm restarts from current equity", async () => {
+		const emitted: Record<string, unknown>[] = [];
+		const ctx = build({
+			limits: RiskLimits.parse({ ...LIMITS, drawdownPct: 0.005 }),
+			emit: (e, f) => e === "kill_switch.rearmed" && emitted.push(f),
+		});
+		await ctx.svc.start();
+		await ctx.svc.submitIntent(intent()); // 0.05 BTC, 3 000 notional
+		const resting = await ctx.svc.submitIntent(
+			intent({ limitPrice: 59_500, quantity: 0.0001 })
+		);
+		market.BTCUSDT = 48_000; // -600: past 0.5 %, under the 2 % daily and 1 % symbol limits
+		await ctx.svc.tick();
+		expect(ctx.svc.status().killSwitch.global).toBe("drawdown");
+		expect(
+			(ctx.store.value as RiskState).orders[resting.clientOrderId].status
+		).toBe("cancelled");
+		await ctx.svc.rearm({ scope: "global" }, "strategy reviewed", "owner");
+		const state = ctx.store.value as RiskState;
+		expect(state.hwm).toBe(equity(state));
+		expect(emitted[0]).toMatchObject({ hwm: state.hwm });
+		expect(emitted[0].previousHwm).toBeGreaterThan(state.hwm);
+		await ctx.svc.tick();
 		expect(ctx.svc.status().killSwitch.global).toBeNull();
 	});
 
@@ -681,9 +890,80 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		expect(await ctx.svc.submitIntent(intent())).toMatchObject({
 			reason: "kill_switch",
 		});
-		await expect(ctx.svc.rearm("global", "x", "owner")).rejects.toThrow(
-			/unreadable/
-		);
+		await expect(
+			ctx.svc.rearm({ scope: "global" }, "x", "owner")
+		).rejects.toThrow(/unreadable/);
+	});
+
+	it("a missing state (install or lost volume) counts as on until an operator re-arms", async () => {
+		const ctx = build();
+		ctx.store.value = null;
+		await ctx.svc.start();
+		expect(ctx.svc.status().killSwitch.global).toBe("state_missing");
+		expect(ctx.events).toContain("kill_switch.engaged:state_missing");
+		expect(await ctx.svc.submitIntent(intent())).toMatchObject({
+			reason: "kill_switch",
+		});
+		await ctx.svc.rearm({ scope: "global" }, "fresh install checked", "ops");
+		expect((await ctx.svc.submitIntent(intent())).status).toBe("filled");
+	});
+
+	it("engages at once while an admission hangs, and the pending intent is then refused", async () => {
+		let release: (ok: boolean) => void = () => undefined;
+		const ctx = build({
+			admission: {
+				isAdmissible: () =>
+					new Promise<boolean>((resolve) => {
+						release = resolve;
+					}),
+			},
+		});
+		await ctx.svc.start();
+		const pending = ctx.svc.submitIntent(intent());
+		await ctx.svc.engage({ scope: "global" }, "operator", "ops");
+		expect(ctx.svc.status().killSwitch.global).toBe("operator");
+		release(true);
+		expect(await pending).toMatchObject({ reason: "kill_switch" });
+	});
+
+	it("a rearm queued before an engage does not clear it", async () => {
+		const ctx = build();
+		await ctx.svc.start();
+		const rearmed = ctx.svc.rearm({ scope: "global" }, "ok", "ops");
+		await ctx.svc.engage({ scope: "global" }, "panic", "ops");
+		await rearmed;
+		expect(ctx.svc.status().killSwitch.global).toBe("panic");
+		expect((ctx.store.value as RiskState).killSwitch.global).toBe("panic");
+	});
+
+	it("a broker call that hangs times out instead of holding the queue", async () => {
+		const inner = new PaperBroker(new MemoryStore<never>(), CAPITAL);
+		const hang = () => new Promise<never>(() => undefined);
+		const broker: BrokerPort = {
+			submit: (o) => inner.submit(o),
+			query: (id) => inner.query(id),
+			cancel: (id) => inner.cancel(id),
+			account: () => inner.account(),
+			haltedSymbols: hang,
+		};
+		const ctx = build({
+			broker,
+			limits: RiskLimits.parse({ ...LIMITS, submitTimeoutMs: 20 }),
+		});
+		await ctx.svc.start();
+		expect(await ctx.svc.submitIntent(intent())).toMatchObject({
+			reason: "instrument_halted",
+		});
+		broker.account = hang;
+		clock += 300_000; // reconciliation due: account() times out
+		await ctx.svc.tick();
+		expect(ctx.events).toContain("reconciliation.error:");
+	});
+
+	it("a tick still running absorbs the next timer tick", async () => {
+		const ctx = build();
+		await ctx.svc.start();
+		expect(ctx.svc.tick()).toBe(ctx.svc.tick());
 	});
 
 	it("cancellation still works while the switch is on", async () => {
@@ -691,13 +971,15 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		await ctx.svc.start();
 		const r = await ctx.svc.submitIntent(intent({ limitPrice: 59_500 }));
 		// Engaging cancels already; a manual cancel afterwards is a no-op on a final order, not an error.
-		await ctx.svc.engage("global", "operator", "ops");
+		await ctx.svc.engage({ scope: "global" }, "operator", "ops");
 		expect(await ctx.svc.cancel(r.clientOrderId)).toBe("cancelled");
 		expect(await ctx.svc.cancel("nope")).toBe("not_found");
 	});
 
 	it("a failed cancel leaves the order cancel_requested and the ticks keep the limits", async () => {
-		const inner = new PaperBroker(new MemoryStore<never>(), CAPITAL);
+		const inner = new RestingBroker(
+			new PaperBroker(new MemoryStore<never>(), CAPITAL)
+		);
 		let cancelFails = true;
 		const broker: BrokerPort = {
 			submit: (o) => inner.submit(o),
@@ -727,7 +1009,7 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		expect(ctx.events.filter((e) => e.startsWith("broker.error"))).toHaveLength(
 			1
 		); // the failed cancel only, no illegal transition at each tick
-		await ctx.svc.observePrice("BTCUSDT", 30_000, clock);
+		market.BTCUSDT = 30_000;
 		await ctx.svc.tick();
 		expect(ctx.svc.status().killSwitch.global).toBe("daily_loss");
 		expect(orders()[resting.clientOrderId].status).toBe("cancelled");
@@ -767,6 +1049,41 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		}
 		expect(ctx.svc.status().killSwitch.global).toBe("rejects");
 	});
+
+	it("keeps the recent rejections across a restart, and drops those out of the window", async () => {
+		const broker: BrokerPort = {
+			submit: async (o) => ({
+				clientOrderId: o.clientOrderId,
+				status: "rejected",
+				filledQty: 0,
+				quoteQty: 0,
+				fee: 0,
+			}),
+			query: async () => null,
+			cancel: async () => null,
+			account: async () => ({ cash: CAPITAL, positions: {}, openOrders: [] }),
+			haltedSymbols: async () => [],
+		};
+		const first = build({ broker });
+		await first.svc.start();
+		for (let n = 0; n < 4; n++) {
+			await first.svc.submitIntent(intent({ quantity: 0.001 }));
+			clock += 13_000;
+		}
+		const restart = async () => {
+			const next = build({ broker });
+			next.store.value = first.store.value;
+			await next.svc.start();
+			return next;
+		};
+		const again = await restart();
+		await again.svc.submitIntent(intent({ quantity: 0.001 }));
+		expect(again.svc.status().killSwitch.symbols.BTCUSDT).toBe("rejects");
+		clock += LIMITS.rejectWindowMs;
+		const late = await restart();
+		await late.svc.submitIntent(intent({ quantity: 0.001 }));
+		expect((late.store.value as RiskState).failures).toHaveLength(1);
+	});
 });
 
 describe("reconciliation (ADR-0064 §4)", () => {
@@ -797,24 +1114,40 @@ describe("reconciliation (ADR-0064 §4)", () => {
 describe("stale data (ADR-0064 §7)", () => {
 	it("halts a symbol after 15 min, and every symbol stale engages the global switch", async () => {
 		const ctx = build();
+		market = {}; // never read: not stale
 		await ctx.svc.start();
-		clock += 16 * 60_000; // no price ever received: nothing is stale
+		clock += 16 * 60_000;
 		await ctx.svc.tick();
 		expect(ctx.svc.status()).toMatchObject({
 			killSwitch: { global: null, symbols: {} },
 			oldestPriceAgeSeconds: 0,
 		});
-		await ctx.svc.observePrice("BTCUSDT", 60_000, clock);
-		await ctx.svc.observePrice("ETHUSDT", 3_000, clock);
-		clock += 14 * 60_000;
-		await ctx.svc.observePrice("ETHUSDT", 3_000, clock);
-		clock += 2 * 60_000;
+		market = { BTCUSDT: 60_000, ETHUSDT: 3_000 };
+		await ctx.svc.tick();
+		delete market.BTCUSDT; // the BTCUSDT feed stops, ETHUSDT keeps coming
+		clock += 16 * 60_000;
 		await ctx.svc.tick();
 		expect(ctx.svc.status().killSwitch.symbols.BTCUSDT).toBe("stale_data");
 		expect(ctx.svc.status().killSwitch.global).toBeNull();
+		marketAt = clock; // every feed frozen
 		clock += 16 * 60_000;
 		await ctx.svc.tick();
 		expect(ctx.svc.status().killSwitch.global).toBe("stale_data");
+	});
+
+	it("a frozen price read engages the halt even when every intent carries a fresh referenceAt", async () => {
+		const ctx = build();
+		await ctx.svc.start();
+		marketAt = clock;
+		for (let n = 0; n < 4; n++) {
+			clock += 5 * 60_000;
+			await ctx.svc.submitIntent(
+				intent({ quantity: 0.001, referenceAt: clock })
+			);
+			await ctx.svc.tick();
+		}
+		expect(ctx.svc.status().killSwitch.global).toBe("stale_data");
+		expect(ctx.svc.status().oldestPriceAgeSeconds).toBe(1_200);
 	});
 });
 

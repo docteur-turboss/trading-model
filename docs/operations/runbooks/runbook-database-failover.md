@@ -194,11 +194,9 @@ kubectl exec -n trading-model mongo-dlq-0 -c mongodb -- mongosh --quiet --eval "
 
 # Services see their database (client SVID)
 kubectl exec -n trading-model deployment/dlq-service -c dlq-service -- \
-  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/health/ready
+  node -e "$SVID_GET" https://localhost:3000/health/ready
 kubectl exec -n trading-model deployment/audit-logger -c audit-logger -- \
-  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/health/ready
+  node -e "$SVID_GET" https://localhost:3000/health/ready
 ```
 
 ### No primary elected
@@ -207,9 +205,9 @@ kubectl exec -n trading-model deployment/audit-logger -c audit-logger -- \
 # Ask the current primary to step down
 kubectl exec -n trading-model mongo-dlq-0 -c mongodb -- mongosh --quiet --eval "rs.stepDown()"
 
-# A member that will not come back: remove it, add it again once it is rebuilt
+# A member that will not come back: remove it; once rebuilt, its pod adds
+# itself back at start (mongodb-bootstrap sidecar, issue #2197)
 kubectl exec -n trading-model mongo-dlq-0 -c mongodb -- mongosh --quiet --eval "rs.remove('mongo-dlq-2.mongo-dlq-headless:27017')"
-kubectl exec -n trading-model mongo-dlq-0 -c mongodb -- mongosh --quiet --eval "rs.add('mongo-dlq-2.mongo-dlq-headless:27017')"
 ```
 
 Run these against the primary (or, with no primary, a member that sees the

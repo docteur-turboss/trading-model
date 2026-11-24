@@ -160,21 +160,6 @@ interface TickerData extends BaseMarketData {
 }
 ```
 
-### `market_publish_cursors` — removed in N+1
-
-Migration 005. Neither read nor written since release N (the scraper no longer publishes candles); dropped by a migration of the next release (ADR-0040).
-
-| Column | Type | Constraints | Description |
-| ------ | ---- | ----------- | ----------- |
-| `source` | `VARCHAR(32)` | `NOT NULL`, `PK` | Data provider |
-| `symbol` | `VARCHAR(32)` | `NOT NULL`, `PK` | Trading pair / ticker |
-| `interval_value` | `VARCHAR(16)` | `NOT NULL`, `PK` | Candle interval |
-| `market` | `VARCHAR(16)` | `NOT NULL` | Market type of the series |
-| `published_until` | `DATETIME(3)` | `NOT NULL` | Open time of the next candle to publish |
-| `updated_at` | `DATETIME(3)` | `NOT NULL`, auto | Last move |
-
-**Primary key:** `(source, symbol, interval_value)`.
-
 ### `market_order_books` — order book depth snapshots
 
 Migration 008, ADR-0053. One row per depth snapshot the collector fetched (100 bids + 100 asks per symbol, once a minute), kept for historical replay. No API route reads it; the trainer gets order books on the bus. Purged by `db-retention` on `timestamp` after `RETENTION_ORDER_BOOKS_DAYS` (180 in K8s, ADR-0053).
@@ -208,7 +193,7 @@ Migration 006, ADR-0036. One observation about an asset, a whole sector or an ec
 | `confidence_score` | `DOUBLE` | `NOT NULL` | Source reliability at collection time, 0–1 |
 | `payload` | `JSON` | `NOT NULL` | Canonical payload of the dimension (`PAYLOADS`): `metric` (e.g. `spot_rate_10y`, `us-gaap:EarningsPerShareDiluted`), `value`, `unit`, optional `details`, plus `period`, `filing`, `platform`/`topic`, `location`, `jurisdiction` or `area` depending on the dimension |
 
-**Constraint:** `chk_signals_one_subject`, exactly one of `asset_id`, `sector` and `area`. **Indexes:** `(asset_id, observed_at)`, `(sector, observed_at)` and `(area, observed_at)`, the three parts of `GET /signals/assets/:assetId`. `009` down deletes the area rows.
+**Constraint:** `chk_signals_one_subject`, exactly one of `asset_id`, `sector` and `area`. **Indexes:** `(asset_id, observed_at)`, `(sector, observed_at)` and `(area, observed_at)`, the three parts of `GET /signals/assets/:assetId`, and `(observed_at)` (migration 010) for the retention purge. `009` down deletes the area rows.
 
 ### Shared base interface
 
@@ -224,7 +209,7 @@ interface BaseMarketData {
 ## Index Conventions
 
 - All tables have a visible index on `timestamp` (`INVISIBLE` until migration `007_make_timestamp_indexes_visible`), so `timestamp` range queries use it
-- All tables have a `VISIBLE` index on `symbol` — the primary query path for market data lookups
+- `market_candles`, `market_trades` and `market_tickers` have `(symbol, timestamp, id)` (`idx_*_symbol_ts`, built by `migrate.mjs index-build`, ADR-0088) for the paged symbol reads; it replaces `idx_*_symbol`, which the DDL above still shows (baseline 0000)
 
 ## Entity Types Not Yet Persisted
 

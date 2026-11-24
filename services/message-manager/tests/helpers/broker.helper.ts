@@ -30,8 +30,13 @@ export function createMockDispatcher(
 			.fn<(message: unknown) => Promise<void>>()
 			.mockResolvedValue(undefined),
 		unsubscribe: jest
-			.fn<(params: { topic: string; instanceId: string }) => Promise<void>>()
-			.mockResolvedValue(undefined),
+			.fn<
+				(
+					params: { topic: string; instanceId: string },
+					caller: string
+				) => Promise<boolean>
+			>()
+			.mockResolvedValue(true),
 	} as unknown as jest.Mocked<Dispatcher>;
 }
 

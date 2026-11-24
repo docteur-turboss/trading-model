@@ -138,3 +138,31 @@ spec:
     - name: backup-data
       persistentVolumeClaim:
         claimName: backup-data
+---
+# restore-runner: kubectl (API server, private ranges) and the databases and
+# S3 of the namespace. backup-inspector only reads a volume: no network.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: restore-runner-network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: restore-runner
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector: {}
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/8
+        - ipBlock:
+            cidr: 172.16.0.0/12
+        - ipBlock:
+            cidr: 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+        - port: 6443
+          protocol: TCP

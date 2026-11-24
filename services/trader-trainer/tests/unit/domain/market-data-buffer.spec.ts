@@ -4,13 +4,9 @@ import {
 	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import { DataType } from "../../../src/domain/data-handlers/data-types";
 import { EvictionPolicy } from "../../../src/domain/eviction-policy";
 import { MarketDataBuffer } from "../../../src/domain/market-data-buffer";
-import {
-	fromSymbol,
-	NormalizationStats,
-} from "../../../src/domain/market-data-types";
+import { NormalizationStats } from "../../../src/domain/market-data-types";
 import {
 	feedCandles,
 	makeCandle,
@@ -18,22 +14,6 @@ import {
 } from "../../fixtures/market-data.fixture";
 
 describe("TradingSymbol", () => {
-	it("should create branded symbol via TradingSymbol.of", () => {
-		const sym = TradingSymbol.of("BTCUSDT");
-		expect(fromSymbol(sym)).toBe("BTCUSDT");
-	});
-
-	it("should preserve identity through roundtrip", () => {
-		const original = "ETHUSDT";
-		expect(fromSymbol(TradingSymbol.of(original))).toBe(original);
-	});
-
-	it("should create distinct symbols for different strings", () => {
-		const a = TradingSymbol.of("BTCUSDT");
-		const b = TradingSymbol.of("ETHUSDT");
-		expect(fromSymbol(a)).not.toBe(fromSymbol(b));
-	});
-
 	it("should work as Map key", () => {
 		const m = new Map<TradingSymbol, number>();
 		const s1 = TradingSymbol.of("BTCUSDT");
@@ -68,8 +48,7 @@ describe("MarketDataBuffer", () => {
 			maxMemoryBytes: 1049,
 			evictionPolicy: EvictionPolicy.Lru,
 		});
-		buf.addData(
-			DataType.Candle,
+		buf.addCandle(
 			TradingSymbol.of("BTCUSDT"),
 			makeCandle({
 				symbol: TradingSymbol.of("BTCUSDT"),
@@ -77,8 +56,7 @@ describe("MarketDataBuffer", () => {
 				timestamp: UnixTimestamp.of(1),
 			})
 		);
-		buf.addData(
-			DataType.Candle,
+		buf.addCandle(
 			TradingSymbol.of("ETHUSDT"),
 			makeCandle({
 				symbol: TradingSymbol.of("ETHUSDT"),
@@ -106,8 +84,7 @@ describe("MarketDataBuffer", () => {
 			const BTC = TradingSymbol.of("BTCUSDT");
 			expect(buffer.getLastCandleCloseTime(BTC)).toBeUndefined();
 
-			buffer.addData(
-				DataType.Candle,
+			buffer.addCandle(
 				BTC,
 				makeCandle({
 					symbol: BTC,
@@ -115,8 +92,7 @@ describe("MarketDataBuffer", () => {
 					closeTimestamp: UnixTimestamp.of(59_999),
 				})
 			);
-			buffer.addData(
-				DataType.Candle,
+			buffer.addCandle(
 				BTC,
 				makeCandle({
 					symbol: BTC,
@@ -163,10 +139,10 @@ describe("MarketDataBuffer", () => {
 
 			it("should keep one candle per timestamp across overlapping batches", () => {
 				for (const minute of [1, 2, 3]) {
-					buffer.addData(DataType.Candle, BTC, candleAt(minute));
+					buffer.addCandle(BTC, candleAt(minute));
 				}
 				for (const minute of [2, 3, 4]) {
-					buffer.addData(DataType.Candle, BTC, candleAt(minute));
+					buffer.addCandle(BTC, candleAt(minute));
 				}
 
 				const timestamps = buffer
@@ -177,9 +153,9 @@ describe("MarketDataBuffer", () => {
 			});
 
 			it("should replace the last candle with a later version of it", () => {
-				buffer.addData(DataType.Candle, BTC, candleAt(1, 100));
-				buffer.addData(DataType.Candle, BTC, candleAt(2, 100));
-				buffer.addData(DataType.Candle, BTC, candleAt(2, 110));
+				buffer.addCandle(BTC, candleAt(1, 100));
+				buffer.addCandle(BTC, candleAt(2, 100));
+				buffer.addCandle(BTC, candleAt(2, 110));
 
 				const candles = buffer.getSymbolState(BTC)?.candles ?? [];
 				expect(candles).toHaveLength(2);
@@ -188,8 +164,8 @@ describe("MarketDataBuffer", () => {
 			});
 
 			it("should drop a candle older than the last one", () => {
-				buffer.addData(DataType.Candle, BTC, candleAt(5));
-				buffer.addData(DataType.Candle, BTC, candleAt(3));
+				buffer.addCandle(BTC, candleAt(5));
+				buffer.addCandle(BTC, candleAt(3));
 
 				expect(buffer.getCandleCount(BTC)).toBe(1);
 				expect(closeCount()).toBe(1);
@@ -212,8 +188,7 @@ describe("MarketDataBuffer", () => {
 			});
 			feedCandles(buf, "BTCUSDT", 3);
 			feedCandles(buf, "ETHUSDT", 3);
-			buf.addData(
-				DataType.Candle,
+			buf.addCandle(
 				TradingSymbol.of("SOLUSDT"),
 				makeCandle({
 					symbol: TradingSymbol.of("SOLUSDT"),
@@ -229,8 +204,7 @@ describe("MarketDataBuffer", () => {
 				maxMemoryBytes: 10,
 				evictionPolicy: EvictionPolicy.Lru,
 			});
-			buf.addData(
-				DataType.Candle,
+			buf.addCandle(
 				TradingSymbol.of("BTCUSDT"),
 				makeCandle({
 					symbol: TradingSymbol.of("BTCUSDT"),
@@ -238,8 +212,7 @@ describe("MarketDataBuffer", () => {
 					timestamp: UnixTimestamp.of(1),
 				})
 			);
-			buf.addData(
-				DataType.Candle,
+			buf.addCandle(
 				TradingSymbol.of("ETHUSDT"),
 				makeCandle({
 					symbol: TradingSymbol.of("ETHUSDT"),
@@ -247,8 +220,7 @@ describe("MarketDataBuffer", () => {
 					timestamp: UnixTimestamp.of(1),
 				})
 			);
-			buf.addData(
-				DataType.Candle,
+			buf.addCandle(
 				TradingSymbol.of("SOLUSDT"),
 				makeCandle({
 					symbol: TradingSymbol.of("SOLUSDT"),
@@ -273,7 +245,7 @@ describe("MarketDataBuffer", () => {
 				});
 			const feed = (barMs: number, positions: number[]) => {
 				for (const at of positions) {
-					buffer.addData(DataType.Candle, BTC, bar(at, barMs));
+					buffer.addCandle(BTC, bar(at, barMs));
 				}
 				return buffer.buildMarketSteps(BTC).map((step) => step.timestamp);
 			};
@@ -299,17 +271,9 @@ describe("MarketDataBuffer", () => {
 			});
 
 			it("should refuse a candle whose low and high do not bound open and close", () => {
-				buffer.addData(DataType.Candle, BTC, bar(0, 60_000));
-				buffer.addData(
-					DataType.Candle,
-					BTC,
-					bar(1, 60_000, { low: Price.of(101) })
-				);
-				buffer.addData(
-					DataType.Candle,
-					BTC,
-					bar(2, 60_000, { high: Price.of(101) })
-				);
+				buffer.addCandle(BTC, bar(0, 60_000));
+				buffer.addCandle(BTC, bar(1, 60_000, { low: Price.of(101) }));
+				buffer.addCandle(BTC, bar(2, 60_000, { high: Price.of(101) }));
 
 				expect(buffer.getCandleCount(BTC)).toBe(1);
 			});
@@ -332,8 +296,7 @@ describe("MarketDataBuffer", () => {
 		});
 
 		it("should set step price from candle close", () => {
-			buffer.addData(
-				DataType.Candle,
+			buffer.addCandle(
 				TradingSymbol.of("BTCUSDT"),
 				makeCandle({
 					symbol: TradingSymbol.of("BTCUSDT"),
@@ -341,8 +304,7 @@ describe("MarketDataBuffer", () => {
 					timestamp: UnixTimestamp.of(1),
 				})
 			);
-			buffer.addData(
-				DataType.Candle,
+			buffer.addCandle(
 				TradingSymbol.of("BTCUSDT"),
 				makeCandle({
 					symbol: TradingSymbol.of("BTCUSDT"),
@@ -363,8 +325,7 @@ describe("MarketDataBuffer", () => {
 				{ open: 101, close: 150 },
 				{ open: 152, close: 160 },
 			].forEach(({ open, close }, idx) => {
-				buffer.addData(
-					DataType.Candle,
+				buffer.addCandle(
 					sym,
 					makeCandle({
 						symbol: sym,
@@ -410,8 +371,7 @@ describe("MarketDataBuffer", () => {
 		});
 
 		it("should compute price change correctly", () => {
-			buffer.addData(
-				DataType.Candle,
+			buffer.addCandle(
 				TradingSymbol.of("BTCUSDT"),
 				makeCandle({
 					symbol: TradingSymbol.of("BTCUSDT"),
@@ -419,8 +379,7 @@ describe("MarketDataBuffer", () => {
 					timestamp: UnixTimestamp.of(1),
 				})
 			);
-			buffer.addData(
-				DataType.Candle,
+			buffer.addCandle(
 				TradingSymbol.of("BTCUSDT"),
 				makeCandle({
 					symbol: TradingSymbol.of("BTCUSDT"),
@@ -448,8 +407,7 @@ describe("MarketDataBuffer", () => {
 		});
 
 		it("should handle edge case feature values gracefully", () => {
-			buffer.addData(
-				DataType.Candle,
+			buffer.addCandle(
 				TradingSymbol.of("BTCUSDT"),
 				makeCandle({
 					symbol: TradingSymbol.of("BTCUSDT"),
@@ -458,8 +416,7 @@ describe("MarketDataBuffer", () => {
 					closeTimestamp: UnixTimestamp.of(20_000),
 				})
 			);
-			buffer.addData(
-				DataType.Candle,
+			buffer.addCandle(
 				TradingSymbol.of("BTCUSDT"),
 				makeCandle({
 					symbol: TradingSymbol.of("BTCUSDT"),
@@ -563,6 +520,22 @@ describe("MarketDataBuffer — observability hook", () => {
 	});
 });
 
+describe("MarketDataBuffer — inconsistent candle hook", () => {
+	it("reports a candle whose high is below its close and does not store it", () => {
+		const onInconsistentCandle = jest.fn<(...args: any[]) => any>();
+		const buffer = new MarketDataBuffer({ onInconsistentCandle });
+		const sym = TradingSymbol.of("BTCUSDT");
+
+		buffer.addCandle(
+			sym,
+			makeCandle({ symbol: sym, high: Price.of(1), close: Price.of(100) })
+		);
+
+		expect(onInconsistentCandle).toHaveBeenCalledWith(sym);
+		expect(buffer.getCandleCount(sym)).toBe(0);
+	});
+});
+
 describe("MarketDataBuffer.replaceCandles", () => {
 	it("gives a buffer with a longer history the same window as a new one", () => {
 		const sym = TradingSymbol.of("BTCUSDT");
@@ -578,5 +551,22 @@ describe("MarketDataBuffer.replaceCandles", () => {
 
 		expect(old.getSymbolState(sym)).toEqual(fresh.getSymbolState(sym));
 		expect(old.getCandleCount(sym)).toBe(5);
+	});
+
+	it("evicts once per replaced series", () => {
+		const sym = TradingSymbol.of("BTCUSDT");
+		const buffer = new MarketDataBuffer();
+		const evict = jest.spyOn((buffer as any)._stateManager, "_evictIfNeeded");
+
+		feedCandles(buffer, "BTCUSDT", 1, (i) => i);
+		evict.mockClear();
+		buffer.replaceCandles(
+			sym,
+			Array.from({ length: 50 }, (_, i) =>
+				makeCandle({ symbol: sym, close: Price.of(100 + i) })
+			)
+		);
+
+		expect(evict).toHaveBeenCalledTimes(1);
 	});
 });

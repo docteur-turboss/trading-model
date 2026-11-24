@@ -28,6 +28,7 @@ export class GeneticAlgorithmRunner {
 			}
 		}
 
+		await this.processor.selectOnAllSymbols();
 		return this._bestGenome();
 	}
 

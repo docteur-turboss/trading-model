@@ -2,6 +2,7 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { Dimension } from "@trading-model/contracts/wire/signals";
+import { runJob } from "@trading-model/http/correlation-id";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import type { Trainer } from "../../../application/trainer";
 import {
@@ -62,11 +63,15 @@ export class TrainingLoop {
 	start(config: TrainingLoopConfig): void {
 		const { symbols, intervalMs, maxDataAgeMs } = config;
 		const runTraining = (): void => {
-			this._runTrainingForSymbols(symbols, maxDataAgeMs).catch((err) => {
-				getLogger().error("Training cycle failed", {
-					error: normalizeError(err).message,
-				});
-			});
+			// biome-ignore lint/plugin: logged by onError, inside the job context
+			runJob(
+				"trader-trainer.training-cycle",
+				() => this._runTrainingForSymbols(symbols, maxDataAgeMs),
+				(err) =>
+					getLogger().error("Training cycle failed", {
+						error: normalizeError(err).message,
+					})
+			).catch(() => undefined);
 		};
 
 		runTraining();
@@ -242,10 +247,12 @@ export class TrainingLoop {
 		const group = this._sharedTrunk?.includes(symbol)
 			? await this._eligibleGroup(symbol, maxDataAgeMs)
 			: [symbol];
-		for (const member of group) {
-			if (this._signals?.assets.has(member)) {
-				await this._observeSignals(member);
-			}
+		const observed = group
+			.filter((member) => this._signals?.assets.has(member))
+			.map((member) => this._observeSignals(member));
+		// No await without a signal: an extra tick would let stop() overtake train().
+		if (observed.length > 0) {
+			await Promise.all(observed);
 		}
 		const bars = group.map((member) =>
 			this._dataBuffer.getLastCandleCloseTime(member)
@@ -274,17 +281,18 @@ export class TrainingLoop {
 		symbol: TradingSymbol,
 		maxDataAgeMs: number
 	): Promise<TradingSymbol[]> {
-		const group = [symbol];
-		for (const other of this._sharedTrunk ?? []) {
-			if (
-				other !== symbol &&
-				(await this._loadStoredCandles(other)) &&
-				this._isReady(other, maxDataAgeMs)
-			) {
-				group.push(other);
-			}
-		}
-		return group;
+		const others = (this._sharedTrunk ?? []).filter(
+			(member) => member !== symbol
+		);
+		const loaded = await Promise.all(
+			others.map((other) => this._loadStoredCandles(other))
+		);
+		return [
+			symbol,
+			...others.filter(
+				(other, index) => loaded[index] && this._isReady(other, maxDataAgeMs)
+			),
+		];
 	}
 
 	/**

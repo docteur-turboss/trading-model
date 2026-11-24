@@ -10,20 +10,12 @@ const MOCK_SERVER = {
 	raw: MOCK_APP,
 };
 
-const MOCK_TLS_CONFIG = {
-	key: "/some/key.pem",
-	cert: "/some/cert.pem",
-	ca: "/some/ca.pem",
-};
-
 const MOCK_MESSAGE_HANDLER = jest.fn<(...args: any[]) => any>();
-const MOCK_HEALTH_ROUTES = jest.fn<(...args: any[]) => any>();
 const MOCK_EVENTS_ROUTES = jest.fn<(...args: any[]) => any>();
-jest.mock("@trading-model/http/create-secure-server", () => ({
-	createSecureServer: jest.fn((..._args: any[]) =>
+jest.mock("@trading-model/http/service-server-factory", () => ({
+	createServiceServer: jest.fn((..._args: any[]) =>
 		Promise.resolve(MOCK_SERVER)
 	),
-	buildTlsFromEnv: jest.fn((..._args: any[]) => MOCK_TLS_CONFIG),
 }));
 
 jest.mock("../../../src/infrastructure/config/env", () => ({
@@ -38,10 +30,6 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 		INSTANCE_ID: "instance-1",
 		ADDRESS_MANAGER_URL: "https://address-manager:3000",
 	},
-}));
-
-jest.mock("../../../src/adapters/inbound/http/health.routes", () => ({
-	healthRoutes: jest.fn((..._args: any[]) => MOCK_HEALTH_ROUTES),
 }));
 
 jest.mock("../../../src/adapters/inbound/http/events.routes", () => ({
@@ -59,9 +47,8 @@ jest.mock(
 	})
 );
 
-import { createSecureServer } from "@trading-model/http/create-secure-server";
+import { createServiceServer } from "@trading-model/http/service-server-factory";
 import { eventsRoutes } from "../../../src/adapters/inbound/http/events.routes";
-import { healthRoutes } from "../../../src/adapters/inbound/http/health.routes";
 import { createServer } from "../../../src/application/server";
 
 describe("createServer", () => {
@@ -87,15 +74,14 @@ describe("createServer", () => {
 		);
 
 		expect(server).toBe(MOCK_SERVER);
-		expect(createSecureServer).toHaveBeenCalledWith(
+		expect(createServiceServer).toHaveBeenCalledWith(
 			expect.objectContaining({
-				port: 3001,
-				tls: MOCK_TLS_CONFIG,
+				serviceId: "audit-logger",
 			})
 		);
 
 		const secureServerOptions = (
-			createSecureServer as jest.Mock<(...args: any[]) => any>
+			createServiceServer as jest.Mock<(...args: any[]) => any>
 		).mock.calls[0][0] as any;
 
 		secureServerOptions.routes(MOCK_APP);
@@ -107,10 +93,8 @@ describe("createServer", () => {
 		ready = true;
 		expect(await mongoCheck.check()).toBe(true);
 
-		expect(healthRoutes).toHaveBeenCalledWith();
 		expect(eventsRoutes).toHaveBeenCalledWith(auditRepo);
 
-		expect(MOCK_APP.use).toHaveBeenCalledWith("/", MOCK_HEALTH_ROUTES);
 		expect(MOCK_APP.use).toHaveBeenCalledWith("/", MOCK_EVENTS_ROUTES);
 		// POST /message is mounted from AUDIT_API.receive on its own router.
 		const brokerRouter = MOCK_APP.use.mock.calls

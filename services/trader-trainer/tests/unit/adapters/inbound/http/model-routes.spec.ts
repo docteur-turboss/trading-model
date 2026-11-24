@@ -19,6 +19,7 @@ import { FEATURE_LAYOUT } from "@trading-model/model-runtime/feature-vector-code
 import { TRAINER_API } from "../../../../../src/adapters/inbound/http/api-routes";
 import { TRAINER_ROUTES } from "../../../../../src/adapters/inbound/http/routes";
 import { FileModelArtifactStore } from "../../../../../src/adapters/outbound/file-model-artifact-store";
+import { createDefaultGenome } from "../../../../../src/domain/genetic-algorithm/factory";
 
 const AGENT = {
 	id: "g-1",
@@ -78,7 +79,7 @@ describe("trader-trainer model routes (ADR-0022)", () => {
 		const saved = await models.save({
 			symbol: "BTCUSDT",
 			instanceId: "trader-trainer-1",
-			bestGenome: { id: "g-1", network: AGENT.network } as never,
+			bestGenome: createDefaultGenome("g-1"),
 			weights: new Float32Array([0.5, -0.25, 1]),
 			features: FEATURE_LAYOUT,
 			normalization: { candle: { close: { count: 3, mean: 1, m2: 0 } } },
@@ -108,7 +109,9 @@ describe("trader-trainer model routes (ADR-0022)", () => {
 
 	/** GET the path, check the JSON response against the route's entry. */
 	async function get(route: ApiRoute, path: string) {
-		const res = await fetch(`${baseUrl}${path}`);
+		const res = await fetch(
+			`${baseUrl}${route.path.startsWith("/v1") ? "/v1" : ""}${path}`
+		);
 		const body = (await res.json()) as any;
 		expect(responseIssues(route, res.status, body)).toEqual([]);
 		return { status: res.status, body };

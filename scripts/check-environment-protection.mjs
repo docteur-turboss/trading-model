@@ -1,7 +1,7 @@
 // Refuses a deploy / escrow-key check when the GitHub environment is not protected as RULES
 // expects (docs/deployment/DEPLOY.md "Protect the production environment").
 // Usage: node scripts/check-environment-protection.mjs <environment> [owner/repo]
-// Needs `gh` and GH_TOKEN. production, staging, backup-key-check: errors, exit 1. Any other: warnings only.
+// Needs `gh` and GH_TOKEN. production, staging, compose, backup-key-check, sealed-secrets-key-backup, release: errors, exit 1. Any other: warnings only.
 // Writes exists=true|false to $GITHUB_OUTPUT when set (nothing when the API call fails).
 //   node scripts/check-environment-protection.mjs --fork-approval [owner/repo]
 // Refuses (error, exit 1, any environment) a deploy on the self-hosted runner unless fork pull
@@ -23,8 +23,14 @@ export const RULES = {
   production: { reviewer: 'strict', policies: [{ type: 'tag', name: 'v*' }] },
   // Tags `v*`: the release deploys its tag (deploy.yml dispatched with --ref vX.Y.Z).
   staging: { policies: [branch('development'), branch('main'), { type: 'tag', name: 'v*' }], exact: true },
+  // deploy-compose.yml: same host and same tag/branch dispatches as staging.
+  compose: { policies: [branch('development'), branch('main'), { type: 'tag', name: 'v*' }], exact: true },
+  // The single approval before any image is published or signed (ADR-0038). No "Prevent self-review": the owner pushes the tags.
+  release: { reviewer: 'any', policies: [{ type: 'tag', name: 'v*' }] },
   // No reviewer: it would hold the weekly scheduled run (ADR-0034).
   'backup-key-check': { policies: [branch('main')], exact: true, noReviewer: true },
+  // Same, ADR-0035: no reviewer, it would hold the daily scheduled run.
+  'sealed-secrets-key-backup': { policies: [branch('main')], exact: true, noReviewer: true },
 };
 const FALLBACK = { reviewer: 'strict', policies: [] };
 

@@ -56,10 +56,14 @@ seal() {
     log "[DRY-RUN] Would seal ${plaintext_file} → ${output_file}"
     return
   fi
+  # Seal to a temp file: a failing kubeseal must not truncate the committed file.
+  local tmp
+  tmp="$(mktemp)"
   kubeseal --namespace "$NAMESPACE" \
     --controller-namespace "$CONTROLLER_NAMESPACE" \
     --controller-name "$CONTROLLER_NAME" \
-    --format yaml < "$plaintext_file" > "$output_file"
+    --format yaml < "$plaintext_file" > "$tmp" || { rm -f "$tmp"; return 1; }
+  mv "$tmp" "$output_file"
   log "Sealed ${output_file}"
 }
 
@@ -113,7 +117,9 @@ main() {
   MONGO_DLQ_KEYFILE="${MONGO_DLQ_KEYFILE:-$(rand_hex 64)}"
 
   if ! $DRY_RUN; then
-    local plaintext_app="/tmp/trading-model-secrets-plaintext.yaml"
+    # Global, not local: the EXIT trap must still see it when set -e exits mid-main.
+    plaintext_app=$(umask 077; mktemp)
+    trap 'rm -f "$plaintext_app"' EXIT
     cat > "$plaintext_app" <<EOF
 apiVersion: v1
 kind: Secret

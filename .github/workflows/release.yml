@@ -34,6 +34,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Resolve version and latest
         id: version
@@ -66,10 +68,150 @@ jobs:
 
   ci:
     uses: ./.github/workflows/ci.yml
-    secrets: inherit
+    # The kind jobs pull the images of the previous release (release N-1).
+    permissions:
+      contents: read
+      packages: read
 
+  # No `environment:` here, on purpose: it would create the environment
+  # unprotected. Reading the settings needs ENVIRONMENT_READ_TOKEN
+  # (fine-grained PAT, "Administration: read"); without it the check fails.
+  check-environment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check the environment protection
+        env:
+          GH_TOKEN: ${{ secrets.ENVIRONMENT_READ_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Secret ENVIRONMENT_READ_TOKEN is not set: the protection of environment release cannot be checked, no image is published. See docs/deployment/DEPLOY.md (Protect the production environment)."
+            exit 1
+          fi
+          node scripts/check-environment-protection.mjs release "$GITHUB_REPOSITORY"
+
+  # The only approval point of a release: publication and signature depend on it (ADR-0038).
+  approve:
+    needs: [version, ci, check-environment]
+    runs-on: ubuntu-latest
+    timeout-minutes: 1440
+    environment: release
+    steps:
+      - run: echo "Release ${{ needs.version.outputs.tag }} approved"
+
+  scan-services:
+    needs: [version, approve]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - discovery-server
+          - message-manager
+          - financial-scraper
+          - trader-trainer
+          - api-gateway
+          - audit-logger
+          - dlq-service
+          - model-evaluator
+          - risk-execution
+          - decision-consumer
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # Gate before publication: a fixable CRITICAL or HIGH vulnerability stops the job
+      # before the image is pushed. Exceptions: .trivyignore.yaml (ADR-0038).
+      - name: Build for scan
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          build-args: |
+            BUILD_VERSION=${{ needs.version.outputs.tag }}
+            GIT_SHA=${{ github.sha }}
+          load: true
+          tags: ${{ needs.version.outputs.registry }}/${{ matrix.service }}:${{ needs.version.outputs.tag }}
+          # No GHA cache: a push to main could have planted layers in its scope (ADR-0038).
+
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_IGNOREFILE: .trivyignore.yaml
+        with:
+          image-ref: ${{ needs.version.outputs.registry }}/${{ matrix.service }}:${{ needs.version.outputs.tag }}
+          severity: CRITICAL,HIGH
+          # Unfixed CVEs cannot be remedied by a rebuild: block only on those with a fix.
+          ignore-unfixed: true
+          exit-code: "1"
+
+  # Tooling images, scanned before any push:
+  # spire-tools (deploy/spire): spire-server binary + registration scripts (the
+  # official SPIRE images have no shell), used by the spire-entries sidecar.
+  # backup-tools (deploy/backup): kubectl + age + rclone + mysqlbinlog for the db-backup
+  # and db-backup-incremental CronJobs and restore-k8s.sh.
+  # db-migrate (deploy/migrate): migrate.mjs + migrations + locked mysql2 for the db-migrate Jobs.
+  scan-tools:
+    needs: [version, approve]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        include:
+          - image: spire-tools
+            context: deploy/spire
+            target: bootstrap
+          - image: backup-tools
+            context: deploy/backup
+            target: ""
+          - image: db-migrate
+            context: .
+            file: deploy/migrate/Dockerfile
+            target: ""
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # Gate before publication: a fixable CRITICAL or HIGH vulnerability stops the job
+      # before the image is pushed. Exceptions: .trivyignore.yaml (ADR-0038).
+      - name: Build for scan
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          target: ${{ matrix.target }}
+          load: true
+          tags: ${{ needs.version.outputs.registry }}/${{ matrix.image }}:${{ needs.version.outputs.tag }}
+          # No GHA cache: a cached `microdnf upgrade` layer would hide distro fixes published since.
+
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_IGNOREFILE: .trivyignore.yaml
+        with:
+          image-ref: ${{ needs.version.outputs.registry }}/${{ matrix.image }}:${{ needs.version.outputs.tag }}
+          severity: CRITICAL,HIGH
+          # Unfixed CVEs cannot be remedied by a rebuild: block only on those with a fix.
+          ignore-unfixed: true
+          exit-code: "1"
+
+  # Push only after every scan (services and tools) passed: a failed scan leaves no image
+  # under the tag. The images are rebuilt from the same inputs, without cache (ADR-0038).
   build-and-push:
-    needs: [version, ci]
+    needs: [version, approve, scan-services, scan-tools]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -87,10 +229,13 @@ jobs:
           - dlq-service
           - model-evaluator
           - risk-execution
+          - decision-consumer
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -112,32 +257,6 @@ jobs:
             type=raw,value=${{ needs.version.outputs.tag }}
             type=raw,value=latest,enable=${{ needs.version.outputs.latest }}
 
-      # Gate before publication: a fixable CRITICAL or HIGH vulnerability stops the job
-      # before the image is pushed. Exceptions: .trivyignore.yaml (ADR-0038).
-      - name: Build for scan
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          file: services/${{ matrix.service }}/Dockerfile
-          build-args: |
-            BUILD_VERSION=${{ needs.version.outputs.tag }}
-            GIT_SHA=${{ github.sha }}
-          load: true
-          tags: ${{ needs.version.outputs.registry }}/${{ matrix.service }}:${{ needs.version.outputs.tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Scan image (Trivy)
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        env:
-          TRIVY_IGNOREFILE: .trivyignore.yaml
-        with:
-          image-ref: ${{ needs.version.outputs.registry }}/${{ matrix.service }}:${{ needs.version.outputs.tag }}
-          severity: CRITICAL,HIGH
-          # Unfixed CVEs cannot be remedied by a rebuild: block only on those with a fix.
-          ignore-unfixed: true
-          exit-code: "1"
-
       - name: Build and push
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -151,16 +270,9 @@ jobs:
           provenance: mode=max
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
-  # spire-tools (deploy/spire): spire-server binary + registration scripts (the
-  # official SPIRE images have no shell), used by the spire-entries sidecar.
-  # backup-tools (deploy/backup): kubectl + age + rclone + mysqlbinlog for the db-backup
-  # and db-backup-incremental CronJobs and restore-k8s.sh.
-  # db-migrate (deploy/migrate): migrate.mjs + migrations + locked mysql2 for the db-migrate Jobs.
   build-tools:
-    needs: [version, ci]
+    needs: [version, approve, scan-services, scan-tools]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -181,6 +293,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -202,30 +316,6 @@ jobs:
             type=raw,value=${{ needs.version.outputs.tag }}
             type=raw,value=latest,enable=${{ needs.version.outputs.latest }}
 
-      # Gate before publication: a fixable CRITICAL or HIGH vulnerability stops the job
-      # before the image is pushed. Exceptions: .trivyignore.yaml (ADR-0038).
-      - name: Build for scan
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.file }}
-          target: ${{ matrix.target }}
-          load: true
-          tags: ${{ needs.version.outputs.registry }}/${{ matrix.image }}:${{ needs.version.outputs.tag }}
-          # No GHA cache: a cached `microdnf upgrade` layer would hide distro fixes published since.
-          # The push step reuses this build's layers from the builder, so it ships what was scanned.
-
-      - name: Scan image (Trivy)
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        env:
-          TRIVY_IGNOREFILE: .trivyignore.yaml
-        with:
-          image-ref: ${{ needs.version.outputs.registry }}/${{ matrix.image }}:${{ needs.version.outputs.tag }}
-          severity: CRITICAL,HIGH
-          # Unfixed CVEs cannot be remedied by a rebuild: block only on those with a fix.
-          ignore-unfixed: true
-          exit-code: "1"
-
       - name: Build and push
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -241,7 +331,7 @@ jobs:
   # Keyless signature of every pushed digest (ADR-0038). id-token lives here
   # only; deploy.yml verifies the identity of this workflow.
   sign:
-    needs: [version, build-and-push, build-tools]
+    needs: [version, approve, build-and-push, build-tools]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -259,6 +349,7 @@ jobs:
           - dlq-service
           - model-evaluator
           - risk-execution
+          - decision-consumer
           - spire-tools
           - backup-tools
           - db-migrate
@@ -294,6 +385,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0

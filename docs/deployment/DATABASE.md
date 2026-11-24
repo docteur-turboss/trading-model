@@ -69,7 +69,7 @@ docker compose down -v
 docker compose up -d
 ```
 
-`up` and `down` hold the MySQL lock `schema_migrations` (a second run waits up to 120 s, then fails), run each statement on its own and journal it in `_migration_steps`: after a failure, fix the failed statement and rerun, the statements that already ran are not replayed and may not change. `up` refuses to run when an applied file no longer matches its checksum: put the change in a new migration. Stored programs (`DELIMITER`) are not supported ([ADR-0040](../adr/0040-locked-resumable-migrations-and-expand-contract.md)).
+`up` and `down` hold the MySQL lock `schema_migrations` (a second run waits up to 120 s, then fails), run each statement on its own and journal it in `_migration_steps`: after a failure, fix the failed statement and rerun, the statements that already ran are not replayed and may not change. `up` refuses to run when an applied file no longer matches its checksum: put the change in a new migration. A statement preceded by the comment line `-- repeat until no row changes` runs again, one transaction each, until it changes no row: batched data moves that never hold a table, as `012_widen_market_trades_id_online` (issue #2377). Stored programs (`DELIMITER`) are not supported ([ADR-0040](../adr/0040-locked-resumable-migrations-and-expand-contract.md)).
 
 > ⚠️ **Expand/contract** ([ADR-0040](../adr/0040-locked-resumable-migrations-and-expand-contract.md)): migrations run before the rollout, and a rollback keeps the new schema, so the schema of release N must work with release N-1. A release only adds (table, nullable or defaulted column, index); it never drops, renames or narrows what N-1 reads or writes. The removal goes in a later release, once no running or rollback-target release uses it.
 
@@ -89,4 +89,4 @@ docker compose down -v
 
 Removes containers **and** all named volumes (`mongo-data`, `mysql-data`, `spire-data`, `spire-agent-sockets`). On next `docker compose up -d`, the schema is recreated by the `migrate` service.
 
-MySQL is pinned to 8.4 LTS (same as K8s). A `mysql-data` volume started on the 26.10 innovation image (compose between 2026-11-19 and this fix) does not start on 8.4: MySQL has no downgrade. Recreate it with `docker compose down -v`, or restore a dump (`scripts/restore.sh`).
+MySQL is pinned to 8.4 LTS (same as K8s). A `mysql-data` volume started on the 26.10 innovation image (compose between 2026-11-19 and this fix) does not start on 8.4: MySQL has no downgrade. Recreate it with `docker compose down -v`.

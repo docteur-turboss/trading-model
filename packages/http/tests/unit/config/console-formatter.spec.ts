@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import { trace } from "@opentelemetry/api";
 import { formatLogEntry } from "@trading-model/http/console-formatter";
 import { runWithCorrelationId } from "@trading-model/http/correlation-id";
-import { toCorrelationId } from "@trading-model/primitives/primitives";
+import { CorrelationId } from "@trading-model/primitives/primitives";
 
 describe("formatLogEntry", () => {
 	const timestamp = new Date("2024-01-15T10:30:00.000Z").getTime();
@@ -28,6 +28,24 @@ describe("formatLogEntry", () => {
 		expect(result).toBe(
 			'{"ts":"2024-01-15T10:30:00.000Z","level":"ERROR","msg":"something went wrong","error":"timeout","id":42}'
 		);
+	});
+
+	it("flattens a nested context object, top-level keys win, undefined dropped, redacted", () => {
+		const out = JSON.parse(
+			formatLogEntry({
+				label: "INFO",
+				timestamp,
+				message: "m",
+				context: {
+					id: 1,
+					context: { id: 2, a: "x", b: undefined, password: "p" },
+				} as never,
+			})
+		);
+		expect(out).toMatchObject({ id: 1, a: "x" });
+		expect(out).not.toHaveProperty("context");
+		expect(out).not.toHaveProperty("b");
+		expect(out.password).not.toBe("p");
 	});
 
 	describe("ambient fields", () => {
@@ -57,7 +75,7 @@ describe("formatLogEntry", () => {
 
 		it("adds correlationId inside the async context only", () => {
 			expect(parse()).not.toHaveProperty("correlationId");
-			const id = toCorrelationId("corr-1");
+			const id = CorrelationId.of("corr-1");
 			expect(runWithCorrelationId(id, () => parse())).toMatchObject({
 				correlationId: "corr-1",
 			});
@@ -77,7 +95,7 @@ describe("formatLogEntry", () => {
 		});
 
 		it("lets an explicit context field win over the ambient one", () => {
-			const id = toCorrelationId("corr-1");
+			const id = CorrelationId.of("corr-1");
 			const out = runWithCorrelationId(id, () => parse({ correlationId: "x" }));
 			expect(out.correlationId).toBe("x");
 		});
@@ -96,7 +114,7 @@ describe("formatLogEntry", () => {
 		});
 
 		it("does not let an undefined context value erase an ambient field", () => {
-			const id = toCorrelationId("corr-1");
+			const id = CorrelationId.of("corr-1");
 			const out = runWithCorrelationId(id, () =>
 				formatLogEntry({
 					...base,

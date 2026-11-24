@@ -17,12 +17,12 @@ describe("DEFAULT_ACL", () => {
 		expect(DEFAULT_ACL[ServiceInstanceName.DlqService]).toBeDefined();
 	});
 
-	it("should let message-manager deliver to every message subscriber", () => {
-		for (const subscriber of [
+	it("should not let message-manager call the scraper or trainer (no subscription)", () => {
+		for (const target of [
 			ServiceInstanceName.FinancialScraperService,
 			ServiceInstanceName.TraderTrainerService,
 		]) {
-			expect(DEFAULT_ACL[subscriber]).toContain("message-manager");
+			expect(DEFAULT_ACL[target]).not.toContain("message-manager");
 		}
 	});
 
@@ -42,6 +42,20 @@ describe("DEFAULT_ACL", () => {
 		expect(DEFAULT_ACL[ServiceInstanceName.ModelEvaluatorService]).toEqual([
 			"message-manager",
 		]);
+	});
+
+	it("should let only the decision consumer (and the operator) send intents to risk-execution", () => {
+		expect(DEFAULT_ACL[ServiceInstanceName.RiskExecutionService]).toEqual([
+			"risk-execution",
+			"api-gateway",
+			"decision-consumer",
+		]);
+		for (const target of [
+			ServiceInstanceName.TraderTrainerService,
+			ServiceInstanceName.FinancialScraperService,
+		]) {
+			expect(DEFAULT_ACL[target]).toContain("decision-consumer");
+		}
 	});
 
 	it("should let the trainer read the data supply", () => {

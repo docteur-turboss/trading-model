@@ -3,7 +3,7 @@ import { AuditEvent } from "@trading-model/contracts/audit-events";
 import { DlqEvent } from "@trading-model/contracts/dlq-events";
 import { RiskEvent } from "@trading-model/contracts/risk-events";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
-import { toSymbol } from "@trading-model/primitives/primitives";
+import { TradingSymbol } from "@trading-model/primitives/primitives";
 import {
 	createRecordingBrokerClient,
 	type PublishedRequest,
@@ -34,6 +34,7 @@ import { createAuditSubscriber } from "./support/subscribers";
 const mockTrainerBroker = createRecordingBrokerClient("trader-trainer");
 const mockDlqBroker = createRecordingBrokerClient("dlq-service");
 const mockRiskBroker = createRecordingBrokerClient("risk-execution");
+const mockConsumerBroker = createRecordingBrokerClient("decision-consumer");
 
 jest.mock("../../services/message-manager/src/config/metrics", () => ({
 	MESSAGES_DLQ_TOTAL: { inc: () => undefined },
@@ -41,7 +42,7 @@ jest.mock("../../services/message-manager/src/config/metrics", () => ({
 jest.mock("../../services/audit-logger/src/config/metrics", () => ({
 	EVENTS_INGESTED_TOTAL: { inc: () => undefined },
 }));
-// dlq-service and risk-execution publish their events through the real broker client.
+// dlq-service, risk-execution and decision-consumer publish their events through the real broker client.
 jest.mock("@trading-model/broker-message/create-message-manager", () => ({
 	createMessageManager: () => ({
 		messageManager: {
@@ -50,9 +51,11 @@ jest.mock("@trading-model/broker-message/create-message-manager", () => ({
 					payload: unknown,
 					metadata: { publisher: { serviceName: string } }
 				) =>
-					(metadata.publisher.serviceName === "risk-execution"
-						? mockRiskBroker
-						: mockDlqBroker
+					(
+						({
+							"risk-execution": mockRiskBroker,
+							"decision-consumer": mockConsumerBroker,
+						})[metadata.publisher.serviceName] ?? mockDlqBroker
 					).client.publish(payload, metadata as never),
 			},
 		},
@@ -71,6 +74,12 @@ jest.mock(
 jest.mock("../../services/risk-execution/src/config/address-manager", () => ({
 	AddressManager: {},
 }));
+jest.mock(
+	"../../services/decision-consumer/src/config/address-manager",
+	() => ({
+		AddressManager: {},
+	})
+);
 jest.mock("../../services/dlq-service/src/infrastructure/config/env", () => ({
 	ENV: {
 		INSTANCE_ID: "dlq-service-1",
@@ -85,6 +94,7 @@ jest.mock("../../services/dlq-service/src/config/address-manager", () => ({
 	AddressManager: {},
 }));
 
+import { PromotionAudit } from "../../services/decision-consumer/src/adapters/outbound/promotion-audit";
 import {
 	notifyDeleteAudit,
 	notifyReplayAudit,
@@ -174,7 +184,19 @@ async function publishRiskEvents(): Promise<Publication[]> {
 	});
 	// Fire and forget: let the publishes settle.
 	await new Promise((resolve) => setImmediate(resolve));
-	return publicationsOf("risk-execution", mockRiskBroker.requests);
+	await new PromotionAudit(
+		{} as never,
+		"decision-consumer-1" as never,
+		"message"
+	).promotionLoaded({
+		symbol: "BTCUSDT",
+		version: "20261029T101530Z-0123456789ab",
+		sha256: "ab".repeat(32),
+	});
+	return [
+		...publicationsOf("risk-execution", mockRiskBroker.requests),
+		...publicationsOf("decision-consumer", mockConsumerBroker.requests),
+	];
 }
 
 async function publishTrainedModel(): Promise<Publication[]> {
@@ -188,7 +210,7 @@ async function publishTrainedModel(): Promise<Publication[]> {
 		{ trainerId: "trader-trainer", instanceId: "trader-trainer-1" }
 	);
 	await publisher.publish(
-		toSymbol("BTCUSDT") as never,
+		TradingSymbol.of("BTCUSDT") as never,
 		{
 			id: "agent-1",
 			generation: 3,

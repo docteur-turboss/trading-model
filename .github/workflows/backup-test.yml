@@ -1,9 +1,8 @@
 name: Backup Restore Test
 
-# A backup counts only once it has been restored: this workflow backs up real
-# databases, destroys them (containers and volumes) and restores them with
-# the Docker scripts. The Kubernetes scripts get the same drill in the `k8s`
-# job of ci.yml (tests/k8s/run-kind.sh, verify_backup).
+# Library tests of the backup scripts. A backup counts only once it has been
+# restored: that drill runs in the `k8s` job of ci.yml (tests/k8s/run-kind.sh,
+# verify_backup). Compose has no backup (disposable stack).
 on:
   schedule:
     - cron: '0 6 * * 0'  # Weekly: Sunday 6 AM
@@ -21,6 +20,7 @@ on:
       - 'tests/k8s/sealed-secrets-key-drill.sh'
       - 'services/audit-logger/src/adapters/outbound/persistence/**'
       - 'docker-compose.yml'
+      - 'docker-compose.build.yml'
       - 'deploy/compose/spire/**'
       - '.github/workflows/backup-test.yml'
       - '.github/workflows/backup-key-check.yml'
@@ -39,10 +39,12 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Validate backup scripts syntax
         run: |
-          for script in backup.sh restore.sh backup-k8s.sh backup-incremental-k8s.sh restore-k8s.sh backup-lib.sh fetch-offsite.sh backup-bucket-check.sh backup-recipients-check.sh backup-config-check.sh verify-backup-key.sh backup-sealed-secrets-key.sh restore-sealed-secrets-key.sh sealed-secrets-backup-identity.sh; do
+          for script in backup-k8s.sh backup-incremental-k8s.sh restore-k8s.sh backup-lib.sh fetch-offsite.sh backup-bucket-check.sh backup-recipients-check.sh backup-config-check.sh verify-backup-key.sh backup-sealed-secrets-key.sh restore-sealed-secrets-key.sh sealed-secrets-backup-identity.sh; do
             bash -n "scripts/$script" && echo "  ✓ $script syntax OK"
           done
 
@@ -124,25 +126,6 @@ jobs:
           docker build -q -t backup-tools deploy/backup
           docker run --rm -v "$PWD:/repo:ro" -w /repo backup-tools bash tests/backup/fetch-offsite.test.sh
 
-      # MongoDB (3 databases + an audit trail written by the audit-logger
-      # image), MySQL, Redis and the SPIRE server (CA keys + datastore):
-      # backup → containers and volumes deleted → restore → checks.
-      # Per-step timings: table in the job summary, JSON as artifact. Budget
-      # RESTORE_DRILL_BUDGET_SECONDS (default 300 s, about 5 times the 20 s of the
-      # first CI run; disaster to checks),
-      # RESTORE_DRILL_BUDGET_MODE=fail|warn (default fail).
-      - name: Restore drill (Docker scripts)
-        env:
-          DRILL_TIMINGS_FILE: ${{ github.workspace }}/restore-drill-timings.json
-        run: bash tests/backup/compose-restore-drill.sh
-      - name: Upload the restore drill timings
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: restore-drill-timings-docker
-          path: restore-drill-timings.json
-          if-no-files-found: ignore
-
       - name: Validate the K8s CronJob manifest
         run: kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/k8s/jobs > /dev/null && echo "  ✓ deploy/k8s/jobs renders"
 
@@ -163,6 +146,8 @@ jobs:
       KUBESEAL: ./kubeseal
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install age, kind and kubeseal
         run: |

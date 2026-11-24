@@ -97,6 +97,7 @@ describe("command deadline", () => {
 		build();
 		const options = (Redis as unknown as { lastOptions: Record<string, any> })
 			.lastOptions;
+		expect(options.connectTimeout).toBe(2000);
 		expect(options.commandTimeout).toBe(2000);
 		expect(options.maxRetriesPerRequest).toBe(5);
 	});
@@ -143,6 +144,11 @@ describe("createSentinel with TLS", () => {
 			expect(tls.servername).toBe("redis");
 			expect(tls.ca.toString()).toBe("PEM");
 		}
+		expect(options.natMap("10.0.0.5:6379")).toEqual({
+			host: "10.0.0.5",
+			port: 6380,
+		});
+		expect(options.natMap("10.0.0.5:6380")).toBeUndefined();
 	});
 });
 

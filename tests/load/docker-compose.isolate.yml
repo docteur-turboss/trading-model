@@ -75,9 +75,6 @@ services:
   prometheus:
     container_name: !reset null
     ports: !reset []
-  backup-metrics-exporter:
-    container_name: !reset null
-    ports: !reset []
   alertmanager:
     container_name: !reset null
     ports: !reset []
@@ -114,6 +111,21 @@ services:
     container_name: !reset null
     ports: !reset []
   mongodb-exporter:
+    container_name: !reset null
+    ports: !reset []
+  mongo-users:
+    container_name: !reset null
+    ports: !reset []
+  model-evaluator:
+    container_name: !reset null
+    ports: !reset []
+  risk-execution:
+    container_name: !reset null
+    ports: !reset []
+  spiffe-helper-evaluator:
+    container_name: !reset null
+    ports: !reset []
+  spiffe-helper-risk:
     container_name: !reset null
     ports: !reset []
   edge-proxy:

@@ -8,7 +8,7 @@ const count = async (reason: string) =>
 		?.value;
 
 describe("mtlsDenialsTotal", () => {
-	it("exposes all 8 reasons at 0 after import", async () => {
+	it("exposes all 9 reasons at 0 after import", async () => {
 		const values = (await mtlsDenialsTotal.get()).values;
 		expect(values.map((v) => v.labels.reason).sort()).toEqual(
 			[
@@ -18,6 +18,7 @@ describe("mtlsDenialsTotal", () => {
 				"no_client_certificate",
 				"no_policy",
 				"non_tls",
+				"publisher_not_allowed",
 				"unauthenticated",
 				"unauthorized_handshake",
 			].sort()

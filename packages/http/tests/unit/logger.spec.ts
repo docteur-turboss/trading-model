@@ -118,6 +118,16 @@ describe("Logger", () => {
 			expect(writtenData).toContain("[Circular]");
 		});
 
+		it("should keep nested Date toJSON and mask nested PEM", async () => {
+			consoleInfoSpy.mockClear();
+			const pem = "-----BEGIN KEY-----\nxxxx\n-----END KEY-----";
+			logger.info("nested", { context: { at: new Date(0), list: [pem] } });
+			const writtenData = consoleInfoSpy.mock.calls[0][0] as string;
+			expect(writtenData).toContain("1970-01-01T00:00:00.000Z");
+			expect(writtenData).toContain("[REDACTED PEM]");
+			expect(writtenData).not.toContain("xxxx");
+		});
+
 		it("should redact sensitive keys like password, token, secret, authorization", async () => {
 			consoleInfoSpy.mockClear();
 

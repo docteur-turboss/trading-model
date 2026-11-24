@@ -1,5 +1,7 @@
 import { actionLabels } from "@trading-model/model-runtime/agent/action-mapper";
 import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
+import { WEIGHTS_FILE } from "@trading-model/model-runtime/model-artifact-reader";
+import type { ManifestGenome } from "@trading-model/model-runtime/model-manifest";
 import { EVAL_EPSILON } from "./genetic-algorithm/evaluation-phase";
 import type { LamarckGenome } from "./genetic-algorithm/genome-fitness";
 import { SIMULATOR_PARAMS } from "./genetic-algorithm/rl-backend";
@@ -12,16 +14,9 @@ import type { BestAgentSummary } from "./training-state";
  * manifest holds everything needed to rebuild and run the agent, the weights
  * file holds its trained weights.
  */
-export const MODEL_FORMAT_VERSION = 1;
+const MODEL_FORMAT_VERSION = 1;
 /** The trainer reads one-minute candles from the scraper. */
 const CANDLE_INTERVAL_MS = 60_000;
-export const WEIGHTS_FILE = "weights.f32";
-export const MANIFEST_FILE = "manifest.json";
-
-/** `<UTC yyyymmddThhmmssZ>-<first 12 hex of the weights sha256>`. */
-export const MODEL_VERSION_PATTERN = /^\d{8}T\d{6}Z-[0-9a-f]{12}$/;
-/** Symbols are path segments: letters, digits, `.`, `_` and `-` only. */
-export const MODEL_SYMBOL_PATTERN = /^[A-Za-z0-9._-]+$/;
 
 /**
  * How the metrics were computed (ADR-0025). 2: wallet PnL, annualised Sharpe of
@@ -96,7 +91,7 @@ export interface ModelManifest {
 		sha256: string;
 	};
 	/** The best genome without its weights: topology, RL and GA genes. */
-	genome: Record<string, unknown>;
+	genome: ManifestGenome;
 	/** Layout of the input vector: `fields[i]` is the meaning of input `i`. */
 	features: { dim: number; fields: string[] };
 	/** Normalization statistics of the symbol at the end of training. */

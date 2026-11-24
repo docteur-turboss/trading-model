@@ -1,7 +1,7 @@
 import type { GenomeFitnessMeta, LamarckGenome } from "../genome";
 import type { DeepReadonly } from "../shared-types";
 import type { ObjectiveVector } from "./domination";
-import { dominates } from "./domination";
+import { dominates, sameVector } from "./domination";
 
 /** Scalar fitness (run's fitness type) of an archived genome, when known. */
 export interface ArchiveScore {
@@ -29,7 +29,11 @@ export class ParetoArchive {
 
 		for (let ci = 0; ci < genomes.length; ci++) {
 			const cObj = objectives[ci];
-			if (this._objs.some((aObj) => dominates(aObj, cObj))) {
+			if (
+				this._objs.some(
+					(aObj) => dominates(aObj, cObj) || sameVector(aObj, cObj)
+				)
+			) {
 				continue;
 			}
 

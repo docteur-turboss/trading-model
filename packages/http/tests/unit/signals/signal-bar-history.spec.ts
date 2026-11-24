@@ -1,5 +1,5 @@
 import type { Signal } from "@trading-model/contracts/wire/signals";
-import { toSymbol } from "@trading-model/primitives/primitives";
+import { TradingSymbol } from "@trading-model/primitives/primitives";
 import { SignalBarHistory } from "../../../src/signals/signal-bar-history";
 
 const AT = Date.parse("2026-03-20T00:00:00Z");
@@ -39,13 +39,13 @@ function history(signals: Signal[]): SignalBarHistory {
 			loadWindow: async (_asset, _from, to) =>
 				signals.filter((s) => Date.parse(s.observedAt) <= to),
 		},
-		new Map([[toSymbol("AAPL"), "equity"]]),
+		new Map([[TradingSymbol.of("AAPL"), "equity"]]),
 		(symbol, issue) => issues.push(`${symbol}:${issue}`)
 	);
 }
 
 describe("SignalBarHistory", () => {
-	const aapl = toSymbol("AAPL");
+	const aapl = TradingSymbol.of("AAPL");
 
 	it("rebuilds one daily bar per complete day and drops an incomplete one", async () => {
 		const bars = await history([

@@ -6,12 +6,12 @@ import {
 import type { ResolvedEndpoint } from "@trading-model/contracts/wire/service-resolver.types";
 import { buildHttpsAgentOptions } from "@trading-model/http/http-tls-loader";
 import { HostPort } from "@trading-model/primitives/service-identity";
-import type { Request } from "express";
+import type { ForwardableRequest } from "../../domain/ports/gateway.port";
 import type { Env } from "../../infrastructure/config/env";
 import { safeHeaders } from "../../shared/proxy-header-sanitizer";
 
 export interface ProxyRequestOptions {
-	req: Request;
+	req: ForwardableRequest;
 	target: ResolvedEndpoint;
 	path: string;
 	/** Service whose SVID the target must present. */
@@ -45,9 +45,10 @@ function _resolveSvidTls(
 	settings: Env,
 	serviceName: string
 ): https.AgentOptions {
-	const env = settings as TlsEnvVars;
-	if (!(env.TLS_KEY_PATH && env.TLS_CERT_PATH && env.TLS_CA_PATH)) {
-		return {};
-	}
-	return buildHttpsAgentOptions(buildTlsFromEnv(env), serviceName) ?? {};
+	return (
+		buildHttpsAgentOptions(
+			buildTlsFromEnv(settings as TlsEnvVars),
+			serviceName
+		) ?? {}
+	);
 }

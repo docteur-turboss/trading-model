@@ -1,10 +1,21 @@
+import type { IncomingHttpHeaders } from "node:http";
 import type { HttpStatusCode } from "@trading-model/contracts/http-status";
 import type { ResolvedEndpoint } from "@trading-model/contracts/wire/service-resolver.types";
-import type { Request } from "express";
+
+/** What the forward port reads of the inbound request (an express `Request` satisfies it). */
+export interface ForwardableRequest {
+	method: string;
+	headers: IncomingHttpHeaders;
+	body?: unknown;
+	ip?: string;
+	socket: { remoteAddress?: string };
+	/** Name of the API key that authenticated the call, never the key. */
+	apiKeyName?: string | null;
+}
 
 /** Forwards a request to a resolved service and returns its raw answer. */
 type ForwardRequestPort = (opts: {
-	req: Request;
+	req: ForwardableRequest;
 	target: ResolvedEndpoint;
 	path: string;
 	serviceName: string;

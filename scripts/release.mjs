@@ -71,6 +71,7 @@ const SCOPE_TO_PACKAGE = {
   broker: 'packages/broker-message',
   'api-gateway': 'services/api-gateway',
   'audit-logger': 'services/audit-logger',
+  'decision-consumer': 'services/decision-consumer',
   'model-evaluator': 'services/model-evaluator',
   'dlq-service': 'services/dlq-service',
   'message-manager': 'services/message-manager',
@@ -229,6 +230,10 @@ function parseArgs() {
     console.error('  --prerelease cannot be combined with --version.');
     process.exit(1);
   }
+  if (args.publish && args.version) {
+    console.error('  --publish cannot be combined with --version (it would merge and publish nothing).');
+    process.exit(1);
+  }
   if (args.bump && !['major', 'minor', 'patch'].includes(args.bump)) {
     console.error(`  Invalid bump type: "${args.bump}". Use major, minor, or patch.`);
     process.exit(1);
@@ -245,6 +250,11 @@ function handlePublishMerge(args) {
   const branch = run('git rev-parse --abbrev-ref HEAD');
   if (branch !== 'main') {
     console.error(`  --publish requires being on main branch (currently on ${branch}).\n`);
+    process.exit(1);
+  }
+  // publishRelease runs `git add -A`: a dirty tree would end up in the release commit.
+  if (runOrDie('git status --porcelain')) {
+    console.error('  --publish requires a clean working tree (commit or remove your changes).\n');
     process.exit(1);
   }
   console.log('\n  → Merging development into main...');

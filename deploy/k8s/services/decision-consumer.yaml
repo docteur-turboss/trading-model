@@ -1,0 +1,223 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: decision-consumer
+  labels:
+    app.kubernetes.io/component: decision-consumer
+    app.kubernetes.io/part-of: trading-model
+spec:
+  ports:
+    - port: 3000
+      targetPort: 3000
+      name: https
+  selector:
+    app.kubernetes.io/component: decision-consumer
+---
+# One replica, no HPA: RollingUpdate keeps the old pod until the new one is Ready, so no bar
+# is missed during a rollout. Two pods may decide the same bar meanwhile: the decisionId is
+# the same (ADR-0087 §5) and risk-execution rejects the second intent (ADR-0064 §2).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: decision-consumer
+  labels:
+    app.kubernetes.io/component: decision-consumer
+    app.kubernetes.io/part-of: trading-model
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: decision-consumer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: decision-consumer
+        app.kubernetes.io/part-of: trading-model
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/scheme: "https"
+    spec:
+      serviceAccountName: decision-consumer
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: spiffe-helper
+          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+          imagePullPolicy: IfNotPresent
+          restartPolicy: Always
+          startupProbe:
+            httpGet:
+              path: /ready
+              port: 8081
+            periodSeconds: 1
+            failureThreshold: 120
+          args:
+            - -config
+            - /etc/spiffe-helper/helper.conf
+          volumeMounts:
+            - name: spiffe-helper-config
+              mountPath: /etc/spiffe-helper
+              readOnly: true
+            - name: spire-agent-socket
+              mountPath: /run/spire/agent-sockets
+            - name: svid
+              mountPath: /run/spire/svid
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+      containers:
+        - name: decision-consumer
+          image: ghcr.io/trading-model/decision-consumer:latest
+          imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          ports:
+            - containerPort: 3000
+              name: https
+          envFrom:
+            - configMapRef:
+                name: decision-consumer-config
+          env:
+            - name: NODE_OPTIONS
+              value: --max-old-space-size=192
+            - name: INSTANCE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: svid
+              mountPath: /run/spire/svid
+            - name: tmp
+              mountPath: /tmp
+          livenessProbe:
+            exec:
+              command:
+                - curl
+                - -skf
+                - --cert
+                - /run/spire/svid/svid.pem
+                - --key
+                - /run/spire/svid/svid_key.pem
+                - https://localhost:3000/ping
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - curl
+                - -skf
+                - --cert
+                - /run/spire/svid/svid.pem
+                - --key
+                - /run/spire/svid/svid_key.pem
+                - https://localhost:3000/health/ready
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+          startupProbe:
+            exec:
+              command:
+                - curl
+                - -skf
+                - --cert
+                - /run/spire/svid/svid.pem
+                - --key
+                - /run/spire/svid/svid_key.pem
+                - https://localhost:3000/ping
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            failureThreshold: 12
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+      volumes:
+        - name: spiffe-helper-config
+          configMap:
+            name: spiffe-helper-config
+        # Workload API socket from the SPIFFE CSI driver (node-agents): the
+        # restricted Pod Security profile forbids a hostPath.
+        - name: spire-agent-socket
+          csi:
+            driver: csi.spiffe.io
+            readOnly: true
+        - name: svid
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: decision-consumer-network-policy
+  labels:
+    app.kubernetes.io/component: decision-consumer
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: decision-consumer
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        # Same namespace as the policy, whatever the overlay's namespace.
+        - podSelector: {}
+      ports:
+        - port: 3000
+          protocol: TCP
+  egress:
+    # discovery-server, message-manager, trader-trainer, financial-scraper and risk-execution (HTTPS on 3000).
+    - to:
+        - podSelector: {}
+      ports:
+        - port: 3000
+          protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: decision-consumer
+  labels:
+    app.kubernetes.io/component: decision-consumer
+    app.kubernetes.io/part-of: trading-model
+automountServiceAccountToken: false

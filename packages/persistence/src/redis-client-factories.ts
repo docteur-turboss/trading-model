@@ -18,6 +18,7 @@ export const REDIS_COMMAND_TIMEOUT_MS = 2000;
 export const BASE_REDIS_OPTIONS: Partial<RedisOptions> = {
 	lazyConnect: true,
 	retryStrategy: BASE_RETRY_STRATEGY,
+	connectTimeout: REDIS_COMMAND_TIMEOUT_MS,
 	commandTimeout: REDIS_COMMAND_TIMEOUT_MS,
 	maxRetriesPerRequest: 5,
 };
@@ -55,6 +56,11 @@ export function createSentinel(
 			tls: tlsOptions(config.tls),
 			enableTLSForSentinelMode: true,
 			sentinelTLS: tlsOptions(config.tls),
+			// Sentinel announces the clear port until `required` (ADR-0047): follow the master on TLS.
+			natMap: (key: string) => {
+				const [host, port] = key.split(":");
+				return port === "6379" ? { host, port: 6380 } : undefined;
+			},
 		}),
 		...BASE_REDIS_OPTIONS,
 		retryStrategy: SENTINEL_RETRY_STRATEGY,

@@ -37,10 +37,17 @@ describe("SubscriptionRegistry", () => {
 		const { registry, journal } = setup();
 		await registry.subscribe(binding);
 
-		await registry.unsubscribe({
+		const params = {
 			topic: binding.topic,
 			instanceId: binding.serviceIdentity.instanceId,
-		});
+		};
+		await expect(registry.unsubscribe(params, "other-service")).resolves.toBe(
+			false
+		);
+		await expect(
+			registry.getSubscriptions(binding.topic)
+		).resolves.toHaveLength(1);
+		await registry.unsubscribe(params, binding.serviceIdentity.serviceName);
 
 		await expect(registry.getSubscriptions(binding.topic)).resolves.toEqual([]);
 		await expect(journal.groups()).resolves.toHaveLength(1);

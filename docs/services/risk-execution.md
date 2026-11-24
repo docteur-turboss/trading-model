@@ -10,7 +10,7 @@ Owns every order and the kill switch ([ADR-0064](../adr/0064-risk-and-execution-
 
 ## Routes
 
-Listed in [openapi/internal/risk-execution.yaml](./openapi/internal/risk-execution.yaml): `/intents`, `/prices`, `/orders/{clientOrderId}/cancel`, and the `/admin/*` routes (kill switch, re-arm, status), which accept only the service's own identity.
+Listed in [openapi/internal/risk-execution.yaml](./openapi/internal/risk-execution.yaml): `/intents`, `/orders/{clientOrderId}/cancel`, `/positions/{symbol}` (the decision consumer only), and the `/admin/*` routes (kill switch, re-arm, status), which accept only the service's own identity.
 
 ## State
 

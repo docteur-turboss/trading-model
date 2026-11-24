@@ -1,46 +1,6 @@
 name: Deploy
 
 on:
-  workflow_call:
-    inputs:
-      environment:
-        description: 'Target environment'
-        required: true
-        type: string
-      image_tag:
-        description: 'Image tag to deploy (e.g. latest, v1.2.3)'
-        required: true
-        type: string
-      version_number:
-        description: 'Version number for audit annotations (defaults to image_tag)'
-        required: false
-        type: string
-        default: ''
-      canary:
-        description: 'Enable canary deployment'
-        required: false
-        type: boolean
-        default: false
-      staging_namespace:
-        description: 'Kubernetes namespace for staging'
-        required: false
-        type: string
-        default: 'trading-model-staging'
-      production_namespace:
-        description: 'Kubernetes namespace for production'
-        required: false
-        type: string
-        default: 'trading-model'
-      preflight_only:
-        description: 'Preflight: run every guard and a server-side dry-run, change nothing (docs/deployment/DEPLOY.md)'
-        required: false
-        type: boolean
-        default: false
-      allow_firing_alerts:
-        description: 'Production: deploy even if critical alerts fire before it (hotfix); they stop failing verify-release'
-        required: false
-        type: boolean
-        default: false
   workflow_dispatch:
     inputs:
       environment:
@@ -96,7 +56,7 @@ permissions:
 env:
   IMAGES: >-
     discovery-server message-manager financial-scraper trader-trainer
-    api-gateway audit-logger dlq-service model-evaluator risk-execution spire-tools backup-tools db-migrate
+    api-gateway audit-logger dlq-service model-evaluator risk-execution decision-consumer spire-tools backup-tools db-migrate
 
 concurrency:
   group: deploy-${{ inputs.environment }}
@@ -120,6 +80,8 @@ jobs:
       protection: ${{ (inputs.environment != 'production' && steps.protection.outcome == 'failure') && 'warning' || steps.protection.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Check the environment protection
         id: protection
         # Only production blocks: staging gets warnings (a failing check there must not stop the deploy).
@@ -196,12 +158,12 @@ jobs:
     # (docs/deployment/STAGING_LOCAL.md). Production always runs on GitHub.
     runs-on: ${{ (inputs.environment == 'staging' && vars.STAGING_RUNNER) || 'ubuntu-latest' }}
     environment: ${{ inputs.environment }}
-    # Budget = 90 + 45 * DEPLOY_TIMEOUT_FACTOR min (135 at 1, 270 at 4), sum of the step caps:
+    # Budget = 90 + 60 * DEPLOY_TIMEOUT_FACTOR min (150 at 1, 330 at 4), sum of the step caps:
     # fixed 90 = checks 10 + pre-migrate backup 30 + canary 5 + smoke 5 + market data 10 + verify 10 + rollback 10 + margin 10;
-    # per factor 45 = migrations 3 + Redis TLS/sts 10 + rollouts 15 + API wait 5 + rollback rollouts 12.
+    # per factor 60 = migrations 18 (db-migrate 15, user jobs 3) + Redis TLS/sts 10 + rollouts 15 + API wait 5 + rollback rollouts 12.
     # A timeout cancels the job: "Rollback on failure" runs on cancelled(); the rollback share above keeps time for it.
-    # Expressions have no arithmetic (actionlint in ci.yml lint): budget looked up per factor 1-4, any other factor gets 270.
-    timeout-minutes: ${{ fromJSON('{"1":135,"2":180,"3":225,"4":270}')[vars.DEPLOY_TIMEOUT_FACTOR || '1'] || 270 }}
+    # Expressions have no arithmetic (actionlint in ci.yml lint): budget looked up per factor 1-4, any other factor gets 330.
+    timeout-minutes: ${{ fromJSON('{"1":150,"2":210,"3":270,"4":330}')[vars.DEPLOY_TIMEOUT_FACTOR || '1'] || 330 }}
     env:
       # DEPLOY_TIMEOUT_FACTOR (variable of the GitHub environment): integer the
       # MySQL, migration and rollout timeouts are multiplied by, for a slow
@@ -244,6 +206,7 @@ jobs:
       # Empty ref (non-release staging deploy): the dispatch ref.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           ref: ${{ steps.ref.outputs.ref }}
 
       - name: Show deployed commit
@@ -565,7 +528,7 @@ jobs:
             echo "::warning::$ENV edge-proxy still trusts the placeholder pod CIDR: set the real one in deploy/k8s/overlays/$OVERLAY/realip.inc"
           fi
 
-      # The cluster identity may only read ClusterRoles and their bindings: an
+      # The cluster identity may only read ClusterRoles, bindings, Namespaces and node-agent DaemonSets: an
       # admin applies them (deploy-identity.sh cluster). A release that adds or
       # changes one (3.1.0: prometheus-nodes) would make the next steps fail
       # Forbidden half way: stop here with the admin command (issue #701).
@@ -578,8 +541,7 @@ jobs:
             kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$OVERLAY"
             echo ---
             kubectl kustomize "deploy/k8s/overlays/$OVERLAY/node-agents"
-          } | bash scripts/split-cluster-scope.sh cluster |
-            KUBECONFIG="$CLUSTER_KUBECONFIG" bash deploy/k8s/scripts/check-cluster-rbac.sh \
+          } | KUBECONFIG="$CLUSTER_KUBECONFIG" bash deploy/k8s/scripts/check-cluster-rbac.sh \
               --namespace "$NAMESPACE" --environment "$OVERLAY"
 
       # The app identity cannot grant itself rights: a Role deploy-app created
@@ -613,26 +575,29 @@ jobs:
           NS="$NAMESPACE"
           if [ -z "$AUDIT_ANCHOR_BUCKET" ]; then
             if kubectl -n "$NS" get secret audit-anchor-s3 >/dev/null 2>&1; then
-              exit 0
-            fi
-            if [ "$DEPLOY_ENVIRONMENT" = "production" ]; then
+              # Existing Secret kept: its region goes through the same check below.
+              AUDIT_ANCHOR_REGION="$(kubectl -n "$NS" get secret audit-anchor-s3 -o jsonpath='{.data.AUDIT_ANCHOR_REGION}' | base64 -d)"
+              existing=1
+            elif [ "$DEPLOY_ENVIRONMENT" = "production" ]; then
               echo "::error::AUDIT_ANCHOR_BUCKET is not set for production: audit-logger refuses to start without an anchor store (ADR-0027)"
               exit 1
+            else
+              echo "::warning::AUDIT_ANCHOR_BUCKET is not set for $DEPLOY_ENVIRONMENT: the audit chain is verified but not anchored"
+              exit 0
             fi
-            echo "::warning::AUDIT_ANCHOR_BUCKET is not set for $DEPLOY_ENVIRONMENT: the audit chain is verified but not anchored"
-            exit 0
           fi
-          if [ -z "$AUDIT_ANCHOR_ACCESS_KEY_ID" ] || [ -z "$AUDIT_ANCHOR_SECRET_ACCESS_KEY" ]; then
+          if [ -z "$existing" ] && { [ -z "$AUDIT_ANCHOR_ACCESS_KEY_ID" ] || [ -z "$AUDIT_ANCHOR_SECRET_ACCESS_KEY" ]; }; then
             echo "::error::AUDIT_ANCHOR_BUCKET is set but AUDIT_ANCHOR_ACCESS_KEY_ID / AUDIT_ANCHOR_SECRET_ACCESS_KEY are not"
             exit 1
           fi
           # Same EU list as the backup bucket: variable, else the default of backup-bucket-check.sh.
+          # shellcheck disable=SC2016 # the ${...} is text for sed to match, not an expansion
           allowed="${BACKUP_S3_ALLOWED_REGIONS:-$(sed -n 's/^ALLOWED_REGIONS="${BACKUP_S3_ALLOWED_REGIONS:-\(.*\)}"$/\1/p' scripts/backup-bucket-check.sh)}"
           case " $allowed " in
             *" $AUDIT_ANCHOR_REGION "*) [ -n "$AUDIT_ANCHOR_REGION" ] && exit 0 ;;
           esac
           msg="AUDIT_ANCHOR_REGION '${AUDIT_ANCHOR_REGION}' is empty or not in the allowed EU regions (${allowed}): anchors must stay in the EU (docs/compliance/third-party-dpas.md)"
-          if [ "${{ inputs.environment }}" = "production" ]; then
+          if [ "$DEPLOY_ENVIRONMENT" = "production" ]; then
             echo "::error::$msg"
             exit 1
           fi
@@ -672,9 +637,7 @@ jobs:
         id: cluster_scope
         shell: bash
         run: |
-          NS="$NAMESPACE"
           export KUBECONFIG="$CLUSTER_KUBECONFIG"
-          kubectl get namespace "$NS" >/dev/null 2>&1 || kubectl create namespace "$NS"
           kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/$OVERLAY" |
             bash scripts/split-cluster-scope.sh cluster | kubectl apply -f -
 
@@ -692,14 +655,17 @@ jobs:
           NS="$NAMESPACE"
           [ -n "$AUDIT_ANCHOR_BUCKET" ] || exit 0
           # An empty endpoint would override the SDK default (AWS): left out.
-          endpoint=()
-          [ -z "$AUDIT_ANCHOR_ENDPOINT" ] || endpoint=(--from-literal=AUDIT_ANCHOR_ENDPOINT="$AUDIT_ANCHOR_ENDPOINT")
+          # Secrets go through a private env file, never kubectl arguments (visible in /proc).
+          umask 077
+          envfile="$(mktemp)"
+          trap 'rm -f "$envfile"' EXIT
+          {
+            printf '%s\n' "AUDIT_ANCHOR_BUCKET=$AUDIT_ANCHOR_BUCKET" "AUDIT_ANCHOR_REGION=$AUDIT_ANCHOR_REGION" \
+              "AWS_ACCESS_KEY_ID=$AUDIT_ANCHOR_ACCESS_KEY_ID" "AWS_SECRET_ACCESS_KEY=$AUDIT_ANCHOR_SECRET_ACCESS_KEY"
+            [ -z "$AUDIT_ANCHOR_ENDPOINT" ] || echo "AUDIT_ANCHOR_ENDPOINT=$AUDIT_ANCHOR_ENDPOINT"
+          } >"$envfile"
           kubectl -n "$NS" create secret generic audit-anchor-s3 \
-            --from-literal=AUDIT_ANCHOR_BUCKET="$AUDIT_ANCHOR_BUCKET" \
-            --from-literal=AUDIT_ANCHOR_REGION="$AUDIT_ANCHOR_REGION" \
-            --from-literal=AWS_ACCESS_KEY_ID="$AUDIT_ANCHOR_ACCESS_KEY_ID" \
-            --from-literal=AWS_SECRET_ACCESS_KEY="$AUDIT_ANCHOR_SECRET_ACCESS_KEY" \
-            "${endpoint[@]}" \
+            --from-env-file="$envfile" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       # The off-site backup copy must survive a compromised cluster, which holds
@@ -823,18 +789,22 @@ jobs:
           PUSHOVER_TOKEN: ${{ secrets.ALERTMANAGER_PUSHOVER_TOKEN }}
         run: |
           NS="$NAMESPACE"
-          keys=()
-          [ -z "$SLACK" ] || keys+=(--from-literal=SLACK_WEBHOOK_URL="$SLACK")
-          [ -z "$DEADMAN" ] || keys+=(--from-literal=DEADMAN_URL="$DEADMAN")
-          [ -z "$PUSHOVER_USER" ] || keys+=(--from-literal=PUSHOVER_USER_KEY="$PUSHOVER_USER")
-          [ -z "$PUSHOVER_TOKEN" ] || keys+=(--from-literal=PUSHOVER_TOKEN="$PUSHOVER_TOKEN")
-          if [ "${#keys[@]}" -eq 0 ]; then
+          # Secrets go through a private env file, never kubectl arguments (visible in /proc).
+          umask 077
+          envfile="$(mktemp)"
+          trap 'rm -f "$envfile"' EXIT
+          [ -z "$SLACK" ] || echo "SLACK_WEBHOOK_URL=$SLACK" >>"$envfile"
+          [ -z "$DEADMAN" ] || echo "DEADMAN_URL=$DEADMAN" >>"$envfile"
+          [ -z "$PUSHOVER_USER" ] || echo "PUSHOVER_USER_KEY=$PUSHOVER_USER" >>"$envfile"
+          [ -z "$PUSHOVER_TOKEN" ] || echo "PUSHOVER_TOKEN=$PUSHOVER_TOKEN" >>"$envfile"
+          if [ ! -s "$envfile" ]; then
             echo "::warning::No alert notification secret set: alertmanager-credentials left as it is"
             exit 0
           fi
           # Before the overlay: an Alertmanager started without them counts
           # failed notifications, and AlertmanagerNotificationsFailing fires.
-          kubectl -n "$NS" create secret generic alertmanager-credentials "${keys[@]}" \
+          kubectl -n "$NS" create secret generic alertmanager-credentials \
+            --from-env-file="$envfile" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       # Contact e-mail sent in the User-Agent of the signal sources (ADR-0036;
@@ -987,6 +957,7 @@ jobs:
           TAG="$RESOLVED_TAG"
           # Created in parallel, observed over one CANARY_GATE_SECONDS window.
           # No singleton here (trader-trainer ADR-0058, collector ADR-0057): a canary is a second pod.
+          # shellcheck disable=SC2086 # CANARY_SERVICES is a space-separated list
           ./deploy/k8s/scripts/deploy-k8s.sh canary-all "$TAG" 10 $CANARY_SERVICES
 
       # Revision each Deployment runs before the overlay: "Rollback on failure"
@@ -1073,22 +1044,25 @@ jobs:
             exit 0
           fi
           # An empty endpoint would override rclone's default (AWS): left out.
-          endpoint=()
-          [ -z "$BACKUP_S3_ENDPOINT" ] || endpoint=(--from-literal=S3_ENDPOINT="$BACKUP_S3_ENDPOINT")
-          # Optional second off-site bucket: the keys the job reads as BACKUP_S3_SECONDARY_*.
-          if [ -n "$BACKUP_S3_SECONDARY_BUCKET" ]; then
-            for k in BUCKET REGION ENDPOINT PROVIDER ACCESS_KEY_ID SECRET_ACCESS_KEY; do
-              v="BACKUP_S3_SECONDARY_$k"
-              [ -z "${!v}" ] || endpoint+=(--from-literal="$v=${!v}")
-            done
-          fi
+          # Secrets go through a private env file, never kubectl arguments (visible in /proc).
+          umask 077
+          envfile="$(mktemp)"
+          trap 'rm -f "$envfile"' EXIT
+          {
+            printf '%s\n' "BACKUP_S3_BUCKET=$BACKUP_S3_BUCKET" "AWS_REGION=$BACKUP_S3_REGION" \
+              "S3_PROVIDER=${BACKUP_S3_PROVIDER:-AWS}" "AWS_ACCESS_KEY_ID=$BACKUP_S3_ACCESS_KEY_ID" \
+              "AWS_SECRET_ACCESS_KEY=$BACKUP_S3_SECRET_ACCESS_KEY"
+            [ -z "$BACKUP_S3_ENDPOINT" ] || echo "S3_ENDPOINT=$BACKUP_S3_ENDPOINT"
+            # Optional second off-site bucket: the keys the job reads as BACKUP_S3_SECONDARY_*.
+            if [ -n "$BACKUP_S3_SECONDARY_BUCKET" ]; then
+              for k in BUCKET REGION ENDPOINT PROVIDER ACCESS_KEY_ID SECRET_ACCESS_KEY; do
+                v="BACKUP_S3_SECONDARY_$k"
+                [ -z "${!v}" ] || echo "$v=${!v}"
+              done
+            fi
+          } >"$envfile"
           kubectl -n "$NS" create secret generic trading-model-backup-s3 \
-            --from-literal=BACKUP_S3_BUCKET="$BACKUP_S3_BUCKET" \
-            --from-literal=AWS_REGION="$BACKUP_S3_REGION" \
-            --from-literal=S3_PROVIDER="${BACKUP_S3_PROVIDER:-AWS}" \
-            --from-literal=AWS_ACCESS_KEY_ID="$BACKUP_S3_ACCESS_KEY_ID" \
-            --from-literal=AWS_SECRET_ACCESS_KEY="$BACKUP_S3_SECRET_ACCESS_KEY" \
-            "${endpoint[@]}" \
+            --from-env-file="$envfile" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Run first-deploy database migrations
