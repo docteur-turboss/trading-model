@@ -340,7 +340,8 @@ refuses a `production` deploy (`::error::`, exit 1) that has neither the
 variable `BACKUP_AGE_RECIPIENTS` nor a `backup-encryption` ConfigMap in the
 namespace, or neither `BACKUP_S3_BUCKET` nor a `trading-model-backup-s3`
 Secret (e.g. a SealedSecret), or no `BACKUP_S3_SECONDARY_BUCKET` (variable or
-key of that Secret). A resource already in the cluster is enough;
+key of that Secret, which counts only when `BACKUP_S3_BUCKET` is unset: otherwise
+the deploy rewrites the Secret from the variables). A resource already in the cluster is enough;
 other environments get a `::warning::`. `BACKUP_S3_SECONDARY_CHECK=warn`
 downgrades the missing second bucket in production (emergency deploy only).
 
