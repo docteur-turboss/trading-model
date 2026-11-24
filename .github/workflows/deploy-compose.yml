@@ -74,12 +74,15 @@ jobs:
         shell: bash
         run: |
           if [ -f deploy/compose/secrets.env.age ]; then
-            d=$(mktemp -d -p "$([ -d /dev/shm ] && echo /dev/shm || echo "$RUNNER_TEMP")")
+            [ -d /dev/shm ] || { echo "::error::No tmpfs (/dev/shm): refusing to write the secrets to disk"; exit 1; }
+            [ -f "$AGE_IDENTITY" ] || { echo "::error::COMPOSE_AGE_IDENTITY_FILE is empty or not a file"; exit 1; }
+            d=$(mktemp -d -p /dev/shm)
             echo "SECRETS_DIR=$d" >> "$GITHUB_ENV"
             bash scripts/compose-secrets.sh deploy/compose/secrets.env.age "$AGE_IDENTITY" docker-compose.yml "$d/secrets.env"
             echo "ENV_FILE=$d/secrets.env" >> "$GITHUB_ENV"
+          else
+            [ -f "$ENV_FILE" ] || { echo "::error::No secrets: commit deploy/compose/secrets.env.age or set COMPOSE_ENV_FILE"; exit 1; }
           fi
-          [ -f "$(grep -h '^ENV_FILE=' "$GITHUB_ENV" | tail -1 | cut -d= -f2-)" ] || [ -f "$ENV_FILE" ] || { echo "::error::No secrets: commit deploy/compose/secrets.env.age or set COMPOSE_ENV_FILE"; exit 1; }
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0

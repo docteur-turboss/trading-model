@@ -13,8 +13,8 @@
 # first time: values copied unchanged from the host .env (a changed MySQL/Mongo value locks the existing volumes)
 age -r <host-pub> -r <operator-pub> -o deploy/compose/secrets.env.age .env
 # edit
-age -d -i operator.key deploy/compose/secrets.env.age > /tmp/s.env && "$EDITOR" /tmp/s.env \
-  && age -r <host-pub> -r <operator-pub> -o deploy/compose/secrets.env.age /tmp/s.env; shred -u /tmp/s.env
+age -d -i operator.key deploy/compose/secrets.env.age > /dev/shm/s.env && "$EDITOR" /dev/shm/s.env \
+  && age -r <host-pub> -r <operator-pub> -o deploy/compose/secrets.env.age /dev/shm/s.env; rm -f /dev/shm/s.env
 ```
 
 Add or remove a recipient: same re-encryption with the new `-r` list. Then PR, release, `deploy-compose.yml` with the new tag. Delete the host `.env` (and unset `COMPOSE_ENV_FILE`) after the first successful deploy.
@@ -27,3 +27,4 @@ MySQL and Mongo users keep their old password in the volume: change the value in
 - One key pair for this environment only, never shared with backups or K8s; no value reused elsewhere.
 - The file shows key names and rotation dates: no sensitive value in a name.
 - Secrets still reach containers as environment variables (`*_FILE` is out of scope).
+- The file is **not** covered by the cosign signature (there is no `compose-bundle`; only the images are verified). Whoever can push a `v*` tag with another `secrets.env.age`, encrypted for the public host key, makes the host deploy those values. Protect the tag (ruleset) and review every change to the file; signing it is left to #2312.
