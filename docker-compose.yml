@@ -229,7 +229,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -371,7 +371,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -427,7 +427,7 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -467,7 +467,7 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -502,7 +502,7 @@ services:
       - backend-net
       - data-net
     healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -543,7 +543,7 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -584,7 +584,7 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -616,7 +616,7 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -933,7 +933,7 @@ services:
   # Compose Redis has no ACL (single dev node): no exporter user.
   redis-exporter:
     logging: *default-logging
-    image: oliver006/redis_exporter:v1.97.0@sha256:f5f903fbe77571d455ede0453b084d6840bc62fc105efac001034421cab83b99
+    image: oliver006/redis_exporter:v1.98.0@sha256:2b68665248d909bb25de9d175c648932a8c358ba143e5dbed1eb48f91cc9d2e1
     container_name: trading-redis-exporter
     restart: unless-stopped
     mem_limit: 128m
