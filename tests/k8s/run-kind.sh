@@ -474,7 +474,6 @@ release_under_probe() {
 	local rc=0
 	rm -rf "$WORK/probe-logs"
 	mkdir -p "$WORK/probe-logs"
-	: >"$WORK/probe.count.err"
 	_release_under_probe || rc=$?
 	[ "$rc" = 0 ] || probe_failure_report
 	return "$rc"
@@ -486,7 +485,7 @@ release_under_probe() {
 probe_failure_report() {
 	local f
 	echo "--- failed probe responses"
-	sort "$WORK/probe.count.err" | uniq -c | head -20
+	sort "$WORK/probe.count.err" 2>/dev/null | uniq -c | head -20
 	for f in "$WORK"/probe-logs/*.log; do
 		[ -e "$f" ] || continue
 		echo "--- log $(basename "$f")"
@@ -497,7 +496,7 @@ probe_failure_report() {
 _release_under_probe() {
 	local stop="$WORK/probe.stop" out="$WORK/probe.count" max="${PROBE_MAX_FAILURES:-0}" pid start rc=0 began svc pod
 	local requests failures row candles gap need
-	rm -f "$stop" "$out"
+	rm -f "$stop" "$out" "$out.err"
 	echo "0 0" >"$out"
 	probe_wait_ready || return 1
 	# After the wait: the candle window below must not include it.
@@ -507,7 +506,7 @@ _release_under_probe() {
 			$K -n "$NS" logs -f "$pod" --all-containers --prefix >"$WORK/probe-logs/${pod#pod/}.log" 2>&1 &
 		done
 	done
-	probe_availability "$stop" "$out" 2>"$out.err" &
+	probe_availability "$stop" "$out" 2> >(tee "$out.err" >&2) &
 	pid=$!
 	# A failing command under errexit must not leave the probe or the log
 	# followers running.
@@ -531,7 +530,9 @@ _release_under_probe() {
 		return 1
 	}
 	[ "$failures" -le "$max" ] || {
-		log "the upgrade dropped $failures request(s) (threshold $max)"
+		# 000 is a timeout or refused connection (a route without ready pod); 4xx/5xx come from the route itself.
+		log "the upgrade dropped $failures request(s) (threshold $max); status codes: $(sed -n 's/^probe: .* answered //p' "$out.err" | sort | uniq -c | tr -s ' 
+' ' ')"
 		return 1
 	}
 	# Candles written in the window and the largest gap between consecutive ones

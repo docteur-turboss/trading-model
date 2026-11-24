@@ -28,6 +28,7 @@ import {
 	insertCandles,
 	lastCandleOpenTime,
 	selectCandlesBy,
+	selectLatestClosedCandles,
 } from "../../src/adapters/outbound/persistence/schema/candles.schema";
 import {
 	insertOrderBook,
@@ -203,10 +204,10 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
 		await expect(tables()).resolves.toEqual(ALL_TABLES);
 
-		// 013 (cursors, down recreates them), 012 (trades id, down is a no-op), 010 (index), 009 (signals.area), 008 (market_order_books).
-		migrate("down", "5");
+		// 014 (candles index), 013 (cursors, down recreates them), 012 (trades id, down is a no-op), 010 (index), 009 (signals.area), 008 (market_order_books).
+		migrate("down", "6");
 		await expect(appliedMigrations()).resolves.toEqual(
-			MIGRATION_IDS.slice(0, -5)
+			MIGRATION_IDS.slice(0, -6)
 		);
 		await expect(tables()).resolves.toEqual(
 			[
@@ -572,6 +573,46 @@ describe("lastCandleOpenTime — real MySQL", () => {
 	});
 });
 
+describe("selectLatestClosedCandles — real MySQL", () => {
+	const ETH = TradingSymbol.of("ETHUSDT");
+	const at = (minutes: number) => UnixTimestamp.of(T0 + minutes * 60_000);
+	const closed = (minutes: number, overrides: Partial<CandleData> = {}) =>
+		candle({
+			timestamp: at(minutes),
+			closeTimestamp: UnixTimestamp.of(at(minutes) + 59_999),
+			...overrides,
+		});
+
+	it("should return one newest closed row per symbol, the highest id on a tie", async () => {
+		await insertCandles([
+			closed(0, { close: Price.of(1) }),
+			closed(5, { close: Price.of(2) }),
+			closed(9, { close: Price.of(3) }),
+			closed(5, { close: Price.of(4), interval: CandleInterval.Min5 }),
+			closed(2, { symbol: ETH, close: Price.of(7) }),
+		]);
+
+		const rows = await selectLatestClosedCandles(
+			[SYMBOL, ETH],
+			new Date(at(7))
+		);
+
+		expect(rows.map((row) => [row.symbol, row.close]).sort()).toEqual([
+			["BTCUSDT", 4],
+			["ETHUSDT", 7],
+		]);
+	});
+
+	it("should use the symbol/close index", async () => {
+		// MySQL resolves MAX() from the index while optimizing (EXPLAIN key is null): check the index exists.
+		const [indexes] = await DATABASE.promise().query(
+			"SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'market_candles' AND index_name = 'idx_candles_symbol_close'"
+		);
+
+		expect(indexes).toHaveLength(2);
+	});
+});
+
 describe("signals — real MySQL", () => {
 	const OBSERVED = Date.UTC(2026, 10, 3, 12, 0, 0, 125);
 
@@ -745,4 +786,36 @@ describe("index-build — paged symbol reads (ADR-0088)", () => {
 			expect(redundant).toHaveLength(0);
 		}
 	});
+
+	it("should not block writers behind a long snapshot transaction, then build once it ends", async () => {
+		await DATABASE.promise().query(
+			"DROP INDEX idx_trades_symbol_ts ON market_trades"
+		);
+		await DATABASE.promise().query(
+			"CREATE INDEX idx_trades_symbol ON market_trades (symbol)"
+		);
+		const snapshot = await createConnection({
+			uri: process.env.TEST_MYSQL_URI,
+		});
+		await snapshot.query("START TRANSACTION WITH CONSISTENT SNAPSHOT");
+		await snapshot.query("SELECT COUNT(*) FROM market_trades");
+		const build = runner.runAsync("index-build");
+		await new Promise((resolve) => setTimeout(resolve, 2000));
+		const start = Date.now();
+		await DATABASE.promise().query(
+			"INSERT INTO market_trades (symbol, market, source, trade_id, price, quantity, side, timestamp) VALUES ('BTCUSDT', 'crypto', 'binance', 987654321, 1, 1, 'buy', NOW(3))"
+		);
+		expect(Date.now() - start).toBeLessThan(10_000);
+		await snapshot.query("COMMIT");
+		await snapshot.end();
+
+		const result = await build;
+		expect(result.output).toContain("metadata lock wait timeout");
+		expect(result.code).toBe(0);
+		expect((await explain("market_trades")).key).toBe("idx_trades_symbol_ts");
+		const [redundant] = await DATABASE.promise().query(
+			"SHOW INDEX FROM market_trades WHERE Key_name = 'idx_trades_symbol'"
+		);
+		expect(redundant).toHaveLength(0);
+	}, 60_000);
 });
