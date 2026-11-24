@@ -15,16 +15,12 @@ import type {
 	Topic,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import type { ServiceIdentity as DomainServiceIdentity } from "@trading-model/primitives/service-identity";
+import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type { DeliveryMode } from "./delivery-mode";
 import type { EventEnumMap } from "./event-map";
 import type { Signature } from "./signed-request";
 
-/**
- * Identity of a service instance within the broker system.
- * Used to identify publishers and subscribers for routing and load-balancing.
- */
-export type ServiceIdentity = DomainServiceIdentity;
+export type { ServiceIdentity };
 
 /**
  * Routing hints for message delivery scheduling.
