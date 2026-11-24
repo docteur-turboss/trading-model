@@ -99,7 +99,7 @@ const DEFAULT_ACL: Record<KnownService, readonly ServiceId[]> = {
 | Resource | Access Method | Authentication | Authorisation |
 |---|---|---|---|
 | Database (MySQL) | TLS 1.2+ (cert-manager server certificate, host name verified; plain TCP refused: `require_secure_transport=ON`, issue #767) | Username/password + SealedSecret **and** a cert-manager client certificate per user (`REQUIRE ISSUER / SUBJECT`) | NetworkPolicy: ports 3306 / 33061 only from the listed client components ([databases.md](../architecture/databases.md)); SQL grants |
-| Database (MongoDB) | TLS `preferTLS` in the cluster; operators through `kubectl exec` | One user per service, replica-set `keyFile` (ADR-0067; `transitionToAuth` until the release after 3.1.0) | NetworkPolicy: port 27017 only from the owner service, the replica set members and the init Job ([databases.md](../architecture/databases.md#mongodb--audit), which also covers auth and TLS); `kubectl exec` through Kubernetes RBAC |
+| Database (MongoDB) | TLS `requireTLS` in the cluster; operators through `kubectl exec` | One user per service, replica-set `keyFile` (ADR-0067, authentication enforced) | NetworkPolicy: port 27017 only from the owner service, the replica set members and the init Job ([databases.md](../architecture/databases.md#mongodb--audit), which also covers auth and TLS); `kubectl exec` through Kubernetes RBAC |
 | Grafana (metrics, Loki logs) | HTTPS through the ingress | OIDC, one account per person (ADR-0063); local `admin` kept for break-glass only | Role `Viewer` by default, no sign-up, no anonymous access; Admin granted by hand |
 | Kubernetes API | kubectl + client cert | mTLS certificate | RBAC roles + SealedSecrets |
 

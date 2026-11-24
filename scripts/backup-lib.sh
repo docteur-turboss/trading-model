@@ -1027,7 +1027,7 @@ normalize_components() {
 mongo_primary() {
 	local pod
 	for pod in $(component_pods "$1"); do
-		if [ "$(kubectl_exec_probe "${pod}" -- mongosh --quiet --eval 'db.hello().isWritablePrimary')" = "true" ]; then
+		if [ "$(kubectl_exec_probe "${pod}" -- mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt --eval 'db.hello().isWritablePrimary')" = "true" ]; then
 			echo "${pod}"
 			return 0
 		fi
@@ -1058,13 +1058,13 @@ mongo_tool() {
 	# mongosh: the password is read from the pod env inside --eval ($4), never in argv
 	if [ "$1" = mongosh ]; then
 		kubectl_exec ${flags[@]+"${flags[@]}"} "${pod}" -c mongodb -- mongosh --quiet \
-			--eval "db.getSiblingDB('admin').auth('$user', process.env.$var); $4"
+			--tls --tlsCAFile /keyfile/ca.crt --eval "db.getSiblingDB('admin').auth('$user', process.env.$var); $4"
 		return
 	fi
 	kubectl_exec ${flags[@]+"${flags[@]}"} "${pod}" -c mongodb -- sh -c \
 		"PWD_VAR=\$2; $MONGO_PWD_CFG"'
 u=$1; shift 2
-"$@" --config "$d/c.yml" --username "$u" --authenticationDatabase admin' sh "$user" "$var" "$@"
+"$@" --ssl --sslCAFile /keyfile/ca.crt --config "$d/c.yml" --username "$u" --authenticationDatabase admin' sh "$user" "$var" "$@"
 }
 
 # Oplog point (`seconds.increment`) of the newest (`-1`) or oldest (`1`)

@@ -186,7 +186,7 @@ replay_oplog() {
     open_backup "$archive" | gunzip || return 1
   done | kubectl exec -i -n "${K8S_NAMESPACE}" "${primary}" -- sh -c \
     "PWD_VAR=MONGO_ROOT_PASSWORD; ${MONGO_PWD_CFG}"'
-o=$(mktemp -d) && chmod 700 "$o" && cat > "$o/oplog.bson" && mongorestore --oplogReplay --oplogLimit "$1:0" --config "$d/c.yml" --username root --authenticationDatabase admin "$o"; rc=$?; rm -rf "$o"; exit $rc' \
+o=$(mktemp -d) && chmod 700 "$o" && cat > "$o/oplog.bson" && mongorestore --ssl --sslCAFile /keyfile/ca.crt --oplogReplay --oplogLimit "$1:0" --config "$d/c.yml" --username root --authenticationDatabase admin "$o"; rc=$?; rm -rf "$o"; exit $rc' \
     sh "$UNTIL_EPOCH"
 }
 
@@ -201,7 +201,7 @@ save_mongo_users() {
 # save_mongo_users. The restored root has the password of the dump's day, so
 # the keyFile's internal user (`__system`) signs in instead.
 put_back_mongo_users() {
-  printf '%s' "$2" | kubectl_exec -i "$1" -c mongodb -- mongosh --quiet --eval \
+  printf '%s' "$2" | kubectl_exec -i "$1" -c mongodb -- mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt --eval \
     "db.getSiblingDB('local').auth('__system', require('fs').readFileSync('/keyfile/keyfile', 'utf8').trim());
 const s = EJSON.parse(require('fs').readFileSync(0, 'utf8')); const a = db.getSiblingDB('admin');
 for (const [c, docs] of [['system.users', s.u], ['system.roles', s.r]]) { a.getCollection(c).deleteMany({}); if (docs.length) a.getCollection(c).insertMany(docs); }"

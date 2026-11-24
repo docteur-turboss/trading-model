@@ -58,7 +58,7 @@ mongo_eval() {
   local pod
   pod="$(mongo_primary "$1")" || return 1
   # As `root` (ADR-0067); the password is in the pod's env.
-  kubectl exec -n "${K8S_NAMESPACE}" "$pod" -- sh -c 'mongosh --quiet -u root -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval "$1"' sh "$2"
+  kubectl exec -n "${K8S_NAMESPACE}" "$pod" -- sh -c 'mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt -u root -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval "$1"' sh "$2"
 }
 
 MYSQL_POD="$(mysql_primary_pod || true)"

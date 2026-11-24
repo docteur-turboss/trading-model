@@ -1,6 +1,6 @@
 # MongoDB client TLS (issue #769)
 
-Expand step of ADR-0060: the replica set `mongo-audit` runs `--tlsMode preferTLS`, so TLS and clear text are accepted for one release. Server certificates come from **cert-manager** (`deploy/k8s/infra/mongo-tls.yaml`, prerequisite as in [MYSQL_TLS.md](./MYSQL_TLS.md)); audit-logger uses `tls=true&tlsCAFile=/etc/mongo-tls/ca.crt` and verify the host name. Clients still authenticate with their password (ADR-0067); x.509 client certificates are not part of this step.
+The replica set `mongo-audit` runs `--tlsMode requireTLS` (contract step of ADR-0060; `preferTLS` was release 3.1.0): clear text is refused. Server certificates come from **cert-manager** (`deploy/k8s/infra/mongo-tls.yaml`, prerequisite as in [MYSQL_TLS.md](./MYSQL_TLS.md)); audit-logger uses `tls=true&tlsCAFile=/etc/mongo-tls/ca.crt` and verify the host name. Clients still authenticate with their password (ADR-0067); x.509 client certificates are not part of this step.
 
 | Object | Role |
 |---|---|
@@ -13,6 +13,6 @@ The init container of each pod writes `server.pem` (certificate + key) and `ca.c
 
 mongod reads its certificate at start. After cert-manager renews `mongo-*-tls` (30 days before the end), restart the set: `kubectl rollout restart statefulset/mongo-audit` (rolling, a majority stays up). Services read the CA when they start: after a CA renewal (~4 years) restart the servers first, then `deployment/audit-logger`.
 
-## Contract step (next release)
+## Clients
 
-Not done here: replace `preferTLS` with `requireTLS`, then move the exporter sidecars, the `mongo-*-users` Jobs, the backup / oplog archive scripts and the restore to TLS (`--tls --tlsCAFile`), add the refusal test (plain connection refused) and correct the MongoDB lines of `docs/compliance/*`. Until then MongoDB clients that connect without TLS are still accepted.
+Exporter sidecars, `mongo-*-users` Jobs, backup / oplog scripts and restore connect with `--tls --tlsCAFile` (`ca.crt`: `/keyfile` in the mongod container, Secret `mongo-ca` elsewhere).
