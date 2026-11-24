@@ -373,7 +373,7 @@ previous_mongo_root() {
 	log "release N-1 cannot create the MongoDB root user (#924): created by the harness"
 	for label in mongodb mongodb-audit; do
 		wait_for 300 "mongo_primary $label"
-		$K -n "$NS" exec "$(mongo_primary "$label")" -- sh -c 'mongosh --quiet --eval "
+		$K -n "$NS" exec "$(mongo_primary "$label")" -- sh -c 'mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt --eval "
 			try {
 				db.getSiblingDB(\"admin\").createUser({ user: \"root\", pwd: process.env.MONGO_ROOT_PASSWORD, roles: [{ role: \"root\", db: \"admin\" }] });
 			} catch (e) {
@@ -971,7 +971,8 @@ verify_egress() {
 mongo_ping() {
 	local img uri
 	img="$(grep -m1 -oE 'mongo(:[^@ ]+)?@sha256:[0-9a-f]+' "$ROOT/deploy/k8s/infra/mongo-audit.yaml")"
-	uri="mongodb://$3:27017/?directConnection=true&serverSelectionTimeoutMS=5000&connectTimeoutMS=5000"
+	# Probe only checks reachability under NetworkPolicy; the CA is not mounted in this pod.
+	uri="mongodb://$3:27017/?directConnection=true&tls=true&tlsAllowInvalidCertificates=true&serverSelectionTimeoutMS=5000&connectTimeoutMS=5000"
 	$K -n "$NS" run "$1" --rm -i --restart=Never --quiet --image="$img" ${2:+--labels="$2"} --overrides="{
 		\"apiVersion\": \"v1\",
 		\"spec\": {
@@ -1258,7 +1259,7 @@ verify_release() {
 mongo_primary() {
 	local pod
 	for pod in $($K -n "$NS" get pods -l "app.kubernetes.io/component=$1" -o jsonpath='{.items[*].metadata.name}'); do
-		if [ "$($K -n "$NS" exec "$pod" -- mongosh --quiet --eval 'db.hello().isWritablePrimary' 2>/dev/null)" = "true" ]; then
+		if [ "$($K -n "$NS" exec "$pod" -- mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt --eval 'db.hello().isWritablePrimary' 2>/dev/null)" = "true" ]; then
 			echo "$pod"
 			return 0
 		fi
@@ -1268,7 +1269,7 @@ mongo_primary() {
 
 mongo_eval() {
 	# As `root` (ADR-0067); the password is in the pod's env.
-	$K -n "$NS" exec "$(mongo_primary "$1")" -- sh -c 'mongosh --quiet -u root -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval "$1"' sh "$2"
+	$K -n "$NS" exec "$(mongo_primary "$1")" -- sh -c 'mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt -u root -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval "$1"' sh "$2"
 }
 
 mysql_root() {
@@ -1671,7 +1672,7 @@ verify_backup() {
 			return 1
 		}
 		# The dump holds drill-old: the restore must keep the Secret-era password (issue #1050).
-		$K -n "$NS" exec "$(mongo_primary "$label")" -- mongosh --quiet -u drill -p drill-new --authenticationDatabase admin \
+		$K -n "$NS" exec "$(mongo_primary "$label")" -- mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt -u drill -p drill-new --authenticationDatabase admin \
 			--eval "db.runCommand({connectionStatus: 1}).authInfo.authenticatedUsers.length" | grep -qx 1 || {
 			log "MongoDB $label: the user changed after the dump no longer authenticates with its current password"
 			return 1
@@ -1868,7 +1869,7 @@ dump() {
 	for pod in mongo-audit-0 mongo-dlq-0; do
 		echo "===== $pod"
 		$K -n "$NS" logs "$pod" -c mongodb --tail=40 2>&1 | cut -c1-300 || true
-		$K -n "$NS" exec "$pod" -c mongodb -- mongosh --quiet --eval 'JSON.stringify(rs.status())' 2>&1 | cut -c1-600 || true
+		$K -n "$NS" exec "$pod" -c mongodb -- mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt --eval 'JSON.stringify(rs.status())' 2>&1 | cut -c1-600 || true
 	done
 	echo "===== loki-0 (loki), promtail warnings, loki labels"
 	$K -n "$NS" logs loki-0 -c loki --tail=200 2>&1 | cut -c1-300 || true
