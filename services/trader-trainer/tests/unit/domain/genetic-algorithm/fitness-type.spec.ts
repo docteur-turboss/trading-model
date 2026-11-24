@@ -184,7 +184,9 @@ describe("fitnessType drives the published genome (ADR-0025)", () => {
 		});
 		await processor.runGeneration();
 
-		const ids = processor.getArchiveMembers().map((genome) => genome.id);
+		const ids = ((processor as any)._archive.members as { id: string }[]).map(
+			(genome) => genome.id
+		);
 		expect(ids.some((id) => /_[02]$/.test(id))).toBe(true);
 		expect(ids.some((id) => /_[13]$/.test(id))).toBe(true);
 	});

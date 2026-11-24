@@ -7,18 +7,18 @@ import {
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import {
-	toCorrelationId,
-	toInstanceId,
-	toMessageId,
-	toServiceId,
-	toTopic,
+	CorrelationId,
+	InstanceId,
+	MessageId,
+	ServiceId,
+	Topic,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 import { z } from "zod";
 
-const TOPIC_SCHEMA = z.string().min(1).transform(toTopic);
+const TOPIC_SCHEMA = z.string().min(1).transform(Topic.of);
 const CALLBACK_PATH_SCHEMA = z.string().min(1);
-const INSTANCE_ID_SCHEMA = z.string().min(1).transform(toInstanceId);
+const INSTANCE_ID_SCHEMA = z.string().min(1).transform(InstanceId.of);
 
 const IDENTIFY_SCHEMA = z.object({
 	serviceName: z
@@ -28,7 +28,7 @@ const IDENTIFY_SCHEMA = z.object({
 				...ServiceInstanceName[],
 			]
 		)
-		.transform(toServiceId),
+		.transform(ServiceId.of),
 	instanceId: INSTANCE_ID_SCHEMA,
 });
 
@@ -47,7 +47,7 @@ export const PUBLISH_METADATA_SCHEMA = z.object({
 	correlationId: z
 		.string()
 		.optional()
-		.transform((val) => (val ? toCorrelationId(val) : undefined)),
+		.transform((val) => (val ? CorrelationId.of(val) : undefined)),
 	schemaVersion: z
 		.string()
 		.min(1)
@@ -55,7 +55,7 @@ export const PUBLISH_METADATA_SCHEMA = z.object({
 	causationId: z
 		.string()
 		.optional()
-		.transform((val) => (val ? toCorrelationId(val) : undefined)),
+		.transform((val) => (val ? CorrelationId.of(val) : undefined)),
 	// as unknown as: Zod string typed as the event enum
 	eventType: z.string().min(1) as unknown as z.ZodType<EventEnumMap>,
 	topic: TOPIC_SCHEMA,
@@ -85,7 +85,7 @@ export const REPUBLISH_SCHEMA = z.object({
 	message: z.object({
 		payload: z.unknown(),
 		metadata: PUBLISH_METADATA_SCHEMA.extend({
-			messageId: z.string().min(1).transform(toMessageId),
+			messageId: z.string().min(1).transform(MessageId.of),
 			emittedAt: z.number().int().nonnegative().transform(UnixTimestamp.of),
 		}),
 	}),

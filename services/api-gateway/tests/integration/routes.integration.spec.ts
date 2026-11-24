@@ -15,9 +15,9 @@ jest.setTimeout(15000);
 const ENV: any = {
 	NODE_ENV: "test",
 	PORT: 0,
-	TLS_KEY_PATH: "",
-	TLS_CERT_PATH: "",
-	TLS_CA_PATH: "",
+	TLS_KEY_PATH: "/k",
+	TLS_CERT_PATH: "/c",
+	TLS_CA_PATH: "/a",
 	RATE_LIMIT_WINDOW_MS: 60000,
 	RATE_LIMIT_MAX: 1000,
 	CACHE_TTL_MS: 30000,
@@ -195,7 +195,7 @@ describe("API Gateway — Routes Integration", () => {
 		});
 		const call = (forwardRequest as jest.Mock<(...args: any[]) => any>).mock
 			.calls[0][0];
-		expect(call).toMatchObject({ path: "/events/stats" });
+		expect(call).toMatchObject({ path: "/v1/events/stats" });
 	});
 
 	it("should return 503 when the service name does not resolve", async () => {

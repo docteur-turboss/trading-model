@@ -63,6 +63,19 @@ function _search(req: Request): string {
 	return index === -1 ? "" : url.slice(index);
 }
 
+/** Logs, counts and answers one of the router's 503s. */
+function _unavailable(
+	serviceName: ServiceId,
+	level: "warn" | "error",
+	message: string,
+	context?: Record<string, unknown>,
+	error = "Service unavailable"
+) {
+	logger[level](message, context ? { context } : undefined);
+	SERVICE_ERRORS_TOTAL.inc({ service: serviceName });
+	return sendResponse({ error }, HTTP_STATUS.SERVICE_UNAVAILABLE);
+}
+
 const createCatchAllRoute = (env: Env) => {
 	const cache = new ResponseCache(DurationMs.of(env.CACHE_TTL_MS));
 	const allowedProxyRanges = parseCIDRList(env.ALLOWED_PROXY_CIDRS);
@@ -97,7 +110,7 @@ const createCatchAllRoute = (env: Env) => {
 
 		res.locals.routeLabel = pattern;
 
-		const scope = requiredScope(req.method);
+		const scope = requiredScope(req.method, pattern);
 		if (!authOf(req).apiKeyScopes.includes(scope)) {
 			return sendResponse(
 				{ error: "Forbidden", reason: `API key lacks the ${scope} scope` },
@@ -118,24 +131,24 @@ const createCatchAllRoute = (env: Env) => {
 
 		const target = await _resolve(serviceName);
 		if (!target) {
-			logger.warn("Service name does not resolve", {
-				context: { serviceName, majorVersion },
-			});
-			SERVICE_ERRORS_TOTAL.inc({ service: serviceName });
-			return sendResponse(
-				{ error: "Service unavailable" },
-				HTTP_STATUS.SERVICE_UNAVAILABLE
+			return _unavailable(
+				serviceName,
+				"warn",
+				"Service name does not resolve",
+				{
+					serviceName,
+					majorVersion,
+				}
 			);
 		}
 
 		if (allowedProxyRanges.length === 0 && env.NODE_ENV === "production") {
-			logger.error(
-				"Proxy target IP validation disabled — ALLOWED_PROXY_CIDRS is empty in production"
-			);
-			SERVICE_ERRORS_TOTAL.inc({ service: serviceName });
-			return sendResponse(
-				{ error: "Service unavailable — server misconfiguration" },
-				HTTP_STATUS.SERVICE_UNAVAILABLE
+			return _unavailable(
+				serviceName,
+				"error",
+				"Proxy target IP validation disabled — ALLOWED_PROXY_CIDRS is empty in production",
+				undefined,
+				"Service unavailable — server misconfiguration"
 			);
 		}
 
@@ -143,21 +156,23 @@ const createCatchAllRoute = (env: Env) => {
 			allowedProxyRanges.length > 0 &&
 			!isAllowedProxyIP(target.host, allowedProxyRanges)
 		) {
-			logger.warn("Proxy target IP not in allowed range", {
-				context: { serviceName, host: target.host },
-			});
-			SERVICE_ERRORS_TOTAL.inc({ service: serviceName });
-			return sendResponse(
-				{ error: "Service unavailable" },
-				HTTP_STATUS.SERVICE_UNAVAILABLE
+			return _unavailable(
+				serviceName,
+				"warn",
+				"Proxy target IP not in allowed range",
+				{ serviceName, host: target.host }
 			);
 		}
 
-		// shortcut: release N forwards without /v<n> so N-1 services answer; N+1 forwards `/v${majorVersion}${path}` (ADR-0072).
 		const response = await proxyAndCache(
 			req,
 			target,
-			{ serviceName, majorVersion, cacheKey, path: `${path}${search}` },
+			{
+				serviceName,
+				majorVersion,
+				cacheKey,
+				path: `/v${majorVersion}${path}${search}`,
+			},
 			{
 				forward: (opts) => forwardRequest(opts, env),
 				cache: cache,

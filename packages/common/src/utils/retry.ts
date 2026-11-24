@@ -55,7 +55,7 @@ export async function retryWithBackoff<_TResult>(
 		}
 		lastError = outcome.error;
 		if (attempt + 1 < maxRetries) {
-			await _sleepBackoff(attempt + 1, {
+			await _sleepBackoff(attempt, {
 				baseDelayMs,
 				maxDelayMs,
 			});

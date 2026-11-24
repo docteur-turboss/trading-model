@@ -4,10 +4,6 @@ export {
 	Environment,
 	Role,
 	Subject,
-	toAuthToken,
-	toEnvironment,
-	toRole,
-	toSubject,
 } from "./auth-ids";
 export { Bytes } from "./bytes";
 export { Cash } from "./cash";
@@ -24,11 +20,6 @@ export {
 	Region,
 	ServiceId,
 	TenantId,
-	toInstanceId,
-	toRegion,
-	toServiceId,
-	toTenantId,
-	toVersion,
 	Version,
 } from "./general-ids";
 export { Hostname } from "./hostname";
@@ -44,9 +35,6 @@ export {
 	MessageId,
 	MessagePriority,
 	Topic,
-	toCorrelationId,
-	toMessageId,
-	toTopic,
 } from "./messaging-ids";
 export { NonNegativeInt } from "./non-negative-int";
 export { Limit, PageNumber } from "./page-number";
@@ -58,8 +46,8 @@ export { Probability } from "./probability";
 export { Ratio } from "./ratio";
 export { Reward } from "./reward";
 export { SharpeRatio } from "./sharpe-ratio";
-export { DurationMs, SequenceNumber, toDurationMs } from "./time-ids";
-export { fromSymbol, TradingSymbol, toSymbol } from "./trading-symbol";
+export { DurationMs, SequenceNumber } from "./time-ids";
+export { TradingSymbol } from "./trading-symbol";
 export { UnixTimestamp } from "./unix-timestamp";
 export { Uptime } from "./uptime";
 export { URLString } from "./url-string";
