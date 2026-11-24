@@ -4,25 +4,22 @@ import {
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 
-/** Thresholds of a circuit: failures before opening, cooldown while open, probes allowed half-open. */
+/** Thresholds of a circuit: failures before opening, cooldown while open (then one half-open probe). */
 export interface CircuitBreakerConfig {
 	failureThreshold: number;
 	cooldownMs: DurationMs;
-	halfOpenMaxAttempts?: number;
 }
 
 /** Default circuit config: opens after 5 failures, 30 s cooldown, one half-open probe. */
 export const DEFAULT_CIRCUIT_CONFIG: CircuitBreakerConfig = {
 	failureThreshold: 5,
 	cooldownMs: DurationMs.of(30_000),
-	halfOpenMaxAttempts: 1,
 };
 
 /** Closed / open / half-open state of one target; holds no timers, state is derived from the clock on each call. */
 export class CircuitStateMachine {
 	protected _failures = 0;
 	protected _openUntil: UnixTimestamp = 0 as UnixTimestamp;
-	protected _halfOpenAttempts = 0;
 	/** While in the future, the half-open probe is in flight: other callers see OPEN. */
 	protected _probeUntil: UnixTimestamp = 0 as UnixTimestamp;
 
@@ -68,56 +65,31 @@ export class CircuitStateMachine {
 		}
 		if (this._openUntil > 0) {
 			this._openUntil = 0 as UnixTimestamp;
-			this._halfOpenAttempts = 0;
 		}
 		return false;
 	}
 
-	recordFailure(count = 1, threshold?: number): boolean {
+	/** A failure during the half-open probe reopens the circuit; otherwise it opens at the threshold. */
+	recordFailure(): boolean {
 		const effectiveNow = UnixTimestamp.now();
 		this._probeUntil = 0 as UnixTimestamp;
-		this._failures += count;
-		if (this._openUntil > 0) {
-			return this._recordHalfOpenFailure(effectiveNow);
-		}
-		return this._recordClosedFailure(effectiveNow, threshold);
-	}
-
-	private _openCircuit(effectiveNow: UnixTimestamp): void {
-		this._openUntil = UnixTimestamp.add(effectiveNow, this._config.cooldownMs);
-	}
-
-	private _recordHalfOpenFailure(effectiveNow: UnixTimestamp): boolean {
-		this._halfOpenAttempts++;
+		this._failures++;
 		if (
-			this._config.halfOpenMaxAttempts !== undefined &&
-			this._halfOpenAttempts >= this._config.halfOpenMaxAttempts
+			this._openUntil > 0 ||
+			this._failures >= this._config.failureThreshold
 		) {
-			this._openCircuit(effectiveNow);
+			this._openUntil = UnixTimestamp.add(
+				effectiveNow,
+				this._config.cooldownMs
+			);
 			return true;
 		}
 		return false;
-	}
-
-	private _recordClosedFailure(
-		effectiveNow: UnixTimestamp,
-		threshold: number | undefined
-	): boolean {
-		if (this._failures < (threshold ?? this._config.failureThreshold)) {
-			return false;
-		}
-		this._openCircuit(effectiveNow);
-		return true;
 	}
 
 	recordSuccess(): void {
 		this._probeUntil = 0 as UnixTimestamp;
 		this._failures = 0;
 		this._openUntil = 0 as UnixTimestamp;
-		this._halfOpenAttempts = 0;
-	}
-
-	clear(): void {
-		this.recordSuccess();
 	}
 }

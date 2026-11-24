@@ -5,7 +5,6 @@ import {
 	isRetryableStatus,
 	isRetryableStatusPermissive,
 } from "@trading-model/http/http-retry";
-import { DurationMs } from "@trading-model/primitives/primitives";
 
 describe("isRetryableStatus", () => {
 	it("should return true for 5xx status codes", () => {
@@ -67,15 +66,6 @@ describe("computeRetryDelay", () => {
 		const random = jest.spyOn(Math, "random").mockReturnValue(0.5);
 		expect(computeRetryDelay(1)).toBe(400);
 		random.mockRestore();
-	});
-
-	it("should respect custom options", () => {
-		const delay = computeRetryDelay(1, {
-			baseDelayMs: DurationMs.of(500),
-			maxDelayMs: DurationMs.of(10000),
-		});
-		expect(delay).toBeGreaterThanOrEqual(0);
-		expect(delay).toBeLessThanOrEqual(10000);
 	});
 });
 

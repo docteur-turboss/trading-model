@@ -6,6 +6,7 @@ useDefault = true
 [allowlist]
 description = "Public series keys, ADR prose and SealedSecret ciphertext (no real credential)"
 stopwords = [
+  "admin:admin", # default login of the throwaway Grafana in tests/observability
   "YC.B.U2.EUR", # public ECB series key, older registry format
   "CRL/revocation", # ADR-0011 prose matched as a key
 ]

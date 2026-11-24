@@ -31,7 +31,7 @@ export class CircuitBreaker {
 	recordSuccess(key: string): void {
 		this.getMachine(key).recordSuccess();
 	}
-	recordFailure(key: string, count?: number, threshold?: number): boolean {
-		return this.getMachine(key).recordFailure(count ?? 1, threshold);
+	recordFailure(key: string): boolean {
+		return this.getMachine(key).recordFailure();
 	}
 }

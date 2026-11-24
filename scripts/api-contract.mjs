@@ -75,6 +75,7 @@ const SERVICE_TO_SERVICE = {
 	"risk-execution": ["POST /intents", "POST /orders/:clientOrderId/cancel", "GET /positions/:symbol", "GET /admin/status"],
 	// Model weights: never through the gateway (ADR-0022).
 	"trader-trainer": ["GET /models/:symbol/:version/weights"],
+	"financial-scraper": ["GET /v2/candles/latest"],
 };
 
 /**
@@ -89,6 +90,7 @@ const CALLERS = {
 	"discovery-server POST /token/rotate": { caller: "packages/address-manager", call: /\/token\/rotate`/ },
 	"discovery-server POST /unregister": { caller: "packages/address-manager", call: /_url\("\/unregister"\)/ },
 	"trader-trainer GET /models/:symbol/:version/weights": { caller: "packages/http", call: /\/weights`/ },
+	"financial-scraper GET /v2/candles/latest": { caller: "services/risk-execution", call: /\/v2\/candles\/latest/ },
 	"risk-execution POST /intents": { caller: "services/decision-consumer", call: /\/intents`/ },
 	"risk-execution GET /positions/:symbol": { caller: "services/decision-consumer", call: /\/positions\// },
 };

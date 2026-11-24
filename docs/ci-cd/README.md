@@ -131,7 +131,7 @@ nodes pull credentials for the registry.
 | **Sealed Secrets Key Backup** | `sealed-secrets-key-backup.yml` | daily cron (03:30 UTC), manual | Seal and copy the controller keys off-site ([ADR-0035](../adr/0035-sealed-secrets-key-daily-backup-by-github-actions.md)) |
 | **Secret Rotation Reminder** | `secret-rotation-reminder.yml` | quarterly cron (1 Jan/Apr/Jul/Oct), manual | Open a "Quarterly secret rotation" issue unless one is open |
 
-All workflows run on `ubuntu-latest` with Bun. Failure in any workflow blocks merging.
+All workflows run on `ubuntu-24.04` with Bun. Failure in any workflow blocks merging.
 
 **Concurrency:** CI grouped by workflow + ref; a new commit cancels the running run of a pull request only, push and tag runs always finish.
 

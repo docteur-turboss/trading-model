@@ -29,6 +29,7 @@ function _quarterCpu(_match, indent, value, unit) {
 	return `${indent}cpu: ${Math.max(1, Math.round(millis / 4))}m`;
 }
 
+// CI_RENDER_SCOPES: release N-1 predates the risk:admin scope and refuses it.
 // Public test values, for the throwaway kind cluster only (run-kind.sh API_KEY).
 const TEST_SECRET = `apiVersion: v1
 kind: Secret
@@ -39,7 +40,7 @@ metadata:
     app.kubernetes.io/part-of: trading-model
 type: Opaque
 stringData:
-  AUTH_TOKENS: dev:read:dev-token-0123456789abcdef0123456789abcdef
+  AUTH_TOKENS: dev:${process.env.CI_RENDER_SCOPES ?? "read+risk:admin"}:dev-token-0123456789abcdef0123456789abcdef
   SIGNING_SECRET: dev-signing-0123456789abcdef0123456789abcdef
   SERVICE_BOOTSTRAP_TOKEN: dev-bootstrap-change-me
   MYSQL_ROOT_PASSWORD: dev-mysql-root
