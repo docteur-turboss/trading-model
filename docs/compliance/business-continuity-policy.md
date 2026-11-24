@@ -100,7 +100,7 @@ met for its data, which is recovered to within 1 hour.
 1. **Detection:** Complete loss of platform monitoring
 2. **Response:** Infrastructure team notified via out-of-band communication
 3. **Recovery:**
-   - Infrastructure rebuild via `docker-compose up -d` or `kubectl apply -f deploy/`
+   - Infrastructure rebuild via `kubectl apply -f deploy/` (the compose stack is disposable and holds no reference data, ADR-0086)
    - Database restoration from backup (MongoDB and MySQL: latest daily dump, then the hourly oplog / binlog archives up to the last one: `restore-k8s.sh --until`)
    - SPIRE restore (datastore and CA keys, independent of MySQL since ADR-0065) or re-bootstrap (SVID re-enrolment of all workloads)
    - Service restart in dependency order
