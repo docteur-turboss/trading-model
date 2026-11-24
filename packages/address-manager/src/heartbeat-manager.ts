@@ -2,7 +2,6 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { PositiveInt } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
-import type { HeartbeatSenderPort } from "@trading-model/reliability/heartbeat-sender.port";
 import type { ServiceClientDeps } from "./types";
 
 const MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER = PositiveInt.of(3);
@@ -26,7 +25,7 @@ function _isLeaseLost(err: unknown): boolean {
 }
 
 /** Sends the heartbeats of the registered instance; re-registers after a 401, a 404 or repeated failures. */
-export class HeartbeatManager implements HeartbeatSenderPort {
+export class HeartbeatManager {
 	private _consecutiveHeartbeatFailures = 0;
 
 	constructor(private readonly _deps: ServiceClientDeps) {}
