@@ -446,6 +446,48 @@ describe("BusConsumer", () => {
 		expect((await parts.streams.list(TOPIC))[0]?.attempts).toBe(10);
 	});
 
+	it("should dead-letter a crashed entry past MAX_RETRIES without calling the handler", async () => {
+		const parts = bus();
+		await parts.journal.register(GROUP);
+		await publishToBus(parts.journal, "a", METADATA);
+		const [read] = await parts.journal.readNew(GROUP, "mm", 1);
+		const pending = parts.redis.streams
+			.get(`p:journal:${TOPIC}`)
+			?.groups.get(GROUP.service)
+			?.pending.get(read?.id as string);
+		(pending as { deliveries: number }).deliveries = 10;
+		const handler = jest.fn<(...args: any[]) => any>();
+		const { consumer: c, onDeadLetter } = consumer(handler, parts);
+
+		await c.start([TOPIC]);
+		await until(() => onDeadLetter.mock.calls.length === 1);
+		await c.stop();
+
+		expect(handler).not.toHaveBeenCalled();
+		expect(await parts.streams.list(TOPIC)).toEqual([
+			expect.objectContaining({ reason: "MAX_RETRIES_EXCEEDED" }),
+		]);
+		expect(pendingOf(parts.redis)).toBe(0);
+	});
+
+	it("should keep delivering when pruning consumers fails", async () => {
+		const handled: unknown[] = [];
+		const { consumer: c, journal } = consumer(async (m) => {
+			handled.push(m.payload);
+		});
+		await journal.register(GROUP);
+		jest
+			.spyOn(journal, "pruneConsumers")
+			.mockRejectedValueOnce(new Error("NOPERM"));
+		await publishToBus(journal, "a", METADATA);
+
+		await c.start([TOPIC]);
+		await until(() => handled.length === 1);
+		await c.stop();
+
+		expect(handled).toEqual(["a"]);
+	});
+
 	it("should leave the entry pending when the dead stream write fails", async () => {
 		const {
 			consumer: c,
@@ -518,6 +560,26 @@ describe("DeadStreams", () => {
 		expect(await streams.delete(TOPIC, letter?.id as string)).toBe(true);
 		expect(await streams.delete(TOPIC, "0-1")).toBe(false);
 		expect(await streams.replay(TOPIC, "0-1")).toBe(false);
+	});
+
+	it("should trim entries older than 7 days on each dead letter", async () => {
+		const { streams, redis } = bus();
+		const call = jest.spyOn(redis, "call");
+		jest.spyOn(Date, "now").mockReturnValue(1_000_000_000_000);
+
+		try {
+			await streams.deadLetter(GROUP, "1-0", createMockMessage("x"), "R", 1);
+		} finally {
+			jest.restoreAllMocks();
+		}
+
+		expect(call.mock.calls[0]?.slice(0, 5)).toEqual([
+			"XADD",
+			`p:dead:${TOPIC}`,
+			"MINID",
+			"~",
+			String(1_000_000_000_000 - 7 * 24 * 60 * 60 * 1000),
+		]);
 	});
 
 	it("should throw when the transaction fails, so the entry stays pending", async () => {

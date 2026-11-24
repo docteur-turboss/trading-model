@@ -181,6 +181,18 @@ describe("ScraperClient", () => {
 		);
 		expect(String(manifestGet.mock.calls[1][0])).toMatch(/&after=c1$/);
 	});
+	it("rejects a page whose candle has a non-positive price", async () => {
+		manifestGet.mockReset();
+		manifestGet.mockImplementation(async (_u, _o, schema) =>
+			schema.parse({
+				rows: [{ ...row(0), source: "binance", market: "spot", open: -1 }],
+				nextCursor: null,
+			})
+		);
+		await expect(
+			new ScraperClient(TLS, FIND).candles("BTCUSDT", 0, 119_999, 60_000)
+		).rejects.toThrow();
+	});
 	it("rebuilds daily bars from signals: bars from `from`, nothing observed after `to`", async () => {
 		const day = (date: string, close: number) =>
 			Object.entries({

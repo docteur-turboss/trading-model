@@ -6,7 +6,6 @@ import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { CircuitState } from "@trading-model/primitives/circuit-state";
 import { Hostname, type URLString } from "@trading-model/primitives/primitives";
 import { CircuitBreaker } from "@trading-model/reliability/circuit-breaker";
-import type { CircuitBreakerConfig } from "@trading-model/reliability/circuit-state-machine";
 import { createHttpClientError } from "./http-client-errors";
 import type { HttpRequestOptions } from "./http-types";
 import { circuitBreakerRejectionsTotal } from "./outbound-metrics";
@@ -19,43 +18,26 @@ export interface ServiceRoute {
 
 /** Records outbound call outcomes in circuit breakers, one per hostname and per service. */
 export class CircuitRecorder {
-	private readonly _hostnameCircuit: CircuitBreaker;
+	private readonly _hostnameCircuit = new CircuitBreaker();
 	// Keyed by service name: one state machine per service, default config.
 	private readonly _serviceCircuit = new CircuitBreaker();
-
-	constructor(config?: Partial<CircuitBreakerConfig>) {
-		this._hostnameCircuit = new CircuitBreaker(config);
-	}
 
 	checkPreconditions(
 		urlStr: URLString,
 		options?: HttpRequestOptions
 	): ServiceRoute {
 		const hostname = Hostname.of(new URL(urlStr).hostname);
-		const rawServiceName = options?.serviceName;
-		const serviceName = rawServiceName
-			? parseServiceName(rawServiceName)
+		const serviceName = options?.serviceName
+			? parseServiceName(options.serviceName)
 			: undefined;
-		const hostState = this._hostnameCircuit.check(hostname);
-		if (hostState === CircuitState.OPEN) {
-			circuitBreakerRejectionsTotal.inc({ target: hostname, kind: "hostname" });
-			throw createHttpClientError(
-				`Circuit breaker open for ${hostname}`,
-				HTTP_STATUS.SERVICE_UNAVAILABLE
-			);
-		}
+		_rejectIfOpen(this._hostnameCircuit, hostname, "hostname", hostname);
 		if (serviceName) {
-			const svcState = this._serviceCircuit.check(serviceName);
-			if (svcState === CircuitState.OPEN) {
-				circuitBreakerRejectionsTotal.inc({
-					target: serviceName,
-					kind: "service",
-				});
-				throw createHttpClientError(
-					`Circuit breaker open for service ${serviceName}`,
-					HTTP_STATUS.SERVICE_UNAVAILABLE
-				);
-			}
+			_rejectIfOpen(
+				this._serviceCircuit,
+				serviceName,
+				"service",
+				`service ${serviceName}`
+			);
 		}
 		return { hostname, serviceName };
 	}
@@ -72,6 +54,21 @@ export class CircuitRecorder {
 		if (route.serviceName) {
 			this._serviceCircuit.recordFailure(route.serviceName);
 		}
+	}
+}
+
+function _rejectIfOpen(
+	circuit: CircuitBreaker,
+	target: string,
+	kind: "hostname" | "service",
+	label: string
+): void {
+	if (circuit.check(target) === CircuitState.OPEN) {
+		circuitBreakerRejectionsTotal.inc({ target, kind });
+		throw createHttpClientError(
+			`Circuit breaker open for ${label}`,
+			HTTP_STATUS.SERVICE_UNAVAILABLE
+		);
 	}
 }
 
