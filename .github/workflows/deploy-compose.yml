@@ -157,7 +157,7 @@ jobs:
           bad=$(docker ps -a --filter label=com.docker.compose.project=trading-model --format '{{.Names}} {{.Status}}' | grep -E 'unhealthy|starting)|Restarting|Exited ([1-9]' || true)
           [ -z "$bad" ] || { echo "::error::Not healthy:"; echo "$bad"; exit 1; }
           key=$(sed -n 's/^GATEWAY_AUTH_TOKENS=//p' "$ENV_FILE" | cut -d, -f1 | awk -F: '{print $NF}')
-          code=$(curl -s -o /dev/null -w '%{http_code}' -H "x-api-key: $key" http://127.0.0.1:8449/v1/trader-trainer/training-status)
+          code=$(printf 'x-api-key: %s\n' "$key" | curl -s -o /dev/null -w '%{http_code}' -H @- http://127.0.0.1:8449/v1/trader-trainer/training-status)
           [ "$code" = 200 ] || { echo "::error::edge-proxy -> gateway answered $code, expected 200"; exit 1; }
 
       # Migrations stay compatible with N-1 (ADR-0040): the previous images run on the migrated schema.

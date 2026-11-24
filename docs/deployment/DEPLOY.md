@@ -369,7 +369,7 @@ Moving an existing cluster over: `deploy.yml` (step "Release replicas of autosca
 ## Rollback
 
 Rollback is automatic on failure in the `Deploy` workflow. Before applying the
-overlay it records the revision of each of the 9 Deployments; on failure it
+overlay it records the revision of each Deployment; on failure it
 runs `kubectl rollout undo --to-revision=<recorded>` for each of them. These
 steps (record, apply by digest, wait for rollout, rollback) live in
 `deploy/k8s/scripts/deploy-release.sh`, which the CI `k8s` job runs too: it

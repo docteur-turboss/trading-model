@@ -66,7 +66,7 @@ The default ACL maps each target service to the callers allowed to reach it (`"*
 ### 4.2 ACL Change Procedure
 
 1. Submit PR modifying the `DEFAULT_ACL` mapping in `acl-config.ts`
-2. PR must be reviewed by Platform Security Lead
+2. PR must be reviewed by the maintainer (single role; CI gates apply)
 3. Deploy updated package to all services
 4. Rollback available via git revert
 

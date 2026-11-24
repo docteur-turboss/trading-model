@@ -25,7 +25,7 @@ Is there a known cause? → Recent deploy / config change / upstream outage
 - **L1/L2:** Immediately rollback if caused by recent deployment
 - **L1:** Restore from backup if data loss
 - **L1:** Isolate affected service if cascading failure
-- Document all actions in the incident channel
+- Document all actions in the incident timeline (no dedicated channel: see [Communication Channels](#communication-channels))
 
 ### 4. Resolution
 

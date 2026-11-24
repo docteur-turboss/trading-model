@@ -133,9 +133,8 @@ Monitoring Stack ───────────────┘
 
 | Stakeholder | Method | Frequency |
 |---|---|---|
-| **Internal team** | Incident channel (Slack/Teams) | Every 30 minutes during L1-L2 |
-| **Platform Security Lead** | Phone | Immediate for L1 |
-| **Compliance officer** | Email + phone | Within regulatory notification timeline |
+| **Maintainer (single role)** | Pushover and the channels of [incident-response.md](../operations/incident-response.md#communication-channels) | Best effort, immediate for L1 |
+| **Regulatory authorities** | Formal notification (by the maintainer) | Within regulatory notification timeline |
 
 ## 7. Plan Maintenance & Testing
 
