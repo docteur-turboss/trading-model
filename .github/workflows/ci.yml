@@ -476,12 +476,12 @@ jobs:
           registry="${IMAGE_REGISTRY:-ghcr.io/$OWNER}"
           registry="${registry,,}"
           for tag in $(git tag --merged HEAD^1 --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$'); do
-            if err=$(docker manifest inspect "$registry/discovery-server:${tag#v}" 2>&1 >/dev/null); then
+            if err=$(docker manifest inspect "$registry/api-gateway:${tag#v}" 2>&1 >/dev/null); then
               { echo "tag=$tag"; echo "registry=$registry"; } >> "$GITHUB_OUTPUT"
               echo "Release N-1: $tag ($registry)"
               exit 0
             fi
-            echo "::warning::Release N-1: $tag skipped, no image $registry/discovery-server:${tag#v} ($err)"
+            echo "::warning::Release N-1: $tag skipped, no image $registry/api-gateway:${tag#v} ($err)"
           done
           echo "::error::Release N-1: no stable tag merged in HEAD^1 has published images in $registry"
           exit 1
