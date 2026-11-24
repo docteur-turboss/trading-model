@@ -82,15 +82,3 @@ export function verifyModel(input: {
 /** Same bar, same model: same identifier, so risk-execution deduplicates a replay (ADR-0064 §2). */
 export const decisionId = (model: PromotedModel, barTimestamp: number) =>
 	`${model.symbol}@${model.version}:${barTimestamp}`;
-
-/** Body of risk-execution `POST /intents` (ADR-0064 §1), declared here until #1904 shares it. */
-export const Intent = z.object({
-	decisionId: z.string().min(1),
-	symbol: z.string().min(1),
-	side: z.enum(["buy", "sell"]),
-	quantity: z.number().positive(),
-	referencePrice: z.number().positive(),
-	referenceAt: z.number().int().positive(),
-	model: z.object({ symbol: z.string().min(1), version: z.string().min(1) }),
-});
-export type Intent = z.infer<typeof Intent>;

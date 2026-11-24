@@ -68,7 +68,7 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 
 	/** GET the path, check the response against the route's entry. */
 	async function get(route: ApiRoute, path: string) {
-		const res = await fetch(`${baseUrl}${path}`);
+		const res = await fetch(`${baseUrl}/v1${path}`);
 		const body = await res.json();
 		expect(responseIssues(route, res.status, body)).toEqual([]);
 		return { status: res.status, body };
@@ -85,7 +85,7 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 
 			const { status, body } = await get(
 				AUDIT_API.listEvents,
-				"/v1/events?topic=market.candles.fetch&publisher=financial-scraper-service" +
+				"/events?topic=market.candles.fetch&publisher=financial-scraper-service" +
 					"&correlationId=c-1&startDate=2026-10-01&endDate=2026-10-28T23:59:59Z&page=2&limit=10"
 			);
 
@@ -116,7 +116,7 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 				limit: 1000,
 			});
 
-			await get(AUDIT_API.listEvents, "/v1/events?topic=&limit=5000");
+			await get(AUDIT_API.listEvents, "/events?topic=&limit=5000");
 
 			expect(auditRepo.query).toHaveBeenCalledWith({
 				topic: undefined,
@@ -132,7 +132,7 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 		it("passes withTotal=false to the repository", async () => {
 			auditRepo.query.mockResolvedValue({ docs: [], page: 1, limit: 100 });
 
-			await get(AUDIT_API.listEvents, "/v1/events?withTotal=false");
+			await get(AUDIT_API.listEvents, "/events?withTotal=false");
 
 			expect(auditRepo.query).toHaveBeenCalledWith(
 				expect.objectContaining({ withTotal: false })
@@ -145,10 +145,7 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 			["a non-numeric limit", "limit=abc", "query.limit"],
 			["an unparsable date", "startDate=yesterday", "query.startDate"],
 		])("rejects %s with 400 before querying", async (_label, qs, field) => {
-			const { status, body } = await get(
-				AUDIT_API.listEvents,
-				`/v1/events?${qs}`
-			);
+			const { status, body } = await get(AUDIT_API.listEvents, `/events?${qs}`);
 
 			expect(status).toBe(400);
 			expect(body.details).toEqual([expect.objectContaining({ field })]);
@@ -165,7 +162,7 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 				dateRange: { earliest: RECEIVED, latest: RECEIVED },
 			});
 
-			const { status } = await get(AUDIT_API.getStats, "/v1/events/stats");
+			const { status } = await get(AUDIT_API.getStats, "/events/stats");
 
 			expect(status).toBe(200);
 		});
@@ -178,9 +175,7 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 				dateRange: { earliest: null, latest: null },
 			});
 
-			expect((await get(AUDIT_API.getStats, "/v1/events/stats")).status).toBe(
-				200
-			);
+			expect((await get(AUDIT_API.getStats, "/events/stats")).status).toBe(200);
 		});
 	});
 
@@ -188,7 +183,7 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 		it("answers the event", async () => {
 			auditRepo.findById.mockResolvedValue(EVENT);
 
-			const { status } = await get(AUDIT_API.getEvent, "/v1/events/m-1");
+			const { status } = await get(AUDIT_API.getEvent, "/events/m-1");
 
 			expect(status).toBe(200);
 			expect(auditRepo.findById).toHaveBeenCalledWith("m-1");
@@ -197,10 +192,7 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 		it("answers 404 for an unknown id", async () => {
 			auditRepo.findById.mockResolvedValue(null);
 
-			const { status, body } = await get(
-				AUDIT_API.getEvent,
-				"/v1/events/unknown"
-			);
+			const { status, body } = await get(AUDIT_API.getEvent, "/events/unknown");
 
 			expect(status).toBe(404);
 			expect(body).toEqual({ error: "Event not found" });

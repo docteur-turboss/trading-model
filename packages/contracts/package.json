@@ -17,6 +17,7 @@
     "./logger-registry": "./dist/logger-registry.js",
     "./market-data.types": "./dist/market-data.types.js",
     "./message-types": "./dist/message-types.js",
+    "./order-intent": "./dist/order-intent.js",
     "./publish-timeout": "./dist/publish-timeout.js",
 		"./risk-events": "./dist/risk-events.js",
     "./signed-request": "./dist/signed-request.js",

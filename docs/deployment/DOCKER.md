@@ -118,7 +118,7 @@ mysql ─────┘                          ├── api-gateway
 | -------------------- | -------------------------------------------------------------------------------------------------- |
 | `mongo`              | `echo 'db.runCommand("ping").ok' \| mongosh --quiet`                                               |
 | `mysql`              | `mysqladmin ping -h localhost -u root`                                                              |
-| All TS services      | `curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping \|\| exit 1` |
+| All TS services      | `node -e '<SVID_GET one-liner>' https://localhost:3000/ping` (exit 1 on failure; [on-call.md](../operations/on-call.md#health-check-endpoints)) |
 | `edge-proxy`         | `wget -q -O /dev/null http://127.0.0.1:8080/health/ready`                                          |
 
 ---

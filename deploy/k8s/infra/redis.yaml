@@ -69,6 +69,17 @@ spec:
           args:
             - "--appendonly"
             - "yes"
+            # 384 MiB = 75 % of the 512Mi limit, so a full Redis refuses writes (noeviction) instead of
+            # being OOMKilled. maxmemory does not count the replication buffer (shared by the replicas
+            # since Redis 7): capped at 64 MiB below (default 256 MiB would exceed the limit), which
+            # leaves 64 MiB for the AOF rewrite fork copy-on-write and process overhead.
+            - "--maxmemory"
+            - "384mb"
+            - "--client-output-buffer-limit"
+            - "replica"
+            - "64mb"
+            - "32mb"
+            - "60"
             - "--maxmemory-policy"
             - "noeviction"
             - "--save"
@@ -355,8 +366,6 @@ spec:
               value: "redis-sentinel-0.redis-sentinel-headless redis-sentinel-1.redis-sentinel-headless redis-sentinel-2.redis-sentinel-headless"
             - name: SENTINEL_CONF
               value: /sentinel/sentinel.conf
-            - name: REDIS_TLS_MODE
-              value: optional
             # ACL user of the exporter sidecar (user exporter of sentinel.conf, redis-ha.sh).
             - name: REDIS_EXPORTER_PASSWORD
               valueFrom:

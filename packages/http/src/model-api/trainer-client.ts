@@ -1,6 +1,12 @@
+import { createHash } from "node:crypto";
 import https from "node:https";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
+import {
+	readModelFile,
+	readModelManifest,
+	WEIGHTS_FILE,
+} from "@trading-model/model-runtime/model-artifact-reader";
 import { ServiceId, URLString } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import { z } from "zod";
@@ -12,17 +18,18 @@ const WEIGHTS_TIMEOUT_MS = 60_000;
 /** Above the largest expected weights file: the body is buffered in memory. */
 const WEIGHTS_MAX_BYTES = 256 * 1024 * 1024;
 
-/** Reads the trainer's versioned model API (ADR-0022): manifest, then weights. */
+/** Reads a model from the artifact store, and from the trainer's versioned model API (ADR-0022) when the store has no copy (expand step, ADR-0089). */
 const TRAINER = ServiceId.of("trader-trainer");
 
 export class TrainerClient<Manifest> {
 	private readonly _http: HttpClient;
 
-	/** `manifest` is the part of the trainer manifest the caller relies on. */
+	/** `manifest` is the part of the trainer manifest the caller relies on; `_modelDir` is the read-only artifact volume. */
 	constructor(
 		private readonly _tls: TlsPaths,
 		private readonly _find: (name: ServiceInstanceName) => Promise<HostPort>,
-		private readonly _manifest: z.ZodType<Manifest>
+		private readonly _manifest: z.ZodType<Manifest>,
+		private readonly _modelDir?: string
 	) {
 		this._http = HttpClient.createWithTls(_tls);
 	}
@@ -37,6 +44,12 @@ export class TrainerClient<Manifest> {
 		version: string,
 		signal?: AbortSignal
 	): Promise<Manifest> {
+		const stored =
+			this._modelDir &&
+			(await readModelManifest(this._modelDir, symbol, version));
+		if (stored) {
+			return this._manifest.parse(stored);
+		}
 		const url = URLString.of(
 			`${await this._base()}/v1/models/${symbol}/${version}`
 		);
@@ -57,6 +70,15 @@ export class TrainerClient<Manifest> {
 		version: string,
 		signal?: AbortSignal
 	): Promise<{ bytes: Buffer; sha256: string | undefined }> {
+		const stored =
+			this._modelDir &&
+			(await readModelFile(this._modelDir, symbol, version, WEIGHTS_FILE));
+		if (stored) {
+			return {
+				bytes: stored,
+				sha256: createHash("sha256").update(stored).digest("hex"),
+			};
+		}
 		const url = new URL(
 			`${await this._base()}/models/${symbol}/${version}/weights`
 		);

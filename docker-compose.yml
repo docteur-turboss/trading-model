@@ -105,6 +105,9 @@ services:
       - --appendonly
       - ${REDIS_APPENDONLY:-no}
       # A full Redis refuses writes (a publish fails visibly) instead of evicting journal entries (ADR-0073).
+      # 384mb = 75 % of mem_limit: room for the AOF rewrite fork, so Redis refuses writes before an OOM kill.
+      - --maxmemory
+      - 384mb
       - --maxmemory-policy
       - noeviction
       - --save
@@ -315,7 +318,7 @@ services:
   #  Financial Scraper — Real-time market data ingestion
   # ---------------------------------------------------------------------------
   financial-scraper:
-    # Waits for its publishes in flight on stop (PUBLISH_ACCEPT_TIMEOUT_MS + 5s).
+    # Waits for the running scrape cycle, then hands the collector lease over (ADR-0057).
     stop_grace_period: 1m
     logging: *default-logging
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/financial-scraper:${IMAGE_TAG:-latest}
@@ -528,9 +531,11 @@ services:
       BUS_TRANSPORT: library
       INSTANCE_ID: model-evaluator-1
       EVALUATIONS_DIR: /data/evaluations
+      TRAINER_MODEL_DIR: /data/checkpoints/models
     volumes:
       - svid-evaluator:/run/spire/svid
       - model-evaluations:/data/evaluations
+      - trainer-checkpoints:/data/checkpoints:ro
     networks:
       - backend-net
     healthcheck:
@@ -563,9 +568,11 @@ services:
       EXECUTION_MODE: paper
       DEPLOYMENT_ENV: development
       RISK_STATE_DIR: /data/risk-execution
+      TRAINER_MODEL_DIR: /data/checkpoints/models
     volumes:
       - svid-risk:/run/spire/svid
       - risk-execution-data:/data/risk-execution
+      - trainer-checkpoints:/data/checkpoints:ro
     networks:
       - backend-net
     healthcheck:

@@ -28,23 +28,10 @@ export interface PerConfig {
 	alpha: number;
 	beta: number;
 	betaAnneal: boolean;
-	/** Linear increment applied to beta after each sample. @default 1e-4 */
-	betaAnnealRate?: number;
 }
 
 const PRIORITY_EPSILON = 1e-6;
 const DEFAULT_BETA_ANNEAL_RATE = 1e-4;
-
-const DISABLED_POOL: ExperiencePoolPort = {
-	add: () => {
-		// Intentional no-op.
-	},
-	getPoolSize: () => 0,
-	samplePool: () => [],
-	clearPool: () => {
-		// Intentional no-op.
-	},
-};
 
 class ExperiencePool implements ExperiencePoolPort {
 	private _poolMap = new Map<number, Experience>();
@@ -238,8 +225,7 @@ class PrioritizedExperiencePool
 		if (!this._per.betaAnneal) {
 			return;
 		}
-		const rate = this._per.betaAnnealRate ?? DEFAULT_BETA_ANNEAL_RATE;
-		this._beta = Math.min(1, this._beta + rate);
+		this._beta = Math.min(1, this._beta + DEFAULT_BETA_ANNEAL_RATE);
 	}
 }
 
@@ -252,14 +238,10 @@ export function createPrioritizedExperiencePool(
 }
 
 export function createExperiencePool(
-	enablePool: boolean,
 	poolMaxSize: number,
 	perConfig?: PerConfig & { prioritized: boolean },
 	rng: () => number = Math.random
 ): ExperiencePoolPort {
-	if (!enablePool) {
-		return DISABLED_POOL;
-	}
 	if (perConfig?.prioritized) {
 		return createPrioritizedExperiencePool(poolMaxSize, perConfig, rng);
 	}

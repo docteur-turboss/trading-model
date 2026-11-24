@@ -144,7 +144,7 @@ function fetchJson(
 			reject(new Error("Server not listening"));
 			return;
 		}
-		const req = http.get(`http://localhost:${addr.port}${path}`, (res) => {
+		const req = http.get(`http://localhost:${addr.port}/v1${path}`, (res) => {
 			let data = "";
 			res.on("data", (chunk: string) => {
 				data += chunk;
@@ -209,7 +209,7 @@ describe("Server routes", () => {
 	}
 
 	it("GET /training-status should return idle status when no training is active", async () => {
-		const result = await get(TRAINER_API.trainingStatus, "/v1/training-status");
+		const result = await get(TRAINER_API.trainingStatus, "/training-status");
 
 		expect(result.status).toBe(200);
 		expect(result.body).toEqual({
@@ -222,7 +222,7 @@ describe("Server routes", () => {
 	});
 
 	it("GET /best-agent should return 404 when no agent has been trained", async () => {
-		const result = await get(TRAINER_API.bestAgent, "/v1/best-agent");
+		const result = await get(TRAINER_API.bestAgent, "/best-agent");
 
 		expect(result.status).toBe(404);
 		expect(result.body).toEqual({
@@ -233,7 +233,7 @@ describe("Server routes", () => {
 	it("GET /best-agent should return the best agent once trained", async () => {
 		jest.spyOn(trainer, "getBestAgentSummary").mockReturnValue(AGENT as never);
 
-		const result = await get(TRAINER_API.bestAgent, "/v1/best-agent");
+		const result = await get(TRAINER_API.bestAgent, "/best-agent");
 
 		expect(result.status).toBe(200);
 		expect(result.body).toMatchObject({
@@ -246,7 +246,7 @@ describe("Server routes", () => {
 			.spyOn(trainer, "getAllSnapshots")
 			.mockReturnValue(new Map([["BTCUSDT", snapshot(null)]]) as never);
 
-		const result = await get(TRAINER_API.trainingAgents, "/v1/training-agents");
+		const result = await get(TRAINER_API.trainingAgents, "/training-agents");
 
 		expect(result.status).toBe(200);
 		expect(result.body).toMatchObject({
@@ -263,7 +263,7 @@ describe("Server routes", () => {
 
 		const result = await get(
 			TRAINER_API.trainingAgent,
-			"/v1/training-agents/BTCUSDT"
+			"/training-agents/BTCUSDT"
 		);
 
 		expect(result.status).toBe(200);
@@ -280,7 +280,7 @@ describe("Server routes", () => {
 	it("GET /training-agents/:symbol should return 404 for an untrained symbol", async () => {
 		const result = await get(
 			TRAINER_API.trainingAgent,
-			"/v1/training-agents/ETHUSDT"
+			"/training-agents/ETHUSDT"
 		);
 
 		expect(result.status).toBe(404);

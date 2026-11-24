@@ -391,15 +391,6 @@ describe("GeneticAlgorithmRunner", () => {
 		expect(runner.processor.lastBestGenome).toBeUndefined();
 	});
 
-	it("should return empty archive before running", () => {
-		const runner = new GeneticAlgorithmRunner({
-			windowSets: [{ id: "w1", train: [], validation: [] }],
-			backendFactory: mockBackendFactory as any,
-		});
-		runner.processor.initialise();
-		expect(runner.processor.getArchiveMembers()).toEqual([]);
-	});
-
 	it("should select elites based on elitismFraction", async () => {
 		const runner = initRunner(10, 0.3);
 		await runner.processor.runGeneration();
@@ -417,14 +408,10 @@ describe("GeneticAlgorithmRunner", () => {
 	});
 
 	it("should update Pareto archive after runGeneration", async () => {
-		const onArchiveUpdate = jest.fn<(...args: any[]) => any>();
-		const runner = initRunner(4, 0.2, { onArchiveUpdate });
-		expect(runner.processor.getArchiveMembers()).toEqual([]);
+		const runner = initRunner(4, 0.2);
+		expect(runner.processor.archiveBest).toBeUndefined();
 		await runner.processor.runGeneration();
-		expect(onArchiveUpdate).toHaveBeenCalled();
-		if (runner.processor.getArchiveMembers().length > 0) {
-			expect(runner.processor.getArchiveMembers()[0].id).toBeDefined();
-		}
+		expect(runner.processor.archiveBest?.genome.id).toBeDefined();
 	});
 
 	it("should track stagnation when fitness does not improve", async () => {
@@ -550,11 +537,9 @@ describe("full GA loop", () => {
 			});
 		};
 
-		const onArchiveUpdate = jest.fn<(...args: any[]) => any>();
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: makeWindowSets(2),
 			backendFactory: mockBackendFactory as any,
-			onArchiveUpdate,
 		});
 
 		runner.processor.initialise({
@@ -570,7 +555,6 @@ describe("full GA loop", () => {
 			await runner.processor.runGeneration();
 		}
 		expect(runner.processor.lastBestGenome).toBeDefined();
-		expect(onArchiveUpdate).toHaveBeenCalled();
 	});
 
 	it.each([

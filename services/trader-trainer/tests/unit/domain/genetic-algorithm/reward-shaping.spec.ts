@@ -50,6 +50,17 @@ describe("RewardShaper", () => {
 		]);
 	});
 
+	it("clips with a plain { lo, hi } object, as after a JSON or worker round trip", () => {
+		const shaper = new RewardShaper(
+			genomeWith({
+				clip: true,
+				clipBounds: { lo: -1, hi: 1 } as never,
+			}).rl.rewardShaping
+		);
+
+		expect([2, -2, 0.5].map((raw) => shaper.shape(raw))).toEqual([1, -1, 0.5]);
+	});
+
 	it("gives a sparse genome nothing per step and its shaped total at the end", () => {
 		const shaper = new RewardShaper(
 			genomeWith({ sparse: true }).rl.rewardShaping

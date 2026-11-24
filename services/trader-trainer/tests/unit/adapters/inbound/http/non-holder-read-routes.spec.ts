@@ -118,7 +118,7 @@ describe("trainer pod that does not hold the Lease", () => {
 	});
 
 	async function get(path: string) {
-		const res = await fetch(`${baseUrl}${path}`);
+		const res = await fetch(`${baseUrl}/v1${path}`);
 		return { status: res.status, body: (await res.json()) as any };
 	}
 
@@ -128,22 +128,22 @@ describe("trainer pod that does not hold the Lease", () => {
 	});
 
 	it("answers /training-status", async () => {
-		const { status, body } = await get("/v1/training-status");
+		const { status, body } = await get("/training-status");
 
 		expect(status).toBe(200);
 		expect(body.data.training).toBe(false);
 	});
 
 	it("answers /best-agent with the agent the holder stored", async () => {
-		const { status, body } = await get("/v1/best-agent");
+		const { status, body } = await get("/best-agent");
 
 		expect(status).toBe(200);
 		expect(body.data.agent).toMatchObject({ id: "stored-by-holder" });
 	});
 
 	it("answers /models/:symbol and /training-agents/:symbol from the shared volume", async () => {
-		const models = await get("/v1/models/BTCUSDT");
-		const agent = await get("/v1/training-agents/BTCUSDT");
+		const models = await get("/models/BTCUSDT");
+		const agent = await get("/training-agents/BTCUSDT");
 
 		expect(models.status).toBe(200);
 		expect(models.body.data).toEqual([expect.objectContaining({ version })]);

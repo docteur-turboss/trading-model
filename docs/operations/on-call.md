@@ -41,15 +41,17 @@ from inside its own container, with its SVID.
 | model-evaluator   | `/ping`         | `trading-model-evaluator` |
 | risk-execution    | `/ping`         | `trading-risk-execution` |
 
+Service images have no `curl`. Define `SVID_GET` once in your shell: Node reads the container SVID and sends the request (optional arguments after the URL: method, headers as JSON, body; exit 1 on a status of 300 or more). Every runbook uses it.
+
 ```bash
+SVID_GET='const f=require("fs"),d="/run/spire/svid/",[u,m,h,b]=process.argv.slice(1);const q=require("https").request(u,{method:m||"GET",headers:JSON.parse(h||"{}"),cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1});q.on("error",e=>{console.error(e.message);process.exit(1)});q.end(b)'
+
 # Kubernetes (<service> and <route> from the table)
 kubectl exec -n trading-model deployment/<service> -c <service> -- \
-  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/<route>
+  node -e "$SVID_GET" https://localhost:3000/<route>
 
 # Docker Compose (<container> and <route> from the table)
-docker exec <container> curl -skf --cert /run/spire/svid/svid.pem \
-  --key /run/spire/svid/svid_key.pem https://localhost:3000/<route>
+docker exec <container> node -e "$SVID_GET" https://localhost:3000/<route>
 
 # edge-proxy is plain HTTP inside the cluster / stack (no client certificate)
 kubectl port-forward -n trading-model svc/edge-proxy 8449:8080 &   # Kubernetes
