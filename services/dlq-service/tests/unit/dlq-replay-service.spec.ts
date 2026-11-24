@@ -2,9 +2,8 @@ import { describe, expect, it, jest } from "@jest/globals";
 import type { Span } from "@opentelemetry/api";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import {
-	type InstanceId,
-	toInstanceId,
-	toMessageId,
+	InstanceId,
+	MessageId,
 	type URLString,
 } from "@trading-model/primitives/primitives";
 import {
@@ -23,7 +22,7 @@ jest.mock("@trading-model/contracts/logger-registry", () => {
 });
 
 const MM_URL = "https://mm:3000" as URLString;
-const INSTANCE = toInstanceId("dlq-1") as InstanceId;
+const INSTANCE = InstanceId.of("dlq-1") as InstanceId;
 const CLAIMED: ClaimedEntry[] = [
 	{ id: "e1", message: { a: 1 }, service: "audit-logger" },
 ];
@@ -104,7 +103,7 @@ describe("replay use case", () => {
 		);
 		expect(t.replayBatch).toHaveBeenCalledWith({
 			entries: [
-				{ id: toMessageId("e1"), message: { a: 1 }, service: "audit-logger" },
+				{ id: MessageId.of("e1"), message: { a: 1 }, service: "audit-logger" },
 			],
 			messageManagerUrl: MM_URL,
 			batchId: "b1",
@@ -126,7 +125,7 @@ describe("replay use case", () => {
 		const t = setup({
 			batch: {
 				success: 0,
-				errors: [{ id: toMessageId("e1"), error: "timeout" }],
+				errors: [{ id: MessageId.of("e1"), error: "timeout" }],
 			},
 		});
 
@@ -203,7 +202,7 @@ describe("replay use case", () => {
 			abandoned: 2,
 			batch: {
 				success: 0,
-				errors: [{ id: toMessageId("e1"), error: "timeout" }],
+				errors: [{ id: MessageId.of("e1"), error: "timeout" }],
 			},
 		});
 
@@ -222,7 +221,7 @@ describe("replay use case", () => {
 		const warn = getLogger().warn as jest.Mock;
 		warn.mockClear();
 		const t = setup({
-			batch: { success: 0, errors: [{ id: toMessageId("e1"), error: "x" }] },
+			batch: { success: 0, errors: [{ id: MessageId.of("e1"), error: "x" }] },
 		});
 
 		await t.replay({ limit: 10, actor: null }, span);

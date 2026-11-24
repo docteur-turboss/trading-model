@@ -5,10 +5,6 @@ import {
 	Environment,
 	Role,
 	Subject,
-	toAuthToken,
-	toEnvironment,
-	toRole,
-	toSubject,
 } from "../../../src/primitives/auth-ids";
 import {
 	CaPem,
@@ -22,11 +18,6 @@ import {
 	Region,
 	ServiceId,
 	TenantId,
-	toInstanceId,
-	toRegion,
-	toServiceId,
-	toTenantId,
-	toVersion,
 	Version,
 } from "../../../src/primitives/general-ids";
 import {
@@ -34,40 +25,30 @@ import {
 	MessageId,
 	MessagePriority,
 	Topic,
-	toCorrelationId,
-	toMessageId,
-	toTopic,
 } from "../../../src/primitives/messaging-ids";
-import {
-	DurationMs,
-	SequenceNumber,
-	toDurationMs,
-} from "../../../src/primitives/time-ids";
+import { DurationMs, SequenceNumber } from "../../../src/primitives/time-ids";
 
 // Every brand below is a plain createStringBrand: same behaviour, one table.
 describe.each([
-	["ServiceId", ServiceId, "my-service", toServiceId],
-	["InstanceId", InstanceId, "i-123", toInstanceId],
-	["Region", Region, "us-east-1", toRegion],
-	["Topic", Topic, "market-data", toTopic],
-	["CorrelationId", CorrelationId, "corr-123", toCorrelationId],
-	["MessageId", MessageId, "msg-abc", toMessageId],
-	["Version", Version, "1.0.0", toVersion],
-	["GenomeId", GenomeId, "genome-x", undefined],
-	["TenantId", TenantId, "tenant-42", toTenantId],
-	["AuthToken", AuthToken, "tok-abc", toAuthToken],
-	["ClientIdentity", ClientIdentity, "ci-123", undefined],
-	["Subject", Subject, "spiffe://example/foo", toSubject],
-	["Role", Role, "admin", toRole],
-	["Environment", Environment, "production", toEnvironment],
-	["DbUser", DbUser, "app_user", undefined],
-	["DbName", DbName, "trading_db", undefined],
-] as const)("%s", (_name, brand, sample, to) => {
+	["ServiceId", ServiceId, "my-service"],
+	["InstanceId", InstanceId, "i-123"],
+	["Region", Region, "us-east-1"],
+	["Topic", Topic, "market-data"],
+	["CorrelationId", CorrelationId, "corr-123"],
+	["MessageId", MessageId, "msg-abc"],
+	["Version", Version, "1.0.0"],
+	["GenomeId", GenomeId, "genome-x"],
+	["TenantId", TenantId, "tenant-42"],
+	["AuthToken", AuthToken, "tok-abc"],
+	["ClientIdentity", ClientIdentity, "ci-123"],
+	["Subject", Subject, "spiffe://example/foo"],
+	["Role", Role, "admin"],
+	["Environment", Environment, "production"],
+	["DbUser", DbUser, "app_user"],
+	["DbName", DbName, "trading_db"],
+] as const)("%s", (_name, brand, sample) => {
 	it("should create and convert", () => {
 		expect(brand.of(sample)).toBe(sample);
-		if (to) {
-			expect(to(sample)).toBe(sample);
-		}
 	});
 
 	it("should throw for empty string", () => {
@@ -115,7 +96,7 @@ describe("DurationMs", () => {
 	});
 
 	it("should convert via helper functions", () => {
-		expect(toDurationMs(1000)).toBe(1000);
+		expect(DurationMs.of(1000)).toBe(1000);
 	});
 });
 

@@ -8,9 +8,9 @@ import type {
 	DlqEventMap,
 } from "@trading-model/contracts/dlq-events";
 import {
-	toInstanceId,
-	toServiceId,
-	toTopic,
+	InstanceId,
+	ServiceId,
+	Topic,
 } from "@trading-model/primitives/primitives";
 import { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
 import { ENV } from "../infrastructure/config/env";
@@ -30,9 +30,9 @@ export function openDlqCli() {
 			publishToBus(
 				journal,
 				payload,
-				new HELPER.metadataBuilder(toTopic(event), event, {
-					instanceId: toInstanceId(ENV.INSTANCE_ID),
-					serviceName: toServiceId(ServiceInstanceName.AuditLoggerService),
+				new HELPER.metadataBuilder(Topic.of(event), event, {
+					instanceId: InstanceId.of(ENV.INSTANCE_ID),
+					serviceName: ServiceId.of(ServiceInstanceName.AuditLoggerService),
 				})
 					.setDelivery({
 						mode: DeliveryMode.AtLeastOnce,
