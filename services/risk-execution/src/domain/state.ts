@@ -1,4 +1,4 @@
-import type { Order } from "./order";
+import type { Order } from "@trading-model/contracts/order-intent";
 import type { MarketPrice } from "./ports";
 
 export interface RiskState {
@@ -10,6 +10,8 @@ export interface RiskState {
 	orders: Record<string, Order>;
 	/** clientOrderId -> createdAt of purged final orders, kept SEEN_HORIZON_MS so a late replay stays a duplicate (ADR-0064 §3). */
 	seen?: Record<string, number>;
+	/** Broker rejections and errors inside the reject window, so a restart does not reset the reject storm trigger. */
+	failures?: { at: number; symbol: string }[];
 	cash: number;
 	positions: Record<string, number>;
 	marks: Record<string, MarketPrice>;

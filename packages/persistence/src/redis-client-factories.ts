@@ -56,6 +56,11 @@ export function createSentinel(
 			tls: tlsOptions(config.tls),
 			enableTLSForSentinelMode: true,
 			sentinelTLS: tlsOptions(config.tls),
+			// Sentinel announces the clear port until `required` (ADR-0047): follow the master on TLS.
+			natMap: (key: string) => {
+				const [host, port] = key.split(":");
+				return port === "6379" ? { host, port: 6380 } : undefined;
+			},
 		}),
 		...BASE_REDIS_OPTIONS,
 		retryStrategy: SENTINEL_RETRY_STRATEGY,

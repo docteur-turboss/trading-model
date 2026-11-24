@@ -43,8 +43,7 @@ kubectl logs -n trading-model deployment/message-manager --tail=50
 
 # 4. Readiness (the server demands a client certificate: use the SVID)
 kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
-  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/health/ready
+  node -e "$SVID_GET" https://localhost:3000/health/ready
 ```
 
 ## Common Causes
@@ -70,8 +69,7 @@ Subscriptions come back on their own within 15 s once Redis answers (subscribers
 
 ```bash
 kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
-  curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/metrics | grep -E 'mm_subscriber_delivery_concurrency|mm_circuit_breaker_state|mm_messages_dlq_total'
+  node -e "$SVID_GET" https://localhost:3000/metrics | grep -E 'mm_subscriber_delivery_concurrency|mm_circuit_breaker_state|mm_messages_dlq_total'
 ```
 
 **Fix:** restore the subscriber named by the metrics (its own runbook). While its circuit breaker is open, its messages go straight to the dead-letter file.
@@ -107,13 +105,22 @@ A replay gives the entry back to the one group that failed, under its own `messa
 **Cause:** `service` is down or refuses the callback, or its circuit breaker is open in message-manager (`mm_circuit_breaker_state`).
 **Fix:** check `service` (health, logs) and the message-manager delivery logs for it. Once it answers, the backlog drains by itself, oldest first; both gauges fall. Past 24 h the entries are lost (6).
 
+**Retired topic or a service that dropped a topic (issue #2479):** a consumer group lives until an operator removes it (ADR-0073 §2), so its backlog never drains. A topic no longer in the contracts (`EVENT_VALIDATORS`) leaves the gauges by itself, and a service's consumer reports only the topics it consumes. The group and its stream stay in Redis. Remove them by hand once the code without the topic runs everywhere (no N-1 left that publishes or reads it). Run this in the Redis master as the ACL user `message-manager`, once per group of the topic:
+
+```sh
+P=trading-model:message-manager
+redis-cli --user message-manager XGROUP DESTROY "$P:journal:<topic>" <service>
+redis-cli --user message-manager SREM "$P:journal-groups" "<topic>|<service>"
+```
+
+The undelivered entries of that group are lost. A group of a live topic that a subscriber still declares is recreated at its next start: remove it only after that service stopped consuming the topic.
+
 ## Recovery Verification
 
 ```bash
 # 1. Readiness
 kubectl exec -n trading-model deployment/message-manager -c message-manager -- \
-  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/health/ready
+  node -e "$SVID_GET" https://localhost:3000/health/ready
 
 # 2. Subscriptions are back (one hash per topic)
 kubectl exec -n trading-model "$REDIS_MASTER" -- redis-cli --scan --pattern 'trading-model:message-manager:subscriptions:*'

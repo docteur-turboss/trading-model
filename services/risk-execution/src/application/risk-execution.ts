@@ -1,4 +1,5 @@
 import { withTimeout } from "@trading-model/common/utils/retry";
+import type { Intent, Order } from "@trading-model/contracts/order-intent";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import {
 	applyFill,
@@ -8,7 +9,7 @@ import {
 	rollDay,
 } from "../domain/accounting";
 import type { RiskLimits } from "../domain/limits";
-import { FINAL, type Order, transition } from "../domain/order";
+import { FINAL, transition } from "../domain/order";
 import type {
 	AdmissionPort,
 	BrokerAccount,
@@ -18,7 +19,7 @@ import type {
 	PricePort,
 	StatePort,
 } from "../domain/ports";
-import { dailyLoss, type Intent, preTradeReject } from "../domain/pre-trade";
+import { dailyLoss, preTradeReject } from "../domain/pre-trade";
 import {
 	equity,
 	exposure,
@@ -94,7 +95,6 @@ export class RiskExecution {
 	private _lastReconcile = 0;
 	private _tail: Promise<unknown> = Promise.resolve();
 	private _ticking?: Promise<void>;
-	private _failures: { at: number; symbol: string }[] = [];
 	private readonly _now: () => number;
 
 	constructor(private readonly _d: RiskExecutionDeps) {
@@ -620,16 +620,17 @@ export class RiskExecution {
 	private async _failure(symbol: string): Promise<void> {
 		const { limits } = this._d;
 		const now = this._now();
-		this._failures = this._failures
+		const failures = (this._state.failures ?? [])
 			.filter((failure) => now - failure.at < limits.rejectWindowMs)
 			.concat({ at: now, symbol });
+		this._state.failures = failures;
 		if (
-			this._failures.filter((failure) => failure.symbol === symbol).length >=
+			failures.filter((failure) => failure.symbol === symbol).length >=
 			limits.rejectsPerSymbol
 		) {
 			await this._engage(symbol, "rejects");
 		}
-		if (this._failures.length >= limits.rejectsGlobal) {
+		if (failures.length >= limits.rejectsGlobal) {
 			await this._engage(null, "rejects");
 		}
 	}

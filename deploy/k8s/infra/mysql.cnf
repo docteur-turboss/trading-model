@@ -1,6 +1,8 @@
 [mysqld]
 # Per-pod values (server_id) are passed as mysqld arguments by the StatefulSet: a .cnf is not expanded.
 binlog-format=ROW
+# 4 days: the 72 h of local archives (ADR-0031) plus a day of margin; the 30-day default fills the 20Gi volume.
+binlog_expire_logs_seconds=345600
 log-bin=mysql-bin
 relay-log=mysql-relay
 relay-log-recovery=ON

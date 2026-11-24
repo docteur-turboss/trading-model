@@ -2,10 +2,7 @@ import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { ApiRouteHandler } from "@trading-model/http/api-route/mount-route";
 import { sendResponse } from "@trading-model/http/response-exception";
-import {
-	toInstanceId,
-	toServiceId,
-} from "@trading-model/primitives/primitives";
+import { InstanceId, ServiceId } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type { Request } from "express";
 import type { ServiceRegistry } from "../../../domain/service-registry";
@@ -20,8 +17,8 @@ function identity(body: {
 	instanceId: string;
 }): ServiceIdentity {
 	return {
-		serviceName: toServiceId(body.serviceName),
-		instanceId: toInstanceId(body.instanceId),
+		serviceName: ServiceId.of(body.serviceName),
+		instanceId: InstanceId.of(body.instanceId),
 	};
 }
 
@@ -34,7 +31,7 @@ function checkToken(
 	return validateInstanceToken(
 		registry,
 		req.headers[HTTP_HEADERS.X_INSTANCE_TOKEN],
-		toInstanceId(instanceId)
+		InstanceId.of(instanceId)
 	);
 }
 
@@ -61,7 +58,7 @@ export function createHeartbeatController(registry: ServiceRegistry): {
 
 		rotateToken: async ({ body }, req) => {
 			await checkToken(registry, req, body.instanceId);
-			const token = await registry.updateToken(toInstanceId(body.instanceId));
+			const token = await registry.updateToken(InstanceId.of(body.instanceId));
 			return sendResponse({ token }, HTTP_STATUS.OK);
 		},
 

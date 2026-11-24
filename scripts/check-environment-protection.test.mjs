@@ -33,6 +33,11 @@ test('backup-key-check: main + reviewer', () => assert.match(checkEnvironment(en
 test('backup-key-check: any branch', () => assert.match(checkEnvironment(env([], false), [], key)[0], /not limited/));
 test('backup-key-check: main plus a wildcard', () => assert.deepEqual(checkEnvironment(env([]), br('main', '*'), key), ['unexpected deployment branch rule "*"']));
 test('backup-key-check: tag instead of main', () => assert.equal(checkEnvironment(env([]), [{ type: 'tag', name: 'main' }], key).length, 2));
+
+const keyBackup = RULES['sealed-secrets-key-backup'];
+test('sealed-secrets-key-backup: main, no reviewer', () => assert.deepEqual(checkEnvironment(env([]), br('main'), keyBackup), []));
+test('sealed-secrets-key-backup: main + reviewer', () => assert.match(checkEnvironment(env([rule({ prevent_self_review: false })]), br('main'), keyBackup)[0], /required reviewer/));
+test('sealed-secrets-key-backup: main plus a wildcard', () => assert.deepEqual(checkEnvironment(env([]), br('main', '*'), keyBackup), ['unexpected deployment branch rule "*"']));
 test('fork approval: all external contributors', () => assert.deepEqual(checkForkApproval({ approval_policy: 'all_external_contributors' }), []));
 test('fork approval: first-time contributors only', () => assert.match(checkForkApproval({ approval_policy: 'first_time_contributors' })[0], /"first_time_contributors"/));
 test('fork approval: unreadable', () => assert.match(checkForkApproval(null)[0], /"unknown"/));

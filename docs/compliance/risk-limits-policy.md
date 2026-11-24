@@ -109,6 +109,6 @@ Runbook: [runbook-risk-execution](../operations/runbooks/runbook-risk-execution.
 | Control | Status |
 |---|---|
 | Loss limits and global exposure cap (§3) | ✅ Implemented and specified in `risk-execution` (paper); live still forbidden |
-| Kill switch, manual and automatic (§4) | ✅ Implemented and specified in `risk-execution` (paper); live still forbidden. Engagements and re-arming go to the audit trail; a refused publish is kept in `risk-event-outbox.json` (`RISK_STATE_DIR`) and replayed (#2133); the owner-only re-arming after the drawdown stop trusts the declared `actor` of the admin request (anyone with `kubectl exec` on the pod) |
+| Kill switch, manual and automatic (§4) | ✅ Implemented and specified in `risk-execution` (paper); live still forbidden. Engagements and re-arming go to the audit trail; a refused publish is kept in `risk-event-outbox.json` (`RISK_STATE_DIR`) and replayed (#2133); the owner-only re-arming after the drawdown stop compares the API key name (`risk:admin` scope, set by the gateway in `x-actor`), not a declared actor |
 | Drill (§7) | ✅ Passed 2026-11-20 in-process ([risk-drill-log](risk-drill-log.md)); to repeat on the deployed paper environment before the 30 days start (#1733) |
 | Values | ✅ Validated by the project owner, 2026-11-20 (issue #1652) |

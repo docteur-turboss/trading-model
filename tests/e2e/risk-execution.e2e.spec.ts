@@ -1,10 +1,17 @@
 import { execFileSync } from "node:child_process";
 import { afterAll, describe, expect, it, jest } from "@jest/globals";
-import { CALLER, containerHealth, eventually, meshRequest } from "./helpers";
+import {
+	CALLER,
+	containerHealth,
+	eventually,
+	externalRequest,
+	GATEWAY_API_KEY,
+	meshRequest,
+} from "./helpers";
 
 /**
  * risk-execution as deployed (ADR-0064): paper mode, kill switch driven by the
- * operator from the container itself (runbook-risk-execution), state kept on
+ * operator through the gateway with a `risk:admin` key (runbook-risk-execution), state kept on
  * the `risk-execution-data` volume across a restart. Restarts a container:
  * runs serially with the other suites (maxWorkers: 1), like resilience.
  */
@@ -12,7 +19,15 @@ import { CALLER, containerHealth, eventually, meshRequest } from "./helpers";
 const RISK = "trading-risk-execution";
 const URL = "https://risk-execution:3000";
 const RESTART_TIMEOUT_MS = 90_000;
-const SCOPE = { scope: "global", reason: "e2e", actor: "e2e" };
+const SCOPE = { scope: "global", reason: "e2e" };
+
+/** The API key name is the actor (ADR-0059): the overlay names it `e2e`. */
+const admin = (path: string) =>
+	externalRequest(`/v1/risk-execution/admin/${path}`, {
+		method: "POST",
+		body: SCOPE,
+		headers: { "x-api-key": GATEWAY_API_KEY },
+	});
 
 jest.setTimeout(RESTART_TIMEOUT_MS + 60_000);
 
@@ -32,11 +47,8 @@ const status = (): Status => {
 
 describe("risk-execution E2E", () => {
 	// Leaves the stack clean even when an assertion failed mid-way.
-	afterAll(() => {
-		meshRequest(RISK, `${URL}/admin/kill-switch/rearm`, {
-			method: "POST",
-			body: SCOPE,
-		});
+	afterAll(async () => {
+		await admin("kill-switch/rearm");
 	});
 
 	it("starts in paper mode and ready", () => {
@@ -48,14 +60,8 @@ describe("risk-execution E2E", () => {
 
 	it("keeps an engaged kill switch across a restart, then re-arms", async () => {
 		// A fresh volume starts engaged as state_missing: clear it so the engage below sets "e2e".
-		meshRequest(RISK, `${URL}/admin/kill-switch/rearm`, {
-			method: "POST",
-			body: SCOPE,
-		});
-		const engaged = meshRequest(RISK, `${URL}/admin/kill-switch`, {
-			method: "POST",
-			body: SCOPE,
-		});
+		await admin("kill-switch/rearm");
+		const engaged = await admin("kill-switch");
 		expect(engaged.status).toBe(200);
 		expect(JSON.parse(engaged.body)).toEqual({ status: "engaged" });
 
@@ -68,10 +74,7 @@ describe("risk-execution E2E", () => {
 		expect(after.code).toBe(200);
 		expect(after.killSwitch.global).toBe("e2e");
 
-		const rearmed = meshRequest(RISK, `${URL}/admin/kill-switch/rearm`, {
-			method: "POST",
-			body: SCOPE,
-		});
+		const rearmed = await admin("kill-switch/rearm");
 		expect(rearmed.status).toBe(200);
 		expect(JSON.parse(rearmed.body)).toEqual({ status: "rearmed" });
 		expect(status().killSwitch.global).toBeNull();

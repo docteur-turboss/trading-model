@@ -11,15 +11,13 @@ import type { HttpHeaders, HttpMethod, TlsHttpOptions } from "./http-types";
 let sharedAgent: https.Agent | null = null;
 
 function getKeepAliveAgent(): https.Agent {
-	if (!sharedAgent) {
-		sharedAgent = new https.Agent({
-			keepAlive: true,
-			keepAliveMsecs: 30_000,
-			maxSockets: 64,
-			maxFreeSockets: 16,
-			scheduling: "lifo",
-		});
-	}
+	sharedAgent ??= new https.Agent({
+		keepAlive: true,
+		keepAliveMsecs: 30_000,
+		maxSockets: 64,
+		maxFreeSockets: 16,
+		scheduling: "lifo",
+	});
 	return sharedAgent;
 }
 
@@ -36,37 +34,23 @@ function _buildDefaultHeaders(options: TlsHttpOptions): HttpHeaders {
 		...(correlationId ? { [HTTP_HEADERS.CORRELATION_ID]: correlationId } : {}),
 		...(carrier.traceparent ? { traceparent: carrier.traceparent } : {}),
 		...(carrier.baggage ? { baggage: carrier.baggage } : {}),
-		...(options?.headers ?? {}),
+		...options.headers,
 	};
 }
 
-interface UrlParts {
-	hostname: Hostname;
-	port: Port;
-	path: string;
-}
-
-function _buildUrlParts(url: URL): UrlParts {
-	return {
-		hostname: Hostname.of(url.hostname),
-		port: Port.of(Number(url.port) || 443),
-		path: url.pathname + url.search,
-	};
-}
-
-function buildRequestOptions(
+export function buildRequestOptions(
 	method: HttpMethod,
 	url: URL,
 	options: TlsHttpOptions
 ): https.RequestOptions {
 	return {
 		method,
-		..._buildUrlParts(url),
+		hostname: Hostname.of(url.hostname),
+		port: Port.of(Number(url.port) || 443),
+		path: url.pathname + url.search,
 		headers: _buildDefaultHeaders(options),
 		...buildTlsClientOptions(options, options.serviceName),
 		rejectUnauthorized: true,
 		agent: getKeepAliveAgent(),
 	};
 }
-
-export { buildRequestOptions };

@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+    # edited: a corrected or degraded PR title is checked again (it becomes the squash message).
+    types: [opened, synchronize, reopened, edited]
   # Merge commits to main get verified too, not only at release time.
   # development: the push of a PR merge made by GitHub is skipped (its PR already ran pull_request,
   # see the job conditions); a direct push, any other committer, gets its own run.
@@ -29,6 +31,7 @@ jobs:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       k8s: ${{ steps.changes.outputs.k8s }}
     steps:
@@ -58,6 +61,7 @@ jobs:
   lint:
     needs: gate
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -72,6 +76,12 @@ jobs:
           restore-keys: bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
       - run: bun run lint
+      # The PR title becomes the squash message: release.mjs reads its gitmoji. Dependabot titles ("Bump x") have none.
+      - name: PR title follows commitlint
+        if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "$TITLE" | bunx --no commitlint --config commitlint.config.mjs
       - run: bun run deps:check
       - run: bun run deps:third-party
       - run: bun run api:check
@@ -100,6 +110,7 @@ jobs:
     # Not in pre-push: bun audit needs the network, gitleaks the full history (release tags only; PRs scan their commits).
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -129,6 +140,7 @@ jobs:
     # Also on the merge push to development (gate skipped, see its if), like test.
     if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -142,20 +154,8 @@ jobs:
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock', '.bun-version') }}
           restore-keys: bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
-      - name: Build packages (dependency order)
-        run: bun run build
-      - name: Type-check services
-        run: |
-          bun run --filter message-manager build
-          bun run --filter discovery-server build
-          bun run --filter financial-scraper build
-          bun run --filter trader-trainer build
-          bun run --filter api-gateway build
-          bun run --filter audit-logger build
-          bun run --filter dlq-service build
-          bun run --filter model-evaluator build
-          bun run --filter risk-execution build
-          bun run --filter decision-consumer build
+      - name: Build packages and services
+        run: bun run build:ts
       - name: Type-check the test files of every workspace
         run: bun run typecheck:tests
 
@@ -164,6 +164,7 @@ jobs:
     # Also on the merge push to development (gate skipped, see its if): two green PRs can still break the unit tests together.
     if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -183,6 +184,7 @@ jobs:
   db-integration:
     needs: gate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -203,6 +205,7 @@ jobs:
   observability:
     needs: gate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -227,6 +230,7 @@ jobs:
   k8s-overlays:
     needs: gate
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -267,6 +271,7 @@ jobs:
     # Also on the merge push to development (gate skipped, see its if), like test.
     if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -307,10 +312,12 @@ jobs:
   e2e:
     needs: gate
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       # Compose names the images <project>-<service>; the bake step below tags them the same way.
       COMPOSE_PROJECT_NAME: trading-e2e
       MYSQL_ROOT_PASSWORD: ci-password
+      MYSQL_PASSWORD: ci-mysql-app-password
       GRAFANA_PASSWORD: ci-grafana-password
       MYSQL_EXPORTER_PASSWORD: ci-mysql-exporter-password
       MONGO_ROOT_PASSWORD: ci-mongo-root
@@ -568,6 +575,7 @@ jobs:
     needs: [gate, lint, security, typecheck, test, db-integration, observability, k8s-overlays, contract, e2e, k8s-images, k8s]
     if: ${{ always() }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - env:
           RESULTS: ${{ join(needs.*.result, ' ') }}

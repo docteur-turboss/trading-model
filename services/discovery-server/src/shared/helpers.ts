@@ -1,10 +1,6 @@
 import { isNonEmptyString } from "@trading-model/contracts/wire/primitives";
 import { ResponseException } from "@trading-model/http/response-exception";
-import {
-	type InstanceId,
-	toAuthToken,
-	toInstanceId,
-} from "@trading-model/primitives/primitives";
+import { AuthToken, InstanceId } from "@trading-model/primitives/primitives";
 import type { TokenValidation } from "@trading-model/primitives/token-validation";
 
 import type { ServiceRegistry } from "../domain/service-registry";
@@ -20,8 +16,8 @@ export async function validateInstanceToken(
 	}
 
 	const validation: TokenValidation = {
-		token: toAuthToken(tokenHeader),
-		instanceId: toInstanceId(instanceId),
+		token: AuthToken.of(tokenHeader),
+		instanceId: InstanceId.of(instanceId),
 	};
 	if (!(await registry.tokenManager.validInstanceToken(validation))) {
 		throw ResponseException("Invalid instance token").unauthorized();

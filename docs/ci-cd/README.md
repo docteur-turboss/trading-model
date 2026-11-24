@@ -89,7 +89,7 @@ CHANGELOG, annotated tag, `git push --follow-tags`). See [release.md](../contrib
    leading `v`) and whether this release becomes `latest`
 2. `ci` — the whole CI (`ci.yml`, called as a reusable workflow) on the tagged
    commit: no image is pushed unless every gate passes
-3. `build-and-push` — the service images
+3. `scan-services` + `scan-tools` (build + Trivy, no push), then `build-and-push` — the service images
 4. `build-tools` — `spire-tools` (K8s SPIRE entry reconciler), `db-migrate` (migrations Jobs) and `backup-tools`
    (db-backup CronJob)
 5. `sign` — keyless cosign signature of each pushed digest (ADR-0038);
@@ -126,7 +126,7 @@ nodes pull credentials for the registry.
 | -------- | ---- | ------- | ------------ |
 | **CI** | `ci.yml` | `pull_request`, `push` to `main`/`development`, called by Release | Lint → Typecheck → Test → Observability → Overlay checks → Contract → E2E (Docker) → K8s (kind) |
 | **Release** | `release.yml` | `v*` tag push | CI → 10 Docker images (`X.Y.Z`, `latest` if highest) → GHCR |
-| **Deploy** | `deploy.yml` | manual, `workflow_call` | Staging/production deploy by digest (optional canary + smoke test + auto rollback) |
+| **Deploy** | `deploy.yml` | manual | Staging/production deploy by digest (optional canary + smoke test + auto rollback) |
 | **Backup Test** | `backup-test.yml` | weekly cron (Sun), PR touching backup scripts, manual | Validate backup/restore scripts, dry-run restore, K8s CronJob check |
 | **Backup Key Check** | `backup-key-check.yml` | weekly cron (Mon), manual | Prove the escrow age key decrypts the newest off-site backup ([ADR-0034](../adr/0034-backup-key-custody-and-weekly-escrow-check.md)) |
 | **Mutation Testing** | `mutation-testing.yml` | weekly cron (Sun), manual | Stryker on trader-trainer `src/domain` and dlq-service `src/application`; not a PR gate |

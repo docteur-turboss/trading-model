@@ -82,7 +82,7 @@ Run on a production-sized host. Nothing here is run by CI; no figure is committe
    k6 run -e API_KEY=e2e-api-key-0123456789abcdef0123456789abcdef -e SOAK_DURATION=4h --summary-export=out/soak.json tests/load/k6/soak-test.js
    kill %1
    ```
-5. **GA benchmark**: `bun services/trader-trainer/bench/ga-generation.bench.ts > out/ga-bench.json` (twice: generations and fitness must match).
+5. **GA benchmark**: `bun run --cwd services/trader-trainer bench > out/ga-bench.json` (Node via ts-node, with the Node version of `services/trader-trainer/Dockerfile`; check `runtime` in the JSON; twice: generations and fitness must match).
 6. **Record**: fill the table below (date, commit, host, figure), keep the raw files (`out/*`) outside the repository or attach them to the issue. Then tear down: `docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml down -v --rmi local`.
 
 ### Soak
@@ -108,7 +108,7 @@ Set the env vars `ci.yml` sets for the stack (`MYSQL_ROOT_PASSWORD`, `MYSQL_EXPO
 
 ### GA benchmark
 
-`services/trader-trainer/bench/ga-generation.bench.ts` (bun, outside Jest and `src`, never run in CI): `runInProcess` on fixed synthetic data (random walk, 2 windows) with fixed seeds. Env: `BENCH_GENERATIONS` (10), `BENCH_POPULATION` (20), `BENCH_EPISODES` (1), `BENCH_STEPS` (500 bars per window), `BENCH_SEED` (0, added to the PRNG seeds). JSON on stdout:
+`services/trader-trainer/bench/ga-generation.bench.ts` (`bench` script, Node via ts-node, outside Jest and `src`, never run in CI): `runInProcess` on fixed synthetic data (random walk, 2 windows) with fixed seeds. Env: `BENCH_GENERATIONS` (10), `BENCH_POPULATION` (20), `BENCH_EPISODES` (1), `BENCH_STEPS` (500 bars per window), `BENCH_SEED` (0, added to the PRNG seeds). JSON on stdout:
 
 | Field | Meaning |
 | ----- | ------- |
@@ -123,11 +123,12 @@ Fill it from real runs only, never from estimates.
 
 | Date | Commit | Host | Test | Result | Raw file |
 | ---- | ------ | ---- | ---- | ------ | -------- |
-|      |        |      | scenarios (3) | | |
-|      |        |      | stress: max VUs under the stress thresholds | | |
+| 2026-11-23 | `b38594886` | dev host (Windows, 16 CPU, Docker Desktop 20 GB, Docker data on an HDD), isolated stack, `RATE_LIMIT_MAX=1000000`, edge limit off | scenarios (3), default VUs | candles 23.8 req/s, p95 163 ms (max 1.63 s); audit-events 25.7 req/s, p95 8.5 ms; training-status 25.7 req/s, p95 7.6 ms; 0 % failures, checks 100 %, all thresholds pass | not committed |
+| 2026-11-23 | `b38594886` | dev host (Windows, 16 CPU, Docker Desktop 20 GB, Docker data on an HDD), isolated stack, `RATE_LIMIT_MAX=1000000`, edge limit off | stress: max VUs under the stress thresholds | 100 VUs (the script maximum) under the thresholds: 31 407 requests, 86.9 req/s average, p95 8.7 ms, max 60 ms, 0 % failures; no saturation reached, so the ceiling is above this load (the gateway 30 s cache serves most reads) | not committed |
 | 2026-11-08 | `6b4a625e` | dev host (Docker Desktop, Windows), isolated stack | soak 5 min, 2 VUs (short, not a capacity figure) | 3.82 req/s, 0 % failures, no 429 (`RATE_LIMIT_MAX=2000`); p95 12.1 ms start / 12.37 ms end; journal pending 0 | not committed |
-|      |        |      | soak: p95 start / end, error rate, RSS growth per container, journal max pending | | |
+| 2026-11-23 | `b38594886` | dev host (Windows, 16 CPU, Docker Desktop 20 GB, Docker data on an HDD), isolated stack, `RATE_LIMIT_MAX=1000000`, edge limit off | soak 4 h, 2 VUs | 56 598 requests, 3.93 req/s, 0 % failures; p95 16.5 ms start / 13.5 ms end (no drift); RSS: api-gateway 51 MiB to 84 MiB in the first 10 min then 84 to 91 MiB over 3 h 50, discovery-server 48 to 63 MiB (flat after 10 min), redis 6 to 9 MiB, trader-trainer oscillates 58 to 122 MiB (GC), no steady leak; journal max pending 0, oldest age 0 s | not committed |
 | 2026-11-23 | `2285c23de` | dev host (Windows, bun 1.4.4) | GA bench, `BENCH_GENERATIONS=2 BENCH_EPISODES=10 BENCH_STEPS=2000`, population 20 | median 2826 ms/generation (2707, 2826), heap peak sample 20.6 MiB, 2 generations; 50 generations ≈ 141 s of the 300 s budget, so no worker pool (#2061) | not committed |
+| 2026-11-23 | `b38594886` | dev host (Windows, 16 CPU, bun 1.4.4), after the soak | GA bench, defaults (10 generations, population 20, 1 episode, 500 steps), twice | same `generationsRun` 10 and `bestFitness` 0.54023 on both runs; median 1667 / 1699 ms per generation, 13.8 s total; heap peak sample 16.2 / 10.7 MiB | not committed |
 
 ## CI
 

@@ -139,7 +139,10 @@ describe("redisConnectionFromEnv", () => {
 			})
 		).toThrow("REDIS_TLS_CA");
 		expect(() =>
-			redisConnectionFromEnv({ REDIS_URL: "redis://r:1", REDIS_TLS_MODE: "on" })
+			redisConnectionFromEnv({
+				REDIS_URL: "redis://r:1",
+				REDIS_TLS_MODE: "on" as never,
+			})
 		).toThrow("optional or required");
 	});
 

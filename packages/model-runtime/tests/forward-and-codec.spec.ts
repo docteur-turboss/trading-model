@@ -3,7 +3,6 @@ import { FeatureVector } from "../src/feature-vector";
 import { FEATURE_DIM } from "../src/feature-vector-codec";
 import { FeedForwardEngine } from "../src/neural-network/feed-forward-engine";
 import {
-	distributeAroundWeights,
 	getWeights,
 	parameterCount,
 	setWeights,
@@ -50,6 +49,17 @@ describe("FeedForwardEngine", () => {
 		// layer 1: [3, 3]; layer 2: 3 + 3 + 1
 		expect(Array.from(ctx.output)).toEqual([7]);
 		expect(ctx.layerOutputs).toHaveLength(2);
+	});
+
+	test("without normalisation, leaves the input untouched and uncopied", () => {
+		const input = new Float32Array([1, 2]);
+		const ctx = engine(ConnectionType.FullyConnected, [
+			layer(2, 2, 1, 0),
+			layer(2, 1, 1, 1),
+		]).forward(input);
+		expect(ctx.input).toBe(input);
+		expect(Array.from(input)).toEqual([1, 2]);
+		expect(Array.from(ctx.output)).toEqual([7]);
 	});
 
 	test("keeps pre-activations apart from activated outputs", () => {
@@ -122,15 +132,6 @@ describe("network serialization", () => {
 		setWeights(other, flat);
 		expect(getWeights(other)).toEqual(flat);
 		expect(() => setWeights(other, new Float32Array(1))).toThrow(/mismatch/);
-	});
-
-	test("distributeAroundWeights checks a reference size", () => {
-		const layers = [layer(2, 1, 0, 0)];
-		distributeAroundWeights(layers, 0, 0);
-		expect(Array.from(getWeights(layers))).toEqual([0, 0, 0]);
-		expect(() =>
-			distributeAroundWeights(layers, new Float32Array(1), 1)
-		).toThrow(/does not match/);
 	});
 });
 

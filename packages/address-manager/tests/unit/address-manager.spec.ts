@@ -87,10 +87,10 @@ jest.mock("../../src/client/token-manager", () => ({
 import {
 	DurationMs,
 	FilePath,
+	InstanceId,
 	IPAddress,
 	Port,
-	toInstanceId,
-	toServiceId,
+	ServiceId,
 } from "@trading-model/primitives/primitives";
 import AddressManager from "../../src/address-manager";
 import type { AddressManagerConfig } from "../../src/config/address-manager-config";
@@ -104,8 +104,8 @@ function makeConfig(
 		tokenRefreshIntervalMs: DurationMs.of(60000),
 		ttlRefreshIntervalMs: DurationMs.of(15000),
 		identity: {
-			serviceName: toServiceId("test-service"),
-			instanceId: toInstanceId("instance-1"),
+			serviceName: ServiceId.of("test-service"),
+			instanceId: InstanceId.of("instance-1"),
 		},
 		tls: {
 			caPath: FilePath.of("/path/to/ca.pem"),
@@ -137,7 +137,7 @@ describe("AddressManager (main)", () => {
 		const am = new AddressManager(
 			makeConfig({
 				dnsNameMap: {
-					[toServiceId("test-service")]: IPAddress.of("127.0.0.1"),
+					[ServiceId.of("test-service")]: IPAddress.of("127.0.0.1"),
 				},
 			})
 		);
@@ -155,7 +155,7 @@ describe("AddressManager (main)", () => {
 		const am = new AddressManager(
 			makeConfig({
 				dnsNameMap: {
-					[toServiceId("test-service")]: IPAddress.of("127.0.0.1"),
+					[ServiceId.of("test-service")]: IPAddress.of("127.0.0.1"),
 				},
 			})
 		);

@@ -125,8 +125,8 @@ not in MySQL since ADR-0065: daily only.
 - A gap is a failure (`backup_last_status{…,run="incremental"} 0`): a binlog
   purged by MySQL before being archived, or oplog entries overwritten before
   being archived. The chain then restarts and point-in-time restore across
-  the gap is refused. MySQL keeps binlogs 30 days (`binlog_expire_logs_seconds`
-  default), the oplog window is hours to days: an hourly run never comes close.
+  the gap is refused. MySQL keeps binlogs 4 days (`binlog_expire_logs_seconds=345600`),
+  the oplog window is hours to days: an hourly run never comes close.
   The oplog's oldest entry is read again after each archive: if the ring
   turned while it was being dumped, the archive is discarded (the next run
   reports the gap).
@@ -868,8 +868,7 @@ curl -s http://localhost:8449/v1/trader-trainer/training-status -H "x-api-key: <
 
 # Check core service health (mTLS via SPIRE SVIDs, run inside a service container)
 for svc in discovery-server message-manager api-gateway; do
-  docker compose exec -T "$svc" sh -c \
-    'curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/ping'
+  docker compose exec -T "$svc" node -e "$SVID_GET" https://localhost:3000/ping
 done
 ```
 
