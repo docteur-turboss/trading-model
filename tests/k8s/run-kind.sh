@@ -473,9 +473,9 @@ release() {
 release_under_probe() {
 	local stop="$WORK/probe.stop" out="$WORK/probe.count" max="${PROBE_MAX_FAILURES:-0}" pid start rc=0 began=$SECONDS
 	local requests failures row candles gap need
-	rm -f "$stop" "$out"
+	rm -f "$stop" "$out" "$out.err"
 	echo "0 0" >"$out"
-	probe_availability "$stop" "$out" &
+	probe_availability "$stop" "$out" 2> >(tee "$out.err" >&2) &
 	pid=$!
 	# A failing command under errexit must not leave the probe running.
 	# Expanded now: the locals are gone when a RETURN trap runs.
@@ -499,7 +499,9 @@ release_under_probe() {
 		return 1
 	}
 	[ "$failures" -le "$max" ] || {
-		log "the upgrade dropped $failures request(s) (threshold $max): a Deployment went to 0 ready pods"
+		# 000 is a timeout or refused connection (a route without ready pod); 4xx/5xx come from the route itself.
+		log "the upgrade dropped $failures request(s) (threshold $max); status codes: $(sed -n 's/^probe: .* answered //p' "$out.err" | sort | uniq -c | tr -s ' 
+' ' ')"
 		return 1
 	}
 	# Candles written in the window and the largest gap between consecutive ones
