@@ -51,8 +51,7 @@ kubectl -n $NS get pods -l app.kubernetes.io/component=trader-trainer
 
 # 4. Current status (mTLS only: use its SVID)
 kubectl exec -n $NS deployment/trader-trainer -c trader-trainer -- \
-  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/training-status
+  node -e "$SVID_GET" https://localhost:3000/training-status
 ```
 
 Common causes:

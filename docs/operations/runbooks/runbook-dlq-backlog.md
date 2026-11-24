@@ -40,8 +40,7 @@ kubectl -n $NS logs deploy/dlq-service --tail=300 | grep -iE "replay|abandoned"
 
 # 3. dlq-service health (mTLS only: use its SVID)
 kubectl exec -n $NS deployment/dlq-service -c dlq-service -- \
-  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/health
+  node -e "$SVID_GET" https://localhost:3000/health
 ```
 
 List the entries through the gateway with `examples/manage-dlq.sh` (gateway API

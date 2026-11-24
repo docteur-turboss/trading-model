@@ -1,4 +1,4 @@
-import type { Order } from "./order";
+import type { Order } from "@trading-model/contracts/order-intent";
 import type { MarketPrice } from "./ports";
 
 export interface RiskState {

@@ -1,5 +1,3 @@
-import { createEnumValues } from "../enum-utils";
-
 export enum MarketType {
 	Crypto = "crypto",
 	Equity = "equity",
@@ -10,7 +8,10 @@ export enum MarketType {
 }
 
 export namespace MarketType {
-	export const values: () => MarketType[] = createEnumValues(MarketType);
+	export const values = (): MarketType[] =>
+		Object.values(MarketType).filter(
+			(value): value is MarketType => typeof value === "string"
+		);
 }
 
 export enum SourceType {
@@ -20,7 +21,10 @@ export enum SourceType {
 }
 
 export namespace SourceType {
-	export const values: () => SourceType[] = createEnumValues(SourceType);
+	export const values = (): SourceType[] =>
+		Object.values(SourceType).filter(
+			(value): value is SourceType => typeof value === "string"
+		);
 }
 
 export enum CandleInterval {
@@ -43,8 +47,10 @@ export enum CandleInterval {
 }
 
 export namespace CandleInterval {
-	export const values: () => CandleInterval[] =
-		createEnumValues(CandleInterval);
+	export const values = (): CandleInterval[] =>
+		Object.values(CandleInterval).filter(
+			(value): value is CandleInterval => typeof value === "string"
+		);
 }
 
 export enum TradeSide {
