@@ -12,7 +12,6 @@ Used by `financial-scraper` to persist market data. All tables live in the `fina
 | `market_trades` | Individual trade data | symbol, trade_id, price, quantity, side, timestamp |
 | `market_tickers` | 24-hour ticker statistics | symbol, open/high/low/last, volume, timestamp |
 | `market_order_books` | Order book depth snapshots, kept for historical replay, never served by the API (ADR-0053) | symbol, market, source, timestamp, bids / asks (JSON `[price, quantity]` pairs, best first) |
-| `market_publish_cursors` | Unused since release N (the scraper no longer publishes candles); dropped in N+1 (ADR-0040) | source, symbol, interval, market, published_until |
 | `signals` | Signals of every dimension from the source registry (ADR-0036): one observation about an asset or a sector | id, source_id, dimension, asset_id / sector, observed_at, ingested_at, confidence_score, payload (JSON, canonical per dimension) |
 
 Full DDL, column specs, and TypeScript interfaces: [Table Schemas Reference](../reference/table-schemas.md).

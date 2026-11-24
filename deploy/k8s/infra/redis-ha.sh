@@ -222,7 +222,7 @@ bus_user() {
 		print_args "(%RW~$prefix:journal:$topic +xadd +xdel +xgroup|create +xinfo)"
 	done
 	for topic in $4; do
-		print_args "(%RW~$prefix:journal:$topic +xreadgroup +xpending +xclaim +xack +xgroup|create +xinfo +xrange +xlen)"
+		print_args "(%RW~$prefix:journal:$topic +xreadgroup +xpending +xclaim +xack +xgroup|create +xgroup|delconsumer +xinfo +xrange +xlen)"
 		print_args "(%RW~$prefix:dead:$topic +xadd +xdel +xinfo +xrange +xlen)"
 	done
 }

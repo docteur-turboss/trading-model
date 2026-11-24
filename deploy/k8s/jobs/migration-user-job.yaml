@@ -80,10 +80,7 @@ spec:
                 *[!A-Za-z0-9_.@%+=-]*) echo "MYSQL_EXPORTER_PASSWORD must match [A-Za-z0-9_.@%+=-]" >&2; exit 1 ;;
               esac
               export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"
-              # TLS_BIND=false (first upgrade, mysqld still on its auto-generated certificate, which
-              # rejects our client certificate): no REQUIRE yet; run-migrations.sh runs this job again
-              # once mysqld serves the cert-manager certificate (docs/deployment/MYSQL_TLS.md).
-              rq() { [ "${TLS_BIND:-true}" = false ] || echo "REQUIRE ISSUER '/CN=trading-model-mysql-ca' AND SUBJECT '/CN=$1'"; }
+              rq() { echo "REQUIRE ISSUER '/CN=trading-model-mysql-ca' AND SUBJECT '/CN=$1'"; }
               mysql -h mysql-primary -u root <<EOSQL
               CREATE USER IF NOT EXISTS 'migrator'@'%' IDENTIFIED BY '${pw}';
               ALTER USER 'migrator'@'%' IDENTIFIED BY '${pw}' $(rq migrator);
@@ -93,19 +90,17 @@ spec:
               echo "migrator user ready"
               # Client certificates (issue #767): the password alone no longer opens a
               # session for these users; this job itself presents the root one.
-              if [ "${TLS_BIND:-true}" != false ]; then
-                mysql -h mysql-primary -u root <<EOSQL
+              mysql -h mysql-primary -u root <<EOSQL
               ALTER USER IF EXISTS 'scraper'@'%' $(rq scraper);
               ALTER USER IF EXISTS 'root'@'%' $(rq root);
               EOSQL
-                # A rollback (relax_mysql in deploy-release.sh) lifts it at runtime on every member
-                # without restarting mysqld: put it back on the redeploy of release N.
-                # Members that do not exist (kind runs fewer replicas) have no DNS record: skip them.
-                for h in mysql-0 mysql-1 mysql-2; do
-                  getent hosts "$h.mysql-headless" >/dev/null || continue
-                  mysql -h "$h.mysql-headless" -u root -e "SET GLOBAL require_secure_transport=ON"
-                done
-              fi
+              # A rollback (relax_mysql in deploy-release.sh) lifts it at runtime on every member
+              # without restarting mysqld: put it back on the redeploy of release N.
+              # Members that do not exist (kind runs fewer replicas) have no DNS record: skip them.
+              for h in mysql-0 mysql-1 mysql-2; do
+                getent hosts "$h.mysql-headless" >/dev/null || continue
+                mysql -h "$h.mysql-headless" -u root -e "SET GLOBAL require_secure_transport=ON"
+              done
               echo "scraper and root require their client certificate"
               # Former Group Replication account (issue #1204): shared the root password.
               mysql -h mysql-primary -u root -e "DROP USER IF EXISTS 'repl'@'%'"
