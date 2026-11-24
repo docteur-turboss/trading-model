@@ -53,13 +53,13 @@ node -e "$SVID_GET" https://localhost:3000/health
 
 # Signed routes: SIGNED_HEADERS is a JSON object with the x-service-name, x-timestamp,
 # x-signature and content-type headers computed for this method and path (query included).
-node -e "$SVID_GET" https://localhost:3000/dlq GET "$SIGNED_HEADERS"
+node -e "$SVID_GET" https://localhost:3000/v1/dlq GET "$SIGNED_HEADERS"
 
 # Replay up to 50 entries of one topic
-node -e "$SVID_GET" 'https://localhost:3000/dlq/replay?topic=dlq.entry.added&limit=50' POST "$SIGNED_HEADERS"
+node -e "$SVID_GET" 'https://localhost:3000/v1/dlq/replay?topic=dlq.entry.added&limit=50' POST "$SIGNED_HEADERS"
 
 # Delete entries by id
-node -e "$SVID_GET" https://localhost:3000/dlq DELETE "$SIGNED_HEADERS" '{"ids":["entry-uuid-123"]}'
+node -e "$SVID_GET" https://localhost:3000/v1/dlq DELETE "$SIGNED_HEADERS" '{"ids":["entry-uuid-123"]}'
 ```
 
 ## Environment Variables
