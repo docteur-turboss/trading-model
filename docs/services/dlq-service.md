@@ -45,21 +45,21 @@ The request and response schemas of the `/dlq` routes are declared in
 ## Examples
 
 > mTLS uses the service SVID (SPIRE). Run these inside the service container,
-> e.g. `docker compose exec -T dlq-service sh -c 'curl ...'`.
+> e.g. `docker compose exec -T dlq-service node -e "$SVID_GET" <url> [method] [headers-json] [body]` (`SVID_GET`: [on-call.md](../operations/on-call.md#health-check-endpoints)).
 
 ```bash
 # Health check (no signature needed)
-curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem   https://localhost:3000/health
+node -e "$SVID_GET" https://localhost:3000/health
 
-# Signed routes: SIGNED_HEADERS holds the x-service-name, x-timestamp and
-# x-signature headers computed for this method and path (query included).
-curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem   $SIGNED_HEADERS https://localhost:3000/dlq
+# Signed routes: SIGNED_HEADERS is a JSON object with the x-service-name, x-timestamp,
+# x-signature and content-type headers computed for this method and path (query included).
+node -e "$SVID_GET" https://localhost:3000/dlq GET "$SIGNED_HEADERS"
 
 # Replay up to 50 entries of one topic
-curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem   $SIGNED_HEADERS -X POST   'https://localhost:3000/dlq/replay?topic=dlq.entry.added&limit=50'
+node -e "$SVID_GET" 'https://localhost:3000/dlq/replay?topic=dlq.entry.added&limit=50' POST "$SIGNED_HEADERS"
 
 # Delete entries by id
-curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem   $SIGNED_HEADERS -X DELETE https://localhost:3000/dlq   -H 'Content-Type: application/json'   -d '{"ids":["entry-uuid-123"]}'
+node -e "$SVID_GET" https://localhost:3000/dlq DELETE "$SIGNED_HEADERS" '{"ids":["entry-uuid-123"]}'
 ```
 
 ## Environment Variables

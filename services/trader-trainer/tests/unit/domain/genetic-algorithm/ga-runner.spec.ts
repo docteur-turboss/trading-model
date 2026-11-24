@@ -391,15 +391,6 @@ describe("GeneticAlgorithmRunner", () => {
 		expect(runner.processor.lastBestGenome).toBeUndefined();
 	});
 
-	it("should return empty archive before running", () => {
-		const runner = new GeneticAlgorithmRunner({
-			windowSets: [{ id: "w1", train: [], validation: [] }],
-			backendFactory: mockBackendFactory as any,
-		});
-		runner.processor.initialise();
-		expect(runner.processor.getArchiveMembers()).toEqual([]);
-	});
-
 	it("should select elites based on elitismFraction", async () => {
 		const runner = initRunner(10, 0.3);
 		await runner.processor.runGeneration();
@@ -417,14 +408,10 @@ describe("GeneticAlgorithmRunner", () => {
 	});
 
 	it("should update Pareto archive after runGeneration", async () => {
-		const onArchiveUpdate = jest.fn<(...args: any[]) => any>();
-		const runner = initRunner(4, 0.2, { onArchiveUpdate });
-		expect(runner.processor.getArchiveMembers()).toEqual([]);
+		const runner = initRunner(4, 0.2);
+		expect(runner.processor.archiveBest).toBeUndefined();
 		await runner.processor.runGeneration();
-		expect(onArchiveUpdate).toHaveBeenCalled();
-		if (runner.processor.getArchiveMembers().length > 0) {
-			expect(runner.processor.getArchiveMembers()[0].id).toBeDefined();
-		}
+		expect(runner.processor.archiveBest?.genome.id).toBeDefined();
 	});
 
 	it("should track stagnation when fitness does not improve", async () => {
@@ -439,6 +426,17 @@ describe("GeneticAlgorithmRunner", () => {
 		await runner.processor.runGeneration();
 		const ctx = await runner.processor.runGeneration();
 		expect(ctx.population.length).toBe(5);
+	});
+
+	it("should evaluate one genome only when the time budget is already spent mid-generation", async () => {
+		const countCalls = async (startTime?: number) => {
+			const factory = jest.fn((..._a: any[]) => makeBackend());
+			const runner = initRunner(4, 0.2, { backendFactory: factory as any });
+			await runner.processor.runGeneration(startTime);
+			return factory.mock.calls.length;
+		};
+		const full = await countCalls();
+		expect(await countCalls(0)).toBe(full / 4);
 	});
 
 	it("should run a single generation and produce a context", async () => {
@@ -539,11 +537,9 @@ describe("full GA loop", () => {
 			});
 		};
 
-		const onArchiveUpdate = jest.fn<(...args: any[]) => any>();
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: makeWindowSets(2),
 			backendFactory: mockBackendFactory as any,
-			onArchiveUpdate,
 		});
 
 		runner.processor.initialise({
@@ -559,7 +555,6 @@ describe("full GA loop", () => {
 			await runner.processor.runGeneration();
 		}
 		expect(runner.processor.lastBestGenome).toBeDefined();
-		expect(onArchiveUpdate).toHaveBeenCalled();
 	});
 
 	it.each([

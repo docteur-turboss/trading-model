@@ -5,7 +5,10 @@ import { sendResponse } from "@trading-model/http/response-exception";
 import { Router } from "express";
 import { SIGNAL_REGISTRY } from "../../../config/signal-registry";
 import type { MarketDataPage } from "../../../domain/market-data.types";
-import { selectCandlesBy } from "../../outbound/persistence/schema/candles.schema";
+import {
+	selectCandlesBy,
+	selectLatestClosedCandles,
+} from "../../outbound/persistence/schema/candles.schema";
 import { selectTickerBy } from "../../outbound/persistence/schema/ticker24h.schema";
 import { selectTradesBy } from "../../outbound/persistence/schema/trades.schema";
 import { MySqlSignalStore } from "../../outbound/persistence/signal-store";
@@ -49,9 +52,6 @@ async function page(select: PageQuery, { limit, ...window }: MarketDataPage) {
 }
 
 function _registerTradeRoutes(router: Router): void {
-	mountRoute(router, SCRAPER_API.tradesBySource, ({ params, query }) =>
-		page((window) => selectTradesBy.source(params.source, window), query)
-	);
 	mountRoute(router, SCRAPER_API.tradesBySymbol, ({ params, query }) =>
 		page((window) => selectTradesBy.symbol(params.symbol, window), query)
 	);
@@ -61,9 +61,6 @@ function _registerTradeRoutes(router: Router): void {
 }
 
 function _registerTickerRoutes(router: Router): void {
-	mountRoute(router, SCRAPER_API.tickersBySource, ({ params, query }) =>
-		page((window) => selectTickerBy.source(params.source, window), query)
-	);
 	mountRoute(router, SCRAPER_API.tickersBySymbol, ({ params, query }) =>
 		page((window) => selectTickerBy.symbol(params.symbol, window), query)
 	);
@@ -73,11 +70,11 @@ function _registerTickerRoutes(router: Router): void {
 }
 
 function _registerCandleRoutes(router: Router): void {
-	mountRoute(router, SCRAPER_API.candlesBySource, ({ params, query }) =>
-		page((window) => selectCandlesBy.source(params.source, window), query)
-	);
 	mountRoute(router, SCRAPER_API.candlesBySymbol, ({ params, query }) =>
 		page((window) => selectCandlesBy.symbol(params.symbol, window), query)
+	);
+	mountRoute(router, SCRAPER_API.candlesLatest, async ({ query }) =>
+		json({ rows: await selectLatestClosedCandles(query.symbols, new Date()) })
 	);
 	mountRoute(router, SCRAPER_API.candlesSince, ({ params, query }) =>
 		page(

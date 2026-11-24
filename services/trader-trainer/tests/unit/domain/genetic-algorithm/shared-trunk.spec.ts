@@ -1,7 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { FeatureVector } from "@trading-model/model-runtime/feature-vector";
 import { TradingSymbol } from "@trading-model/primitives/primitives";
-import { Trainer } from "../../../../src/application/trainer";
 import {
 	runInProcess,
 	type TrainingSessionResult,
@@ -26,6 +25,7 @@ import {
 	type TrainingSettings,
 } from "../../../../src/domain/training-settings";
 import { feedCandles } from "../../../fixtures/market-data.fixture";
+import { makeTrainer } from "../../../fixtures/trainer-deps.fixture";
 
 jest.mock("../../../../src/config/metrics", () => {
 	const metric = {
@@ -71,14 +71,14 @@ async function run(
 			return { version: "v", sha256: "0".repeat(64), createdAt: "2026-01-01" };
 		},
 	};
-	const trainer = new Trainer(buffer, {
+	const trainer = makeTrainer(buffer, {
 		settings: SETTINGS,
 		runner: async (...args) => {
 			session = await runInProcess(...args);
 			return session;
 		},
 		models: models as never,
-		dailyCosts: options.dailyCosts,
+		dailyCosts: options.dailyCosts ?? (() => undefined),
 	});
 	const result = group
 		? await trainer.trainGroup([A, B])
@@ -164,8 +164,9 @@ describe("FEATURE_SHARED_TRUNK", () => {
 });
 
 describe("symbolsPerGeneration", () => {
-	it("defaults to ceil(N / 3), refuses k above N", () => {
-		expect(symbolsPerGeneration(0, 10)).toBe(4);
+	it("defaults to max(1, floor(N / 3)), refuses k above N", () => {
+		expect(symbolsPerGeneration(0, 10)).toBe(3);
+		expect(symbolsPerGeneration(0, 2)).toBe(1);
 		expect(symbolsPerGeneration(10, 10)).toBe(10);
 		expect(() => symbolsPerGeneration(11, 10)).toThrow(/\[1, 10\]/);
 	});

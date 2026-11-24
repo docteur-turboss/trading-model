@@ -325,19 +325,9 @@ kubectl -n trading-model create secret generic trading-model-backup-s3 \
   --from-literal=S3_ENDPOINT=https://minio.example.net --from-literal=S3_PROVIDER=Minio
 ```
 
-### Docker Compose
-
-```bash
-BACKUP_AGE_RECIPIENTS=age1... BACKUP_REQUIRE_ENCRYPTION=true bash scripts/backup.sh
-```
-
-Without `BACKUP_AGE_RECIPIENTS` the compose script still writes plaintext
-backups (local development) and warns.
-
 ### Restore
 
 ```bash
-BACKUP_AGE_IDENTITY=~/backup-key.txt bash scripts/restore.sh --timestamp 2026-10-27_020000
 BACKUP_AGE_IDENTITY=~/backup-key.txt BACKUP_DIR=./backups bash scripts/restore-k8s.sh
 ```
 
@@ -377,8 +367,7 @@ the staleness and coverage alerts listed in [BACKUP_DR.md](BACKUP_DR.md#monitori
 - `tests/backup/backup-partial.test.sh` (`backup-test.yml`): a failed dump
   leaves no file, the encrypted run manifest, restore selection and checksum
   refusals ([Run manifest](BACKUP_DR.md#run-manifest)).
-- Restore drills, with a key generated for the run: `backup-test.yml`
-  (`tests/backup/compose-restore-drill.sh`) and the CI `k8s` job
+- Restore drill, with a key generated for the run: the CI `k8s` job
   (`tests/k8s/run-kind.sh verify_backup`): no backup file in clear, encrypted
   copies off-site, and the decrypted backups restored for real.
 

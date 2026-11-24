@@ -8,7 +8,6 @@ import {
 	TradingSymbol,
 } from "@trading-model/primitives/primitives";
 import { nextAttempt } from "../../../src/application/model-artifact-service";
-import { Trainer } from "../../../src/application/trainer";
 import { runInProcess } from "../../../src/application/training-session";
 import {
 	FEATURE_DRIFT_SCORE,
@@ -40,6 +39,7 @@ import {
 	makeMinimalFitnessMeta,
 } from "../../fixtures/genome.fixture";
 import { feedCandles } from "../../fixtures/market-data.fixture";
+import { makeTrainer } from "../../fixtures/trainer-deps.fixture";
 
 jest.mock<{ ENV: any }>("../../../src/infrastructure/config/env", () => ({
 	ENV: {
@@ -67,9 +67,7 @@ const TEST_TRAINING_SETTINGS: TrainingSettings = {
 };
 
 let capturedOnGeneration: ((ctx: any) => void) | null = null;
-let capturedOnArchiveUpdate: ((archive: any[]) => void) | null = null;
 let mockRunImpl: (() => Promise<any>) | null = null;
-let mockArchiveData: any[] = [{ id: "best-archived" }];
 
 // The mocked GA returns a stub genome: the final test evaluation cannot run it.
 jest.mock("../../../src/domain/genetic-algorithm/evaluation-phase", () => ({
@@ -89,9 +87,6 @@ jest.mock("../../../src/domain/genetic-algorithm/ga-runner", () => {
 					elapsedMs: 1000,
 					bestGenome: { id: "gen-1" },
 				});
-			}
-			if (capturedOnArchiveUpdate) {
-				capturedOnArchiveUpdate(mockArchiveData);
 			}
 			if (mockRunImpl) {
 				return mockRunImpl();
@@ -179,7 +174,6 @@ jest.mock("../../../src/domain/genetic-algorithm/ga-runner", () => {
 			.fn<(...args: any[]) => any>()
 			.mockImplementation((opts: any) => {
 				capturedOnGeneration = opts.onGeneration || null;
-				capturedOnArchiveUpdate = opts.onArchiveUpdate || null;
 				return mockRunner;
 			}),
 		makeTradingAgentBackend: jest.fn<(...args: any[]) => any>(),
@@ -192,14 +186,12 @@ describe("Trainer", () => {
 	beforeEach(() => {
 		dataBuffer = new MarketDataBuffer({ maxSize: 500 });
 		capturedOnGeneration = null;
-		capturedOnArchiveUpdate = null;
 		mockRunImpl = null;
-		mockArchiveData = [{ id: "best-archived" }];
 	});
 
 	describe("initial state", () => {
 		it("should return null from getBestAgentSummary before training", () => {
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 
@@ -209,7 +201,7 @@ describe("Trainer", () => {
 		});
 
 		it("should return false from isTraining before training", () => {
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 
@@ -217,7 +209,7 @@ describe("Trainer", () => {
 		});
 
 		it("should return 0 from getGeneration before training", () => {
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 
@@ -225,7 +217,7 @@ describe("Trainer", () => {
 		});
 
 		it("should return empty string from getCurrentSymbol before training", () => {
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 
@@ -235,7 +227,7 @@ describe("Trainer", () => {
 
 	describe("train with insufficient data", () => {
 		it("should return failure result with fewer than 10 steps", async () => {
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 			feedCandles(dataBuffer, "BTCUSDT", 5);
@@ -248,7 +240,7 @@ describe("Trainer", () => {
 		});
 
 		it("should not start training when train split has fewer than 10 steps after validation split", async () => {
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 			feedCandles(dataBuffer, "BTCUSDT", 11);
@@ -261,7 +253,7 @@ describe("Trainer", () => {
 		});
 
 		it("should return failure result if already training", async () => {
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 			feedCandles(dataBuffer, "BTCUSDT", 130);
@@ -277,7 +269,7 @@ describe("Trainer", () => {
 
 	describe("train with sufficient data", () => {
 		it("should return success result with enough data", async () => {
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 			feedCandles(dataBuffer, "BTCUSDT", 130);
@@ -293,7 +285,7 @@ describe("Trainer", () => {
 		});
 
 		it("should set currentSymbol after training", async () => {
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 			feedCandles(dataBuffer, "BTCUSDT", 130);
@@ -304,7 +296,7 @@ describe("Trainer", () => {
 		});
 
 		it("should update getGeneration from runner", async () => {
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 			feedCandles(dataBuffer, "BTCUSDT", 130);
@@ -315,7 +307,7 @@ describe("Trainer", () => {
 		});
 
 		it("should update bestGenome after successful training", async () => {
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 			feedCandles(dataBuffer, "BTCUSDT", 130);
@@ -332,7 +324,7 @@ describe("Trainer", () => {
 			mockRunImpl = () => {
 				return Promise.reject(new Error("training error"));
 			};
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 			feedCandles(dataBuffer, "BTCUSDT", 130);
@@ -351,7 +343,7 @@ describe("Trainer", () => {
 			mockRunImpl = () => {
 				return Promise.reject(new Error("string error"));
 			};
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 			feedCandles(dataBuffer, "BTCUSDT", 130);
@@ -368,7 +360,7 @@ describe("Trainer", () => {
 
 		it("should handle null fitness in training result", async () => {
 			mockRunImpl = async () => createDefaultGenome("no-fitness");
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 			feedCandles(dataBuffer, "BTCUSDT", 130);
@@ -382,7 +374,7 @@ describe("Trainer", () => {
 
 	describe("getBestAgentSummary with genome", () => {
 		it("should return null when bestGenome is null", () => {
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 
@@ -390,7 +382,7 @@ describe("Trainer", () => {
 		});
 
 		it("should return correct summary when bestGenome has fitnessMeta", () => {
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 			const bestGenome = makeMinimalBestGenome() as DeepReadonly<LamarckGenome>;
@@ -417,7 +409,7 @@ describe("Trainer", () => {
 		});
 
 		it("should return summary with zero sharpe and avgPnl when no fitnessMeta", () => {
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 			const bestGenome = makeBestGenomeNoMeta() as DeepReadonly<LamarckGenome>;
@@ -437,7 +429,7 @@ describe("Trainer", () => {
 		});
 
 		it("should handle genome with fitnessMeta containing rawScores", () => {
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 			const g = createDefaultGenome(
@@ -465,7 +457,7 @@ describe("Trainer", () => {
 		});
 
 		it("should return fitness as 0 when bestGenome fitness is null", () => {
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 			const g = createDefaultGenome(
@@ -488,7 +480,7 @@ describe("Trainer", () => {
 
 	describe("callbacks", () => {
 		it("should set best genome to final result after training", async () => {
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 			feedCandles(dataBuffer, "BTCUSDT", 130);
@@ -499,18 +491,6 @@ describe("Trainer", () => {
 			expect(summary).not.toBeNull();
 			expect(summary!.id).toBe("mock-result");
 		});
-
-		it("should skip updating bestGenome when archive is empty", async () => {
-			mockArchiveData = [];
-			const trainer = new Trainer(dataBuffer, {
-				settings: TEST_TRAINING_SETTINGS,
-			});
-			feedCandles(dataBuffer, "BTCUSDT", 130);
-
-			await trainer.train(TradingSymbol.of("BTCUSDT"));
-
-			expect(trainer.isTraining()).toBe(false);
-		});
 	});
 });
 
@@ -520,9 +500,7 @@ describe("Trainer — model publication", () => {
 	beforeEach(() => {
 		dataBuffer = new MarketDataBuffer({ maxSize: 500 });
 		capturedOnGeneration = null;
-		capturedOnArchiveUpdate = null;
 		mockRunImpl = null;
-		mockArchiveData = [{ id: "best-archived" }];
 		feedCandles(dataBuffer, "BTCUSDT", 130);
 	});
 
@@ -533,7 +511,7 @@ describe("Trainer — model publication", () => {
 			evaluationFailed: jest.fn<(...args: any[]) => any>(),
 			genomeEvaluated: jest.fn<(...args: any[]) => any>(),
 		};
-		const trainer = new Trainer(dataBuffer, {
+		const trainer = makeTrainer(dataBuffer, {
 			settings: TEST_TRAINING_SETTINGS,
 			telemetry,
 		});
@@ -556,7 +534,7 @@ describe("Trainer — model publication", () => {
 	describe("model artifacts (ADR-0022)", () => {
 		/** The best genome of a default run, with trained weights added. */
 		async function trainedGenome(): Promise<any> {
-			const probe = new Trainer(new MarketDataBuffer({ maxSize: 500 }), {
+			const probe = makeTrainer(new MarketDataBuffer({ maxSize: 500 }), {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 			feedCandles((probe as any)._dataBuffer, "BTCUSDT", 130);
@@ -587,7 +565,7 @@ describe("Trainer — model publication", () => {
 			models: ReturnType<typeof fakeStore>,
 			publish: (...args: any[]) => any
 		) {
-			return new Trainer(dataBuffer, {
+			return makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 				models,
 				publisher: { publish: jest.fn<(...args: any[]) => any>(publish) },
@@ -602,7 +580,7 @@ describe("Trainer — model publication", () => {
 					.fn<(...args: any[]) => any>()
 					.mockResolvedValue(undefined),
 			};
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 				models: fakeStore(),
 				publisher,
@@ -681,7 +659,7 @@ describe("Trainer — model publication", () => {
 			mockRunImpl = () => Promise.resolve(genome);
 			const models = fakeStore();
 			models.list.mockRejectedValue(new Error("EIO"));
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 				models,
 			});
@@ -709,7 +687,7 @@ describe("Trainer — model publication", () => {
 			const models = fakeStore();
 			models.save.mockRejectedValue(new Error("EACCES"));
 			const publish = jest.fn<(...args: any[]) => any>();
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 				models,
 				publisher: { publish },
@@ -723,7 +701,7 @@ describe("Trainer — model publication", () => {
 
 		it("publishes nothing when the best genome has no trained weights", async () => {
 			const publish = jest.fn<(...args: any[]) => any>();
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 				models: fakeStore(),
 				publisher: { publish },
@@ -765,7 +743,7 @@ describe("Trainer — model publication", () => {
 			const genome = await trainedGenome();
 			mockRunImpl = () => Promise.resolve(genome);
 			const models = fakeStore();
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 				models,
 				instanceId: "trader-trainer-2",
@@ -797,7 +775,7 @@ describe("Trainer — model publication", () => {
 			const genome = await trainedGenome();
 			mockRunImpl = () => Promise.resolve(genome);
 			const models = fakeStore();
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 				models,
 			});
@@ -844,7 +822,7 @@ describe("Trainer — model publication", () => {
 						})
 					);
 				});
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 				models,
 				publisher,
@@ -864,7 +842,7 @@ describe("Trainer — model publication", () => {
 		});
 
 		it("stopTraining resolves at once when no session runs", async () => {
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 			});
 
@@ -898,7 +876,7 @@ describe("Trainer — model publication", () => {
 				const publish = jest
 					.fn<(...args: any[]) => any>()
 					.mockResolvedValue(undefined);
-				const trainer = new Trainer(dataBuffer, {
+				const trainer = makeTrainer(dataBuffer, {
 					settings: TEST_TRAINING_SETTINGS,
 					models,
 					publisher: { publish },
@@ -922,7 +900,7 @@ describe("Trainer — model publication", () => {
 				mockRunImpl = () => Promise.resolve(genome);
 				const models = fakeStore();
 				models.latest.mockResolvedValue((await storedManifest()) as never);
-				const trainer = new Trainer(dataBuffer, {
+				const trainer = makeTrainer(dataBuffer, {
 					settings: TEST_TRAINING_SETTINGS,
 					models,
 				});
@@ -950,7 +928,7 @@ describe("Trainer — model publication", () => {
 					...(await storedManifest()),
 					features: { dim: 33, fields: [] },
 				} as never);
-				const trainer = new Trainer(dataBuffer, {
+				const trainer = makeTrainer(dataBuffer, {
 					settings: TEST_TRAINING_SETTINGS,
 					models,
 				});
@@ -961,7 +939,7 @@ describe("Trainer — model publication", () => {
 			it("leaves no snapshot without manifest", async () => {
 				const models = fakeStore();
 				models.latest.mockResolvedValue(undefined as never);
-				const trainer = new Trainer(dataBuffer, {
+				const trainer = makeTrainer(dataBuffer, {
 					settings: TEST_TRAINING_SETTINGS,
 					models,
 				});
@@ -973,7 +951,7 @@ describe("Trainer — model publication", () => {
 			it("skips an unreadable manifest", async () => {
 				const models = fakeStore();
 				models.latest.mockRejectedValue(new Error("EIO") as never);
-				const trainer = new Trainer(dataBuffer, {
+				const trainer = makeTrainer(dataBuffer, {
 					settings: TEST_TRAINING_SETTINGS,
 					models,
 				});
@@ -998,7 +976,7 @@ describe("Trainer — model publication", () => {
 				createdAt: new Date(0).toISOString(),
 			});
 			let windows: WindowSet[] = [];
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 				models,
 				runner: (windowSets, ...rest) => {
@@ -1040,7 +1018,7 @@ describe("Trainer — model publication", () => {
 
 		it("does not store a best genome without trained weights", async () => {
 			const models = fakeStore();
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 				models,
 			});
@@ -1057,7 +1035,7 @@ describe("Trainer — model publication", () => {
 			mockRunImpl = () => Promise.resolve(genome);
 			const models = fakeStore();
 			models.save.mockRejectedValue(new Error("EACCES: permission denied"));
-			const trainer = new Trainer(dataBuffer, {
+			const trainer = makeTrainer(dataBuffer, {
 				settings: TEST_TRAINING_SETTINGS,
 				models,
 			});

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "@jest/globals";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
-import { toSymbol } from "@trading-model/primitives/primitives";
+import { TradingSymbol } from "@trading-model/primitives/primitives";
 import { BINANCE_ENDPOINTS } from "../../../../../src/adapters/outbound/binance/endpoints";
 
-const BTC = toSymbol("BTCUSDT");
-const ETH = toSymbol("ETHUSDT");
+const BTC = TradingSymbol.of("BTCUSDT");
+const ETH = TradingSymbol.of("ETHUSDT");
 
 describe("BINANCE_ENDPOINTS", () => {
 	describe("depth", () => {
@@ -61,30 +61,6 @@ describe("BINANCE_ENDPOINTS", () => {
 		it("should build 24hr stats URL without symbols", () => {
 			const url = BINANCE_ENDPOINTS.change24hrStats();
 			expect(url).toBe("/api/v3/ticker/24hr");
-		});
-	});
-
-	describe("symbolPriceTicker", () => {
-		it("should build price ticker URL with symbols", () => {
-			const url = BINANCE_ENDPOINTS.symbolPriceTicker([BTC]);
-			expect(url).toContain("/api/v3/ticker/price?symbols=");
-		});
-
-		it("should build price ticker URL without symbols", () => {
-			const url = BINANCE_ENDPOINTS.symbolPriceTicker();
-			expect(url).toBe("/api/v3/ticker/price");
-		});
-	});
-
-	describe("orderBookTicker", () => {
-		it("should build book ticker URL with symbols", () => {
-			const url = BINANCE_ENDPOINTS.orderBookTicker([BTC]);
-			expect(url).toContain("/api/v3/ticker/bookTicker?symbols=");
-		});
-
-		it("should build book ticker URL without symbols", () => {
-			const url = BINANCE_ENDPOINTS.orderBookTicker();
-			expect(url).toBe("/api/v3/ticker/bookTicker");
 		});
 	});
 });

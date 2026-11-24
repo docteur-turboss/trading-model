@@ -84,21 +84,17 @@ export class ModelArtifactService {
 	): Promise<RehydratedModel[]> {
 		const models = this._deps.models;
 		const found: RehydratedModel[] = [];
-		if (!models) {
-			return found;
-		}
+		const layouts = [
+			JSON.stringify(networkInputLayout(this._dataBuffer.signalKeys)),
+			JSON.stringify(eventInputLayout(this._dataBuffer.signalKeys)),
+		];
 		for (const symbol of symbols) {
 			try {
 				const manifest = await models.latest(String(symbol));
 				if (!manifest) {
 					continue;
 				}
-				if (
-					JSON.stringify(manifest.features) !==
-						JSON.stringify(networkInputLayout(this._dataBuffer.signalKeys)) &&
-					JSON.stringify(manifest.features) !==
-						JSON.stringify(eventInputLayout(this._dataBuffer.signalKeys))
-				) {
+				if (!layouts.includes(JSON.stringify(manifest.features))) {
 					// Published before the 18-input layout (ADR-0078): retrained, not served.
 					getLogger().warn("Stored model has another feature layout, skipped", {
 						context: { symbol, version: manifest.version },
@@ -145,9 +141,6 @@ export class ModelArtifactService {
 		components?: ModelComponent[]
 	): Promise<{ ref: StoredModelRef; lastModel: LastModel } | undefined> {
 		const models = this._deps.models;
-		if (!models) {
-			return;
-		}
 		const weights = result.bestGenome.trainedWeights;
 		if (!(summary && weights)) {
 			MODEL_ARTIFACTS_TOTAL.inc({ result: "skipped" });
@@ -170,7 +163,7 @@ export class ModelArtifactService {
 			);
 			const stored = await models.save({
 				symbol: result.symbol,
-				instanceId: this._deps.instanceId ?? "trader-trainer",
+				instanceId: this._deps.instanceId,
 				bestGenome: result.bestGenome,
 				weights: new Float32Array(weights),
 				features: isEventDriven(result.bestGenome.rl.horizon)
@@ -218,7 +211,7 @@ export class ModelArtifactService {
 		if (candles.length === 0 || testFrom === undefined) {
 			return;
 		}
-		const costs = this._deps.dailyCosts?.(symbol);
+		const costs = this._deps.dailyCosts(symbol);
 		return {
 			from: candles[0].timestamp,
 			testFrom,

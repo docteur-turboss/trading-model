@@ -12,6 +12,7 @@ import * as backoff from "../../../src/bus/backoff";
 import { BusConsumer } from "../../../src/bus/consumer";
 import { DeadStreams } from "../../../src/bus/dead-streams";
 import {
+	JOURNAL_PENDING_ENTRIES,
 	MESSAGES_DELIVERED_TOTAL,
 	MESSAGES_DLQ_TOTAL,
 	PUBLISHER_REJECTED_TOTAL,
@@ -80,7 +81,7 @@ describe("publishToBus", () => {
 
 describe("BusConsumer", () => {
 	function consumer(
-		handle: (message: Message) => Promise<void>,
+		handle: (message: Message, signal: AbortSignal) => Promise<void>,
 		parts = bus(),
 		onDeadLetter = jest.fn()
 	) {
@@ -266,10 +267,17 @@ describe("BusConsumer", () => {
 			calls++;
 			await slow;
 		});
+		const claims = jest.spyOn(journal, "claimDue");
 		await c.start([TOPIC]);
 		await publishToBus(journal, "slow", METADATA);
-		// The fake Redis reports every pending entry as due; claims run every 2 s.
-		await new Promise((resolve) => setTimeout(resolve, 2500));
+		await until(() => calls === 1);
+		// The fake Redis reports every pending entry as due: jump past the 2 s claim period.
+		const before = claims.mock.calls.length;
+		const now = Date.now();
+		jest.spyOn(Date, "now").mockImplementation(() => now + 3000);
+		await until(() => claims.mock.calls.length > before);
+		expect(claims.mock.calls.length).toBeGreaterThan(before);
+		jest.spyOn(Date, "now").mockRestore();
 		const stopped = c.stop();
 		release();
 		await stopped;
@@ -297,22 +305,62 @@ describe("BusConsumer", () => {
 
 	it("should abandon a handler that never ends and leave its entry pending", async () => {
 		jest.replaceProperty(backoff, "HANDLER_TIMEOUT_MS", DurationMs.of(50));
+		jest.replaceProperty(backoff, "ABORT_GRACE_MS", DurationMs.of(50));
+		let signal: AbortSignal | undefined;
 		const {
 			consumer: c,
 			journal,
 			redis,
-		} = consumer(() => new Promise(() => {}));
+		} = consumer((_message, s) => {
+			signal = s;
+			return new Promise(() => {});
+		});
 		await c.start([TOPIC]);
 		await publishToBus(journal, "a", METADATA);
 		await new Promise((resolve) => setTimeout(resolve, 300));
 		await c.stop();
 
+		expect(signal?.aborted).toBe(true);
 		expect(pendingOf(redis)).toBe(1);
 		expect(
 			(await MESSAGES_DELIVERED_TOTAL.get()).values.some(
 				(v) => v.labels.status === "failed" && v.value >= 1
 			)
 		).toBe(true);
+	});
+
+	it.each([
+		[
+			"holds the slot for the whole grace while the handler runs on",
+			false,
+			450,
+		],
+		["frees the slot as soon as the aborted handler returns", true, 0],
+	])("should %s", async (_name, returnsOnAbort, minStopMs) => {
+		jest.replaceProperty(backoff, "HANDLER_TIMEOUT_MS", DurationMs.of(50));
+		jest.replaceProperty(backoff, "ABORT_GRACE_MS", DurationMs.of(500));
+		let signal: AbortSignal | undefined;
+		const { consumer: c, journal } = consumer((_message, s) => {
+			signal = s;
+			return new Promise<void>((resolve) => {
+				if (returnsOnAbort) {
+					s?.addEventListener("abort", () => resolve());
+				}
+			});
+		});
+		await c.start([TOPIC]);
+		await publishToBus(journal, "a", METADATA);
+		await until(() => signal?.aborted === true);
+		const startedAt = Date.now();
+		await c.stop();
+		const waited = Date.now() - startedAt;
+
+		// stop() waits for the in-flight slots: still taken during the grace, free once the handler returned.
+		if (returnsOnAbort) {
+			expect(waited).toBeLessThan(300);
+		} else {
+			expect(waited).toBeGreaterThanOrEqual(minStopMs - 50);
+		}
 	});
 
 	it("should dead-letter a rejected message and report it", async () => {
@@ -398,6 +446,48 @@ describe("BusConsumer", () => {
 		expect((await parts.streams.list(TOPIC))[0]?.attempts).toBe(10);
 	});
 
+	it("should dead-letter a crashed entry past MAX_RETRIES without calling the handler", async () => {
+		const parts = bus();
+		await parts.journal.register(GROUP);
+		await publishToBus(parts.journal, "a", METADATA);
+		const [read] = await parts.journal.readNew(GROUP, "mm", 1);
+		const pending = parts.redis.streams
+			.get(`p:journal:${TOPIC}`)
+			?.groups.get(GROUP.service)
+			?.pending.get(read?.id as string);
+		(pending as { deliveries: number }).deliveries = 10;
+		const handler = jest.fn<(...args: any[]) => any>();
+		const { consumer: c, onDeadLetter } = consumer(handler, parts);
+
+		await c.start([TOPIC]);
+		await until(() => onDeadLetter.mock.calls.length === 1);
+		await c.stop();
+
+		expect(handler).not.toHaveBeenCalled();
+		expect(await parts.streams.list(TOPIC)).toEqual([
+			expect.objectContaining({ reason: "MAX_RETRIES_EXCEEDED" }),
+		]);
+		expect(pendingOf(parts.redis)).toBe(0);
+	});
+
+	it("should keep delivering when pruning consumers fails", async () => {
+		const handled: unknown[] = [];
+		const { consumer: c, journal } = consumer(async (m) => {
+			handled.push(m.payload);
+		});
+		await journal.register(GROUP);
+		jest
+			.spyOn(journal, "pruneConsumers")
+			.mockRejectedValueOnce(new Error("NOPERM"));
+		await publishToBus(journal, "a", METADATA);
+
+		await c.start([TOPIC]);
+		await until(() => handled.length === 1);
+		await c.stop();
+
+		expect(handled).toEqual(["a"]);
+	});
+
 	it("should leave the entry pending when the dead stream write fails", async () => {
 		const {
 			consumer: c,
@@ -413,6 +503,23 @@ describe("BusConsumer", () => {
 		await c.stop();
 
 		expect(pendingOf(redis)).toBe(1);
+	});
+
+	it("should publish the backlog of the topics it consumes only, not of a group of a dropped topic (issue #2479)", async () => {
+		const { consumer: c, journal, streams } = consumer(async () => undefined);
+		const lag = { pending: 2, oldestPendingAgeMs: 60_000 };
+		jest.spyOn(journal, "lag").mockResolvedValue([
+			{ ...GROUP, ...lag },
+			{ ...GROUP, topic: "market.trade.recent.fetch" as never, ...lag },
+		]);
+		jest.spyOn(streams, "length").mockResolvedValue(0);
+
+		await (
+			c as unknown as { _publishLag(topics: string[]): Promise<void> }
+		)._publishLag([TOPIC]);
+
+		const series = (await JOURNAL_PENDING_ENTRIES.get()).values;
+		expect(series.map((value) => value.labels.topic)).toEqual([TOPIC]);
 	});
 });
 
@@ -453,6 +560,26 @@ describe("DeadStreams", () => {
 		expect(await streams.delete(TOPIC, letter?.id as string)).toBe(true);
 		expect(await streams.delete(TOPIC, "0-1")).toBe(false);
 		expect(await streams.replay(TOPIC, "0-1")).toBe(false);
+	});
+
+	it("should trim entries older than 7 days on each dead letter", async () => {
+		const { streams, redis } = bus();
+		const call = jest.spyOn(redis, "call");
+		jest.spyOn(Date, "now").mockReturnValue(1_000_000_000_000);
+
+		try {
+			await streams.deadLetter(GROUP, "1-0", createMockMessage("x"), "R", 1);
+		} finally {
+			jest.restoreAllMocks();
+		}
+
+		expect(call.mock.calls[0]?.slice(0, 5)).toEqual([
+			"XADD",
+			`p:dead:${TOPIC}`,
+			"MINID",
+			"~",
+			String(1_000_000_000_000 - 7 * 24 * 60 * 60 * 1000),
+		]);
 	});
 
 	it("should throw when the transaction fails, so the entry stays pending", async () => {

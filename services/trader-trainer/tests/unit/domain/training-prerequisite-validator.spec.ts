@@ -4,7 +4,6 @@ import {
 	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
-import { DataType } from "../../../src/domain/data-handlers/data-types";
 import { MarketDataBuffer } from "../../../src/domain/market-data-buffer";
 import type { SymbolState } from "../../../src/domain/market-data-types";
 import { validateTrainingPrerequisites } from "../../../src/domain/training-prerequisite-validator";
@@ -36,8 +35,7 @@ describe("validateTrainingPrerequisites", () => {
 	it("should refuse a series whose contiguous run is too short", () => {
 		const buffer = new MarketDataBuffer();
 		for (let i = 0; i < 100; i++) {
-			buffer.addData(
-				DataType.Candle,
+			buffer.addCandle(
 				BTC,
 				makeCandle({
 					symbol: BTC,
@@ -61,11 +59,10 @@ describe("validateTrainingPrerequisites", () => {
 		const buffer = new MarketDataBuffer();
 		feedCandles(buffer, "BTCUSDT", 100);
 		const state = buffer.getSymbolState(BTC) as SymbolState;
-		// Restored state bypasses the ingestion dedup.
-		buffer.restoreSymbolState(BTC, {
-			...state,
-			candles: [...state.candles, state.candles[state.candles.length - 1]],
-		});
+		// Writing the live state bypasses the ingestion dedup.
+		(state.candles as SymbolState["candles"][number][]).push(
+			state.candles[state.candles.length - 1]
+		);
 
 		const result = validateTrainingPrerequisites(
 			buffer,
@@ -84,8 +81,7 @@ describe("validateTrainingPrerequisites", () => {
 
 	it("should refuse while a training is already running", () => {
 		const buffer = new MarketDataBuffer();
-		buffer.addData(
-			DataType.Candle,
+		buffer.addCandle(
 			BTC,
 			makeCandle({
 				symbol: BTC,

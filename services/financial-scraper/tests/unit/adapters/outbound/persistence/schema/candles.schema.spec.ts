@@ -1,8 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import {
-	CandleInterval,
-	SourceType,
-} from "@trading-model/contracts/market-data.types";
+import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import {
 	TradingSymbol,
 	UnixTimestamp,
@@ -83,12 +80,6 @@ describe("candles.schema", () => {
 				(o) => selectCandlesBy.symbol(TradingSymbol.of("BTCUSDT"), o),
 				"market_candles",
 				"symbol = ?"
-			));
-		it("pages source in (timestamp, id) order, limit applied", () =>
-			expectPagedSelect(
-				(o) => selectCandlesBy.source(SourceType.Binance, o),
-				"market_candles",
-				"source = ?"
 			));
 		it("pages timestamp.after in (timestamp, id) order, limit applied", () =>
 			expectPagedSelect(

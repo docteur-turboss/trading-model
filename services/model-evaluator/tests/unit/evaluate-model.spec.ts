@@ -119,6 +119,70 @@ describe("evaluate a published model", () => {
 		return { evaluate, calls };
 	};
 
+	it("hands the bus abort signal to the manifest, the weights and the candles", async () => {
+		const seen: (AbortSignal | undefined)[] = [];
+		const evaluate = createEvaluateModel({
+			store: new FileEvaluationStore(dir),
+			scraper: {
+				candles: async (_s, _f, _t, _i, signal) => {
+					seen.push(signal);
+					return [];
+				},
+			},
+			trainer: {
+				manifest: async (_s, _v, signal) => {
+					seen.push(signal);
+					return { ...MANIFEST, replay: WINDOW } as ModelManifest;
+				},
+				weights: async (_s, _v, signal) => {
+					seen.push(signal);
+					return { bytes: BYTES, sha256: SHA };
+				},
+			},
+		});
+		const bus = new AbortController();
+		await evaluate(EVENT as PublishedModel, bus.signal);
+		bus.abort();
+
+		expect(seen).toHaveLength(3);
+		expect(seen.every((s) => s?.aborted)).toBe(true);
+	});
+
+	it("fails at the global budget on a scraper that never answers, recording nothing", async () => {
+		const timeout = jest
+			.spyOn(AbortSignal, "timeout")
+			.mockImplementation(() => {
+				const budget = new AbortController();
+				setTimeout(() => budget.abort(new Error("budget")), 20);
+				return budget.signal;
+			});
+		const store = new FileEvaluationStore(dir);
+		const create = jest.spyOn(store, "create");
+		const evaluate = createEvaluateModel({
+			store,
+			scraper: {
+				candles: (_s, _f, _t, _i, signal) =>
+					new Promise((_, reject) => {
+						// On a slow runner the 20 ms budget can expire before this call.
+						if (signal?.aborted) {
+							reject(signal.reason);
+							return;
+						}
+						signal?.addEventListener("abort", () => reject(signal.reason));
+					}),
+			},
+			trainer: {
+				manifest: async () =>
+					({ ...MANIFEST, replay: WINDOW }) as ModelManifest,
+				weights: async () => ({ bytes: BYTES, sha256: SHA }),
+			},
+		});
+
+		await expect(evaluate(EVENT as PublishedModel)).rejects.toThrow("budget");
+		timeout.mockRestore();
+		expect(create).not.toHaveBeenCalled();
+	});
+
 	it("reads a manifest from before and one from after the signal inputs (ADR-0081)", () => {
 		const base = { ...MANIFEST, features: { dim: 19, fields: ["Bias"] } };
 		const withSignals = {
@@ -214,7 +278,13 @@ describe("evaluate a published model", () => {
 				replay: "done",
 				metrics: { policy: "greedy", sharpe: 3, sortino: 4 },
 			});
-			expect(read).toHaveBeenCalledWith("BTCUSDT", 0, 119_999, 60_000);
+			expect(read).toHaveBeenCalledWith(
+				"BTCUSDT",
+				0,
+				119_999,
+				60_000,
+				expect.any(AbortSignal)
+			);
 			expect(jest.mocked(replayModel).mock.calls[0][0]).toMatchObject({
 				candles: [candle(0), candle(1)],
 				testFrom: 60_000,
@@ -249,7 +319,13 @@ describe("evaluate a published model", () => {
 			const read = jest.fn(async (..._args: unknown[]) => [0, 1].map(day));
 			const daily = { ...WINDOW, to: 2 * DAY_MS - 1, intervalMs: DAY_MS };
 			expect(await record(read, daily)).toMatchObject({ replay: "done" });
-			expect(read).toHaveBeenCalledWith("BTCUSDT", 0, 2 * DAY_MS - 1, DAY_MS);
+			expect(read).toHaveBeenCalledWith(
+				"BTCUSDT",
+				0,
+				2 * DAY_MS - 1,
+				DAY_MS,
+				expect.any(AbortSignal)
+			);
 			expect(
 				await record(read, { ...WINDOW, intervalMs: 3_600_000 })
 			).toMatchObject({

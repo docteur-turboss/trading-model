@@ -9,7 +9,7 @@ instance to pick or skip.
 
 ## Symptom
 
-The shared HTTP client has its own breaker (per hostname and per service). Each
+The shared HTTP client has one breaker per target (its service name, or its hostname when the call names no service). Each
 call it refuses increments `http_circuit_breaker_rejections_total{target,kind}`;
 a sustained rate fires `HttpCircuitBreakerRejecting` (warning). The caller
 (`job`) fails its calls to `target` fast instead of waiting on a failing
@@ -25,8 +25,7 @@ kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
 
 # 2. Is the target healthy? (mTLS only: probe it from its own pod, with its SVID)
 kubectl exec -n $NS deployment/<target service> -c <target service> -- \
-  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/health/ready
+  node -e "$SVID_GET" https://localhost:3000/health/ready
 
 # 3. Why the caller's calls fail: timeouts, TLS refusals, 5xx
 kubectl -n $NS logs deploy/<caller job> --tail=200 | grep -iE "circuit|timeout|ECONN|certificate|50[234]"

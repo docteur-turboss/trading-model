@@ -25,69 +25,31 @@ export interface WalletAPI {
 	reset: () => void;
 }
 
-class Wallet implements WalletAPI {
-	private readonly _executor: TradeExecutor;
-	private readonly _config: WalletConfig;
-
-	constructor(params: WalletConfigParams) {
-		const config = new WalletConfig(params);
-		this._config = config;
-		this._executor = new TradeExecutor(config, {
-			price: config.initialPrice,
-			cash: config.initialCash,
-			position: Volume.zero(),
-		});
-	}
-
-	buy(amount: Volume, fillPrice?: Price): boolean {
-		return this._executor.buy(amount, fillPrice);
-	}
-
-	sell(amount: Volume, fillPrice?: Price): boolean {
-		return this._executor.sell(amount, fillPrice);
-	}
-
-	setPrice(newPrice: Price): void {
-		this._executor.setPrice(newPrice);
-	}
-
-	getPosition(): Volume {
-		return this._executor.position;
-	}
-
-	getCash(): Cash {
-		return this._executor.cash;
-	}
-
-	getValuation(): Cash {
-		return computeValuation(
-			this._executor.cash,
-			this._executor.position,
-			this._executor.price,
-			this._config.decimals
+export const createWallet = (params: WalletConfigParams): WalletAPI => {
+	const config = new WalletConfig(params);
+	const executor = new TradeExecutor(config, {
+		price: config.initialPrice,
+		cash: config.initialCash,
+		position: Volume.zero(),
+	});
+	const getValuation = (): Cash =>
+		computeValuation(
+			executor.cash,
+			executor.position,
+			executor.price,
+			config.decimals
 		);
-	}
-
-	getPrice(): Price {
-		return this._executor.price;
-	}
-
-	getPnL(): Cash {
-		return computePnL(
-			this.getValuation(),
-			this._config.initialCash,
-			this._config.decimals
-		);
-	}
-
-	getCostsPaid(): { feesPaid: number; executionCostPaid: number } {
-		return this._executor.costsPaid;
-	}
-
-	reset(): void {
-		this._executor.reset();
-	}
-}
-
-export const createWallet = (params: WalletConfigParams): WalletAPI =>
-	new Wallet(params);
+	return {
+		buy: (amount, fillPrice) => executor.buy(amount, fillPrice),
+		sell: (amount, fillPrice) => executor.sell(amount, fillPrice),
+		setPrice: (newPrice) => executor.setPrice(newPrice),
+		getPosition: () => executor.position,
+		getCash: () => executor.cash,
+		getValuation,
+		getPrice: () => executor.price,
+		getPnL: () =>
+			computePnL(getValuation(), config.initialCash, config.decimals),
+		getCostsPaid: () => executor.costsPaid,
+		reset: () => executor.reset(),
+	};
+};

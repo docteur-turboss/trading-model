@@ -44,6 +44,20 @@ describe("DEFAULT_ACL", () => {
 		]);
 	});
 
+	it("should let only the decision consumer (and the operator) send intents to risk-execution", () => {
+		expect(DEFAULT_ACL[ServiceInstanceName.RiskExecutionService]).toEqual([
+			"risk-execution",
+			"api-gateway",
+			"decision-consumer",
+		]);
+		for (const target of [
+			ServiceInstanceName.TraderTrainerService,
+			ServiceInstanceName.FinancialScraperService,
+		]) {
+			expect(DEFAULT_ACL[target]).toContain("decision-consumer");
+		}
+	});
+
 	it("should let the trainer read the data supply", () => {
 		// Its inputs change in the trainer only (ADR-0036).
 		expect(DEFAULT_ACL[ServiceInstanceName.FinancialScraperService]).toContain(

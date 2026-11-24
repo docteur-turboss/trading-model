@@ -55,7 +55,7 @@ describe("createBootstrap", () => {
 		expect(typeof result.shutdown).toBe("function");
 	});
 
-	it("should call onStart callback when createServer completes", () => {
+	it("should call onStart callback when createServer completes", async () => {
 		const onStart = jest.fn();
 		const options = {
 			name: "test-service",
@@ -64,6 +64,7 @@ describe("createBootstrap", () => {
 		};
 
 		createBootstrap(options);
+		await new Promise((r) => setImmediate(r));
 
 		expect(onStart).toHaveBeenCalledTimes(1);
 	});
@@ -86,6 +87,7 @@ describe("createBootstrap", () => {
 			createServer: () => createMockServer(),
 			onStart,
 		});
+		await new Promise((r) => setImmediate(r));
 		expect(logger.info).not.toHaveBeenCalledWith(
 			"Service started successfully",
 			expect.anything()

@@ -1,7 +1,7 @@
 import type { EventMap } from "@trading-model/contracts/event-map";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { runWithCorrelationId } from "@trading-model/http/correlation-id";
-import { toCorrelationId } from "@trading-model/primitives/primitives";
+import { CorrelationId } from "@trading-model/primitives/primitives";
 import { type DeliveredMetadata, EVENT_MANAGER } from "./event-manager-client";
 import { MESSAGE_PAYLOAD_SCHEMA } from "./shared/barrel/message.schema";
 
@@ -21,7 +21,8 @@ const deliveredIds = new Set<string>();
  */
 export async function deliverToListeners(
 	metadata: DeliveredMetadata,
-	payload: unknown
+	payload: unknown,
+	signal?: AbortSignal
 ): Promise<boolean> {
 	const resultPayload = await MESSAGE_PAYLOAD_SCHEMA.safeParseAsync({
 		type: metadata.topic,
@@ -46,10 +47,11 @@ export async function deliverToListeners(
 		EVENT_MANAGER.emit(
 			metadata.topic as keyof EventMap,
 			payload as never,
-			metadata
+			metadata,
+			signal
 		);
 	await (metadata.correlationId
-		? runWithCorrelationId(toCorrelationId(metadata.correlationId), emit)
+		? runWithCorrelationId(CorrelationId.of(metadata.correlationId), emit)
 		: emit());
 	// Remembered only after a successful emit: a listener that throws must leave the redelivery possible.
 	if (messageId) {

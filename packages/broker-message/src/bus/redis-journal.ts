@@ -107,6 +107,11 @@ function toRecord(flat: unknown[]): Record<string, unknown> {
 
 type StreamReply = [id: string, fields: string[] | null][] | null;
 
+/** True when `err` is a Redis error whose message contains `code` (e.g. "NOGROUP"). */
+export function isRedisError(err: unknown, code: string): boolean {
+	return err instanceof Error && err.message.includes(code);
+}
+
 /**
  * Journal in Redis Streams (ADR-0048): one stream per topic, one consumer
  * group per subscriber service. The pending list of each group carries the
@@ -213,7 +218,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 					)) as unknown[]
 				).length > 0;
 		} catch (err) {
-			if (!(err instanceof Error && err.message.includes("no such key"))) {
+			if (!isRedisError(err, "no such key")) {
 				throw err;
 			}
 			value = false;
@@ -296,21 +301,73 @@ export class RedisMessageJournal implements MessageJournalPort {
 					!skip.has(id) && idleMs >= retry.dueAfterMs(deliveries)
 			)
 			.slice(0, count);
-		// MIN-IDLE makes each claim atomic: of two replicas, one wins. Promise.all keeps the XPENDING order.
+		// One XCLAIM per min-idle value. MIN-IDLE makes each claim atomic: of two replicas, one wins.
+		const deliveriesById = new Map(due.map(([id, , , count2]) => [id, count2]));
+		const idsByMinIdle = new Map<number, string[]>();
+		for (const [id, , , deliveries] of due) {
+			const minIdle = retry.dueAfterMs(deliveries);
+			idsByMinIdle.set(minIdle, [...(idsByMinIdle.get(minIdle) ?? []), id]);
+		}
 		const batches = await Promise.all(
-			due.map(async ([id, , , deliveries]) => {
+			[...idsByMinIdle].map(async ([minIdle, ids]) => {
 				const claimed = (await this._deps.redis.call(
 					"XCLAIM",
 					stream,
 					group.service,
 					consumer,
-					String(retry.dueAfterMs(deliveries)),
-					id
+					String(minIdle),
+					...ids
 				)) as StreamReply;
-				return this._parse(group, claimed, () => deliveries + 1);
+				return this._parse(group, claimed, () => 1);
 			})
 		);
-		return batches.flat();
+		// Back to the XPENDING order, each entry with its own delivery count.
+		const order = [...deliveriesById.keys()];
+		return batches
+			.flat()
+			.map((entry) => ({
+				...entry,
+				deliveries: (deliveriesById.get(entry.id) ?? 0) + 1,
+			}))
+			.sort((x1, x2) => order.indexOf(x1.id) - order.indexOf(x2.id));
+	}
+
+	/** Removes the group's consumers (dead replicas) with nothing pending and idle for `idleMs`, except `keep`. */
+	async pruneConsumers(
+		group: JournalGroup,
+		keep: string,
+		idleMs: number
+	): Promise<void> {
+		const stream = this.stream(group.topic);
+		let rows: unknown[][];
+		try {
+			rows = (await this._deps.redis.call(
+				"XINFO",
+				"CONSUMERS",
+				stream,
+				group.service
+			)) as unknown[][];
+		} catch (err) {
+			await this._recoverNoGroup(err, group);
+			return;
+		}
+		for (const row of rows) {
+			const info = toRecord(row);
+			const name = String(info.name);
+			if (
+				name !== keep &&
+				Number(info.pending) === 0 &&
+				Number(info.idle) >= idleMs
+			) {
+				await this._deps.redis.call(
+					"XGROUP",
+					"DELCONSUMER",
+					stream,
+					group.service,
+					name
+				);
+			}
+		}
 	}
 
 	/** Lag of the groups of `service` only when given: a bus user has no right on other services' streams. */
@@ -333,7 +390,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 				}
 			} catch (err) {
 				// The stream is gone (Redis restart without AOF): nothing is pending on it.
-				if (!(err instanceof Error && err.message.includes("no such key"))) {
+				if (!isRedisError(err, "no such key")) {
 					throw err;
 				}
 			}
@@ -366,7 +423,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 					)) as [string, unknown][];
 				} catch (err) {
 					// The group vanished since XINFO: skip it, keep the others.
-					if (err instanceof Error && err.message.includes("NOGROUP")) {
+					if (isRedisError(err, "NOGROUP")) {
 						return undefined;
 					}
 					throw err;
@@ -456,7 +513,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 		err: unknown,
 		group: JournalGroup
 	): Promise<void> {
-		if (!(err instanceof Error && err.message.includes("NOGROUP"))) {
+		if (!isRedisError(err, "NOGROUP")) {
 			throw err;
 		}
 		await this.register(group);
@@ -508,7 +565,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 				"MKSTREAM"
 			);
 		} catch (err) {
-			if (!(err instanceof Error && err.message.includes("BUSYGROUP"))) {
+			if (!isRedisError(err, "BUSYGROUP")) {
 				throw err;
 			}
 		}

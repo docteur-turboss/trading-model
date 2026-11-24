@@ -19,9 +19,7 @@ cat >"$WORK/bin/kubectl" <<'STUB'
 echo "$*" >>"$STUB_LOG"
 if [ "$1" = apply ] && [ "${*: -1}" = - ]; then cat >>"$STUB_LOG.manifests"; exit 0; fi
 if [ "$1" = get ] && [ "$2" = job ]; then exit 1; fi
-# The StatefulSet spec always has the TLS volume; pod mysql-0 has what STUB_POD_VOLUMES says.
 if [ "$1" = get ] && [ "$2" = statefulset ]; then printf 'mysql-data mysql-tls'; exit 0; fi
-if [ "$1" = get ] && [ "$2" = pod ] && [ "$3" = mysql-0 ]; then printf '%s' "${STUB_POD_VOLUMES:-}"; exit 0; fi
 if [ "$1" = get ] && [[ "$2" == job/* ]]; then printf "Complete "; exit 0; fi # wait-job.sh: Job done
 if [ "$1" = get ] && [ "$2" = secret ] && [[ "$3" == trading-model-secrets ]] && [ -n "${STUB_GET_ERR:-}" ]; then echo "$STUB_GET_ERR" >&2; exit 1; fi
 # STUB_*_AFTER_APPLY: what the Secret holds once the SealedSecret was applied
@@ -43,12 +41,13 @@ run() { : >"$STUB_LOG"; : >"$STUB_LOG.manifests"; set +e; OUT=$("$@" 2>&1); RC=$
 
 STUB_KEY=c2VjcmV0 run bash "$RUN" ns
 { [ $RC = 0 ] && grep -q 'job/db-migrate ' "$STUB_LOG" && grep -q 'job/db-migrate-user ' "$STUB_LOG"; } && ok "key present: both jobs run" || ko "key present"
-{ [ "$(grep -c 'activeDeadlineSeconds: 180$' "$STUB_LOG.manifests")" = 3 ] && grep -q 'image: ghcr.io/trading-model/db-migrate:latest' "$STUB_LOG.manifests"; } &&
+{ grep -q 'name: db-index-build$' "$STUB_LOG.manifests" && ! grep -q 'job/db-index-build ' "$STUB_LOG"; } && ok "db-index-build applied last, not waited for" || ko "index build job"
+{ [ "$(grep -c 'activeDeadlineSeconds: 180$' "$STUB_LOG.manifests")" = 2 ] && grep -q 'activeDeadlineSeconds: 900$' "$STUB_LOG.manifests" && grep -q 'image: ghcr.io/trading-model/db-migrate:latest' "$STUB_LOG.manifests"; } &&
   ok "no DEPLOY_TIMEOUT_FACTOR: base Job deadline, manifest image" || ko "default deadline: $(grep activeDeadlineSeconds "$STUB_LOG.manifests")"
 
 # Issue #760: wait-job.sh waited 180 s x 4 but the Job died at its own 180 s deadline.
 STUB_KEY=c2VjcmV0 DEPLOY_TIMEOUT_FACTOR=4 MIGRATE_IMAGE=reg/db-migrate@sha256:abc run bash "$RUN" ns
-{ [ $RC = 0 ] && [ "$(grep -c 'activeDeadlineSeconds: 720$' "$STUB_LOG.manifests")" = 3 ] && grep -q 'image: reg/db-migrate@sha256:abc' "$STUB_LOG.manifests"; } &&
+{ [ $RC = 0 ] && [ "$(grep -c 'activeDeadlineSeconds: 720$' "$STUB_LOG.manifests")" = 2 ] && grep -q 'activeDeadlineSeconds: 3600$' "$STUB_LOG.manifests" && grep -q 'image: reg/db-migrate@sha256:abc' "$STUB_LOG.manifests"; } &&
   ok "DEPLOY_TIMEOUT_FACTOR=4: Job deadline 720 s like the wait, pinned image" || ko "scaled deadline: $(grep activeDeadlineSeconds "$STUB_LOG.manifests")"
 
 STUB_KEY= run bash "$RUN" ns
@@ -59,14 +58,6 @@ STUB_KEY= SEED_MIGRATE_PASSWORD=true run bash "$RUN" ns
 
 STUB_KEY=c2VjcmV0 run bash "$RUN" ns user-only
 { [ $RC = 0 ] && grep -q 'job/db-migrate-user ' "$STUB_LOG" && ! grep -q 'job/db-migrate ' "$STUB_LOG"; } && ok "user-only: no migration job" || ko "user-only"
-
-# Issue #1066: a partitioned StatefulSet whose spec has mysql-tls but whose pod does not.
-STUB_KEY=c2VjcmV0 STUB_POD_VOLUMES=mysql-data run bash "$RUN" ns user-only
-{ [ $RC = 0 ] && grep -A1 'name: TLS_BIND' "$STUB_LOG.manifests" | grep -q "value: 'false'" && ! grep -q '^apply -n ns -f .*mysql-tls.yaml' "$STUB_LOG"; } &&
-  ok "pod mysql-0 without mysql-tls (spec has it): unverified, users not bound" || ko "pod without TLS"
-STUB_KEY=c2VjcmV0 STUB_POD_VOLUMES="mysql-data mysql-tls" run bash "$RUN" ns user-only
-{ [ $RC = 0 ] && grep -A1 'name: TLS_BIND' "$STUB_LOG.manifests" | grep -q "value: 'true'" && grep -q '^apply -n ns -f .*mysql-tls.yaml' "$STUB_LOG"; } &&
-  ok "pod mysql-0 with mysql-tls: verified, users bound" || ko "pod with TLS"
 
 export SEALED_WAIT_TRIES=1
 printf '#!/usr/bin/env bash

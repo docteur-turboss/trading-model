@@ -147,7 +147,8 @@ spec:
                 --config.file=/etc/prometheus/prometheus.yml \
                 --storage.tsdb.path=/prometheus \
                 --storage.tsdb.retention.time=30d \
-                --storage.tsdb.retention.size=40GB
+                --storage.tsdb.retention.size=40GB \
+                --enable-feature=exemplar-storage
           ports:
             - containerPort: 9090
               name: http
@@ -181,7 +182,7 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
         - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
+          image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
           imagePullPolicy: IfNotPresent
           args:
             - -config

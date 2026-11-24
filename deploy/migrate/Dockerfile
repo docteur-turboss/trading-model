@@ -3,10 +3,10 @@
 # ghcr.io/trading-model/db-migrate: scripts/migrate.mjs, scripts/migrations and
 # mysql2 locked by deploy/migrate/bun.lock. Nothing is installed at run time.
 # Build from the repository root: docker build -f deploy/migrate/Dockerfile .
-FROM oven/bun:1.4.5@sha256:3aa040e5445efa09d75bb428a64ba50db13e2b3ac9b6b0c7f145615f62b2ee18
+FROM oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d
 WORKDIR /app
 COPY deploy/migrate/package.json deploy/migrate/bun.lock ./
-RUN bun install --frozen-lockfile --production
+RUN bun install --frozen-lockfile --production --ignore-scripts
 COPY scripts/migrate.mjs ./
 COPY scripts/migrations ./migrations
 USER bun

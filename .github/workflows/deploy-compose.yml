@@ -1,0 +1,179 @@
+# Deploys the compose stack (project trading-model) from a published release,
+# by image digest, on the self-hosted runner (ADR-0086). Nobody logs in to the host.
+name: Deploy compose
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (vX.Y.Z or vX.Y.Z-rc.N)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+# Same group as deploy.yml staging: kind and this stack share the host RAM.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  # No `environment:` here: a job naming a missing environment would create it unprotected.
+  check-environment:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check the environment protection
+        env:
+          GH_TOKEN: ${{ secrets.ENVIRONMENT_READ_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Secret ENVIRONMENT_READ_TOKEN is not set: the protection of environment compose cannot be checked. See docs/deployment/DEPLOY.md (Protect the production environment)."
+            exit 1
+          fi
+          node scripts/check-environment-protection.mjs compose "$GITHUB_REPOSITORY"
+      # The runner is persistent and the repository public (same check as deploy.yml, issue #842).
+      - name: Check fork pull request approval (self-hosted runner)
+        env:
+          GH_TOKEN: ${{ secrets.ENVIRONMENT_READ_TOKEN }}
+        run: node scripts/check-environment-protection.mjs --fork-approval "$GITHUB_REPOSITORY"
+
+  deploy:
+    needs: check-environment
+    runs-on: ${{ vars.STAGING_RUNNER }}
+    environment: compose
+    timeout-minutes: 60
+    env:
+      TAG: ${{ inputs.tag }}
+      REGISTRY: ${{ vars.IMAGE_REGISTRY || format('ghcr.io/{0}', github.repository_owner) }}
+      # Until deploy/compose/secrets.env.age is committed (docs/deployment/COMPOSE_SECRETS.md): plain file of the host.
+      ENV_FILE: ${{ vars.COMPOSE_ENV_FILE }}
+      # age identity of the host (docker volume of the VM, readable by the runner only), never in GitHub.
+      AGE_IDENTITY: ${{ vars.COMPOSE_AGE_IDENTITY_FILE }}
+      RELEASES: ${{ vars.COMPOSE_RELEASES_DIR }}
+      COMPOSE_PROJECT_NAME: trading-model
+    steps:
+      - name: Check the tag
+        shell: bash
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "::error::Tag $TAG is not vX.Y.Z[-prerelease]"; exit 1; }
+          [ -n "$RELEASES" ] || { echo "::error::Set COMPOSE_RELEASES_DIR on the environment compose"; exit 1; }
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: refs/tags/${{ inputs.tag }}
+
+      # Before any change: a file that does not decrypt, or lacks a required key, refuses the version.
+      - name: Decrypt the secrets
+        shell: bash
+        run: |
+          if [ -f deploy/compose/secrets.env.age ]; then
+            [ -d /dev/shm ] || { echo "::error::No tmpfs (/dev/shm): refusing to write the secrets to disk"; exit 1; }
+            [ -f "$AGE_IDENTITY" ] || { echo "::error::COMPOSE_AGE_IDENTITY_FILE is empty or not a file"; exit 1; }
+            d=$(mktemp -d -p /dev/shm)
+            echo "SECRETS_DIR=$d" >> "$GITHUB_ENV"
+            bash scripts/compose-secrets.sh deploy/compose/secrets.env.age "$AGE_IDENTITY" docker-compose.yml "$d/secrets.env"
+            echo "ENV_FILE=$d/secrets.env" >> "$GITHUB_ENV"
+          else
+            [ -f "$ENV_FILE" ] || { echo "::error::No secrets: commit deploy/compose/secrets.env.age or set COMPOSE_ENV_FILE"; exit 1; }
+          fi
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      # Digests first: a missing or unsigned image stops the deploy before anything changes.
+      # Only digests signed by release.yml of this repository (keyless, ADR-0038) are deployed.
+      - name: Resolve image digests
+        shell: bash
+        run: |
+          map="discovery-server:discovery-server message-manager:message-manager financial-scraper:financial-scraper
+            trader-trainer:trader-trainer api-gateway:api-gateway audit-logger:audit-logger dlq-service:dlq-service
+            model-evaluator:model-evaluator risk-execution:risk-execution decision-consumer:decision-consumer spire-bootstrap:spire-tools migrate:db-migrate"
+          { echo "services:"; } > "$RUNNER_TEMP/next.yml"
+          missing=""; unsigned=""
+          for p in $map; do
+            svc=${p%%:*}; img=${p##*:}
+            if digest=$(docker buildx imagetools inspect "${REGISTRY,,}/$img:${TAG#v}" --format '{{.Manifest.Digest}}'); then
+              ref="${REGISTRY,,}/$img@$digest"
+            else
+              missing="$missing $img"; continue
+            fi
+            cosign verify "$ref" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              --certificate-identity-regexp "^https://github\.com/${GITHUB_REPOSITORY}/\.github/workflows/release\.yml@refs/tags/v" >/dev/null || unsigned="$unsigned $img"
+            printf '  %s:\n    image: %s\n' "$svc" "$ref" >> "$RUNNER_TEMP/next.yml"
+          done
+          printf '  spire-agent:\n    image: trading-model/spire-agent:%s\n' "${TAG#v}" >> "$RUNNER_TEMP/next.yml"
+          [ -z "$missing" ] || { echo "::error::No ${REGISTRY,,} image tagged ${TAG#v} for:$missing (was the release published?)"; exit 1; }
+          [ -z "$unsigned" ] || { echo "::error::No valid release.yml signature for:$unsigned"; exit 1; }
+          # spire-agent is not released (only SPIRE binaries on alpine): built from the tag, after the checks above.
+          docker build -q -t "trading-model/spire-agent:${TAG#v}" --target agent deploy/spire
+
+      - name: Unpack the release and remember the running one
+        shell: bash
+        run: |
+          dir="$RELEASES/$TAG"; mkdir -p "$dir"
+          git archive HEAD | tar -x -C "$dir"
+          echo "DIR=$dir" >> "$GITHUB_ENV"
+          # Running images, pinned under a local tag so the rollback needs no pull (an image id is not a valid compose reference).
+          echo "services:" > "$RUNNER_TEMP/prev.yml"
+          for c in $(docker ps -a --filter label=com.docker.compose.project=trading-model --format '{{.Names}}'); do
+            svc=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.service"}}' "$c")
+            if grep -q "^  $svc:" "$RUNNER_TEMP/next.yml"; then
+              docker tag "$(docker inspect -f '{{.Image}}' "$c")" "trading-model-rollback/$svc:prev"
+              printf '  %s:\n    image: trading-model-rollback/%s:prev\n' "$svc" "$svc" >> "$RUNNER_TEMP/prev.yml"
+            fi
+          done
+          docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' trading-discovery > "$RUNNER_TEMP/prev.dir" || true
+
+      - name: Deploy
+        shell: bash
+        run: |
+          c() { docker compose --project-directory "$DIR" --env-file "$ENV_FILE" -f "$DIR/docker-compose.yml" -f "$RUNNER_TEMP/next.yml" "$@"; }
+          c pull --quiet
+          c up -d --wait --no-deps spire-server mysql
+          # Token of 1 h (#1903): always minted again before the agent starts.
+          c up --no-deps --force-recreate --exit-code-from spire-bootstrap spire-bootstrap
+          c up --no-deps --force-recreate --exit-code-from migrate migrate
+          c up -d --wait --wait-timeout 900
+
+      # Services are mTLS-only: the edge-proxy is the way in. An authenticated GET of a PUBLIC_ROUTES route must answer 200 (edge -> gateway -> trainer).
+      - name: Smoke test
+        shell: bash
+        run: |
+          bad=$(docker ps -a --filter label=com.docker.compose.project=trading-model --format '{{.Names}} {{.Status}}' | grep -E 'unhealthy|starting)|Restarting|Exited ([1-9]' || true)
+          [ -z "$bad" ] || { echo "::error::Not healthy:"; echo "$bad"; exit 1; }
+          key=$(sed -n 's/^GATEWAY_AUTH_TOKENS=//p' "$ENV_FILE" | cut -d, -f1 | awk -F: '{print $NF}')
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H "x-api-key: $key" http://127.0.0.1:8449/v1/trader-trainer/training-status)
+          [ "$code" = 200 ] || { echo "::error::edge-proxy -> gateway answered $code, expected 200"; exit 1; }
+
+      # Migrations stay compatible with N-1 (ADR-0040): the previous images run on the migrated schema.
+      - name: Roll back to the previous images
+        if: ${{ failure() }}
+        shell: bash
+        run: |
+          prev=$(cat "$RUNNER_TEMP/prev.dir" 2>/dev/null || true)
+          # shellcheck disable=SC2015
+          [ -n "$prev" ] && [ "$(grep -c image: "$RUNNER_TEMP/prev.yml")" -gt 0 ] || { echo "::warning::No previous stack recorded: nothing to roll back"; exit 0; }
+          c() { docker compose --project-directory "$prev" --env-file "$ENV_FILE" -f "$prev/docker-compose.yml" -f "$RUNNER_TEMP/prev.yml" "$@"; }
+          # Token of 1 h (#1903): the restored agent needs a fresh one too.
+          c up --no-deps --force-recreate --exit-code-from spire-bootstrap spire-bootstrap
+          c up -d --wait --no-build
+
+      - name: Remove the decrypted secrets
+        if: ${{ always() && env.SECRETS_DIR != '' }}
+        shell: bash
+        run: rm -rf "$SECRETS_DIR"

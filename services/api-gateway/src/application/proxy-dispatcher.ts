@@ -33,7 +33,21 @@ export async function proxyAndCache(
 	{ forward, cache, observeDuration }: ProxyDeps
 ): Promise<ResponseObject> {
 	const start = performance.now();
-	let status: number = HTTP_STATUS.SERVICE_UNAVAILABLE;
+	const response = await forwardOrError(req, target, ctx, forward, cache);
+	observeDuration(
+		{ service: ctx.serviceName, status: String(response.status) },
+		(performance.now() - start) / 1000
+	);
+	return response;
+}
+
+async function forwardOrError(
+	req: Request,
+	target: ResolvedEndpoint,
+	ctx: ProxyContext,
+	forward: ProxyDeps["forward"],
+	cache: ResponseCachePort
+): Promise<ResponseObject> {
 	try {
 		const result = await forward({
 			req,
@@ -44,13 +58,11 @@ export async function proxyAndCache(
 		const contentType = result.headers?.["content-type"];
 		const type = typeof contentType === "string" ? contentType : undefined;
 		tryCacheResponse(req, ctx, result, /json/i.test(type ?? ""), cache);
-		status = result.status;
 		// Relayed as received: no parse, no re-serialization.
 		return { ...sendResponse(result.body, result.status), contentType: type };
 	} catch (err: unknown) {
 		const tooLarge = err instanceof UpstreamResponseTooLargeError;
 		if (tooLarge) {
-			status = HTTP_STATUS.BAD_GATEWAY;
 			getLogger().warn("Upstream response too large", {
 				context: {
 					serviceName: ctx.serviceName,
@@ -64,11 +76,6 @@ export async function proxyAndCache(
 			);
 		}
 		return buildProxyErrorResponse(err, ctx, target);
-	} finally {
-		observeDuration(
-			{ service: ctx.serviceName, status: String(status) },
-			(performance.now() - start) / 1000
-		);
 	}
 }
 
@@ -127,12 +134,14 @@ function buildProxyErrorResponse(
 export function tryServeFromCache(
 	method: string,
 	cacheKey: string,
-	cache: ResponseCachePort
+	cache: ResponseCachePort,
+	countLookup: (result: "hit" | "miss") => void
 ): ResponseObject | null {
 	if (method !== "GET") {
 		return null;
 	}
 	const cached = cache.get(cacheKey);
+	countLookup(cached ? "hit" : "miss");
 	if (!cached) {
 		return null;
 	}

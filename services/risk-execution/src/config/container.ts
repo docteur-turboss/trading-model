@@ -11,16 +11,14 @@ import { RISK_API } from "../adapters/inbound/api-routes";
 import { createHandlers } from "../adapters/inbound/handlers";
 import { JsonFile } from "../adapters/outbound/json-file";
 import { PaperBroker } from "../adapters/outbound/paper-broker";
+import { ScraperPrices } from "../adapters/outbound/scraper-prices";
 import { TrainerAdmission } from "../adapters/outbound/trainer-admission";
 import { RiskExecution } from "../application/risk-execution";
 import { assertExecutionLock } from "../domain/execution-mode";
 import { RiskLimits } from "../domain/limits";
 import type { RiskState } from "../domain/state";
 import { ENV } from "../infrastructure/config/env";
-import {
-	ADDRESS_MANAGER_ROUTES,
-	REGISTRATION_READINESS,
-} from "./address-manager";
+import { ADDRESS_MANAGER_ROUTES } from "./address-manager";
 import { initRiskOutbox, publishRiskEvent, replayRiskEvents } from "./audit";
 import {
 	metricsHandler,
@@ -31,7 +29,9 @@ import {
 	RISK_OPEN_ORDERS,
 	RISK_ORDERS_TOTAL,
 	RISK_RECONCILIATION_MISMATCH,
+	RISK_TICK_FAILURES,
 } from "./metrics";
+import { runTick } from "./run-tick";
 
 export type RiskExecutionApp = Awaited<
 	ReturnType<typeof createRiskExecutionApp>
@@ -59,6 +59,7 @@ export async function createRiskExecutionApp() {
 		instruments: JSON.parse(ENV.RISK_INSTRUMENTS),
 	});
 	const mode = ENV.EXECUTION_MODE;
+	const tls = buildTlsFromEnv(ENV);
 	await initRiskOutbox(
 		new JsonFile(join(ENV.RISK_STATE_DIR, "risk-event-outbox.json"))
 	);
@@ -69,10 +70,12 @@ export async function createRiskExecutionApp() {
 		broker: new PaperBroker(
 			new JsonFile(join(ENV.RISK_STATE_DIR, "paper-ledger.json")),
 			limits.allocatedCapital,
-			limits.feeBps
+			limits.feeBps,
+			limits.slippageBps
 		),
 		store: new JsonFile<RiskState>(join(ENV.RISK_STATE_DIR, "state.json")),
-		admission: new TrainerAdmission(buildTlsFromEnv(ENV)),
+		admission: new TrainerAdmission(tls, ENV.TRAINER_MODEL_DIR),
+		prices: new ScraperPrices(tls),
 		emit: (event, fields) => {
 			getLogger().info(event, fields);
 			publishRiskEvent(event, fields);
@@ -97,22 +100,30 @@ export async function createRiskExecutionApp() {
 		RISK_MARKET_DATA_AGE_SECONDS.set({ mode }, snapshot.oldestPriceAgeSeconds);
 	};
 	publish();
+	RISK_TICK_FAILURES.inc({ mode }, 0);
 	const timer = setInterval(() => {
 		void replayRiskEvents();
-		// biome-ignore lint/plugin: logged by onError, inside the job context
-		runJob(
-			"risk-execution.tick",
-			() => risk.tick(),
-			(error) => {
-				const { message, stack } = normalizeError(error);
-				getLogger().error("risk tick failed", { error: message, stack });
-			}
-		).then(publish, () => undefined);
+		void runTick(
+			() =>
+				runJob(
+					"risk-execution.tick",
+					() => risk.tick(),
+					(error) => {
+						const { message, stack } = normalizeError(error);
+						getLogger().error("risk tick failed", { error: message, stack });
+						RISK_TICK_FAILURES.inc({ mode });
+					}
+				),
+			publish,
+			() => undefined
+		);
 	}, ENV.RISK_TICK_MS);
 	timer.unref();
 
-	const handlers = createHandlers(risk, (outcome) =>
-		RISK_ORDERS_TOTAL.inc({ mode, outcome })
+	const handlers = createHandlers(
+		risk,
+		(outcome) => RISK_ORDERS_TOTAL.inc({ mode, outcome }),
+		["decision-consumer"]
 	);
 	const server = await createServiceServer({
 		env: ENV,
@@ -120,8 +131,8 @@ export async function createRiskExecutionApp() {
 		routes: (app) => {
 			const router = Router();
 			mountRoute(router, RISK_API.intent, handlers.intent);
-			mountRoute(router, RISK_API.price, handlers.price);
 			mountRoute(router, RISK_API.cancel, handlers.cancel);
+			mountRoute(router, RISK_API.position, handlers.position);
 			mountRoute(router, RISK_API.adminStatus, handlers.adminStatus);
 			mountRoute(router, RISK_API.adminEngage, handlers.adminEngage);
 			mountRoute(router, RISK_API.adminRearm, handlers.adminRearm);
@@ -129,10 +140,7 @@ export async function createRiskExecutionApp() {
 			app.get("/metrics", metricsHandler);
 			ADDRESS_MANAGER_ROUTES(app);
 		},
-		readiness: [
-			REGISTRATION_READINESS,
-			{ name: "reconciliation", check: () => risk.isReady() },
-		],
+		readiness: [{ name: "reconciliation", check: () => risk.isReady() }],
 	});
 	return { server, stop: () => clearInterval(timer) };
 }

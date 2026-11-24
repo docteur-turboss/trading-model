@@ -5,9 +5,8 @@ target in [slo.md](../slo.md#5-training-completion-rate)),
 `TrainingCompletionRateCritical` (critical, same SLO),
 `TrainerNoModelStored` (critical),
 `ModelArtifactWriteFailing` (warning),
-`TrainerEventLoopBlocked` (warning),
 `TrainerEventLoopLagHigh` (warning),
-`TrainerNoLeader` (warning), `TrainerNoLeaderProlonged` (critical, 30 min),
+`TrainerNoLeader` (warning), `TrainerNoLeaderProlonged` (warning, 30 min),
 `ModelBelowBuyAndHold` (warning), `TrainerFeatureDrift` (warning).
 
 No market data reaching the trainer is a different alert,
@@ -42,8 +41,7 @@ kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
   'http://localhost:9090/api/v1/query?query=sum by (result) (increase(tt_training_sessions_total[1h]))'
 kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
   'http://localhost:9090/api/v1/query?query=histogram_quantile(0.95,sum by (le) (rate(tt_training_duration_seconds_bucket[1h])))'
-# Longest event loop block: one genome evaluation (heartbeats, /metrics and
-# candles wait that long). Several seconds: ServiceDown / HeartbeatStopped follow.
+# Genome evaluation time (runs in a worker thread, not an event loop signal)
 kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
   'http://localhost:9090/api/v1/query?query=histogram_quantile(0.99,sum by (le) (rate(tt_genome_evaluation_seconds_bucket[1h])))'
 
@@ -53,8 +51,7 @@ kubectl -n $NS get pods -l app.kubernetes.io/component=trader-trainer
 
 # 4. Current status (mTLS only: use its SVID)
 kubectl exec -n $NS deployment/trader-trainer -c trader-trainer -- \
-  curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
-  https://localhost:3000/training-status
+  node -e "$SVID_GET" https://localhost:3000/training-status
 ```
 
 Common causes:
@@ -91,51 +88,23 @@ Common causes:
 
 The previous artifacts stay valid meanwhile: nothing serving them is affected.
 
-## TrainerEventLoopBlocked
-
-p99 of `tt_genome_evaluation_seconds` above 5 s over 15 min, for 15 min.
-The trainer yields between genomes, so the longest block is one evaluation.
-Above 10 s (delivery timeout) or 15 s (heartbeat), `ServiceDown`,
-`HeartbeatStopped` and DLQ alerts follow: this one names the cause.
-
-### Symptom
-
-Heartbeats, `/metrics` and candle deliveries to the trainer time out in bursts.
-
-### Diagnosis
-
-```bash
-NS=trading-model
-# p99 evaluation time (the alert expression)
-kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
-  'http://localhost:9090/api/v1/query?query=histogram_quantile(0.99,sum by (job,le) (rate(tt_genome_evaluation_seconds_bucket[15m])))'
-# Lag outside GA evaluation (DQN step, GC, JSON parsing)
-kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
-  'http://localhost:9090/api/v1/query?query=max_over_time(nodejs_eventloop_lag_max_seconds{job="trader-trainer"}[1h])'
-# Settings that grow one evaluation
-kubectl -n $NS get deploy trader-trainer -o yaml | grep -E "TRAINER_TIME_BUDGET_MS|POPULATION"
-```
-
-Causes: population size or evaluation window (candles per genome) too large;
-`TRAINER_TIME_BUDGET_MS` too high; CPU limit throttling the pod. Lag high
-while the p99 is low: the block is outside the GA.
-
-### Remediation
-
-1. Reduce the population size or the evaluation window of the trainer.
-2. Lower `TRAINER_TIME_BUDGET_MS` (`docs/deployment/ENV.md`).
-3. Raise the trainer CPU limit if the pod is throttled.
-4. Roll out and check the p99 query falls below 5 s.
-
 ## TrainerEventLoopLagHigh
 
 `nodejs_eventloop_lag_max_seconds` of the trainer above 10 s for 5 min. The
 metric is a max reset at each scrape, so it catches isolated long blocks (the
-#477 incident peaked at 139.9 s) that the p99 of `TrainerEventLoopBlocked`
-smooths out, including blocks outside GA evaluation (DQN step, GC, JSON
-parsing). Same diagnosis and remediation as `TrainerEventLoopBlocked`: lag high
-while the p99 is low means the block is outside the GA (check the DQN step and
-memory pressure first).
+#477 incident peaked at 139.9 s) that an average smooths out (DQN step, GC, JSON parsing). The GA runs in a
+worker thread: a slow genome evaluation does not block the loop. Above 10 s
+(delivery timeout) or 15 s (heartbeat), `ServiceDown`, `HeartbeatStopped` and
+DLQ alerts follow.
+
+```bash
+NS=trading-model
+kubectl -n $NS exec prometheus-0 -c prometheus -- wget -qO- \
+  'http://localhost:9090/api/v1/query?query=max_over_time(nodejs_eventloop_lag_max_seconds{job="trader-trainer"}[1h])'
+```
+
+Causes: DQN step, GC, JSON parsing, memory pressure, CPU limit throttling the
+pod. Remediation: raise the CPU limit, lower `TRAINER_POPULATION_SIZE`.
 
 ## TrainerNoLeader
 
@@ -253,7 +222,7 @@ Compose: `docker logs trading-trainer 2>&1 | grep ...` and
 | `Failed to store model artifact` | Volume: see [ModelArtifactWriteFailing](#modelartifactwritefailing) |
 | `Model not stored: the best genome has no trained weights` | Every session ends without trained weights (`result="skipped"`): a training regression, check the release notes of the running version |
 | `Market data is stale: training paused`, no session at all | No fresh candles: `TrainerMarketDataStale` fires too, follow [runbook-market-data-stale](runbook-market-data-stale.md) |
-| No line at all | The loop does not run on the leader: the holder of the Lease is stuck (event loop, see [TrainerEventLoopBlocked](#trainereventloopblocked)); delete that pod to hand the Lease over |
+| No line at all | The loop does not run on the leader: the holder of the Lease is stuck (event loop, see [TrainerEventLoopLagHigh](#trainereventlooplaghigh)); delete that pod to hand the Lease over |
 
 **Resolution check:** `sum(increase(tt_model_artifacts_total{result="stored"}[9h]))`
 is above 0 again; the alert resolves at the next evaluation.

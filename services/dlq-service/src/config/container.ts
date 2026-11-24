@@ -1,7 +1,7 @@
 import { ErrorCode, makeErrorCode } from "@trading-model/common/utils/errors";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { ReadinessCheck } from "@trading-model/http/readiness";
-import { Limit, toInstanceId } from "@trading-model/primitives/primitives";
+import { InstanceId, Limit } from "@trading-model/primitives/primitives";
 import {
 	createDlqHandlers,
 	type DlqHandlers,
@@ -123,7 +123,7 @@ export function createDlqApp(env: Env): DlqApp {
 	// Getters: env is read on every access, so a change after wiring applies.
 	const settings: DlqReplaySettings = {
 		get instanceId() {
-			return toInstanceId(env.INSTANCE_ID);
+			return InstanceId.of(env.INSTANCE_ID);
 		},
 		get autoRetryEnabled() {
 			return env.DLQ_AUTO_RETRY_ENABLED;

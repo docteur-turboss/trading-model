@@ -18,8 +18,8 @@ import type { MessageMetadata } from "@trading-model/contracts/message-types";
 import { HttpClient } from "@trading-model/http/http-client";
 import {
 	type InstanceId,
-	toServiceId,
-	toTopic,
+	ServiceId,
+	Topic,
 } from "@trading-model/primitives/primitives";
 import { BusConsumer } from "./bus/consumer";
 import { DeadStreams } from "./bus/dead-streams";
@@ -124,8 +124,8 @@ export default class BrokerMessage {
 			journal,
 			deadStreams: new DeadStreams(journal),
 			service: this._serviceName,
-			handle: async ({ metadata, payload }) => {
-				if (!(await deliverToListeners(metadata, payload))) {
+			handle: async ({ metadata, payload }, signal) => {
+				if (!(await deliverToListeners(metadata, payload, signal))) {
 					throw deadLetterError("Invalid payload format", {
 						reason: "REJECTED_BY_SUBSCRIBER",
 					});
@@ -185,9 +185,9 @@ export default class BrokerMessage {
 	): Promise<void> {
 		return this.post.indirect(
 			payload,
-			new MessageMetadataBuilder(toTopic(event), event, {
+			new MessageMetadataBuilder(Topic.of(event), event, {
 				instanceId: this._instanceId,
-				serviceName: toServiceId(this._serviceName),
+				serviceName: ServiceId.of(this._serviceName),
 			})
 				.setDelivery({ mode: DeliveryMode.AtLeastOnce })
 				.toJSON()

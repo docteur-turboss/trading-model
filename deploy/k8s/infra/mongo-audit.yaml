@@ -74,7 +74,7 @@ spec:
       # file of the mongod user instead.
       initContainers:
         - name: keyfile
-          image: mongo:7.0.43@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+          image: mongo:7.0.48@sha256:41e8195b2791692695e1dc9bd21cd51d0a3af05fff8ace9304a5c1acf94f1ae1
           command:
             - sh
             - -c
@@ -107,9 +107,15 @@ spec:
         - name: tls
           secret:
             secretName: mongo-audit-tls
+        - name: mongo-ca
+          secret:
+            secretName: mongo-ca
+            items:
+              - key: ca.crt
+                path: ca.crt
       containers:
         - name: mongodb
-          image: mongo:7.0.43@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+          image: mongo:7.0.48@sha256:41e8195b2791692695e1dc9bd21cd51d0a3af05fff8ace9304a5c1acf94f1ae1
           # Encryption at rest (--enableEncryption) is MongoDB Enterprise only:
           # this Community image refuses the flag and never starts with it.
           command:
@@ -123,16 +129,9 @@ spec:
             - "0.0.0.0"
             - "--keyFile"
             - "/keyfile/keyfile"
-            # Expand step of the switch (ADR-0067): members authenticate each
-            # other, clients may still connect without credentials. Remove in
-            # the release after the one that ships the users and the client
-            # credentials (issue #751): mongod then enforces authentication.
-            - "--transitionToAuth"
-            # TLS expand step (issue #769, ADR-0060): TLS and clear text are both
-            # accepted for one release, clients verify the certificate; `requireTLS`
-            # replaces `preferTLS` in the next one. Clients send no certificate.
+            # Clear text and anonymous clients refused (ADR-0060, ADR-0067).
             - "--tlsMode"
-            - "preferTLS"
+            - "requireTLS"
             - "--tlsCertificateKeyFile"
             - "/keyfile/server.pem"
             - "--tlsCAFile"
@@ -179,6 +178,9 @@ spec:
               command:
                 - mongosh
                 - --quiet
+                - --tls
+                - --tlsCAFile
+                - /keyfile/ca.crt
                 - --eval
                 # Fails only when the member left its own config ("not a member":
                 # its name did not resolve at start, mongod never retries), so the
@@ -186,12 +188,17 @@ spec:
                 - "try { rs.status().ok } catch (e) { if (e.codeName === 'InvalidReplicaSetConfig') quit(1) }"
             initialDelaySeconds: 30
             periodSeconds: 15
-            timeoutSeconds: 5
+            # mongosh starts slowly under the 1 CPU limit: a timeout is not a dead mongod.
+            timeoutSeconds: 15
+            failureThreshold: 6
           readinessProbe:
             exec:
               command:
                 - mongosh
                 - --quiet
+                - --tls
+                - --tlsCAFile
+                - /keyfile/ca.crt
                 - --eval
                 - "db.adminCommand('ping').ok"
             initialDelaySeconds: 15
@@ -204,7 +211,7 @@ spec:
         # root (rs.add needs clusterAdmin): the members are the pods that exist,
         # whatever their start order (issue #2197). Same script in both manifests.
         - name: mongodb-bootstrap
-          image: mongo:7.0.43@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+          image: mongo:7.0.48@sha256:41e8195b2791692695e1dc9bd21cd51d0a3af05fff8ace9304a5c1acf94f1ae1
           env:
             - name: REPLICA_SET
               value: rs0-audit
@@ -217,7 +224,7 @@ spec:
             - sh
             - -c
             - |
-              M="mongosh --quiet --host 127.0.0.1 --port 27017"
+              M="mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt --host 127.0.0.1 --port 27017"
               until $M --eval 'db.hello().ok' >/dev/null 2>&1; do sleep 2; done
               SET="${HOSTNAME%-*}"
               export SELF="$HOSTNAME.$SET-headless:27017"
@@ -227,9 +234,7 @@ spec:
                 until $M --eval 'db.hello().isWritablePrimary' | grep -qx true; do sleep 2; done
                 # The localhost exception allows createUser and nothing else (reading
                 # system.users is refused, run 43364583932); once a user exists it
-                # refuses createUser too: Unauthorized then means root is already there;
-                # under --transitionToAuth an unauthenticated client may create, so it answers
-                # Location51003 (already exists).
+                # refuses createUser too: Unauthorized then means root is already there.
                 $M --eval '
                   try {
                     db.getSiblingDB("admin").createUser({ user: "root", pwd: process.env.MONGO_ROOT_PASSWORD, roles: [{ role: "root", db: "admin" }] });
@@ -269,7 +274,7 @@ spec:
                   name: trading-model-secrets
                   key: MONGO_EXPORTER_PASSWORD
             - name: MONGODB_URI
-              value: mongodb://exporter:$(MONGO_EXPORTER_PASSWORD)@127.0.0.1:27017/admin?directConnection=true
+              value: mongodb://exporter:$(MONGO_EXPORTER_PASSWORD)@127.0.0.1:27017/admin?directConnection=true&tls=true&tlsCAFile=/etc/mongo-tls/ca.crt
           args:
             - --collector.replicasetstatus
             - --web.listen-address=:9216
@@ -292,6 +297,10 @@ spec:
                 - ALL
             seccompProfile:
               type: RuntimeDefault
+          volumeMounts:
+            - name: mongo-ca
+              mountPath: /etc/mongo-tls
+              readOnly: true
   volumeClaimTemplates:
     - metadata:
         name: mongo-audit-data
@@ -333,7 +342,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: mongodb-users
-          image: mongo:7.0.43@sha256:9854f7139445d766a9523571d6f047530c45547460ffcf8259eb2bf4264632ca
+          image: mongo:7.0.48@sha256:41e8195b2791692695e1dc9bd21cd51d0a3af05fff8ace9304a5c1acf94f1ae1
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -342,6 +351,9 @@ spec:
           command:
             - mongosh
             - --quiet
+            - --tls
+            - --tlsCAFile
+            - /etc/mongo-tls/ca.crt
             - "mongodb://mongo-audit-0.mongo-audit-headless:27017,mongo-audit-1.mongo-audit-headless:27017,mongo-audit-2.mongo-audit-headless:27017/admin?replicaSet=rs0-audit"
             - --file
             - /scripts/users.js
@@ -372,10 +384,19 @@ spec:
             - name: scripts
               mountPath: /scripts
               readOnly: true
+            - name: mongo-ca
+              mountPath: /etc/mongo-tls
+              readOnly: true
       volumes:
         - name: scripts
           configMap:
             name: mongo-users-script
+        - name: mongo-ca
+          secret:
+            secretName: mongo-ca
+            items:
+              - key: ca.crt
+                path: ca.crt
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget

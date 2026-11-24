@@ -163,9 +163,9 @@ function alertRules(yamlText) {
 const k8sConfigFile = (name) => readFileSync(join(ROOT, "deploy", "k8s", "infra", "config", name), "utf-8");
 
 const PROMQL_WORDS = new Set([
-  "abs", "absent", "and", "avg", "bool", "by", "ceil", "clamp_max", "clamp_min", "count", "delta", "deriv", "group_left",
+  "abs", "absent", "and", "avg", "avg_over_time", "bool", "by", "ceil", "clamp_max", "clamp_min", "count", "delta", "deriv", "group_left",
   "group_right", "histogram_quantile", "humanizePercentage", "ignoring", "increase",
-  "irate", "max", "max_over_time", "min", "min_over_time", "offset", "on", "or", "rate", "sum", "time", "topk", "unless", "vector",
+  "irate", "label_replace", "max", "max_over_time", "min", "min_over_time", "offset", "on", "or", "rate", "sum", "time", "topk", "unless", "vector",
   "without",
 ]);
 
@@ -302,13 +302,13 @@ let allEmitted = new Set(); // emitted metrics + recording rules, reused by chec
   //    exports never fires (ca_certificate_last_renewed outlived the CA).
   const emitted = emittedMetricNames();
   // Recording rules emit their own series; the metrics they read must exist too.
-  const recorded = new Set();
-  for (const group of Bun.YAML.parse(k8sConfigFile("alerting.yml")).groups ?? []) {
+  const groups = Bun.YAML.parse(k8sConfigFile("alerting.yml")).groups ?? [];
+  const recorded = new Set(groups.flatMap((group) => (group.rules ?? []).map((rule) => rule.record).filter(Boolean)));
+  for (const group of groups) {
     for (const rule of group.rules ?? []) {
       if (!rule.record) continue;
-      recorded.add(rule.record);
       for (const metric of promqlMetricNames(rule.expr)) {
-        if (!isEmitted(metric, emitted)) errors.push(`Recording rule ${rule.record}: metric ${metric} is emitted by no service, script or exporter`);
+        if (!recorded.has(metric) && !isEmitted(metric, emitted)) errors.push(`Recording rule ${rule.record}: metric ${metric} is emitted by no service, script or exporter`);
       }
     }
   }
@@ -406,8 +406,16 @@ let allEmitted = new Set(); // emitted metrics + recording rules, reused by chec
   const composeServices = new Set(
     Object.keys(Bun.YAML.parse(readFileSync(join(ROOT, "docker-compose.yml"), "utf-8")).services ?? {})
   );
-  const composeDatasources = Bun.YAML.parse(readFileSync(join(ROOT, "observability", "grafana-datasources.yml"), "utf-8")).datasources ?? [];
-  for (const ds of composeDatasources) {
+  // A datasource that gains a uid is not found by that uid in an existing Grafana database: it must be deleted and recreated (#2414).
+  const checkUidDeleted = (file, parsed) => {
+    const deleted = new Set((parsed.deleteDatasources ?? []).map((d) => d.name));
+    for (const ds of parsed.datasources ?? []) {
+      if (ds.uid && !deleted.has(ds.name)) errors.push(`Datasource ${ds.name} (${file}): has a uid but is missing from deleteDatasources`);
+    }
+  };
+  const composeProvisioning = Bun.YAML.parse(readFileSync(join(ROOT, "observability", "grafana-datasources.yml"), "utf-8"));
+  checkUidDeleted("observability/grafana-datasources.yml", composeProvisioning);
+  for (const ds of composeProvisioning.datasources ?? []) {
     if (!composeServices.has(hostOf(ds.url))) {
       errors.push(`Datasource ${ds.name} (observability/grafana-datasources.yml): ${ds.url} names no service of docker-compose.yml`);
     }
@@ -419,7 +427,9 @@ let allEmitted = new Set(); // emitted metrics + recording rules, reused by chec
       if (parsed?.kind === "Service") k8sServices.add(parsed.metadata?.name);
     }
   }
-  for (const ds of Bun.YAML.parse(k8sConfigFile("datasources.yml")).datasources ?? []) {
+  const k8sProvisioning = Bun.YAML.parse(k8sConfigFile("datasources.yml"));
+  checkUidDeleted("deploy/k8s/infra/config/datasources.yml", k8sProvisioning);
+  for (const ds of k8sProvisioning.datasources ?? []) {
     if (!k8sServices.has(hostOf(ds.url))) {
       errors.push(`Datasource ${ds.name} (deploy/k8s/infra/config/datasources.yml): ${ds.url} names no Service of deploy/k8s/infra`);
     }

@@ -14,10 +14,8 @@ The financial-scraper service fetches **market data only** from Binance's public
 | `GET /api/v3/trades`            | Recent trades (price, quantity, side)          |
 | `GET /api/v3/depth`             | Order book snapshots (bids, asks)              |
 | `GET /api/v3/ticker/24hr`       | 24-hour statistics                             |
-| `GET /api/v3/ticker/price`      | Current price ticker                           |
-| `GET /api/v3/ticker/bookTicker` | Best bid/ask                                   |
 
-The six endpoints above are the only ones called, all public. No request is signed and no Binance account exists: `BINANCE_API_KEY` / `BINANCE_API_SECRET` are read by no code.
+The four endpoints above are the only ones called, all public. No request is signed and no Binance account exists: `BINANCE_API_KEY` / `BINANCE_API_SECRET` are read by no code.
 
 ### Regulatory Status (MiCA)
 
@@ -112,9 +110,9 @@ sources, not processors, and no personal data received.
 | Every signal source of the registry (table above) | Signal sources (ADR-0036) | No | No — documented above |
 | GitHub Actions     | CI/CD pipeline      | No   | No — no data processed             |
 | Docker Hub / GHCR  | Container registry  | No   | No — infrastructure only           |
-| Slack or Discord   | Alert notifications | No (alert text) | to be confirmed by the operator — sheet below |
-| Pushover           | Critical alert paging | No (alert text) | to be confirmed by the operator — sheet below |
-| Dead man's switch  | Heartbeat of Watchdog | No | to be confirmed by the operator — sheet below |
+| Discord            | Alert notifications | No (alert text) | No — not a processor, no DPA offered; SCCs + DPF — sheet below |
+| Pushover           | Critical alert paging | No (alert text) | No — not a processor, no DPA offered; SCCs — sheet below |
+| healthchecks.io    | Heartbeat of Watchdog | No | No — not a processor, EU provider, no DPA offered — sheet below |
 | Off-site S3 store  | Encrypted backups   | No (age-encrypted) | to be confirmed by the operator — sheet below |
 | Audit-anchor S3 bucket | Audit chain anchors | No (hashes) | to be confirmed by the operator — sheet below |
 | Prometheus/Grafana | Internal monitoring | No   | No — self-hosted, no external data |
@@ -125,16 +123,19 @@ Monitoring, tracing and logging infrastructure (Prometheus, Grafana, Jaeger, Lok
 
 The repository neither signs a DPA nor picks a provider. The operating entity signs and records provider, region and contract. "to be confirmed by the operator" marks an answer that depends on the provider chosen and is not invented here.
 
-### Slack or Discord (alert webhook)
+Provider terms below were read on 2026-11-23 from the providers' public privacy policies; re-read them before the first production deploy.
+
+### Discord (alert webhook)
 
 | Field | Value |
 | ----- | ----- |
-| Role | Receives alert notifications (`slack_configs` of `deploy/k8s/infra/config/alertmanager.yml`; the webhook may be a Discord `/slack` endpoint). Channels `#alerts`, `#alerts-warning` |
+| Provider | Discord (operator's choice, already in use). EEA controller: Discord Netherlands BV; Discord Inc. (United States) elsewhere |
+| Role | Receives alert notifications (`slack_configs` of `deploy/k8s/infra/config/alertmanager.yml`, pointed at a Discord `/slack` webhook endpoint). Channels `#alerts`, `#alerts-warning` |
 | Data sent | Alert name, severity, job (service) name, summary, description, runbook URL. No personal data by design (labels carry pod and service names; application logs are not sent) |
-| Region | Slack: data region chosen by the workspace owner; Discord: to be confirmed by the operator |
-| Processor? | Only if a message ever contains personal data (an operator's name in a description); the operators' own accounts are the provider's own processing |
-| Mechanism | Slack: customer DPA, SCCs and EU-US Data Privacy Framework per its public terms (to be confirmed by the operator); Discord: to be confirmed by the operator |
-| Signed by | Operating entity |
+| Region | United States: Discord "process[es] and store[s] information on servers located in the United States" ([privacy policy](https://discord.com/privacy)) |
+| Processor? | No: alert text holds no personal data. Only if a message ever contains personal data (an operator's name in a description); the operators' own accounts are the provider's own processing |
+| Mechanism | Standard Contractual Clauses (Modules 1 and 2) and the EU-US Data Privacy Framework, per the privacy policy. Discord offers no DPA for webhook use |
+| Signed by | Nothing to sign: no DPA offered; the operator's account accepts Discord's terms |
 
 ### Pushover (critical paging)
 
@@ -142,21 +143,23 @@ The repository neither signs a DPA nor picks a provider. The operating entity si
 | ----- | ----- |
 | Role | Pages the on-call operator for `severity="critical"` (`pushover_configs`, emergency priority) |
 | Data sent | Alert title, description and runbook URL, with the operator's Pushover user key and application token |
-| Region | to be confirmed by the operator |
-| Processor? | to be confirmed by the operator. The user key identifies the operator's own account |
-| Mechanism | to be confirmed by the operator: DPA, SCCs or DPF as offered by Pushover |
-| Signed by | Operating entity |
+| Provider | Pushover, LLC (United States) |
+| Region | United States: Pushover "processes data on servers located in the United States" ([privacy policy](https://pushover.net/privacy)) |
+| Processor? | No: alert text holds no personal data. The user key identifies the operator's own Pushover account, which is Pushover's own processing under its terms |
+| Mechanism | Standard Contractual Clauses "where required by applicable law", per the privacy policy. Pushover is not listed under the Data Privacy Framework and offers no DPA |
+| Signed by | Nothing to sign: no DPA offered; the operator's account accepts Pushover's terms |
 
 ### Dead man's switch (`DEADMAN_URL`)
 
 | Field | Value |
 | ----- | ----- |
 | Role | Receives the always-firing `Watchdog` every minute and pages when it stops. Provider chosen by the operator (`alertmanager.yml` cites healthchecks.io, Dead Man's Snitch and Better Stack as examples) |
+| Provider | healthchecks.io, run by SIA Monkey See Monkey Do (Latvia, EU) |
 | Data sent | Alertmanager webhook body of `Watchdog` (fixed alert, nothing about users). The ping URL is a secret |
-| Region | to be confirmed by the operator (depends on the provider) |
+| Region | EU provider; monitoring hosted at Hetzner, encrypted database backups at AWS ([privacy policy](https://healthchecks.io/privacy/)); the policy names no country for either |
 | Processor? | No personal data except the notification contact of the operator's account |
-| Mechanism | to be confirmed by the operator |
-| Signed by | Operating entity |
+| Mechanism | None needed for the provider (EU-established). Its policy says sub-processors may operate outside the EEA, without naming the safeguard |
+| Signed by | Nothing to sign: no DPA offered; the operator's account accepts healthchecks.io's terms |
 
 ### Off-site S3 store (backups, up to 5 years)
 
@@ -175,7 +178,7 @@ The repository neither signs a DPA nor picks a provider. The operating entity si
 | ----- | ----- |
 | Role | Holds the verified head of the audit hash chain (`AUDIT_ANCHOR_*`), Object Lock |
 | Data sent | Chain head hash and sequence number, no event content |
-| Region | Operator-set (`AUDIT_ANCHOR_REGION`, **`us-east-1` when unset** in `deploy.yml`): set it to an EU region. No automatic region check for this bucket yet. Provider and region: to be confirmed by the operator |
+| Region | Operator-set (`AUDIT_ANCHOR_REGION`): `deploy.yml` checks it against the EU list (error in production, warning elsewhere; also read from the existing `audit-anchor-s3` Secret when the variable is empty). Provider and region: to be confirmed by the operator |
 | Processor? | Hashes only, no personal data; a DPA is advised if the provider also hosts the backups |
 | Mechanism | Same as the off-site store (to be confirmed by the operator) |
 | Signed by | Operating entity |

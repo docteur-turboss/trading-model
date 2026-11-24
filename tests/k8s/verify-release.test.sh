@@ -25,6 +25,7 @@ case "$*" in
 *"exec -i"*discovery-server*) cat >"$STUB_DIR/stdin"; printf '%s' "${STUB_CODE:-200}" ;;
 *prometheus-0*"fs_candles_persisted_total"*) echo "${STUB_FRESH:-$DEFAULT_FRESH}" ;;
 *prometheus-0*ALERTS*) echo "${STUB_ALERTS:-$DEFAULT_ALERTS}" ;;
+*risk-execution*admin/status*) echo "{\"killSwitch\":{\"global\":\"${STUB_RISK_REASON:-operator}\"}}" ;;
 *) echo "unexpected kubectl call: $*" >&2; exit 9 ;;
 esac
 STUB
@@ -37,7 +38,7 @@ run() { : >"$WORK/kubectl.log"; : >"$WORK/sleep.log"; bash "$DEPLOY" verify-rele
 
 echo "healthy release"
 if run; then pass "passes"; else failed "should pass"; cat "$WORK/out"; fi
-grep -q "x-api-key: secret-key" "$WORK/stdin" && pass "first gateway key sent on stdin" || failed "key not sent"
+grep -qx "secret-key" "$WORK/stdin" && pass "first gateway key sent on stdin" || failed "key not sent"
 grep -q "secret-key" "$WORK/kubectl.log" && failed "key on a command line" || pass "key not on a command line"
 
 echo "API call fails"
@@ -74,6 +75,12 @@ if STUB_ALERTS="$(alerts "${STALE/x:9118/y:9118}")" VERIFY_BASELINE_FILE="$WORK/
 baseline "$HB_A"
 if STUB_ALERTS="$(alerts "$HB_A" "$HB_B")" VERIFY_BASELINE_FILE="$WORK/baseline" run; then failed "same name, other label should fail"; else pass "same name, other label fails"; fi
 grep -q "critical alert(s) firing: HeartbeatStopped{service=api-gateway}$" "$WORK/out" && pass "names the other-label alert" || { failed "other-label alert not named"; cat "$WORK/out"; }
+
+echo "global kill switch of a new environment (state_missing)"
+KS='{"metric":{"alertname":"KillSwitchEngaged","job":"risk-execution","mode":"paper","scope":"global","severity":"critical"}}'
+if STUB_ALERTS="$(alerts "$KS")" STUB_RISK_REASON=state_missing run; then pass "state_missing passes"; else failed "state_missing should pass"; cat "$WORK/out"; fi
+grep -q "KillSwitchEngaged (global, state_missing): not blocking" "$WORK/out" && pass "reports it" || failed "state_missing not reported"
+if STUB_ALERTS="$(alerts "$KS")" STUB_RISK_REASON=daily_loss run; then failed "another reason should fail"; else pass "another reason fails"; fi
 
 echo "window: checks repeat"
 VERIFY_WINDOW_SECONDS=10 VERIFY_INTERVAL_SECONDS=1 run && pass "passes" || { failed "window should pass"; cat "$WORK/out"; }

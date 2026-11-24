@@ -34,6 +34,10 @@ case " $* " in
 	;;
 *" get secret "*"go-template"*) for f in "$STUB_STATE"/live_*; do [ -f "$f" ] && printf '%s ' "${f##*/live_}"; done; true ;;
 *" get secret "*) f="$STUB_STATE/live_$(sed -E 's/.*\{\.data\.([A-Z_]+)\}.*/\1/' <<<"$*")"; [ -f "$f" ] && cat "$f" || true ;;
+*" get service "*) echo mysql-0 ;;
+*" exec -i "*) cat >/dev/null ;;
+*" exec "*) echo "${STUB_SECONDARY:-0}" ;;
+*" rollout status "*) [ "${STUB_ROLLOUT_FAIL:-0}" = 0 ] ;;
 esac
 STUB
 cat >"$WORK/bin/kubeseal" <<'STUB'
@@ -72,7 +76,7 @@ run --component hmac
 [ "$RC" = 1 ] && grep -q Usage <<<"$OUT" && pass "unknown component refused" || failed "unknown component: rc=$RC"
 run hmac
 [ "$RC" = 1 ] && pass "positional form refused" || failed "positional: rc=$RC"
-run --component MYSQL_PASSWORD
+run --component MYSQL_MIGRATE_PASSWORD
 [ "$RC" = 1 ] && grep -q sealed-secrets.md <<<"$OUT" && [ -z "$(calls)" ] && pass "database password refused with doc pointer" || failed "database component: rc=$RC"
 
 DRY_RUN=true run --component all
@@ -96,6 +100,17 @@ rm -f "$vf"
 
 run
 [ "$(restarts)" = "api-gateway discovery-server dlq-service" ] && pass "default rotates all" || failed "all: restarts=$(restarts)"
+
+# Database passwords: add new (old stays valid) -> apply Secret -> restart -> drop old.
+steps() { calls | sed -n -e 's/.*\(RETAIN CURRENT\|DISCARD OLD\|resetpass\|ACL SETUSER\).*/\1/p' -e 's/^kubectl apply.*/apply/p' -e 's/^kubectl rollout restart.*/restart/p' | paste -sd ' ' -; }
+run --component mysql
+[ "$RC" = 0 ] && [ "$(steps)" = "RETAIN CURRENT apply restart restart DISCARD OLD" ] && pass "mysql: RETAIN -> apply -> restart -> DISCARD" || failed "mysql order: rc=$RC steps=$(steps)"
+STUB_ROLLOUT_FAIL=1 run --component mysql
+[ "$RC" != 0 ] && ! calls | grep -q "DISCARD OLD" && pass "mysql: failed rollout keeps the old password" || failed "mysql rollout failure: rc=$RC"
+STUB_SECONDARY=1 run --component mysql
+[ "$RC" != 0 ] && ! calls | grep -q "RETAIN CURRENT" && [ -z "$(restarts)" ] && pass "mysql: existing secondary password refused before RETAIN" || failed "mysql guard: rc=$RC"
+run --component redis
+[ "$RC" = 1 ] && [ -z "$(calls)" ] && pass "redis refused with doc pointer" || failed "redis: rc=$RC"
 
 STUB_DECRYPT=0 run --component dlq
 [ "$RC" = 1 ] && [ -z "$(restarts)" ] && pass "no restart when the controller did not decrypt" || failed "undecrypted: rc=$RC restarts=$(restarts)"

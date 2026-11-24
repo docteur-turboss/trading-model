@@ -1,13 +1,16 @@
 import { extractCanonicalServiceName } from "@trading-model/common/utils/spiffe";
+import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { ApiRouteHandler } from "@trading-model/http/api-route/mount-route";
 import { sendResponse } from "@trading-model/http/response-exception";
 import type { Request } from "express";
 import type { RiskExecution } from "../../application/risk-execution";
+import type { KillTarget } from "../../domain/accounting";
 import type { RISK_API } from "./api-routes";
 
 /** Callers by route (ADR-0064 §1): the ACL lets them in, each route keeps its own. */
 const OPERATOR = "risk-execution";
+const GATEWAY = "api-gateway";
 
 const callerOf = (req: Request): string | null => {
 	const identity = (req as Request & { clientIdentity?: string })
@@ -16,13 +19,27 @@ const callerOf = (req: Request): string | null => {
 		? String(extractCanonicalServiceName(identity))
 		: null;
 };
-const scopeError = (body: { scope: string; symbol?: string }) =>
-	body.scope === "symbol" && !body.symbol
-		? sendResponse(
-				{ error: "symbol is required for scope symbol" },
-				HTTP_STATUS.BAD_REQUEST
-			)
+/** API key name (ADR-0059): `x-actor`, trusted only from the gateway, which sets it. */
+const actorOf = (req: Request): string | null => {
+	const actor = req.headers?.[HTTP_HEADERS.X_ACTOR];
+	return callerOf(req) === GATEWAY && typeof actor === "string" && actor
+		? actor
 		: null;
+};
+const killTarget = (body: {
+	scope: "global" | "symbol";
+	symbol?: string;
+}): KillTarget | null =>
+	body.scope === "global"
+		? { scope: "global" }
+		: body.symbol
+			? { scope: "symbol", symbol: body.symbol }
+			: null;
+const scopeError = () =>
+	sendResponse(
+		{ error: "symbol is required for scope symbol" },
+		HTTP_STATUS.BAD_REQUEST
+	);
 const forbidden = (req: Request, ...allowed: string[]) =>
 	allowed.includes(callerOf(req) ?? "")
 		? null
@@ -41,7 +58,7 @@ type Handler<Key extends keyof typeof RISK_API> = ApiRouteHandler<
 >;
 
 /**
- * @param decisionConsumers identities allowed to send intents and prices: none until the
+ * @param decisionConsumers identities allowed to send intents: none until the
  * decision consumer exists, with its own identity and ACL entry (ADR-0049 §1.3).
  */
 export function createHandlers(
@@ -60,14 +77,6 @@ export function createHandlers(
 		);
 		return sendResponse(result, HTTP_STATUS.OK);
 	};
-	const price: Handler<"price"> = async ({ body }, req) => {
-		const denied = forbidden(req, ...decisionConsumers);
-		if (denied) {
-			return denied;
-		}
-		await risk.observePrice(body.symbol, body.price, body.at);
-		return sendResponse({ status: "recorded" as const }, HTTP_STATUS.OK);
-	};
 	const cancel: Handler<"cancel"> = async ({ params }, req) => {
 		const denied = forbidden(req, ...decisionConsumers, OPERATOR);
 		if (denied) {
@@ -78,31 +87,52 @@ export function createHandlers(
 			? sendResponse({ error: "Unknown order" }, HTTP_STATUS.NOT_FOUND)
 			: sendResponse({ status }, HTTP_STATUS.OK);
 	};
+	const position: Handler<"position"> = ({ params }, req) =>
+		forbidden(req, ...decisionConsumers) ??
+		sendResponse(
+			{
+				symbol: params.symbol,
+				quantity: risk.status().positions[params.symbol] ?? 0,
+			},
+			HTTP_STATUS.OK
+		);
 	const adminStatus: Handler<"adminStatus"> = (_in, req) =>
 		forbidden(req, OPERATOR) ?? sendResponse(risk.status(), HTTP_STATUS.OK);
 	const adminEngage: Handler<"adminEngage"> = async ({ body }, req) => {
-		const denied = forbidden(req, OPERATOR);
-		if (denied) {
-			return denied;
+		const actor = actorOf(req);
+		if (!actor) {
+			return sendResponse(
+				{
+					error: "Forbidden",
+					reason: "only api-gateway, for a named API key, may call this route",
+				},
+				HTTP_STATUS.FORBIDDEN
+			);
 		}
-		const invalid = scopeError(body);
-		if (invalid) {
-			return invalid;
+		const target = killTarget(body);
+		if (!target) {
+			return scopeError();
 		}
-		await risk.engage(body.scope, body.reason, body.actor, body.symbol);
+		await risk.engage(target, body.reason, actor);
 		return sendResponse({ status: "engaged" as const }, HTTP_STATUS.OK);
 	};
 	const adminRearm: Handler<"adminRearm"> = async ({ body }, req) => {
-		const denied = forbidden(req, OPERATOR);
-		if (denied) {
-			return denied;
+		const actor = actorOf(req);
+		if (!actor) {
+			return sendResponse(
+				{
+					error: "Forbidden",
+					reason: "only api-gateway, for a named API key, may call this route",
+				},
+				HTTP_STATUS.FORBIDDEN
+			);
 		}
-		const invalid = scopeError(body);
-		if (invalid) {
-			return invalid;
+		const target = killTarget(body);
+		if (!target) {
+			return scopeError();
 		}
 		try {
-			await risk.rearm(body.scope, body.reason, body.actor, body.symbol);
+			await risk.rearm(target, body.reason, actor);
 		} catch (error) {
 			return sendResponse(
 				{ error: error instanceof Error ? error.message : "refused" },
@@ -111,5 +141,5 @@ export function createHandlers(
 		}
 		return sendResponse({ status: "rearmed" as const }, HTTP_STATUS.OK);
 	};
-	return { intent, price, cancel, adminStatus, adminEngage, adminRearm };
+	return { intent, cancel, position, adminStatus, adminEngage, adminRearm };
 }

@@ -10,7 +10,7 @@ import { NodeSDK } from "@opentelemetry/sdk-node";
 import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { toInstanceId } from "@trading-model/primitives/primitives";
+import { InstanceId } from "@trading-model/primitives/primitives";
 import { logger } from "./logger";
 
 let sdk: NodeSDK | null = null;
@@ -24,6 +24,16 @@ const PROBE_PATHS = new Set(["/ping", "/health/ready", "/metrics"]);
 export function isProbeRequest(req: { url?: string }): boolean {
 	return PROBE_PATHS.has((req.url ?? "").split("?")[0]);
 }
+
+/** HTTP instrumentation without the caller's User-Agent and query string on incoming spans (privacy notice, Art. 13): hook attributes are applied last and OTel drops `undefined`. */
+export const createHttpInstrumentation = () =>
+	new HttpInstrumentation({
+		ignoreIncomingRequestHook: isProbeRequest,
+		startIncomingSpanHook: () => ({
+			"user_agent.original": undefined,
+			"url.query": undefined,
+		}),
+	});
 
 /**
  * Starts tracing for a service from its environment (`OTEL_EXPORTER_OTLP_ENDPOINT`,
@@ -48,7 +58,7 @@ export function startTelemetry(serviceName: ServiceInstanceName): void {
 			[SemanticResourceAttributes.SERVICE_NAME]: serviceName,
 			[SemanticResourceAttributes.SERVICE_VERSION]:
 				process.env.APP_VERSION ?? "1.0.0",
-			[SemanticResourceAttributes.SERVICE_INSTANCE_ID]: toInstanceId(
+			[SemanticResourceAttributes.SERVICE_INSTANCE_ID]: InstanceId.of(
 				process.env.INSTANCE_ID ?? serviceName
 			),
 		}),
@@ -57,7 +67,7 @@ export function startTelemetry(serviceName: ServiceInstanceName): void {
 			timeoutMillis: EXPORT_TIMEOUT_MS,
 		}),
 		instrumentations: [
-			new HttpInstrumentation({ ignoreIncomingRequestHook: isProbeRequest }),
+			createHttpInstrumentation(),
 			new ExpressInstrumentation(),
 			// No query values in spans: mysql2 masks literals, mongodb replaces
 			// them by default, redis keeps the command name only (no key, no value).

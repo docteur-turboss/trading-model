@@ -10,8 +10,8 @@ import type { Message } from "@trading-model/contracts/message-types";
 import { CircuitState } from "@trading-model/primitives/circuit-state";
 import {
 	type SequenceNumber,
+	ServiceId,
 	type Topic,
-	toServiceId,
 } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import type { TopicBinding } from "@trading-model/primitives/topic-binding";
@@ -105,7 +105,7 @@ export class Subscription {
 		const outcome = await this._attempt(message, deliveries, entryId);
 		if (outcome === "delivered") {
 			count("success");
-			circuitBreaker.clear();
+			circuitBreaker.recordSuccess();
 			CIRCUIT_BREAKER_STATE.set(
 				{ subscriber },
 				circuitStateIndex(CircuitState.CLOSED)
@@ -128,12 +128,12 @@ export class Subscription {
 		const serviceName = this.serviceIdentity.serviceName as ServiceInstanceName;
 		try {
 			const target = await resolveTarget(
-				toServiceId(serviceName),
+				ServiceId.of(serviceName),
 				this.callbackPath
 			);
 			await this._deliveryPort.send({
 				url: target,
-				service: toServiceId(serviceName),
+				service: ServiceId.of(serviceName),
 				message,
 				context: { deliveryAttempt: (deliveries - 1) as SequenceNumber },
 			});

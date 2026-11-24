@@ -4,20 +4,21 @@ import type { Collection } from "mongodb";
 import type { DateRange } from "../../../domain/date-range";
 import type { AuditEventDocument, AuditStats } from "./audit-repository";
 
-function aggregateByField(
-	col: Collection<AuditEventDocument>,
-	field: string
-): Promise<Array<{ _id: string; count: number }>> {
-	return col
-		.aggregate<{ _id: string; count: number }>([
-			{
-				$group: {
-					_id: `$metadata.${field}`,
-					count: { $sum: 1 },
-				},
-			},
+type Counts = Array<{ _id: string; count: number }>;
+
+/** One scan of the collection for both breakdowns. */
+async function aggregateCounts(
+	col: Collection<AuditEventDocument>
+): Promise<{ topics: Counts; publishers: Counts }> {
+	const group = (field: string) => [
+		{ $group: { _id: `$metadata.${field}`, count: { $sum: 1 } } },
+	];
+	const [facets] = await col
+		.aggregate<{ topics: Counts; publishers: Counts }>([
+			{ $facet: { topics: group("topic"), publishers: group("publisher") } },
 		])
 		.toArray();
+	return facets ?? { topics: [], publishers: [] };
 }
 
 /** Oldest and newest `receivedAt`: two reads of the `receivedAt` index, whatever the size. */
@@ -104,11 +105,8 @@ export class StatsAggregator {
 	}
 
 	private _startRefresh(): Promise<CountsSnapshot> {
-		this._refresh ??= Promise.all([
-			aggregateByField(this._collection, "topic"),
-			aggregateByField(this._collection, "publisher"),
-		])
-			.then(([topics, publishers]) => {
+		this._refresh ??= aggregateCounts(this._collection)
+			.then(({ topics, publishers }) => {
 				this._snapshot = {
 					byTopic: toMap(topics),
 					byPublisher: toMap(publishers),

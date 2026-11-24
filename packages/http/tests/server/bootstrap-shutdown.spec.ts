@@ -1,3 +1,8 @@
+import {
+	type LoggerPort,
+	NoopLogger,
+	setLogger,
+} from "@trading-model/contracts/logger-registry";
 import { gracefulShutdown, hardShutdown } from "../../src/bootstrap-shutdown";
 
 function createMockServer() {
@@ -53,6 +58,60 @@ describe("hardShutdown", () => {
 
 		expect(server.close).toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
+	});
+
+	describe("when a callback throws synchronously", () => {
+		const warn = jest.fn<void, Parameters<LoggerPort["warn"]>>();
+
+		beforeEach(() => {
+			warn.mockClear();
+			setLogger({ ...NoopLogger, warn });
+		});
+
+		afterEach(() => {
+			setLogger(NoopLogger);
+		});
+
+		it.each([
+			[
+				"server.close",
+				{
+					close: jest.fn(() => {
+						throw new Error("close boom");
+					}),
+				},
+				{},
+				"Server close during forced shutdown failed",
+			],
+			[
+				"onStop",
+				null,
+				{
+					onStop: jest.fn(() => {
+						throw new Error("stop boom");
+					}),
+				},
+				"onStop callback failed during forced shutdown",
+			],
+		])(
+			"should not fail when %s throws",
+			async (_name, server, overrides, message) => {
+				expect(() =>
+					hardShutdown(3, server as never, createOptions(overrides))
+				).not.toThrow();
+				expect(process.exitCode).toBe(3);
+				await Promise.resolve();
+				await Promise.resolve();
+				expect(warn).toHaveBeenCalledWith(
+					message,
+					expect.objectContaining({ context: expect.anything() })
+				);
+				jest.advanceTimersByTime(4999);
+				expect(process.exit).not.toHaveBeenCalled();
+				jest.advanceTimersByTime(1);
+				expect(process.exit).toHaveBeenCalledWith(3);
+			}
+		);
 	});
 
 	it("should call the onStop callback", () => {

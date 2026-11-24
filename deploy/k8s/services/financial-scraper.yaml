@@ -1,4 +1,4 @@
-﻿apiVersion: v1
+apiVersion: v1
 kind: Service
 metadata:
   name: financial-scraper
@@ -72,7 +72,7 @@ spec:
               app.kubernetes.io/component: financial-scraper
       initContainers:
         - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+          image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
           imagePullPolicy: IfNotPresent
           restartPolicy: Always
           startupProbe:
@@ -156,40 +156,31 @@ spec:
           livenessProbe:
             exec:
               command:
-                - curl
-                - -skf
-                - --cert
-                - /run/spire/svid/svid.pem
-                - --key
-                - /run/spire/svid/svid_key.pem
+                - node
+                - -e
+                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
                 - https://localhost:3000/ping
             initialDelaySeconds: 20
             periodSeconds: 15
-            timeoutSeconds: 5
+            timeoutSeconds: 10
             failureThreshold: 3
           readinessProbe:
             exec:
               command:
-                - curl
-                - -skf
-                - --cert
-                - /run/spire/svid/svid.pem
-                - --key
-                - /run/spire/svid/svid_key.pem
+                - node
+                - -e
+                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
                 - https://localhost:3000/health/ready
             initialDelaySeconds: 10
             periodSeconds: 10
-            timeoutSeconds: 3
+            timeoutSeconds: 10
             successThreshold: 1
           startupProbe:
             exec:
               command:
-                - curl
-                - -skf
-                - --cert
-                - /run/spire/svid/svid.pem
-                - --key
-                - /run/spire/svid/svid_key.pem
+                - node
+                - -e
+                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
                 - https://localhost:3000/ping
             initialDelaySeconds: 30
             periodSeconds: 5
@@ -284,8 +275,7 @@ spec:
       # the HTTP replicas use the financial-scraper ServiceAccount, which has no
       # binding. SPIRE maps this one to the SPIFFE ID of financial-scraper (k8s-entries.sh).
       automountServiceAccountToken: true
-      # On stop the collector waits for its publishes in flight, each bounded by
-      # PUBLISH_ACCEPT_TIMEOUT_MS (15s + 5s, the grace then cuts what remains: the cursor republishes).
+      # On stop the collector waits for the running scrape cycle, then hands the lease over (ADR-0057).
       terminationGracePeriodSeconds: 60
       securityContext:
         runAsNonRoot: true
@@ -296,7 +286,7 @@ spec:
           type: RuntimeDefault
       initContainers:
         - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+          image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
           imagePullPolicy: IfNotPresent
           restartPolicy: Always
           startupProbe:
@@ -415,40 +405,31 @@ spec:
           livenessProbe:
             exec:
               command:
-                - curl
-                - -skf
-                - --cert
-                - /run/spire/svid/svid.pem
-                - --key
-                - /run/spire/svid/svid_key.pem
+                - node
+                - -e
+                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
                 - https://localhost:3000/ping
             initialDelaySeconds: 20
             periodSeconds: 15
-            timeoutSeconds: 5
+            timeoutSeconds: 10
             failureThreshold: 3
           readinessProbe:
             exec:
               command:
-                - curl
-                - -skf
-                - --cert
-                - /run/spire/svid/svid.pem
-                - --key
-                - /run/spire/svid/svid_key.pem
+                - node
+                - -e
+                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
                 - https://localhost:3000/health/ready
             initialDelaySeconds: 10
             periodSeconds: 10
-            timeoutSeconds: 3
+            timeoutSeconds: 10
             successThreshold: 1
           startupProbe:
             exec:
               command:
-                - curl
-                - -skf
-                - --cert
-                - /run/spire/svid/svid.pem
-                - --key
-                - /run/spire/svid/svid_key.pem
+                - node
+                - -e
+                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
                 - https://localhost:3000/ping
             initialDelaySeconds: 30
             periodSeconds: 5

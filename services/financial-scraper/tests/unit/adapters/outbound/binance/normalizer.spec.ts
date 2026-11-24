@@ -3,24 +3,23 @@ import {
 	CandleInterval,
 	TradeSide,
 } from "@trading-model/contracts/market-data.types";
-import { toSymbol, UnixTimestamp } from "@trading-model/primitives/primitives";
-import { normalizeBookTicker } from "../../../../../src/adapters/outbound/binance/normalizers/book-ticker";
+import {
+	TradingSymbol,
+	UnixTimestamp,
+} from "@trading-model/primitives/primitives";
 import { normalizeCandles } from "../../../../../src/adapters/outbound/binance/normalizers/candles";
 import { normalizeOrderBook } from "../../../../../src/adapters/outbound/binance/normalizers/order-book";
-import { normalizePriceTicker } from "../../../../../src/adapters/outbound/binance/normalizers/price-ticker";
 import { normalizeTicker24h } from "../../../../../src/adapters/outbound/binance/normalizers/ticker";
 import { normalizeTrades } from "../../../../../src/adapters/outbound/binance/normalizers/trades";
 import {
 	mock24hrTickerResponse,
-	mockBookTickerResponse,
 	mockCandlestickResponse,
 	mockDepthResponse,
 	mockHistoricalTradeResponse,
-	mockPriceTickerResponse,
 	mockTradeResponse,
 } from "../../../../fixtures/binance.fixture";
 
-const SYMBOL = toSymbol("BTCUSDT");
+const SYMBOL = TradingSymbol.of("BTCUSDT");
 
 const SYMBOL_QUERY = { symbol: SYMBOL };
 
@@ -118,23 +117,6 @@ describe("Binance normalizers", () => {
 			expect(result[0].low).toBe(0.1);
 			expect(result[0].last).toBe(4.000002);
 			expect(result[0].volume).toBe(8913.3);
-		});
-	});
-
-	describe("priceTicker", () => {
-		it("should normalize price ticker to Record<string, number>", () => {
-			const result = normalizePriceTicker(mockPriceTickerResponse);
-			expect(result).toEqual({ BTCUSDT: 50000 });
-		});
-	});
-
-	describe("bookTicker", () => {
-		it("should normalize book ticker response", () => {
-			const result = normalizeBookTicker(mockBookTickerResponse);
-			expect(result).toHaveLength(1);
-			expect(result[0].symbol).toBe("BTCUSDT");
-			expect(result[0].bid).toBe(49990);
-			expect(result[0].ask).toBe(50010);
 		});
 	});
 });

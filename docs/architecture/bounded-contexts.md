@@ -69,7 +69,7 @@ graph TD
 - **Core entities:** Genome, Agent, Wallet, Experience
 - **Consumes:** no topic; reads the stored candle window from `GET /candles/symbols/:symbol` at each session (ADR-0078)
 - **Publishes:** `training.model.published` after each versioned artifact (ADR-0022)
-- **Consumers:** audit-logger (chain) and `model-evaluator`, the offline evaluation consumer (ADR-0049 option B): it is the only entry of `MODEL_DOWNLOAD_CALLERS`, verifies the weights against the manifest, replays the model on the stored candles of its manifest window (ADR-0079) and records one evaluation per `(symbol, version)`. No decision consumer exists yet.
+- **Consumers:** audit-logger (chain) and `model-evaluator`, the offline evaluation consumer (ADR-0049 option B): it is the only entry of `MODEL_DOWNLOAD_CALLERS`, verifies the weights against the manifest, replays the model on the stored candles of its manifest window (ADR-0079) and records one evaluation per `(symbol, version)`. `decision-consumer` is the paper decision consumer (ADR-0049 option C, [ADR-0087](../adr/0087-paper-decision-consumer.md)): it also lists in `MODEL_DOWNLOAD_CALLERS`, decides only with the models of `PROMOTED_MODELS` that are `admissible`, and sends their intents to `risk-execution`.
 
 ### 3. Messaging Context
 
@@ -109,7 +109,7 @@ graph TD
 - **Owner:** `risk-execution` ([ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md)), separate from the model and from the decision consumer
 - **Core entities:** Intent, Order, Position, KillSwitch
 - **Responsibilities:** pre-trade checks, order lifecycle, kill switch, reconciliation; paper only (simulated broker, no live adapter)
-- **Consumes:** intents and prices over HTTP (`POST /intents`, `POST /prices`); no decision consumer sends them yet ([ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md))
+- **Consumes:** intents over HTTP (`POST /intents`), only `decision-consumer` sends them ([ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md), [ADR-0087](../adr/0087-paper-decision-consumer.md)); the last closed candle of each instrument from financial-scraper (`SCRAPER_API.candlesLatest`)
 - **Publishes:** `risk.*` events (order transitions, kill switch), chained by audit-logger
 
 ## Integration Patterns

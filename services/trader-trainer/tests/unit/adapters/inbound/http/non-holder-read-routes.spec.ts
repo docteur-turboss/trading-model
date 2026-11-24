@@ -19,10 +19,10 @@ jest.mock("@trading-model/contracts/logger-registry", () => ({
 
 import { TRAINER_ROUTES } from "../../../../../src/adapters/inbound/http/routes";
 import { FileModelArtifactStore } from "../../../../../src/adapters/outbound/file-model-artifact-store";
-import { Trainer } from "../../../../../src/application/trainer";
 import { NETWORK_INPUT_LAYOUT } from "../../../../../src/domain/agent/agent-state";
 import { createDefaultGenome } from "../../../../../src/domain/genetic-algorithm/factory";
 import { MarketDataBuffer } from "../../../../../src/domain/market-data-buffer";
+import { makeTrainer } from "../../../../fixtures/trainer-deps.fixture";
 
 const BTC = TradingSymbol.of("BTCUSDT");
 const SETTINGS = {
@@ -78,7 +78,7 @@ describe("trainer pod that does not hold the Lease", () => {
 		});
 		version = saved.version;
 
-		const trainer = new Trainer(new MarketDataBuffer({ maxSize: 500 }), {
+		const trainer = makeTrainer(new MarketDataBuffer({ maxSize: 500 }), {
 			settings: SETTINGS,
 			models,
 		});
@@ -118,7 +118,7 @@ describe("trainer pod that does not hold the Lease", () => {
 	});
 
 	async function get(path: string) {
-		const res = await fetch(`${baseUrl}${path}`);
+		const res = await fetch(`${baseUrl}/v1${path}`);
 		return { status: res.status, body: (await res.json()) as any };
 	}
 

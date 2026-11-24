@@ -41,10 +41,12 @@ jobs:
   # unprotected. Reading the settings needs ENVIRONMENT_READ_TOKEN
   # (fine-grained PAT, "Administration: read"); without it the check fails.
   check-environment:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Check the environment protection
         env:
           GH_TOKEN: ${{ secrets.ENVIRONMENT_READ_TOKEN }}
@@ -69,13 +71,15 @@ jobs:
   # label (issue #1135). That runner has no Docker: the tools go on it.
   verify-escrow-key:
     needs: check-environment
-    runs-on: ${{ vars.BACKUP_KEY_CHECK_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ vars.BACKUP_KEY_CHECK_RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 60
     environment: backup-key-check
     env:
       SELF_HOSTED: ${{ vars.BACKUP_KEY_CHECK_RUNNER != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       # age and the rclone the backup CronJob uses (deploy/backup), so the
       # fetch reads the bucket the way the job wrote it.

@@ -169,14 +169,8 @@ cmd_migrate_down() {
   kubectl delete job -n "$NAMESPACE" db-migrate-down --ignore-not-found &>/dev/null || true
 
   log "Starting migration rollback job..."
-  # As run-migrations.sh: a mysql-0 without mysql-tls (staging-local, issue #1066) serves
-  # its auto-generated certificate, which the job cannot verify.
-  local verify=true
-  kubectl get pod mysql-0 -n "$NAMESPACE" -o jsonpath='{.spec.volumes[*].name}' 2>/dev/null |
-    grep -qw mysql-tls || verify=false
   # activeDeadlineSeconds follows the wait-job.sh timeout (DEPLOY_TIMEOUT_FACTOR, issue #760).
   sed -e "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" \
-    -e "s#^\( *\)- name: DB_SSL_CA\$#\1- name: DB_SSL_VERIFY\n\1  value: '$verify'\n&#" \
     "${K8S_DIR}/jobs/migration-job-down.yaml" |
     awk -v f="${DEPLOY_TIMEOUT_FACTOR:-1}" '/^ *activeDeadlineSeconds: *[0-9]+ *$/ { sub(/[0-9]+ *$/, $2 * f) } 1' |
     kubectl apply -n "$NAMESPACE" -f -
@@ -337,7 +331,7 @@ canary_check() {
   local total_reqs=0 error_reqs=0 pod metrics reqs errs
   for pod in $(kubectl get pods -n "$NAMESPACE" -l "app.kubernetes.io/component=${service},track=canary" -o name); do
     if ! metrics=$(kubectl exec -n "$NAMESPACE" "$pod" -c "$service" -- \
-        curl -sfk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+        node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' \
         https://localhost:3000/metrics 2>/dev/null); then
       abort_canary "$canary_name" "Canary pod ${pod#pod/} did not serve /metrics."
     fi
@@ -452,7 +446,7 @@ cmd_smoke_test() {
     local code="" try
     for try in $(seq 1 12); do
       code=$(kubectl exec -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
-        curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem "$url" -o /dev/null -w '%{http_code}' 2>/dev/null || true)
+        node -e 'const f=require("fs"),d="/run/spire/svid/";require(process.argv[1].split(":")[0]).get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' "$url" >/dev/null 2>&1 && echo 200 || true)
       [[ "$code" == "200" || "$try" -eq 12 ]] && break
       sleep 5
     done
@@ -484,7 +478,7 @@ cmd_verify_market_data() {
   log "Waiting up to ${timeout}s for the collector to persist candles..."
   while [[ "$SECONDS" -lt "$deadline" ]]; do
     if metrics="$(kubectl exec -n "$NAMESPACE" deployment/financial-scraper-collector -c financial-scraper-collector -- \
-        curl -sSk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem \
+        node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' \
         https://localhost:3000/metrics 2>&1)"; then
       persisted="$(printf '%s\n' "$metrics" | awk '/^fs_candles_persisted_total/ {s += $NF} END {print s + 0}')"
       last_err="no fs_candles_persisted_total candle yet (0 persisted)"
@@ -521,8 +515,24 @@ fresh_candles() {
 # Critical alerts firing now, one line each: every label as sorted compact JSON,
 # so two alerts of the same name never share a line. $1 = extra label matchers (URL-encoded).
 critical_alerts() {
-  prom_query "ALERTS%7Balertstate%3D%22firing%22%2Cseverity%3D%22critical%22${1}%7D" \
-    | jq -cS '.data.result[].metric | del(.__name__, .alertstate)'
+  local alerts global='"alertname":"KillSwitchEngaged".*"scope":"global"'
+  alerts="$(prom_query "ALERTS%7Balertstate%3D%22firing%22%2Cseverity%3D%22critical%22${1}%7D" \
+    | jq -cS '.data.result[].metric | del(.__name__, .alertstate)')" || return 1
+  # A new environment (or a lost volume) starts with the global switch on for
+  # state_missing (ADR-0064 §5): the operator re-arms it, a rollback cannot, so never block on it.
+  if grep -q "$global" <<<"$alerts" && [[ "$(risk_global_reason)" == "state_missing" ]]; then
+    log "  - KillSwitchEngaged (global, state_missing): not blocking, re-arm after checking (runbook-risk-execution)" >&2
+    alerts="$(grep -v "$global" <<<"$alerts" || true)"
+  fi
+  [[ -z "$alerts" ]] || printf '%s\n' "$alerts"
+}
+
+# Reason of the global kill switch of risk-execution (GET /admin/status with its
+# own SVID, from its pod); empty when off or unreachable.
+risk_global_reason() {
+  kubectl exec -n "$NAMESPACE" deployment/risk-execution -c risk-execution -- \
+    node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/admin/status \
+    | jq -r '.killSwitch.global // empty' || true
 }
 
 # critical_alerts lines (stdin) as one readable list: name{label=value, ...},...
@@ -543,10 +553,10 @@ release_checks_once() {
     err "  ✗ no gateway API key in Secret trading-model-secrets (AUTH_TOKENS)"
     return 1
   fi
-  # The key goes through stdin (curl -H @-), never on a command line or in a log.
+  # The key goes through stdin, never on a command line or in a log.
   local path="/v1/trader-trainer/training-status"
-  code="$(printf 'x-api-key: %s\n' "$key" | kubectl exec -i -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
-    curl -s -o /dev/null -w '%{http_code}' -H @- "http://edge-proxy:8080${path}")" || code="000"
+  code="$(printf '%s' "$key" | kubectl exec -i -n "$NAMESPACE" deployment/discovery-server -c discovery-server -- \
+    node -e 'let k="";process.stdin.on("data",d=>k+=d).on("end",()=>require("http").get(process.argv[1],{headers:{"x-api-key":k}},r=>{console.log(r.statusCode);r.resume()}).on("error",()=>console.log("000")))' "http://edge-proxy:8080${path}")" || code="000"
   if [[ "$code" != "200" ]]; then
     err "  ✗ GET ${path} through edge-proxy answered ${code}, expected 200"
     return 1
