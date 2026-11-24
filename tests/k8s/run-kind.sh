@@ -799,7 +799,7 @@ verify_network() {
 
 	# Release N only (ADR-0072): N-1 gateways still read the registry. Removed in N+1.
 	registry() {
-		$K -n "$NS" exec deployment/financial-scraper -c financial-scraper -- node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://discovery-server:3000/services
+		$K -n "$NS" exec deployment/financial-scraper -c financial-scraper -- node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://discovery-server:3000/v1/services
 	}
 	wait_for 120 "registry | grep -q financial-scraper"
 	log "  registered: $(registry)"
