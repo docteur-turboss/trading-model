@@ -1,3 +1,4 @@
+import type { Intent } from "@trading-model/contracts/order-intent";
 import type { RiskLimits } from "./limits";
 import type { MarketPrice } from "./ports";
 import {
@@ -7,18 +8,6 @@ import {
 	type RiskState,
 	symbolPnl,
 } from "./state";
-
-export interface Intent {
-	decisionId: string;
-	symbol: string;
-	side: "buy" | "sell";
-	quantity: number;
-	limitPrice?: number;
-	referencePrice: number;
-	referenceAt: number;
-	model: { symbol: string; version: string };
-	allowRepeat?: boolean;
-}
 
 export interface PreTradeContext {
 	intent: Intent;
