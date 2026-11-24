@@ -69,10 +69,9 @@ The gateway is the single entry point for all external requests. It only accepts
 ```bash
 docker compose up -d api-gateway edge-proxy
 
-# Verify
-curl -s http://localhost:8449/ping
-# → {"status":"ok"}
 ```
+
+`/ping` is answered by nginx even with the gateway stopped, so it proves nothing. Step 3 calls a `/v1` route through the gateway: a JSON answer there proves it is up.
 
 ## Step 3: See the Service Registry
 
