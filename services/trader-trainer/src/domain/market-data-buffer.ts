@@ -95,10 +95,6 @@ export class MarketDataBuffer {
 		this._windowSplitter.setSignals(symbol, signals);
 	}
 
-	restoreSymbolState(symbol: TradingSymbol, state: SymbolState): void {
-		this._stateManager.states.set(symbol, state);
-	}
-
 	getCandleCount(symbol: TradingSymbol): number {
 		return this._stateManager.getCandleCount(symbol);
 	}

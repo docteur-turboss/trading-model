@@ -12,11 +12,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
 import { FEATURE_LAYOUT } from "@trading-model/model-runtime/feature-vector-codec";
+import { MODEL_VERSION_PATTERN } from "@trading-model/model-runtime/model-artifact-reader";
 import { FileModelArtifactStore } from "../../../../src/adapters/outbound/file-model-artifact-store";
-import {
-	MODEL_VERSION_PATTERN,
-	type NewModelArtifact,
-} from "../../../../src/domain/model-artifact";
+import type { NewModelArtifact } from "../../../../src/domain/model-artifact";
 
 const SUMMARY = {
 	id: "g-1",

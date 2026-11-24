@@ -7,9 +7,9 @@ import type { HttpClient } from "@trading-model/http/http-client";
 import { logger } from "@trading-model/http/logger";
 import {
 	DurationMs,
+	InstanceId,
 	ServiceId,
-	toInstanceId,
-	toTopic,
+	Topic,
 	URLString,
 } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
@@ -48,10 +48,10 @@ export class MessageManagerClient implements MessageClientPort {
 				const payload: SubscribesTopicsPayload = {
 					callbackPath: this._config.callbackPath,
 					serviceIdentity: {
-						instanceId: toInstanceId(this._config.instanceId),
+						instanceId: InstanceId.of(this._config.instanceId),
 						serviceName: ServiceId.of(this._config.serviceName),
 					},
-					topic: toTopic(topic),
+					topic: Topic.of(topic),
 				};
 				// A subscription is an upsert: sending it twice is harmless.
 				await this._httpClient.post(url, payload, {
@@ -74,7 +74,7 @@ export class MessageManagerClient implements MessageClientPort {
 			for (const topic of topics) {
 				const payload: UnSubscribesTopicsPayload = {
 					instanceId: this._config.instanceId,
-					topic: toTopic(topic),
+					topic: Topic.of(topic),
 				};
 				await this._httpClient.delete(url, payload, {
 					serviceName: ServiceId.of("message-manager"),
