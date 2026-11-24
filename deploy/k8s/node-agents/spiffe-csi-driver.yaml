@@ -45,7 +45,7 @@ spec:
       serviceAccountName: spiffe-csi-driver
       containers:
         - name: spiffe-csi-driver
-          image: ghcr.io/spiffe/spiffe-csi-driver:0.2.13@sha256:6f1ba5d635ba9bf55ae69ba11d71bf169c8fa3e0139a5063738cbc227c8b5546
+          image: ghcr.io/spiffe/spiffe-csi-driver:0.3.0@sha256:53bfb07bdde667f7f20f0d46cadca17043064c48d7603902fd090f03f38a40a1
           imagePullPolicy: IfNotPresent
           args:
             - "-workload-api-socket-dir"
