@@ -24,6 +24,12 @@ const PAGED_READ_INDEXES = [
   ['market_tickers', 'idx_tickers_symbol_ts', 'idx_tickers_symbol'],
 ];
 const INDEX_LOCK_NAME = 'index_build';
+// The ALTER queues every query on the table behind its metadata lock while a long transaction (mysqldump
+// --single-transaction) holds the table: give up after this wait, pause, retry (issue #2497, ADR-0088).
+const ALTER_LOCK_WAIT_SECONDS = 5;
+const ALTER_RETRY_PAUSE_MS = 10_000;
+const ALTER_MAX_ATTEMPTS = 60;
+const ER_LOCK_WAIT_TIMEOUT = 1205;
 
 const [, , command, ...restArgs] = process.argv;
 
@@ -381,7 +387,17 @@ async function indexBuild(connection) {
     }
     const start = Date.now();
     console.log(`${table}: ${changes.join(', ')}...`);
-    await connection.query(`ALTER TABLE \`${table}\` ${changes.join(', ')}, ALGORITHM=INPLACE, LOCK=NONE`);
+    await connection.query('SET SESSION lock_wait_timeout = ?', [ALTER_LOCK_WAIT_SECONDS]);
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await connection.query(`ALTER TABLE \`${table}\` ${changes.join(', ')}, ALGORITHM=INPLACE, LOCK=NONE`);
+        break;
+      } catch (err) {
+        if (err.errno !== ER_LOCK_WAIT_TIMEOUT || attempt >= ALTER_MAX_ATTEMPTS) throw err;
+        console.log(`  metadata lock wait timeout (attempt ${attempt}/${ALTER_MAX_ATTEMPTS}), retrying in ${ALTER_RETRY_PAUSE_MS}ms`);
+        await new Promise(resolve => setTimeout(resolve, ALTER_RETRY_PAUSE_MS));
+      }
+    }
     console.log(`  OK (${Date.now() - start}ms)`);
   }
 }

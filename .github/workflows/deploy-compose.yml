@@ -22,7 +22,7 @@ concurrency:
 jobs:
   # No `environment:` here: a job naming a missing environment would create it unprotected.
   check-environment:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -166,6 +166,7 @@ jobs:
         shell: bash
         run: |
           prev=$(cat "$RUNNER_TEMP/prev.dir" 2>/dev/null || true)
+          # shellcheck disable=SC2015
           [ -n "$prev" ] && [ "$(grep -c image: "$RUNNER_TEMP/prev.yml")" -gt 0 ] || { echo "::warning::No previous stack recorded: nothing to roll back"; exit 0; }
           c() { docker compose --project-directory "$prev" --env-file "$ENV_FILE" -f "$prev/docker-compose.yml" -f "$RUNNER_TEMP/prev.yml" "$@"; }
           # Token of 1 h (#1903): the restored agent needs a fresh one too.

@@ -36,7 +36,7 @@ concurrency:
 
 jobs:
   test-restore:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -135,7 +135,7 @@ jobs:
   # tests with stubs, then the real loop on kind: seal in cluster A, back up
   # the keys to S3, delete A, restore them in a new cluster B, decrypt there.
   sealed-secrets-key:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       KIND_VERSION: v0.27.0

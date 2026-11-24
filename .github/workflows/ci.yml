@@ -27,7 +27,7 @@ jobs:
   gate:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       k8s: ${{ steps.changes.outputs.k8s }}
@@ -57,7 +57,7 @@ jobs:
 
   lint:
     needs: gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -106,7 +106,7 @@ jobs:
   security:
     # Not in pre-push: bun audit needs the network, gitleaks the full history (release tags only; PRs scan their commits).
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -136,7 +136,7 @@ jobs:
     needs: gate
     # Also on the merge push to development (gate skipped, see its if), like test.
     if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -160,7 +160,7 @@ jobs:
     needs: gate
     # Also on the merge push to development (gate skipped, see its if): two green PRs can still break the unit tests together.
     if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -180,7 +180,7 @@ jobs:
 
   db-integration:
     needs: gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -201,7 +201,7 @@ jobs:
 
   observability:
     needs: gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -222,11 +222,14 @@ jobs:
       # silent) on the scenarios of tests/alerts/alerting.test.yml.
       - name: Alert rule tests
         run: bash tests/alerts/run.sh
+      # Pinned Grafana image on an existing volume (Loki without uid), issue #2414.
+      - name: Grafana upgrade on an existing database
+        run: bash tests/observability/grafana-upgrade.test.sh
 
   # The k8s job only deploys staging: production is checked by rendering.
   k8s-overlays:
     needs: gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -267,7 +270,7 @@ jobs:
     needs: gate
     # Also on the merge push to development (gate skipped, see its if), like test.
     if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -308,7 +311,7 @@ jobs:
 
   e2e:
     needs: gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       # Compose names the images <project>-<service>; the bake step below tags them the same way.
@@ -429,28 +432,50 @@ jobs:
   # overlay on kind (node agents, overlay, migrations, as deploy.yml does), run
   # deploy.yml's smoke test and canary gate, and check SPIRE identities, the
   # data flow, the external path and observability.
-  # Images of release N-1 and N, built once for the three k8s groups (run-kind.sh images).
+  # Images of release N-1 (pulled) and N (built), saved once for the three k8s groups (run-kind.sh images).
   k8s-images:
     needs: gate
     # The merge push to development skips gate (see its if): kind, typecheck, test and contract still run there, the other jobs stay skipped.
     if: ${{ !cancelled() && (needs.gate.outputs.k8s == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
-    env:
-      # Release N-1 = main (last release plus any hotfix): every PR tests the real upgrade path.
-      # On push to main and on the release run (workflow_call on the tag), N-1 = N: no upgrade tested there.
-      KIND_PREVIOUS_REF: origin/main
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      previous: ${{ steps.previous.outputs.tag }}
+      registry: ${{ steps.previous.outputs.registry }}
     steps:
-      # Full history: release N-1 (KIND_PREVIOUS_REF) is built from it.
+      # Full history and tags: release N-1 is the last stable tag.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
-      - name: Fetch the N-1 reference (${{ env.KIND_PREVIOUS_REF }})
-        run: git fetch --no-tags origin "+refs/heads/${KIND_PREVIOUS_REF#origin/}:refs/remotes/${KIND_PREVIOUS_REF}"
-      - name: Build the images (release N-1 and N)
+      # Release N-1 = the last stable release (manifests of its tag, its signed images), what
+      # production runs: a broken main no longer fails every PR. HEAD^1: on a release tag, the one before.
+      - name: Resolve release N-1 (last stable tag)
+        id: previous
+        env:
+          IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' --exclude '*-*' HEAD^1)
+          registry="${IMAGE_REGISTRY:-ghcr.io/$OWNER}"
+          { echo "tag=$tag"; echo "registry=${registry,,}"; } >> "$GITHUB_OUTPUT"
+          echo "Release N-1: $tag (${registry,,})"
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+      - name: Pull release N-1, build release N
         env:
           KIND_IMAGE_ARCHIVE: ${{ runner.temp }}/kind-images.tar
+          KIND_PREVIOUS_REF: ${{ steps.previous.outputs.tag }}
+          KIND_PREVIOUS_REGISTRY: ${{ steps.previous.outputs.registry }}
         run: bash tests/k8s/run-kind.sh images
       - name: Upload the images
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -462,7 +487,7 @@ jobs:
     needs: [gate, k8s-images]
     if: ${{ !cancelled() && needs.k8s-images.result == 'success' }}
     name: k8s (${{ matrix.group }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # One job per group of checks (run-kind.sh verify_group): each deploys N-1, upgrades to N,
     # then runs its own checks. fail-fast off: a red group does not hide the others.
     # Not measured per group yet: first runs decide the timeout (the single job was 30 min measured, 48 min on PR #460).
@@ -482,17 +507,18 @@ jobs:
       # and not representative of production, the RTO is judged in
       # docs/compliance/dr-exercise-log.md.
       DRILL_TIMINGS_FILE: ${{ github.workspace }}/restore-drill-timings.json
-      # Release N-1 = main (last release plus any hotfix): every PR tests the real upgrade path.
-      # On push to main and on the release run (workflow_call on the tag), N-1 = N: no upgrade tested there.
-      KIND_PREVIOUS_REF: origin/main
+      # Release N-1 resolved by k8s-images: its tag (manifests) and the registry of its images.
+      KIND_PREVIOUS_REF: ${{ needs.k8s-images.outputs.previous }}
+      KIND_PREVIOUS_REGISTRY: ${{ needs.k8s-images.outputs.registry }}
+    permissions:
+      contents: read
+      packages: read
     steps:
-      # Full history: N-1 (KIND_PREVIOUS_REF), built and deployed first.
+      # Full history and tags: N-1's manifests come from its tag.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
-      - name: Fetch the N-1 reference (${{ env.KIND_PREVIOUS_REF }})
-        run: git fetch --no-tags origin "+refs/heads/${KIND_PREVIOUS_REF#origin/}:refs/remotes/${KIND_PREVIOUS_REF}"
       - name: Install kind
         run: |
           # GitHub Releases answers 504 now and then (issue #660): retry, checksum still checked.
@@ -518,6 +544,16 @@ jobs:
           name: kind-images
           path: ${{ runner.temp }}
       # A re-run of this job alone after the 1-day retention finds no artifact (issue #1675): build the images here.
+      - name: Log in to GitHub Container Registry (artifact expired)
+        if: ${{ steps.download-images.outcome == 'failure' }}
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install cosign (artifact expired)
+        if: ${{ steps.download-images.outcome == 'failure' }}
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
       - name: Build the images (artifact expired)
         if: ${{ steps.download-images.outcome == 'failure' }}
         env:
@@ -571,7 +607,7 @@ jobs:
   k8s-result:
     needs: [gate, lint, security, typecheck, test, db-integration, observability, k8s-overlays, contract, e2e, k8s-images, k8s]
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - env:

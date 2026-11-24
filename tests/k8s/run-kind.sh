@@ -14,6 +14,9 @@
 # trading-model-ci), KEEP_CLUSTER=1 (`all` keeps the cluster afterwards),
 # KIND_PREVIOUS_REF (release N-1, default HEAD^1: the base branch of a PR merge
 # commit, the commit before on a push; locally e.g. origin/development),
+# KIND_PREVIOUS_REGISTRY (set: N-1 is the release tag KIND_PREVIOUS_REF, its
+# signed images pulled from this registry instead of built; needs cosign; CI
+# sets both to the last stable tag),
 # KIND_OVERLAY (overlay of both releases, default staging; staging-local keeps
 # the data StatefulSets partitioned, issue #1066, e.g. with KIND_PREVIOUS_REF=v3.1.0-rc.1).
 # Needs docker, git, kubectl, node, jq.
@@ -168,11 +171,51 @@ node_digests() {
 	done
 }
 
+# Pulls the release images of tag $PREVIOUS_REF from $KIND_PREVIOUS_REGISTRY by
+# digest, each verified as signed by release.yml (as deploy.yml does), as
+# ghcr.io/trading-model/<image>:previous. An image the tag predates (decided on
+# its checkout, never on a registry error) gets a stand-in built from this
+# checkout, as build_images does: N-1 manifests never deploy it.
+pull_previous_images() {
+	local img ref digest repo="${GITHUB_REPOSITORY:-docteur-turboss/trading-model}" missing=""
+	local released=" $(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$PREVIOUS/deploy/k8s/services/kustomization.yaml" | tr '\n' ' ') spire-tools backup-tools "
+	[ ! -f "$PREVIOUS/deploy/migrate/Dockerfile" ] || released="${released}db-migrate "
+	for img in $IMAGES; do
+		[[ "$released" == *" $img "* ]] || {
+			missing="$missing $img"
+			continue
+		}
+		ref="$KIND_PREVIOUS_REGISTRY/$img"
+		digest="$(docker buildx imagetools inspect "$ref:${PREVIOUS_REF#v}" --format '{{.Manifest.Digest}}')"
+		cosign verify "$ref@$digest" --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+			--certificate-identity-regexp "^https://github\.com/${repo}/\.github/workflows/release\.yml@refs/tags/v" >/dev/null || {
+			log "$ref@$digest: no valid release.yml signature"
+			return 1
+		}
+		retry 3 docker pull -q "$ref@$digest" >/dev/null
+		docker tag "$ref@$digest" "ghcr.io/trading-model/$img:previous"
+	done
+	[ -n "$missing" ] || return 0
+	log "not in $PREVIOUS_REF, unsigned stand-in built from this checkout:$missing"
+	if [[ "$missing" == *" db-migrate"* ]]; then
+		retry 3 docker build -q -t ghcr.io/trading-model/db-migrate:previous -f "$ROOT/deploy/migrate/Dockerfile" "$ROOT"
+		missing="${missing/ db-migrate/}"
+	fi
+	export IMAGE_TAG=previous
+	# shellcheck disable=SC2086
+	[ -z "$missing" ] || retry 3 docker compose -f "$ROOT/docker-compose.yml" -f "$ROOT/docker-compose.build.yml" build $missing
+}
+
 images() {
 	local started=$SECONDS img
 	previous_checkout
-	log "building the images of release N-1"
-	build_images "$PREVIOUS" previous
+	if [ -n "${KIND_PREVIOUS_REGISTRY:-}" ]; then
+		log "pulling the signed images of release N-1 from $KIND_PREVIOUS_REGISTRY"
+		pull_previous_images
+	else
+		log "building the images of release N-1"
+		build_images "$PREVIOUS" previous
+	fi
 	# Same sources build the same image: a label keeps N-1 digests apart from N.
 	for img in $IMAGES; do
 		echo "FROM ghcr.io/trading-model/$img:previous" |
@@ -289,7 +332,9 @@ migrations() {
 # crash broke the pipe in runs 43321359421 and 43328471185).
 render_kind() {
 	release_script render "$1/deploy/k8s/overlays/${KIND_OVERLAY:-staging}" ghcr.io/trading-model "$2" >"$3.raw" || return 1
-	node "$ROOT/tests/k8s/ci-render.mjs" <"$3.raw" >"$3" || return 1
+	local scopes="read+dlq:write+risk:admin"
+	[ "$1" = "$ROOT" ] || scopes="read+dlq:write"
+	CI_RENDER_SCOPES="$scopes" node "$ROOT/tests/k8s/ci-render.mjs" <"$3.raw" >"$3" || return 1
 	rm -f "$3.raw"
 }
 
@@ -330,7 +375,7 @@ previous_mongo_root() {
 	log "release N-1 cannot create the MongoDB root user (#924): created by the harness"
 	for label in mongodb mongodb-audit; do
 		wait_for 300 "mongo_primary $label"
-		$K -n "$NS" exec "$(mongo_primary "$label")" -- sh -c 'mongosh --quiet --eval "
+		$K -n "$NS" exec "$(mongo_primary "$label")" -- sh -c 'mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt --eval "
 			try {
 				db.getSiblingDB(\"admin\").createUser({ user: \"root\", pwd: process.env.MONGO_ROOT_PASSWORD, roles: [{ role: \"root\", db: \"admin\" }] });
 			} catch (e) {
@@ -430,9 +475,9 @@ release() {
 release_under_probe() {
 	local stop="$WORK/probe.stop" out="$WORK/probe.count" max="${PROBE_MAX_FAILURES:-0}" pid start rc=0 began=$SECONDS
 	local requests failures row candles gap need
-	rm -f "$stop" "$out"
+	rm -f "$stop" "$out" "$out.err"
 	echo "0 0" >"$out"
-	probe_availability "$stop" "$out" &
+	probe_availability "$stop" "$out" 2> >(tee "$out.err" >&2) &
 	pid=$!
 	# A failing command under errexit must not leave the probe running.
 	# Expanded now: the locals are gone when a RETURN trap runs.
@@ -456,7 +501,9 @@ release_under_probe() {
 		return 1
 	}
 	[ "$failures" -le "$max" ] || {
-		log "the upgrade dropped $failures request(s) (threshold $max): a Deployment went to 0 ready pods"
+		# 000 is a timeout or refused connection (a route without ready pod); 4xx/5xx come from the route itself.
+		log "the upgrade dropped $failures request(s) (threshold $max); status codes: $(sed -n 's/^probe: .* answered //p' "$out.err" | sort | uniq -c | tr -s ' 
+' ' ')"
 		return 1
 	}
 	# Candles written in the window and the largest gap between consecutive ones
@@ -928,7 +975,8 @@ verify_egress() {
 mongo_ping() {
 	local img uri
 	img="$(grep -m1 -oE 'mongo(:[^@ ]+)?@sha256:[0-9a-f]+' "$ROOT/deploy/k8s/infra/mongo-audit.yaml")"
-	uri="mongodb://$3:27017/?directConnection=true&serverSelectionTimeoutMS=5000&connectTimeoutMS=5000"
+	# Probe only checks reachability under NetworkPolicy; the CA is not mounted in this pod.
+	uri="mongodb://$3:27017/?directConnection=true&tls=true&tlsAllowInvalidCertificates=true&serverSelectionTimeoutMS=5000&connectTimeoutMS=5000"
 	$K -n "$NS" run "$1" --rm -i --restart=Never --quiet --image="$img" ${2:+--labels="$2"} --overrides="{
 		\"apiVersion\": \"v1\",
 		\"spec\": {
@@ -1215,7 +1263,7 @@ verify_release() {
 mongo_primary() {
 	local pod
 	for pod in $($K -n "$NS" get pods -l "app.kubernetes.io/component=$1" -o jsonpath='{.items[*].metadata.name}'); do
-		if [ "$($K -n "$NS" exec "$pod" -- mongosh --quiet --eval 'db.hello().isWritablePrimary' 2>/dev/null)" = "true" ]; then
+		if [ "$($K -n "$NS" exec "$pod" -- mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt --eval 'db.hello().isWritablePrimary' 2>/dev/null)" = "true" ]; then
 			echo "$pod"
 			return 0
 		fi
@@ -1225,7 +1273,7 @@ mongo_primary() {
 
 mongo_eval() {
 	# As `root` (ADR-0067); the password is in the pod's env.
-	$K -n "$NS" exec "$(mongo_primary "$1")" -- sh -c 'mongosh --quiet -u root -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval "$1"' sh "$2"
+	$K -n "$NS" exec "$(mongo_primary "$1")" -- sh -c 'mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt -u root -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval "$1"' sh "$2"
 }
 
 mysql_root() {
@@ -1628,7 +1676,7 @@ verify_backup() {
 			return 1
 		}
 		# The dump holds drill-old: the restore must keep the Secret-era password (issue #1050).
-		$K -n "$NS" exec "$(mongo_primary "$label")" -- mongosh --quiet -u drill -p drill-new --authenticationDatabase admin \
+		$K -n "$NS" exec "$(mongo_primary "$label")" -- mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt -u drill -p drill-new --authenticationDatabase admin \
 			--eval "db.runCommand({connectionStatus: 1}).authInfo.authenticatedUsers.length" | grep -qx 1 || {
 			log "MongoDB $label: the user changed after the dump no longer authenticates with its current password"
 			return 1
@@ -1825,7 +1873,7 @@ dump() {
 	for pod in mongo-audit-0 mongo-dlq-0; do
 		echo "===== $pod"
 		$K -n "$NS" logs "$pod" -c mongodb --tail=40 2>&1 | cut -c1-300 || true
-		$K -n "$NS" exec "$pod" -c mongodb -- mongosh --quiet --eval 'JSON.stringify(rs.status())' 2>&1 | cut -c1-600 || true
+		$K -n "$NS" exec "$pod" -c mongodb -- mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt --eval 'JSON.stringify(rs.status())' 2>&1 | cut -c1-600 || true
 	done
 	echo "===== loki-0 (loki), promtail warnings, loki labels"
 	$K -n "$NS" logs loki-0 -c loki --tail=200 2>&1 | cut -c1-300 || true
