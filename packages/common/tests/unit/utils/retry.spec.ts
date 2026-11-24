@@ -30,6 +30,23 @@ describe("retryWithBackoff", () => {
 		expect(result.lastError).toBeNull();
 	});
 
+	it("should wait one base delay (±20%) before the first retry", async () => {
+		const fn = jest
+			.fn<() => Promise<string>>()
+			.mockRejectedValueOnce(new Error("fail1"))
+			.mockResolvedValue("ok");
+		const promise = retryWithBackoff(fn, {
+			maxRetries: 2,
+			baseDelayMs: DurationMs.of(1000),
+		});
+
+		await jest.advanceTimersByTimeAsync(799);
+		expect(fn).toHaveBeenCalledTimes(1);
+		await jest.advanceTimersByTimeAsync(401);
+		expect(fn).toHaveBeenCalledTimes(2);
+		await promise;
+	});
+
 	it("should retry on failure and eventually succeed", async () => {
 		const fn = jest
 			.fn<() => Promise<string>>()

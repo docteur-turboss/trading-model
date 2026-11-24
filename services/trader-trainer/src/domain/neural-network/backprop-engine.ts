@@ -1,47 +1,95 @@
 import { ACTIVATIONS } from "@trading-model/model-runtime/neural-network/activation";
 import {
-	type ActivationType,
 	ConnectionType,
 	type ForwardContext,
+	type LayerMemory,
 } from "@trading-model/model-runtime/neural-network/type";
-import { GradientApplier } from "./gradient-applier";
 import type { NnTrainingDeps } from "./nn-training-deps";
-import { OutputDeltaComputer } from "./output-delta-computer";
 import { clipGradients } from "./utils";
 
-export interface OutputDeltasContext {
-	outputZ: Float32Array;
-	output: Float32Array;
-	target: Float32Array;
-	activation: ActivationType;
+function validateLengths(output: Float32Array, target: Float32Array): void {
+	if (output.length !== target.length) {
+		throw new RangeError(
+			`Loss function input/output length mismatch: output.length=${output.length}, target.length=${target.length}`
+		);
+	}
 }
 
-export interface LayerGradientContext {
-	layerIndex: number;
-	delta: Float32Array;
-	layerInput: Float32Array;
+/** Mean squared error: the only loss training uses. */
+export function mseLoss(output: Float32Array, target: Float32Array): number {
+	validateLengths(output, target);
+	let sum = 0;
+	for (let i = 0; i < output.length; i++) {
+		const err = target[i] - output[i];
+		sum += err * err;
+	}
+	return sum / output.length;
+}
+
+/** Gradient of {@link mseLoss}: 2 (o - t) / n. */
+export function mseGradient(
+	output: Float32Array,
+	target: Float32Array
+): Float32Array {
+	validateLengths(output, target);
+	const len = output.length;
+	const invN = 1 / len;
+	const out = new Float32Array(len);
+	for (let i = 0; i < len; i++) {
+		out[i] = 2 * (output[i] - target[i]) * invN;
+	}
+	return out;
+}
+
+function sgdStep(params: Float32Array, grads: Float32Array, lr: number): void {
+	for (let i = 0; i < params.length; i++) {
+		params[i] -= lr * grads[i];
+	}
+}
+
+/** Plain SGD, the only optimizer training uses: sets the layer gradients, then steps. */
+function applyLayerGradients(
+	layer: LayerMemory,
+	delta: Float32Array,
+	layerInput: Float32Array,
+	deps: NnTrainingDeps
+): void {
+	const { fanIn, fanOut, gradW, gradB } = layer;
+	// Assign, never accumulate: an immediate step must not re-apply earlier samples' gradients.
+	for (let j = 0; j < fanOut; j++) {
+		const rowOffset = j * fanIn;
+		const deltaJ = delta[j];
+		gradB[j] = deltaJ;
+		for (let idxK = 0; idxK < fanIn; idxK++) {
+			gradW[rowOffset + idxK] = deltaJ * layerInput[idxK];
+		}
+	}
+	const lr = deps.config.learningRate;
+	sgdStep(layer.weights, gradW, lr);
+	if (deps.config.useBias) {
+		sgdStep(layer.bias, gradB, lr);
+	}
 }
 
 export class BackpropEngine {
-	private readonly _outputDeltaComputer: OutputDeltaComputer;
-	private readonly _gradientApplier: GradientApplier;
-
-	constructor(private readonly _deps: NnTrainingDeps) {
-		this._outputDeltaComputer = new OutputDeltaComputer(this._deps.config);
-		this._gradientApplier = new GradientApplier(this._deps);
-	}
+	constructor(private readonly _deps: NnTrainingDeps) {}
 
 	private _computeOutputDelta(
 		context: ForwardContext,
 		target: Float32Array
 	): Float32Array {
-		const lastLayerIndex = this._deps.layers.length - 1;
-		return this._outputDeltaComputer.compute({
-			outputZ: context.layerZValues[lastLayerIndex],
-			output: context.layerOutputs[lastLayerIndex],
-			target,
-			activation: this._deps.config.activationType[lastLayerIndex],
-		});
+		const { layers, config } = this._deps;
+		const last = layers.length - 1;
+		const outputZ = context.layerZValues[last];
+		const output = context.layerOutputs[last];
+		const lossGrad = mseGradient(output, target);
+		const delta = new Float32Array(output.length);
+		const { fn, derivative } = ACTIVATIONS[config.activationType[last]];
+		for (let j = 0; j < output.length; j++) {
+			// `output` may include the DenseSkip residual: derive from the pre-skip value.
+			delta[j] = lossGrad[j] * derivative(fn(outputZ[j]), outputZ[j]);
+		}
+		return clipGradients(delta, config.gradientClipNorm);
 	}
 
 	/** Deltas of layers 0..lastLayerIndex-1, back from the output delta. */
@@ -94,11 +142,12 @@ export class BackpropEngine {
 		for (let layerIdx = 0; layerIdx < this._deps.layers.length; layerIdx++) {
 			const layerInput =
 				layerIdx === 0 ? context.input : context.layerOutputs[layerIdx - 1];
-			this._gradientApplier.computeGradients({
-				layerIndex: layerIdx,
-				delta: allDeltas[layerIdx],
+			applyLayerGradients(
+				this._deps.layers[layerIdx],
+				allDeltas[layerIdx],
 				layerInput,
-			});
+				this._deps
+			);
 		}
 	}
 
@@ -114,6 +163,6 @@ export class BackpropEngine {
 	}
 
 	computeLoss(output: Float32Array, target: Float32Array): number {
-		return this._outputDeltaComputer.computeLoss(output, target);
+		return mseLoss(output, target);
 	}
 }

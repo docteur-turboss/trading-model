@@ -9,7 +9,7 @@ import type {
 	Timestamp,
 } from "@trading-model/contracts/signed-request";
 import { verifySignature as sharedVerifySignature } from "@trading-model/crypto/request-signer";
-import { toServiceId } from "@trading-model/primitives/primitives";
+import { ServiceId } from "@trading-model/primitives/primitives";
 import type { NextFunction, Request, Response } from "express";
 import { ENV, resolveAuthHmacSecret } from "../../infrastructure/config/env";
 
@@ -58,7 +58,7 @@ function _buildSignedRequest(
 	serviceName: ServiceInstanceName
 ): SignedRequest {
 	return {
-		serviceName: toServiceId(serviceName),
+		serviceName: ServiceId.of(serviceName),
 		method: req.method as SignedRequest["method"],
 		// The query is signed too: `/dlq/replay?limit=...` is another request.
 		path: req.originalUrl,

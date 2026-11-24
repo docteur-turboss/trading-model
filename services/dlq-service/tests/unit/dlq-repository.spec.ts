@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import type { DlqEntry as ContractDlqEntry } from "@trading-model/contracts/dlq-types";
-import { Limit, toInstanceId } from "@trading-model/primitives/primitives";
+import { InstanceId, Limit } from "@trading-model/primitives/primitives";
 
 const mockInsertOne = jest.fn<(...args: any[]) => any>();
 const mockFind = jest.fn<(...args: any[]) => any>();
@@ -359,7 +359,7 @@ describe("DlqClaimManager", () => {
 				.claimEntriesForRetry({
 					limit: Limit.of(10, 100),
 					batchId: "batch-1",
-					instanceId: toInstanceId("instance-1"),
+					instanceId: InstanceId.of("instance-1"),
 				})
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(2);
@@ -385,7 +385,7 @@ describe("DlqClaimManager", () => {
 				.claimEntriesForRetry({
 					limit: Limit.of(10, 100),
 					batchId: "batch-1",
-					instanceId: toInstanceId("instance-1"),
+					instanceId: InstanceId.of("instance-1"),
 				})
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(0);
@@ -422,7 +422,7 @@ describe("DlqClaimManager", () => {
 				.claimEntriesForRetry({
 					limit: Limit.of(10, 100),
 					batchId: "batch-1",
-					instanceId: toInstanceId("instance-1"),
+					instanceId: InstanceId.of("instance-1"),
 				})
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(1);
@@ -483,7 +483,7 @@ describe("DlqRetryManager", () => {
 			return rm
 				.markRetried({
 					id: "aaaaaaaaaaaaaaaaaaaaaaaa",
-					instanceId: toInstanceId("instance-1"),
+					instanceId: InstanceId.of("instance-1"),
 					batchId: "batch-1",
 					success: true,
 				})
@@ -513,7 +513,7 @@ describe("DlqRetryManager", () => {
 			return rm
 				.markRetried({
 					id: "aaaaaaaaaaaaaaaaaaaaaaaa",
-					instanceId: toInstanceId("instance-1"),
+					instanceId: InstanceId.of("instance-1"),
 					batchId: "batch-1",
 					success: false,
 				})
@@ -546,7 +546,7 @@ describe("DlqRetryManager", () => {
 			return rm
 				.markRetried({
 					id: "aaaaaaaaaaaaaaaaaaaaaaaa",
-					instanceId: toInstanceId("instance-1"),
+					instanceId: InstanceId.of("instance-1"),
 					batchId: "batch-1",
 					success: false,
 				})

@@ -5,10 +5,10 @@ import type { MessageMetadata } from "@trading-model/contracts/message-types";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
 import { getBusCorrelationId } from "@trading-model/http/correlation-id";
 import {
-	toCorrelationId,
-	toInstanceId,
-	toServiceId,
-	toTopic,
+	CorrelationId,
+	InstanceId,
+	ServiceId,
+	Topic,
 } from "@trading-model/primitives/primitives";
 import type { MessageManager } from "../../config/message-manager";
 import type { TradingSymbol } from "../../domain/market-data-types";
@@ -18,7 +18,7 @@ import type {
 } from "../../domain/ports/model-publisher.port";
 import type { BestAgentSummary } from "../../domain/training-state";
 
-const TOPIC = toTopic(TrainingEvent.ModelPublished);
+const TOPIC = Topic.of(TrainingEvent.ModelPublished);
 
 interface PublishContext {
 	trainerId: string;
@@ -27,16 +27,16 @@ interface PublishContext {
 
 function buildMetadata(ctx: PublishContext): MessageMetadata {
 	return new HELPER.metadataBuilder(TOPIC, TrainingEvent.ModelPublished, {
-		instanceId: toInstanceId(ctx.instanceId),
-		serviceName: toServiceId(ctx.trainerId),
+		instanceId: InstanceId.of(ctx.instanceId),
+		serviceName: ServiceId.of(ctx.trainerId),
 	})
 		.setDelivery({
 			mode: DeliveryMode.AtLeastOnce,
 			requireSubscriber: true,
 		})
 		.setIds({
-			causationId: toCorrelationId(randomUUID()),
-			correlationId: getBusCorrelationId() ?? toCorrelationId(randomUUID()),
+			causationId: CorrelationId.of(randomUUID()),
+			correlationId: getBusCorrelationId() ?? CorrelationId.of(randomUUID()),
 		})
 		.toJSON();
 }

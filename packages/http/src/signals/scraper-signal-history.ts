@@ -19,7 +19,7 @@ export interface SignalHistoryPort {
 }
 
 /**
- * Reads signals through the scraper's route `GET /signals/assets/:assetId`;
+ * Reads signals through the scraper's route `GET /v2/signals/assets/:assetId`;
  * a window the route cuts (`truncated`) is read again from its last signal.
  */
 export class ScraperSignalHistory implements SignalHistoryPort {
@@ -40,7 +40,7 @@ export class ScraperSignalHistory implements SignalHistoryPort {
 		const target = await this._find(
 			ServiceInstanceName.FinancialScraperService
 		);
-		const base = `https://${HostPort.toAddress(target)}/signals/assets/${assetId}`;
+		const base = `https://${HostPort.toAddress(target)}/v2/signals/assets/${assetId}`;
 		const end = to + 1; // the route's `to` is exclusive
 		const seen = new Set<string>();
 		const signals: Signal[] = [];

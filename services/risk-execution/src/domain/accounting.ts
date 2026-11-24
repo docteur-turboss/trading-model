@@ -1,5 +1,5 @@
+import type { Order } from "@trading-model/contracts/order-intent";
 import type { RiskLimits } from "./limits";
-import type { Order } from "./order";
 import type { BrokerAccount, BrokerOrderView } from "./ports";
 import { dailyLoss, symbolLoss } from "./pre-trade";
 import { equity, type RiskState, utcDate } from "./state";
