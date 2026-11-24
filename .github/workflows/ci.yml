@@ -59,6 +59,9 @@ jobs:
     needs: gate
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read # PR title step: reads the title at run time
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -74,11 +77,14 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run lint
       # The PR title becomes the squash message: release.mjs reads its gitmoji. Dependabot titles ("Bump x") have none.
+      # Title read at run time, not from the event: a re-run replays the original payload, so a PR renamed after
+      # its run (Dependabot title fixed by an agent) stayed red on every re-run (#2543).
       - name: PR title follows commitlint
         if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
         env:
-          TITLE: ${{ github.event.pull_request.title }}
-        run: printf '%s\n' "$TITLE" | bunx --no commitlint --config commitlint.config.mjs
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .title | bunx --no commitlint --config commitlint.config.mjs
       - run: bun run deps:check
       - run: bun run deps:third-party
       - run: bun run api:check
