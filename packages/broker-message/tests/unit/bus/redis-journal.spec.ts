@@ -39,6 +39,40 @@ const wire = (message: Message) => JSON.parse(JSON.stringify(message));
 const stored = (message: Message) => ["message", JSON.stringify(message)];
 
 describe("RedisMessageJournal", () => {
+	it("should remove only idle consumers with nothing pending", async () => {
+		const row = (name: string, pending: number, idle: number) => [
+			"name",
+			name,
+			"pending",
+			pending,
+			"idle",
+			idle,
+		];
+		const { redis, journal } = setup(async (name) =>
+			name === "XINFO"
+				? [
+						row("dead", 0, 9e6),
+						row("busy", 2, 9e6),
+						row("me", 0, 9e6),
+						row("new", 0, 1),
+					]
+				: "OK"
+		);
+
+		await journal.pruneConsumers(GROUP, "me", 600_000);
+
+		const deletes = redis.call.mock.calls.filter(([name]) => name === "XGROUP");
+		expect(deletes).toEqual([
+			[
+				"XGROUP",
+				"DELCONSUMER",
+				"p:journal:test.topic",
+				"trader-trainer",
+				"dead",
+			],
+		]);
+	});
+
 	it("should create the group of each service before writing the message, trimming old entries", async () => {
 		const { redis, journal } = setup();
 		const message = createMockMessage("payload");

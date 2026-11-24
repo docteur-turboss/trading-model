@@ -56,10 +56,14 @@ seal() {
     log "[DRY-RUN] Would seal ${plaintext_file} → ${output_file}"
     return
   fi
+  # Seal to a temp file: a failing kubeseal must not truncate the committed file.
+  local tmp
+  tmp="$(mktemp)"
   kubeseal --namespace "$NAMESPACE" \
     --controller-namespace "$CONTROLLER_NAMESPACE" \
     --controller-name "$CONTROLLER_NAME" \
-    --format yaml < "$plaintext_file" > "$output_file"
+    --format yaml < "$plaintext_file" > "$tmp" || { rm -f "$tmp"; return 1; }
+  mv "$tmp" "$output_file"
   log "Sealed ${output_file}"
 }
 

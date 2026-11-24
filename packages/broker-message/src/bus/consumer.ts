@@ -19,7 +19,9 @@ import {
 import type { DeadStreams } from "./dead-streams";
 import {
 	classifyDeliveryError,
+	DlqReason,
 	ErrorActionType,
+	MAX_RETRIES,
 } from "./delivery-error-classifier";
 import { extractDeliveryParams } from "./delivery-metadata-extractor";
 import type { JournalEntry, JournalGroup } from "./journal.port";
@@ -37,6 +39,8 @@ const BATCH = 100;
 /** A blocking read ends after this long without entry, so the loop sees a stop. */
 const BLOCK_MS = 1000;
 const CLAIM_EVERY_MS = 2000;
+/** A consumer with nothing pending and silent this long is a dead replica: removed from the group. */
+const CONSUMER_IDLE_MS = 10 * 60_000;
 /** Between two reads of the backlog: a few Redis calls per topic, never per message. */
 const LAG_EVERY_MS = 15_000;
 
@@ -152,6 +156,19 @@ export class BusConsumer {
 					const claim = Date.now() - lastClaim >= CLAIM_EVERY_MS;
 					if (claim) {
 						lastClaim = Date.now();
+						// Housekeeping must not stop delivery (e.g. NOPERM before the ACL ships).
+						try {
+							await journal.pruneConsumers(
+								group,
+								this._consumer,
+								CONSUMER_IDLE_MS
+							);
+						} catch (err) {
+							getLogger().warn("Bus consumer prune failed", {
+								context: { topic: group.topic, service: group.service },
+								error: normalizeError(err),
+							});
+						}
 					}
 					const entries = claim
 						? await journal.claimDue(
@@ -207,6 +224,20 @@ export class BusConsumer {
 			if (typeof publisher !== "string") {
 				const reason =
 					"invalid envelope: metadata.publisher.serviceName missing";
+				const id = await deadStreams.deadLetter(
+					group,
+					entry.id,
+					entry.message,
+					reason,
+					entry.deliveries
+				);
+				MESSAGES_DLQ_TOTAL.inc({ topic: group.topic, reason });
+				onDeadLetter?.(group, entry.message, reason, id);
+				return;
+			}
+			// Only a crash gets here past the limit: the classifier below never saw those deliveries.
+			if (entry.deliveries > MAX_RETRIES) {
+				const reason = DlqReason.MaxRetriesExceeded;
 				const id = await deadStreams.deadLetter(
 					group,
 					entry.id,
