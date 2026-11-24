@@ -8,6 +8,7 @@ jest.mock("../../src/config/address-manager", () => ({
 	FIND_A_SERVICE: async () => ({ host: "scraper", port: 3000 }),
 }));
 
+import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import {
 	createHttpClientError,
 	createHttpClientTimeoutError,
@@ -53,7 +54,9 @@ it("prices all symbols with one call, dropping a candle older than the halt thre
 
 it("falls back to one call per symbol when financial-scraper N-1 answers 404", async () => {
 	get.mockReset();
-	get.mockRejectedValueOnce(createHttpClientError("HTTP 404", 404));
+	get.mockRejectedValueOnce(
+		createHttpClientError("HTTP 404", HTTP_STATUS.NOT_FOUND)
+	);
 	get.mockImplementation(async (url: string) => ({
 		rows: url.includes("BTCUSDT")
 			? [
@@ -76,7 +79,10 @@ it("falls back to one call per symbol when financial-scraper N-1 answers 404", a
 });
 
 it.each([
-	["a 500", createHttpClientError("HTTP 500", 500)],
+	[
+		"a 500",
+		createHttpClientError("HTTP 500", HTTP_STATUS.INTERNAL_SERVER_ERROR),
+	],
 	["a timeout", createHttpClientTimeoutError("timeout", 5_000)],
 ])("rethrows %s without falling back", async (_, error) => {
 	get.mockReset();
