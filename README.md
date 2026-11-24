@@ -39,7 +39,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 
 | Service                 | Port | Purpose                                                        |
 | ----------------------- | ---- | -------------------------------------------------------------- |
-| `discovery-server`      | 8443 | Service registry with TTL-based lease management + HMAC tokens |
+| `discovery-server`      | 8443 | Service registry with TTL-based lease management + HMAC tokens (retired in N+1, ADR-0072) |
 | `message-manager`       | 8444 | Topic-based pub/sub broker with DLQ routing                    |
 | `financial-scraper`     | 8445 | Market data (Binance) and public signal ingestion              |
 | `trader-trainer`        | 8446 | GA + DQN agent evolution engine                                |
@@ -63,7 +63,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 | `@trading-model/persistence` | Redis/Mongo connection managers, store adapters, key builders |
 | `@trading-model/http` | HTTP middleware (mTLS auth, response protocol), HTTP client, logging pipeline, secure HTTPS server factory, TLS watcher, bootstrap and shutdown, telemetry |
 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness |
-| `@trading-model/address-manager` | Service discovery client with health-checking and token rotation |
+| `@trading-model/address-manager` | Service DNS names (ADR-0072); registration with discovery-server until release N+1 |
 | `@trading-model/broker-message` | Inter-service messaging SDK with typed event subscriptions |
 
 ### Workload identity

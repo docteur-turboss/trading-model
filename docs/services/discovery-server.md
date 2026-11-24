@@ -1,5 +1,7 @@
 # discovery-server — Service Discovery
 
+> **Status:** release N: active, removed in release N+1 ([ADR-0072](../adr/0072-dns-routing-and-majors-served-by-services.md)).
+
 Centralised service instance registry with TTL-based lease management and HMAC-SHA256 token authentication.
 
 ## General Information
@@ -9,9 +11,9 @@ Centralised service instance registry with TTL-based lease management and HMAC-S
 | Service name     | `discovery-server`                     |
 | Port (host)      | `8443`                                  |
 | Port (container) | `3000`                                  |
-| Dependencies     | `@trading-model/primitives`, `@trading-model/contracts`, `@trading-model/common`, `@trading-model/persistence`, `@trading-model/crypto`, `@trading-model/http`, `@trading-model/http` |
+| Dependencies     | `@trading-model/primitives`, `@trading-model/contracts`, `@trading-model/common`, `@trading-model/persistence`, `@trading-model/crypto`, `@trading-model/http` |
 | TLS              | mTLS required (client certificate)      |
-| Storage          | In-memory with TTL-based lease eviction |
+| Storage          | Redis (`RedisInstanceStore`, ADR-0023) with TTL-based lease eviction |
 
 ## REST Endpoints
 
