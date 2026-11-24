@@ -181,8 +181,8 @@ describe("RedisMessageJournal blocking reads — real Redis", () => {
 		await journal.append(createMockMessage("m1"), [GROUP.service]);
 		await journal.append(createMockMessage("m2"), [GROUP.service]);
 		await journal.readNew(GROUP, "busy", 1);
-		await journal.readNew(GROUP, "dead", 1);
-		await journal.claimDue(GROUP, "dead", RETRY_NOW, 1);
+		const [done] = await journal.readNew(GROUP, "dead", 1);
+		await journal.ack(GROUP, done?.id as string);
 		await journal.pruneConsumers(GROUP, "me", 0);
 
 		const rows = (await replica().call(
