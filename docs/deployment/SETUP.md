@@ -24,132 +24,9 @@ git --version      # ≥ 2.40
 > backup metrics ([BACKUP_DR.md](BACKUP_DR.md#known-limits)). Do not store real
 > data in it. Real data belongs in the Kubernetes deployment.
 
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/trading-model/trading-model.git
-cd trading-model
-```
-
-### 2. Install dependencies
-
-```bash
-bun install --frozen-lockfile
-```
-
-`bun install --frozen-lockfile` uses the lockfile (`bun.lock`) for a deterministic and reproducible installation.
-
-### 3. Build shared packages
-
-```bash
-bun run build
-```
-
-Compiles the monorepo packages in this order (topological dependency chain):
-
-1. `primitives` (`packages/primitives`)
-2. `contracts` (`packages/contracts`)
-3. `reliability` (`packages/reliability`)
-4. `common` (`packages/common`)
-5. `model-runtime` (`packages/model-runtime`)
-6. `persistence` (`packages/persistence`)
-7. `http` (`packages/http`)
-8. `crypto` (`packages/crypto`)
-9. `address-manager` (`packages/address-manager`)
-10. `broker-message` (`packages/broker-message`)
-
-Packages are used by the microservices as `@trading-model/*` workspace dependencies.
-
-### 4. mTLS via SPIRE (automatic)
-
-No certificate generation is required. mTLS identities are issued by SPIRE
-(ADR-0011): `spiffe-helper` sidecars write each service SVID into
-`/run/spire/svid` (`svid.pem`, `svid_key.pem`, `bundle.pem`), which the services
-use via `TLS_KEY_PATH` / `TLS_CERT_PATH` / `TLS_CA_PATH`. There is no `./certs`
-bundle to create or mount.
-
-> **Never commit certificates.** SVIDs live in compose/K8s volumes and are
-> never checked in.
-
-### 5. Configure environment
-
-```bash
-cp .env.example .env
-```
-
-Before the first `docker compose up`, replace every `change-me` / `changeme` value of `.env` with your own secret (`openssl rand -hex 32`): `.env.example` lists every required variable. The Compose stack runs with `NODE_ENV=production`, which refuses the example values of some secrets.
-
-Do not run this stack with real data. For a real deployment, use the [Kubernetes deployment guide](KUBERNETES.md) and set every secret before startup.
-
-### 6. Build Docker images
-
-```bash
-docker compose build
-```
-
-Or a single service:
-
-```bash
-docker compose build message-manager
-```
-
-### 7. Start services
-
-```bash
-docker compose up -d
-```
-
-First run downloads database images (MongoDB 7, MySQL 8) and builds service images — expect 1–3 minutes.
-
-### 8. Verify
-
-```bash
-docker compose ps
-```
-
-All containers should show `Up` or `healthy`:
-
-```
-trading-mongo      Up (healthy)
-trading-mysql      Up (healthy)
-trading-message    Up (healthy)
-trading-scraper    Up (healthy)
-trading-trainer    Up (healthy)
-trading-gateway    Up (healthy)
-trading-audit      Up (healthy)
-trading-edge       Up (healthy)
-```
-
-```bash
-# Services only accept SPIFFE mTLS clients (ADR-0011): probe them from inside
-# their container, with its SVID (what the compose healthcheck does)
-for c in trading-message trading-scraper trading-trainer \
-         trading-gateway trading-audit trading-dlq; do
-  printf '%s: ' "$c"
-  docker exec "$c" node -e "$SVID_GET" https://localhost:3000/ping; echo
-done
-curl -s http://localhost:8449/ping       # edge-proxy (HTTP entry to the gateway under /v1 and /v2)
-
-# Call a public route (through edge-proxy → gateway)
-curl -s http://localhost:8449/v1/trader-trainer/training-status \
-  -H "x-api-key: <AUTH_TOKENS value>" | jq .
-
-# Real-time logs
-docker compose logs -f
-```
-
-### 9. Run tests
-
-```bash
-bun run test
-```
-
-### 10. Stop
-
-```bash
-docker compose down       # stop, keep database data
-docker compose down -v    # stop and delete database data
-```
+Follow the [quickstart](../getting-started/quickstart.md): clone, install, `.env`
+(every required secret is listed in `.env.example`), start, verify. mTLS
+identities come from SPIRE (ADR-0011): no certificate to create.
 
 ---
 
@@ -249,18 +126,7 @@ sudo swapon /swapfile
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ```
 
-#### 2.4 Firewall (UFW)
-
-```bash
-sudo ufw allow OpenSSH
-sudo ufw allow 8444/tcp  # Message Manager
-sudo ufw allow 8445/tcp  # Financial Scraper
-sudo ufw allow 8446/tcp  # Trader Trainer
-sudo ufw enable
-sudo ufw status verbose
-```
-
-#### 2.5 Timezone
+#### 2.4 Timezone
 
 ```bash
 sudo timedatectl set-timezone Europe/Paris
@@ -270,7 +136,7 @@ sudo timedatectl set-timezone Europe/Paris
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y ca-certificates curl gnupg git openssl jq bc ufw htop net-tools
+sudo apt install -y ca-certificates curl gnupg git openssl jq bc htop net-tools
 ```
 
 #### Docker
@@ -326,11 +192,10 @@ certificate generation or `./certs` bundle is required.
 
 ```bash
 cd ~
-git clone https://github.com/trading-model/trading-model.git
+git clone https://github.com/docteur-turboss/trading-model.git
 cd trading-model
 
-# Install bun dependencies (try clean install, fall back to install)
-bun install --frozen-lockfile 2>/dev/null || { echo "bun install --frozen-lockfile failed — falling back to bun install"; bun install; }
+bun install --frozen-lockfile
 
 # TypeScript build (only needed for local image builds)
 bun run build
@@ -342,19 +207,7 @@ bun run build
 cp .env.example .env
 ```
 
-Customize per server role:
-
-| Variable              | Description                                   |
-| --------------------- | --------------------------------------------- |
-| `NODE_ENV`            | `production` (or `development` for debugging) |
-| `MESSAGE_PORT`        | 8444 — Message Manager                        |
-| `SCRAPER_PORT`        | 8445 — Financial Scraper                      |
-| `TRAINER_PORT`        | 8446 — Trader Trainer                         |
-| `MYSQL_ROOT_PASSWORD` | MySQL root password (change it!)              |
-| `GRAFANA_PASSWORD`    | Grafana admin password (required)             |
-| `MYSQL_EXPORTER_PASSWORD` | MySQL exporter user password (required)   |
-| `IMAGE_TAG`           | `latest` or a specific version tag            |
-| `LOG_LEVEL`           | `info` (or `debug` for diagnostics)           |
+Set every required secret as described in [quickstart Step 0](../getting-started/quickstart.md#step-0-create-env) (`.env.example` lists them all).
 
 > Do not expose database ports (27017, 3306) on the public interface.
 
@@ -426,7 +279,7 @@ curl -s http://localhost:8449/v1/trader-trainer/training-status \
 sudo apt update && sudo apt upgrade -y
 
 # ── Packages ──────────────────────────────────────────
-sudo apt install -y ca-certificates curl gnupg git openssl jq bc ufw
+sudo apt install -y ca-certificates curl gnupg git openssl jq bc
 
 # ── Docker ────────────────────────────────────────────
 curl -fsSL https://get.docker.com | sudo bash
@@ -434,7 +287,7 @@ sudo usermod -aG docker $USER
 # (reconnect)
 
 # ── Project ───────────────────────────────────────────
-git clone https://github.com/trading-model/trading-model.git
+git clone https://github.com/docteur-turboss/trading-model.git
 cd trading-model
 bun install --frozen-lockfile && bun run build
 cp .env.example .env
@@ -458,7 +311,7 @@ On a Compose host, only Docker is required:
 
 ```bash
 # No Bun, no build
-git clone https://github.com/trading-model/trading-model.git
+git clone https://github.com/docteur-turboss/trading-model.git
 cd trading-model
 cp .env.example .env
 IMAGE_TAG=<version> docker compose pull

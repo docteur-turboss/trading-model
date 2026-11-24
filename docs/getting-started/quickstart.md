@@ -42,7 +42,7 @@ cp .env.example .env
 
 Edit `.env` and replace every `change-me` / `changeme` value of `.env.example` with your own secret (`openssl rand -hex 32`); `.env.example` lists every required variable. The `GATEWAY_AUTH_TOKENS` key is used in Step 3. A Mongo volume created before authentication needs `docker compose down -v`.
 
-> **Development only.** The Docker Compose stack has no scheduled backup: do not store real data in it. See [SETUP.md](../deployment/SETUP.md#local-development-setup) for the full local setup.
+> **Development only.** The Docker Compose stack has no scheduled backup: do not store real data in it.
 
 ## Step 1: Start Core Infrastructure
 

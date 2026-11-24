@@ -1,5 +1,7 @@
 # DLQ Service
 
+> **Status:** release N: active, removed in release N+1 ([ADR-0073](../adr/0073-message-bus-as-a-redis-streams-library.md)).
+
 **Package:** `dlq-service`
 **Path:** `services/dlq-service/`
 

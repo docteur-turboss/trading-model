@@ -10,11 +10,13 @@ Four views of the system, each node checkable in `docker-compose.yml`, `deploy/k
 flowchart LR
   client["API client<br/>(API key, no frontend: ADR-0018)"]
   binance["Binance<br/>(market data REST)"]
+  sig["Public signal sources<br/>(signal-registry.json: ADR-0036/0075/0080)"]
   s3["S3 buckets, Object Lock<br/>(backups, audit anchors)"]
   ops["Operator<br/>(Grafana, Alertmanager receivers)"]
   system["trading-model<br/>services + data stores + SPIRE + observability"]
   client -->|HTTPS /v1| system
   system -->|scrape candles| binance
+  system -->|"collect signals"| sig
   system -->|age-encrypted backups, audit anchors| s3
   system -->|alerts, dashboards| ops
 ```
@@ -35,6 +37,7 @@ flowchart TB
     dlq["dlq-service"]
     me["model-evaluator"]
     re["risk-execution<br/>(paper broker, kill switch)"]
+    dc["decision-consumer<br/>(ADR-0087)"]
   end
 
   gw -->|"PUBLIC_ROUTES only"| al
@@ -48,11 +51,15 @@ flowchart TB
   me -->|"weights"| tt
   me -->|"candles for replay"| fs
   re -->|"model admission"| tt
+  dc -->|"manifest of promoted models"| tt
+  dc -->|"candles"| fs
+  dc -->|"POST /intents"| re
   re -->|"risk.* events"| mm
   re --> rpvc[("risk-execution volume<br/>state, paper ledger")]
   mm -->|"dead letter to Redis dead stream"| redis
 
   binance["Binance"] --> fs
+  sig["Public signal sources<br/>(signal-registry.json)"] --> fs
   fs --> mysql[("MySQL<br/>market data")]
   al --> mongoA[("MongoDB audit<br/>mongo-audit in K8s")]
   dlq --> mongoD[("MongoDB dlq<br/>mongo-dlq in K8s")]

@@ -22,20 +22,13 @@ are reached under the service prefix `financial-scraper` of the gateway API (v2 
 
 A client of 2.x must migrate: see [Breaking changes in 3.0.0](#breaking-changes-in-300-gateway-api-v2).
 
-| Route                                    | Returns                                           | Parameter                                   |
-| ---------------------------------------- | ------------------------------------------------- | ------------------------------------------- |
-| `/v2/trade/symbols/:symbol`                 | trades of a symbol                                | e.g. `BTCUSDT`                              |
-| `/v2/trade/timestamp/:timestamp`            | trades at **exactly** this instant                | ISO date or date-time                       |
-| `/v2/ticker/symbols/:symbol`                | 24h tickers of a symbol                           | symbol                                      |
-| `/v2/ticker/timestamp/:timestamp`           | 24h tickers opened at **exactly** this instant    | ISO date or date-time                       |
-| `/v2/candles/symbols/:symbol`               | candles of a symbol                               | symbol                                      |
-| `/v2/candles/timestamp/:timestamp`          | candles opened **after** this instant             | ISO date or date-time                       |
+The routes, parameters and answers are listed in the generated [internal OpenAPI](openapi/internal/financial-scraper.yaml).
 
 Every answer is bounded (ADR-0054). Query parameters:
 
 | Parameter | Routes | Meaning |
 | --------- | ------ | ------- |
-| `limit` | all 9 | rows per answer, 1 to 5000, default 500 |
+| `limit` | trades, tickers, candles | rows per answer, 1 to 5000, default 500 |
 | `after` | trades, tickers, candles | `nextCursor` of the previous page (opaque) |
 | `from`, `to` | trades, tickers, candles | optional window on `timestamp`, ISO dates, `[from, to)` |
 

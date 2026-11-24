@@ -53,7 +53,7 @@ graph TD
 
 - **Owner:** `financial-scraper`
 - **Core entities:** Candle, Trade, Ticker, OrderBook
-- **External dependency:** Binance API
+- **External dependencies:** Binance API (market data); the public signal sources of `services/financial-scraper/src/config/signal-registry.json` (ADR-0036, ADR-0075, ADR-0080)
 - **Publishes:** nothing since ADR-0078: the trainer reads candles through the scraper API.
 - **Signals (ADR-0036):** collected and served at `GET /financial-scraper/signals/assets/:assetId`; read by trader-trainer, and fed to the network only when `FEATURE_SIGNAL_INPUTS` is on (default off, ADR-0081, input mask ADR-0082).
 
