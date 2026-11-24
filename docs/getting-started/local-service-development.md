@@ -1,6 +1,6 @@
 # Local service development
 
-How to change one service and see it run. Supported method: **rebuild that service's container in the Compose stack**. Running a service outside a container (`bun run dev`) is **not supported**, for any service (`discovery-server`, `message-manager`, `financial-scraper`, `trader-trainer`, `api-gateway`, `audit-logger`, `dlq-service`, `model-evaluator`): they all share the same `dev` script and the same TLS requirement.
+How to change one service and see it run. Supported method: **rebuild that service's container in the Compose stack**. Running a service outside a container (`bun run dev`) is **not supported**, for any service (listed in [services/README.md](../services/README.md)): they all share the same `dev` script and the same TLS requirement.
 
 ## Why `bun run dev` does not work alone
 
@@ -32,17 +32,7 @@ docker compose -p tm ps <service>
 
 The SVID volume survives a rebuild, so the service keeps its identity. If the image is unchanged, Compose leaves the container running.
 
-Dependencies started by step 1 besides SPIRE (`spire-server`, `spire-bootstrap`, `spire-agent`) and the service's own `spiffe-helper-<x>` sidecar (from `depends_on` in `docker-compose.yml`; checked with `docker compose up --dry-run`):
-
-| Service | Also started |
-| --- | --- |
-| `discovery-server` | `redis` |
-| `api-gateway` | `redis`, `discovery-server` |
-| `message-manager` | `redis`, `discovery-server` |
-| `trader-trainer` | `redis`, `discovery-server`, `message-manager` |
-| `financial-scraper` | `redis`, `mysql`, `migrate` (one-shot), `discovery-server`, `message-manager` |
-| `audit-logger` | `redis`, `mongo`, `discovery-server` |
-| `dlq-service` | `redis`, `mongo`, `discovery-server` |
+Step 1 also starts SPIRE, the service's own `spiffe-helper-<x>` sidecar and its `depends_on` chain from `docker-compose.yml` (preview: `docker compose up --dry-run <service>`).
 
 Use `--no-deps` only after step 1 has run once; with it Compose does not start missing dependencies.
 

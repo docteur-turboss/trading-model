@@ -131,14 +131,15 @@ backup_run() {
 	TIMESTAMP="$ts"
 	OUTPUTS=()
 	MANIFEST_ENTRIES=()
-	mkdir -p "$BACKUP_DIR/mongodb/$ts" "$BACKUP_DIR/mysql" "$BACKUP_DIR/checkpoints" "$BACKUP_DIR/spire"
-	IFS=',' read -ra parts <<<"${3:-mongodb,mongodb-audit,mysql,checkpoints,spire}"
+	mkdir -p "$BACKUP_DIR/mongodb/$ts" "$BACKUP_DIR/mysql" "$BACKUP_DIR/checkpoints" "$BACKUP_DIR/spire" "$BACKUP_DIR/risk"
+	IFS=',' read -ra parts <<<"${3:-mongodb,mongodb-audit,mysql,checkpoints,spire,risk}"
 	for part in "${parts[@]}"; do
 		case "$part" in
 		mongodb | mongodb-audit) write_dump "$part" "$BACKUP_DIR/mongodb/$ts/$part.archive.gz.age" plain "$part $ts" ;;
 		mysql) write_dump mysql "$BACKUP_DIR/mysql/financial_scraper_$ts.sql.gz.age" plain "mysql $ts" ;;
 		checkpoints) write_dump checkpoints "$BACKUP_DIR/checkpoints/checkpoints_$ts.tar.gz.age" plain "checkpoints $ts" ;;
 		spire) write_dump spire "$BACKUP_DIR/spire/keys_$ts.json.age" plain "{\"spire\":\"$ts\"}" ;;
+		risk) write_dump risk "$BACKUP_DIR/risk/risk_$ts.tar.gz.age" plain "risk $ts" ;;
 		esac
 	done
 	write_manifest 2>/dev/null
@@ -166,7 +167,7 @@ verify() {
 	pass "$name"
 }
 verify "operator key decrypts the newest run" 0 "Run: 2026-11-02_020000 (2026-11-02 02:00:00 UTC)" --identity "$WORK/operator.txt" --dir "$RUNS"
-verify "escrow key decrypts the newest run" 0 "Result: PASS (5 component(s) decrypted)" --identity "$WORK/escrow.txt" --dir "$RUNS"
+verify "escrow key decrypts the newest run" 0 "Result: PASS (6 component(s) decrypted)" --identity "$WORK/escrow.txt" --dir "$RUNS"
 verify "the report names the key" 0 "Key: ${ESCROW}" --identity "$WORK/escrow.txt" --dir "$RUNS"
 verify "a foreign key fails" 1 "does not decrypt with ${FOREIGN}" --identity "$WORK/foreign.txt" --dir "$RUNS"
 verify "--timestamp verifies an older run" 0 "Run: 2026-11-01_020000" --identity "$WORK/escrow.txt" --dir "$RUNS" --timestamp 2026-11-01_020000
@@ -185,8 +186,8 @@ verify "the other components are still reported" 1 "OK   spire" --identity "$WOR
 
 # A component whose dump failed (absent from the manifest).
 PARTIAL="$WORK/partial"
-backup_run 2026-11-04_020000 "$PARTIAL" mongodb,mongodb-audit,mysql,spire
-verify "a component absent from the run fails" 1 "FAIL checkpoints: absent from the run manifest" --identity "$WORK/escrow.txt" --dir "$PARTIAL"
+backup_run 2026-11-04_020000 "$PARTIAL" mongodb,mongodb-audit,mysql,checkpoints,spire
+verify "a component absent from the run fails" 1 "FAIL risk: absent from the run manifest" --identity "$WORK/escrow.txt" --dir "$PARTIAL"
 verify "--components limits the check" 0 "Result: PASS (2 component(s) decrypted)" --identity "$WORK/escrow.txt" --dir "$PARTIAL" --components mongodb-audit,mysql
 
 # A decrypted file that differs from the manifest (replaced after the run).
