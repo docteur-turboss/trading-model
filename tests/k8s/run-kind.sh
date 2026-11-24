@@ -1262,7 +1262,7 @@ inspector() {
 # risk-execution admin route `$1` (POST body `$2` when given), from its own pod
 # (docs/operations/runbooks/runbook-risk-execution.md).
 risk_admin() {
-	$K -n "$NS" exec -i deployment/risk-execution -c risk-execution -- node -e 'const f=require("fs"),d="/run/spire/svid/",[m,u]=process.argv.slice(1);const q=require("https").request(u,{method:m,headers:{"content-type":"application/json"},cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>r.pipe(process.stdout));q.on("error",()=>process.exit(1));process.stdin.pipe(q)' "$([ -n "${2:-}" ] && echo POST || echo GET)" "https://localhost:3000/admin/$1" <<<"${2:-}"
+	$K -n "$NS" exec -i deployment/risk-execution -c risk-execution -- node -e 'const f=require("fs"),d="/run/spire/svid/",[m,u]=process.argv.slice(1);const q=require("https").request(u,{method:m,headers:{"content-type":"application/json"},cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>r.pipe(process.stdout));q.on("error",()=>process.exit(1));m=="POST"?process.stdin.pipe(q):q.end()' "$([ -n "${2:-}" ] && echo POST || echo GET)" "https://localhost:3000/admin/$1" <<<"${2:-}"
 }
 
 # The real audit trail: tests/backup/audit-chain.js on the `audit` database
