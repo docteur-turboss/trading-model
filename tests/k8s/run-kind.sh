@@ -14,6 +14,9 @@
 # trading-model-ci), KEEP_CLUSTER=1 (`all` keeps the cluster afterwards),
 # KIND_PREVIOUS_REF (release N-1, default HEAD^1: the base branch of a PR merge
 # commit, the commit before on a push; locally e.g. origin/development),
+# KIND_PREVIOUS_REGISTRY (set: N-1 is the release tag KIND_PREVIOUS_REF, its
+# signed images pulled from this registry instead of built; needs cosign; CI
+# sets both to the last stable tag),
 # KIND_OVERLAY (overlay of both releases, default staging; staging-local keeps
 # the data StatefulSets partitioned, issue #1066, e.g. with KIND_PREVIOUS_REF=v3.1.0-rc.1).
 # Needs docker, git, kubectl, node, jq.
@@ -35,6 +38,7 @@ CLUSTER="${KIND_CLUSTER:-trading-model-ci}"
 NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
 CERT_MANAGER="v1.21.3" # same as deploy/staging-local/bootstrap.sh
+CURL_IMAGE="curlimages/curl:8.11.1@sha256:c1fe1679c34d9784c1b0d1e5f62ac0a79fca01fb6377cdd33e90473c6f9f9a69" # multi-arch index, as realip.test.sh
 API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write:<secret> injected by ci-render.mjs
 SERVICES="$(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$ROOT/deploy/k8s/services/kustomization.yaml" | grep -vx edge-proxy | tr '\n' ' ')" # edge-proxy is not a first-party image
 # First-party images: the IMAGES of deploy.yml.
@@ -167,11 +171,51 @@ node_digests() {
 	done
 }
 
+# Pulls the release images of tag $PREVIOUS_REF from $KIND_PREVIOUS_REGISTRY by
+# digest, each verified as signed by release.yml (as deploy.yml does), as
+# ghcr.io/trading-model/<image>:previous. An image the tag predates (decided on
+# its checkout, never on a registry error) gets a stand-in built from this
+# checkout, as build_images does: N-1 manifests never deploy it.
+pull_previous_images() {
+	local img ref digest repo="${GITHUB_REPOSITORY:-docteur-turboss/trading-model}" missing=""
+	local released=" $(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$PREVIOUS/deploy/k8s/services/kustomization.yaml" | tr '\n' ' ') spire-tools backup-tools "
+	[ ! -f "$PREVIOUS/deploy/migrate/Dockerfile" ] || released="${released}db-migrate "
+	for img in $IMAGES; do
+		[[ "$released" == *" $img "* ]] || {
+			missing="$missing $img"
+			continue
+		}
+		ref="$KIND_PREVIOUS_REGISTRY/$img"
+		digest="$(docker buildx imagetools inspect "$ref:${PREVIOUS_REF#v}" --format '{{.Manifest.Digest}}')"
+		cosign verify "$ref@$digest" --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+			--certificate-identity-regexp "^https://github\.com/${repo}/\.github/workflows/release\.yml@refs/tags/v" >/dev/null || {
+			log "$ref@$digest: no valid release.yml signature"
+			return 1
+		}
+		retry 3 docker pull -q "$ref@$digest" >/dev/null
+		docker tag "$ref@$digest" "ghcr.io/trading-model/$img:previous"
+	done
+	[ -n "$missing" ] || return 0
+	log "not in $PREVIOUS_REF, unsigned stand-in built from this checkout:$missing"
+	if [[ "$missing" == *" db-migrate"* ]]; then
+		retry 3 docker build -q -t ghcr.io/trading-model/db-migrate:previous -f "$ROOT/deploy/migrate/Dockerfile" "$ROOT"
+		missing="${missing/ db-migrate/}"
+	fi
+	export IMAGE_TAG=previous
+	# shellcheck disable=SC2086
+	[ -z "$missing" ] || retry 3 docker compose -f "$ROOT/docker-compose.yml" -f "$ROOT/docker-compose.build.yml" build $missing
+}
+
 images() {
 	local started=$SECONDS img
 	previous_checkout
-	log "building the images of release N-1"
-	build_images "$PREVIOUS" previous
+	if [ -n "${KIND_PREVIOUS_REGISTRY:-}" ]; then
+		log "pulling the signed images of release N-1 from $KIND_PREVIOUS_REGISTRY"
+		pull_previous_images
+	else
+		log "building the images of release N-1"
+		build_images "$PREVIOUS" previous
+	fi
 	# Same sources build the same image: a label keeps N-1 digests apart from N.
 	for img in $IMAGES; do
 		echo "FROM ghcr.io/trading-model/$img:previous" |
@@ -329,7 +373,7 @@ previous_mongo_root() {
 	log "release N-1 cannot create the MongoDB root user (#924): created by the harness"
 	for label in mongodb mongodb-audit; do
 		wait_for 300 "mongo_primary $label"
-		$K -n "$NS" exec "$(mongo_primary "$label")" -- sh -c 'mongosh --quiet --eval "
+		$K -n "$NS" exec "$(mongo_primary "$label")" -- sh -c 'mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt --eval "
 			try {
 				db.getSiblingDB(\"admin\").createUser({ user: \"root\", pwd: process.env.MONGO_ROOT_PASSWORD, roles: [{ role: \"root\", db: \"admin\" }] });
 			} catch (e) {
@@ -790,7 +834,7 @@ verify_network() {
 	log "  training status: $(curl -s -H "x-api-key: $API_KEY" "$url")"
 
 	# Release N only (ADR-0072): N-1 gateways still read the registry. Removed in N+1.
-	local registry="curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://discovery-server:3000/services"
+	local registry="curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://discovery-server:3000/v1/services"
 	wait_for 120 "$K -n $NS exec deployment/financial-scraper -c financial-scraper -- $registry | grep -q financial-scraper"
 	log "  registered: $($K -n "$NS" exec deployment/financial-scraper -c financial-scraper -- $registry)"
 }
@@ -911,7 +955,7 @@ verify_egress() {
 	local url="https://example.com"
 	log "internet egress: refused to the collector, allowed without policy"
 	retry 3 $K run egress-control -n default --rm -i --restart=Never --quiet \
-		--image=curlimages/curl:8.11.1 -- curl -s -o /dev/null -m 10 "$url" || {
+		--image="$CURL_IMAGE" -- curl -s -o /dev/null -m 10 "$url" || {
 		log "  the control pod has no internet: the check proves nothing"
 		return 1
 	}
@@ -927,7 +971,8 @@ verify_egress() {
 mongo_ping() {
 	local img uri
 	img="$(grep -m1 -oE 'mongo(:[^@ ]+)?@sha256:[0-9a-f]+' "$ROOT/deploy/k8s/infra/mongo-audit.yaml")"
-	uri="mongodb://$3:27017/?directConnection=true&serverSelectionTimeoutMS=5000&connectTimeoutMS=5000"
+	# Probe only checks reachability under NetworkPolicy; the CA is not mounted in this pod.
+	uri="mongodb://$3:27017/?directConnection=true&tls=true&tlsAllowInvalidCertificates=true&serverSelectionTimeoutMS=5000&connectTimeoutMS=5000"
 	$K -n "$NS" run "$1" --rm -i --restart=Never --quiet --image="$img" ${2:+--labels="$2"} --overrides="{
 		\"apiVersion\": \"v1\",
 		\"spec\": {
@@ -1214,7 +1259,7 @@ verify_release() {
 mongo_primary() {
 	local pod
 	for pod in $($K -n "$NS" get pods -l "app.kubernetes.io/component=$1" -o jsonpath='{.items[*].metadata.name}'); do
-		if [ "$($K -n "$NS" exec "$pod" -- mongosh --quiet --eval 'db.hello().isWritablePrimary' 2>/dev/null)" = "true" ]; then
+		if [ "$($K -n "$NS" exec "$pod" -- mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt --eval 'db.hello().isWritablePrimary' 2>/dev/null)" = "true" ]; then
 			echo "$pod"
 			return 0
 		fi
@@ -1224,7 +1269,7 @@ mongo_primary() {
 
 mongo_eval() {
 	# As `root` (ADR-0067); the password is in the pod's env.
-	$K -n "$NS" exec "$(mongo_primary "$1")" -- sh -c 'mongosh --quiet -u root -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval "$1"' sh "$2"
+	$K -n "$NS" exec "$(mongo_primary "$1")" -- sh -c 'mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt -u root -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval "$1"' sh "$2"
 }
 
 mysql_root() {
@@ -1250,10 +1295,18 @@ inspector() {
 	$K -n "$NS" exec backup-inspector -- sh -c "$1"
 }
 
-# risk-execution admin route `$1` (POST body `$2` when given), from its own pod
-# (docs/operations/runbooks/runbook-risk-execution.md).
+# risk-execution admin route `$1` as scripts/risk-admin.sh: `status` from its own pod (service SVID),
+# `kill-switch[/rearm]` with body `$2` through edge-proxy and the risk:admin key, actor = key name (ADR-0059).
 risk_admin() {
-	$K -n "$NS" exec deployment/risk-execution -c risk-execution -- sh -c 		"curl -sfk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem -H content-type:application/json https://localhost:3000/admin/$1${2:+ -d '$2'}"
+	if [ "$1" = status ]; then
+		$K -n "$NS" exec deployment/risk-execution -c risk-execution -- sh -c 			"curl -sfk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/admin/status"
+		return
+	fi
+	$K -n "$NS" port-forward svc/edge-proxy 18452:8080 >/dev/null 2>&1 &
+	local forward=$!
+	trap "kill $forward 2>/dev/null || true; trap - RETURN" RETURN
+	wait_for 30 'curl -s -o /dev/null http://localhost:18452/'
+	curl -sf -H "x-api-key: $API_KEY" -H content-type:application/json -d "${2:-}" "http://localhost:18452/v1/risk-execution/admin/$1"
 }
 
 # The real audit trail: tests/backup/audit-chain.js on the `audit` database
@@ -1353,8 +1406,12 @@ verify_backup() {
 	mysql_root "INSERT INTO financial_scraper.market_tickers (symbol, market, source, open, high, low, last, volume, timestamp, close_time) VALUES ('DRILLEXP', 'spot', 'drill', 1, 1, 1, 1, 1, NOW() - INTERVAL 2000 DAY, NOW() - INTERVAL 2000 DAY);"
 	local bundle_before
 	bundle_before="$(spire_bundle)"
+	# risk:admin only now: in the Secret from the N-1 deploy on, the upgrade under probe dropped requests (N-1 refuses the unknown scope).
+	$K -n "$NS" patch secret trading-model-secrets -p "{\"stringData\":{\"AUTH_TOKENS\":\"dev:read+dlq:write+risk:admin:$API_KEY\"}}" >/dev/null
+	$K -n "$NS" rollout restart deployment/api-gateway >/dev/null
+	$K -n "$NS" rollout status deployment/api-gateway --timeout=240s >/dev/null
 	# Engaged before the backup, re-armed after it: the restore must bring it back (issue #1933).
-	risk_admin kill-switch '{"scope":"symbol","symbol":"BTCUSDT","reason":"restore_drill","actor":"drill"}' >/dev/null
+	risk_admin kill-switch '{"scope":"symbol","symbol":"BTCUSDT","reason":"restore_drill"}' >/dev/null
 
 	log "restore drill: recording the real audit trail and dead letters"
 	audit_grows count 0
@@ -1426,7 +1483,7 @@ verify_backup() {
 		return 1
 	}
 	log "  every file is age-encrypted, $offsite copied off-site, run manifest written"
-	risk_admin kill-switch/rearm '{"scope":"symbol","symbol":"BTCUSDT","reason":"after the backup","actor":"drill"}' >/dev/null
+	risk_admin kill-switch/rearm '{"scope":"symbol","symbol":"BTCUSDT","reason":"after the backup"}' >/dev/null
 
 	log "point-in-time: writes after the daily dump (markers, audit events, a dead letter)"
 	local audit_dumped
@@ -1615,7 +1672,7 @@ verify_backup() {
 			return 1
 		}
 		# The dump holds drill-old: the restore must keep the Secret-era password (issue #1050).
-		$K -n "$NS" exec "$(mongo_primary "$label")" -- mongosh --quiet -u drill -p drill-new --authenticationDatabase admin \
+		$K -n "$NS" exec "$(mongo_primary "$label")" -- mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt -u drill -p drill-new --authenticationDatabase admin \
 			--eval "db.runCommand({connectionStatus: 1}).authInfo.authenticatedUsers.length" | grep -qx 1 || {
 			log "MongoDB $label: the user changed after the dump no longer authenticates with its current password"
 			return 1
@@ -1812,7 +1869,7 @@ dump() {
 	for pod in mongo-audit-0 mongo-dlq-0; do
 		echo "===== $pod"
 		$K -n "$NS" logs "$pod" -c mongodb --tail=40 2>&1 | cut -c1-300 || true
-		$K -n "$NS" exec "$pod" -c mongodb -- mongosh --quiet --eval 'JSON.stringify(rs.status())' 2>&1 | cut -c1-600 || true
+		$K -n "$NS" exec "$pod" -c mongodb -- mongosh --quiet --tls --tlsCAFile /keyfile/ca.crt --eval 'JSON.stringify(rs.status())' 2>&1 | cut -c1-600 || true
 	done
 	echo "===== loki-0 (loki), promtail warnings, loki labels"
 	$K -n "$NS" logs loki-0 -c loki --tail=200 2>&1 | cut -c1-300 || true

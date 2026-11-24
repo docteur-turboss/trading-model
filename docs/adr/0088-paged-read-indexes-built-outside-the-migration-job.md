@@ -21,5 +21,6 @@ The paged reads (`pagedSelect`) run `WHERE symbol = ? ORDER BY timestamp, id LIM
 
 - Schema is not fully described by the migrations: the five indexes exist after `index-build`. A fresh database has the old `idx_*_symbol` until it runs; `migrate.mjs down` of the baseline needs no change (it drops the tables).
 - A failed build is visible as a failed Job `db-index-build` (kept 10 min by `ttlSecondsAfterFinished`); no alert covers it yet.
+- The ALTER takes a metadata lock at its start and end; behind a long transaction (the nightly `mysqldump --single-transaction`) it would queue every INSERT and SELECT on the table for the server's `lock_wait_timeout` (1 year). `index-build` sets 5 s on its session and, on error 1205, logs, pauses 10 s and retries (60 attempts at most): writers wait 5 s at worst (issue #2497).
 - Future long builds add a row to `PAGED_READ_INDEXES` or a sibling list, not a migration.
 - The build duration on 10 M rows is not measured in CI (kind has a few rows): measure on staging-local before the release.

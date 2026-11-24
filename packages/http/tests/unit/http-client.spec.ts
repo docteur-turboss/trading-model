@@ -14,7 +14,11 @@ import {
 	URLString,
 } from "@trading-model/primitives/primitives";
 import { z } from "zod";
-import { circuitBreakerRejectionsTotal } from "../../src/outbound-metrics";
+import * as tlsLoader from "../../src/http-tls-loader";
+import {
+	circuitBreakerRejectionsTotal,
+	outboundRequestsTotal,
+} from "../../src/outbound-metrics";
 
 jest.mock("https");
 jest.mock("fs", () => ({
@@ -104,7 +108,7 @@ describe("HttpClient", () => {
 	});
 
 	describe("constructor", () => {
-		it("should not read TLS files eagerly when tlsConfig is provided", () => {
+		it("should read TLS files synchronously, never with fs.promises", () => {
 			const tlsClient = new HttpClient({
 				caPath: "/path/to/ca.pem" as FilePath,
 				certPath: "/path/to/cert.pem" as FilePath,
@@ -225,10 +229,17 @@ describe("HttpClient", () => {
 		});
 
 		it("should reject on request error", async () => {
-			const promise = client.get(URLString.of("https://example.com/api"));
+			const inc = jest.spyOn(outboundRequestsTotal, "inc");
+			const promise = client.get(URLString.of("https://example.com/api"), {
+				retryCount: 0 as PositiveInt,
+			});
 			errorHandler!(new Error("connection failed"));
 
 			await expect(promise).rejects.toThrow("connection failed");
+			expect(inc).toHaveBeenCalledWith(
+				expect.objectContaining({ status: "error" })
+			);
+			inc.mockRestore();
 		});
 
 		it("should reject on timeout", async () => {
@@ -243,6 +254,7 @@ describe("HttpClient", () => {
 			await expect(promise).rejects.toMatchObject({
 				name: "HttpClientTimeoutError",
 			});
+			expect(mockReq.destroy).toHaveBeenCalled();
 		});
 
 		it("should reject on JSON parse error", async () => {
@@ -488,6 +500,34 @@ describe("HttpClient", () => {
 			await promise;
 
 			expect(fs.readFileSync).not.toHaveBeenCalled();
+		});
+
+		it("should pass the rotated SVID to the next request", async () => {
+			const tlsClient = new HttpClient({
+				certPath: "/etc/cert.pem" as FilePath,
+				keyPath: "/etc/key.pem" as FilePath,
+			});
+			const load = jest
+				.spyOn(tlsLoader, "loadTlsPemBundleSync")
+				.mockReturnValueOnce({ certPem: "cert-1", keyPem: "key-1" } as never)
+				.mockReturnValueOnce({ certPem: "cert-2", keyPem: "key-2" } as never);
+			const url = URLString.of("https://example.com/api");
+
+			const first = tlsClient.get(url);
+			expect(lastRequestOptions).toMatchObject({
+				cert: "cert-1",
+				key: "key-1",
+			});
+			simulateResponse(204, "", "application/json");
+			await first;
+			const second = tlsClient.get(url);
+			expect(lastRequestOptions).toMatchObject({
+				cert: "cert-2",
+				key: "key-2",
+			});
+			simulateResponse(204, "", "application/json");
+			await second;
+			load.mockRestore();
 		});
 	});
 

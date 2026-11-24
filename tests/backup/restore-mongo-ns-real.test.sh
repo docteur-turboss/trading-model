@@ -52,7 +52,7 @@ case "\$1" in
   get) echo -n "mongo-0" ;;
   exec)
     if [[ "\$*" == *mongosh* ]]; then echo true
-    else shift; while [ "\$1" != "--" ]; do shift; done; shift; docker exec -i "$NAME" "\$@"; fi ;;
+    else shift; while [ "\$1" != "--" ]; do shift; done; shift; a=(); for x; do x="\${x//--tls --tlsCAFile \/keyfile\/ca.crt/}"; a+=("\${x//--ssl --sslCAFile \/keyfile\/ca.crt/}"); done; docker exec -i "$NAME" "\${a[@]}"; fi ;;
 esac
 
 K

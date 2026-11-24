@@ -6,7 +6,6 @@ import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { CircuitState } from "@trading-model/primitives/circuit-state";
 import { Hostname, type URLString } from "@trading-model/primitives/primitives";
 import { CircuitBreaker } from "@trading-model/reliability/circuit-breaker";
-import type { CircuitBreakerConfig } from "@trading-model/reliability/circuit-state-machine";
 import { createHttpClientError } from "./http-client-errors";
 import type { HttpRequestOptions } from "./http-types";
 import { circuitBreakerRejectionsTotal } from "./outbound-metrics";
@@ -24,11 +23,8 @@ function targetKey(route: ServiceRoute): string {
 
 /** Records outbound call outcomes in one circuit breaker per target. */
 export class CircuitRecorder {
-	private readonly _circuit: CircuitBreaker;
-
-	constructor(config?: Partial<CircuitBreakerConfig>) {
-		this._circuit = new CircuitBreaker(config);
-	}
+	// Default config: one state machine per target key.
+	private readonly _circuit = new CircuitBreaker();
 
 	checkPreconditions(
 		urlStr: URLString,

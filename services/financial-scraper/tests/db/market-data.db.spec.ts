@@ -177,7 +177,6 @@ beforeEach(async () => {
 		"market_trades",
 		"market_tickers",
 		"market_order_books",
-		"market_publish_cursors",
 		"signals",
 	]) {
 		await DATABASE.promise().query(`DELETE FROM ${table}`);
@@ -195,7 +194,6 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		"_migrations",
 		"market_candles",
 		"market_order_books",
-		"market_publish_cursors",
 		"market_tickers",
 		"market_trades",
 		"signals",
@@ -205,13 +203,16 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
 		await expect(tables()).resolves.toEqual(ALL_TABLES);
 
-		// 012 (trades id, down is a no-op), 010 (index), 009 (signals.area), 008 (market_order_books).
-		migrate("down", "4");
+		// 013 (cursors, down recreates them), 012 (trades id, down is a no-op), 010 (index), 009 (signals.area), 008 (market_order_books).
+		migrate("down", "5");
 		await expect(appliedMigrations()).resolves.toEqual(
-			MIGRATION_IDS.slice(0, -4)
+			MIGRATION_IDS.slice(0, -5)
 		);
 		await expect(tables()).resolves.toEqual(
-			ALL_TABLES.filter((table) => table !== "market_order_books")
+			[
+				...ALL_TABLES.filter((table) => table !== "market_order_books"),
+				"market_publish_cursors",
+			].sort()
 		);
 
 		migrate("up");
@@ -409,7 +410,14 @@ describe("market_trades — real MySQL", () => {
 
 	it("should move INT trades into the BIGINT table in batches, keeping their ids (issue #2377)", async () => {
 		const db = DATABASE.promise();
-		migrate("down", "1");
+		// Undo 012 (INT to BIGINT) and every migration after it.
+		migrate(
+			"down",
+			String(
+				MIGRATION_IDS.length -
+					MIGRATION_IDS.findIndex((id) => id.startsWith("012_"))
+			)
+		);
 		await db.query(
 			"ALTER TABLE market_trades MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT, AUTO_INCREMENT = 1"
 		);
@@ -737,4 +745,36 @@ describe("index-build — paged symbol reads (ADR-0088)", () => {
 			expect(redundant).toHaveLength(0);
 		}
 	});
+
+	it("should not block writers behind a long snapshot transaction, then build once it ends", async () => {
+		await DATABASE.promise().query(
+			"DROP INDEX idx_trades_symbol_ts ON market_trades"
+		);
+		await DATABASE.promise().query(
+			"CREATE INDEX idx_trades_symbol ON market_trades (symbol)"
+		);
+		const snapshot = await createConnection({
+			uri: process.env.TEST_MYSQL_URI,
+		});
+		await snapshot.query("START TRANSACTION WITH CONSISTENT SNAPSHOT");
+		await snapshot.query("SELECT COUNT(*) FROM market_trades");
+		const build = runner.runAsync("index-build");
+		await new Promise((resolve) => setTimeout(resolve, 2000));
+		const start = Date.now();
+		await DATABASE.promise().query(
+			"INSERT INTO market_trades (symbol, market, source, trade_id, price, quantity, side, timestamp) VALUES ('BTCUSDT', 'crypto', 'binance', 987654321, 1, 1, 'buy', NOW(3))"
+		);
+		expect(Date.now() - start).toBeLessThan(10_000);
+		await snapshot.query("COMMIT");
+		await snapshot.end();
+
+		const result = await build;
+		expect(result.output).toContain("metadata lock wait timeout");
+		expect(result.code).toBe(0);
+		expect((await explain("market_trades")).key).toBe("idx_trades_symbol_ts");
+		const [redundant] = await DATABASE.promise().query(
+			"SHOW INDEX FROM market_trades WHERE Key_name = 'idx_trades_symbol'"
+		);
+		expect(redundant).toHaveLength(0);
+	}, 60_000);
 });
