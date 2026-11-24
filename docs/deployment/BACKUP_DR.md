@@ -674,7 +674,7 @@ What `restore-k8s.sh` does:
   `mysql-primary`, with the container's own root password.
 - **SPIRE**: scales `spire-server` to 0, writes `datastore.sqlite3` and
   `keys-sqlite.json` of the run (`spire/data_<TS>.tar`) into its volume and
-  removes the WAL files of the replaced datastore, from a helper pod (`RESTORE_HELPER_IMAGE` if set, otherwise the image, by digest, of the `db-backup` CronJob read with `kubectl get cronjob`; the operator needs `get` on CronJobs. If the CronJob is absent, e.g. a new cluster in a total outage, it warns and falls back to `backup-tools:latest`: set `RESTORE_HELPER_IMAGE` to the released digest) running as
+  removes the WAL files of the replaced datastore, from a helper pod (`RESTORE_HELPER_IMAGE` if set, otherwise the image, by digest, of the `db-backup` CronJob read with `kubectl get cronjob`; the operator needs `get` on CronJobs. If the CronJob is absent, e.g. a new cluster in a total outage, the restore is refused with nothing touched: set `RESTORE_HELPER_IMAGE` to the released digest) running as
   the server's user, scales it back and checks `spire-server healthcheck`.
   A run taken before ADR-0065 (`spire/keys_<TS>.json`, datastore in MySQL)
   is refused: its keys do not match a SQLite journal.

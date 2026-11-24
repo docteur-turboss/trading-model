@@ -68,7 +68,6 @@ K8S_NAMESPACE="${K8S_NAMESPACE:-trading-model}"
 # Explicit override wins; otherwise the image of the db-backup CronJob (the
 # digest deploy.yml applied), see resolve_helper_image (issue #323).
 RESTORE_HELPER_IMAGE="${RESTORE_HELPER_IMAGE:-}"
-FALLBACK_HELPER_IMAGE="ghcr.io/trading-model/backup-tools:latest"
 RESTORE_FAILURES=0
 # true: each component from its own newest run (see the header).
 ALLOW_MIXED_RUNS="${ALLOW_MIXED_RUNS:-false}"
@@ -592,8 +591,8 @@ restore_risk() {
 }
 
 # Sets RESTORE_HELPER_IMAGE when no override: the image of the `backup`
-# container of the db-backup CronJob; falls back to the mobile `latest` tag
-# with a warning when the CronJob cannot be read (new cluster, missing RBAC).
+# container of the db-backup CronJob; refuses (nothing touched) when it cannot
+# be read: never a mobile tag during a recovery.
 resolve_helper_image() {
   [ -z "$RESTORE_HELPER_IMAGE" ] || return 0
   local img
@@ -601,8 +600,8 @@ resolve_helper_image() {
   if [ -n "$img" ]; then
     RESTORE_HELPER_IMAGE="$img"
   else
-    RESTORE_HELPER_IMAGE="$FALLBACK_HELPER_IMAGE"
-    warn "CronJob db-backup not readable in ${K8S_NAMESPACE}: helper image falls back to ${FALLBACK_HELPER_IMAGE} (mobile tag); set RESTORE_HELPER_IMAGE to pin it"
+    echo "Restore REFUSED: CronJob db-backup not readable in ${K8S_NAMESPACE}; set RESTORE_HELPER_IMAGE to the released image digest (BACKUP_DR.md, step 5)"
+    exit 1
   fi
 }
 
@@ -656,9 +655,6 @@ run_components() {
       checkpoints) restore_checkpoints ;;
       spire)       restore_spire ;;
       risk)        restore_risk ;;
-      # Derived state only (discovery registrations and tokens, DLQ retry queue
-      # rebuilt from MongoDB): rebuilt by the services, never restored.
-      redis)       warn "Redis is not backed up: its content is rebuilt by the services" ;;
       *)           fail "Unknown component: ${part}" ;;
     esac
     $DRY_RUN || log "restore-timing component=${part} seconds=$((SECONDS - started))"
