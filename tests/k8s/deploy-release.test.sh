@@ -98,14 +98,22 @@ out="$(bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
 : >"$WORK/log"
 STUB_PODS="pod/mysql-0
 " bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null 2>&1
-[ -n "$(log_line "wait -n ns --for=condition=Ready pod/mysql-0")" ] &&
+[ -n "$(log_line "rollout status statefulset/mysql -n ns")" ] &&
+	[ "$(log_line "rollout status statefulset/mysql -n ns")" -lt "$(log_line "get pods -n ns -l app.kubernetes.io/component=mysql")" ] &&
 	[ "$(log_line "wait -n ns --for=condition=Ready pod/mysql-0")" -lt "$(log_line "exec -n ns pod/mysql-0 -c mysql")" ] &&
-	ok "rollback waits for the MySQL pod to be Ready before relaxing TLS" || ko "relax_mysql wait: $(cat "$WORK/log")"
+	ok "rollback waits for the MySQL StatefulSet, then each pod Ready, before relaxing TLS" || ko "relax_mysql wait: $(cat "$WORK/log")"
 : >"$WORK/log"
+rc=0
 out="$(STUB_PODS="pod/mysql-0
-" STUB_WAIT_FAILS=pod/mysql-0 bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)"
-[[ $out == *"::error::Could not lift the MySQL TLS requirement"* ]] && ! grep -q "^exec " "$WORK/log" &&
-	ok "rollback reports a MySQL pod that never gets Ready, without an exec" || ko "relax_mysql not ready: $out"
+" STUB_WAIT_FAILS=pod/mysql-0 bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" || rc=$?
+[ "$rc" != 0 ] && [[ $out == *"::error::Could not lift the MySQL TLS requirement"* ]] && ! grep -q "^exec " "$WORK/log" &&
+	ok "rollback reports a MySQL pod that never gets Ready, without an exec" || ko "relax_mysql not ready (rc $rc): $out"
+: >"$WORK/log"
+rc=0
+out="$(STUB_PODS="pod/mysql-0
+" STUB_STATUS_FAILS=mysql bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" || rc=$?
+[ "$rc" != 0 ] && [[ $out == *"::error::Could not lift the MySQL TLS requirement"* ]] && ! grep -q "^get pods -n ns -l app.kubernetes.io/component=mysql" "$WORK/log" &&
+	ok "rollback reports a MySQL StatefulSet that does not finish rolling, without touching its pods" || ko "relax_mysql rollout (rc $rc): $out"
 echo 2 >"$WORK/api-down"
 : >"$WORK/log"
 STUB_API_DOWN="$WORK/api-down" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null 2>&1 &&
@@ -149,7 +157,7 @@ printf 'statefulset/redis 3\n' >"$WORK/revs"
 : >"$WORK/log"
 STUB_PODS='redis-0 redis-abc False\nredis-1 redis-new True\nredis-2 redis-new False\nredis-3 redis-new\n' bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 	grep -qx "delete pod redis-2 redis-3 -n ns" "$WORK/log" &&
-	[ "$(grep -n 'delete pod' "$WORK/log" | cut -d: -f1)" -lt "$(grep -n 'rollout status' "$WORK/log" | cut -d: -f1)" ] &&
+	[ "$(grep -n 'delete pod' "$WORK/log" | cut -d: -f1)" -lt "$(grep -n 'rollout status statefulset/redis ' "$WORK/log" | cut -d: -f1)" ] &&
 	ok "rollback deletes the not-ready pods of the failed revision only, before waiting" || ko "stuck pods: $(cat "$WORK/log")"
 
 : >"$WORK/log"
