@@ -123,7 +123,7 @@ staging deploy (issue #842).
   (`preflight_only: true`) stops there too: it shows only this `::error::`,
   not the table of the other guards.
 - `sealed-secrets-key-backup.yml` does the same: when `SEALED_SECRETS_BACKUP_RUNNER`
-  is set, job `check-fork-approval` (GitHub-hosted) runs the same check, and
+  is set, job `check-environment` (GitHub-hosted, always runs; also checks the environment protection) runs the same check, and
   the backup job `needs:` it, so the self-hosted runner never gets
   `SEALED_SECRETS_BACKUP_KUBECONFIG` or the MinIO credentials on failure
   (issue #860).

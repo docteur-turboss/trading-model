@@ -128,7 +128,6 @@ function buildNumberBrandMessage<Tag extends string>(
 	}
 
 	const integer = options.integer === true;
-	const finite = options.finite !== false;
 	const min = options.min;
 	const max = options.max;
 
@@ -139,21 +138,15 @@ function buildNumberBrandMessage<Tag extends string>(
 		descriptor = "a non-negative integer";
 	} else if (integer) {
 		descriptor = "an integer";
-	} else if (finite && min === 0 && max === undefined) {
+	} else if (min === 0 && max === undefined) {
 		descriptor = "a non-negative finite number";
-	} else if (finite) {
-		descriptor = "a finite number";
 	} else {
-		descriptor = "a number";
+		descriptor = "a finite number";
 	}
 
 	let bounds = "";
 	if (min !== undefined && max !== undefined) {
 		bounds = integer ? ` between ${min} and ${max}` : ` in [${min}, ${max}]`;
-	} else if (max !== undefined) {
-		bounds = ` <= ${max}`;
-	} else if (min !== undefined && min !== 0 && min !== 1) {
-		bounds = ` >= ${min}`;
 	}
 
 	return `${tag} must be ${descriptor}${bounds}, got ${value}`;

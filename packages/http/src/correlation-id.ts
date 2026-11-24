@@ -3,10 +3,7 @@ import { randomUUID } from "node:crypto";
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { HTTP_HEADERS } from "@trading-model/contracts/http-headers";
-import {
-	type CorrelationId,
-	toCorrelationId,
-} from "@trading-model/primitives/primitives";
+import { CorrelationId } from "@trading-model/primitives/primitives";
 import type { NextFunction, Request, Response } from "express";
 
 declare module "express-serve-static-core" {
@@ -51,7 +48,7 @@ export function runJob<TResult>(
 	return trace
 		.getTracer("background-job")
 		.startActiveSpan(name, { root: true }, (span) =>
-			runWithCorrelationId(toCorrelationId(randomUUID()), async () => {
+			runWithCorrelationId(CorrelationId.of(randomUUID()), async () => {
 				try {
 					return await fn();
 				} catch (err) {
@@ -84,8 +81,8 @@ export function correlationIdMiddleware(
 		req.headers[HTTP_HEADERS.X_REQUEST_ID];
 	const correlationId =
 		typeof existing === "string" && VALID_INCOMING_ID.test(existing)
-			? toCorrelationId(existing)
-			: toCorrelationId(randomUUID());
+			? CorrelationId.of(existing)
+			: CorrelationId.of(randomUUID());
 
 	req.correlationId = correlationId;
 	res.setHeader(HTTP_HEADERS.CORRELATION_ID, correlationId);

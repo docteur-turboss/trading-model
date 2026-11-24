@@ -151,8 +151,7 @@ export async function sequentialEval<TItem, TResult>(
 			break;
 		}
 		results.push(await fn(item));
-		// Without a macrotask yield a whole training session starves heartbeats,
-		// /metrics and incoming candles.
+		// Macrotask yield: the worker reads its `stop` message (ADR-0058) between genomes.
 		await new Promise<void>((resolve) => setImmediate(resolve));
 	}
 	return results;

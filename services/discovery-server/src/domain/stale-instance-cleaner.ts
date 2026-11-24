@@ -7,10 +7,7 @@ import {
 } from "@trading-model/contracts/logger-registry";
 import type { ServiceInstance } from "@trading-model/contracts/service-registry-types";
 import type { DurationMs } from "@trading-model/primitives/primitives";
-import {
-	toInstanceId,
-	toServiceId,
-} from "@trading-model/primitives/primitives";
+import { InstanceId, ServiceId } from "@trading-model/primitives/primitives";
 import type { ServiceIdentity } from "@trading-model/primitives/service-identity";
 import { isExpiredInstance } from "./expiration";
 import {
@@ -88,8 +85,8 @@ export class StaleInstanceCleaner {
 			ttl: instance.ttl,
 		});
 		await this._deps.removeInstance({
-			serviceName: toServiceId(serviceName),
-			instanceId: toInstanceId(instance.instanceId),
+			serviceName: ServiceId.of(serviceName),
+			instanceId: InstanceId.of(instance.instanceId),
 		});
 	}
 

@@ -109,7 +109,9 @@ describe("trader-trainer model routes (ADR-0022)", () => {
 
 	/** GET the path, check the JSON response against the route's entry. */
 	async function get(route: ApiRoute, path: string) {
-		const res = await fetch(`${baseUrl}${path}`);
+		const res = await fetch(
+			`${baseUrl}${route.path.startsWith("/v1") ? "/v1" : ""}${path}`
+		);
 		const body = (await res.json()) as any;
 		expect(responseIssues(route, res.status, body)).toEqual([]);
 		return { status: res.status, body };

@@ -35,6 +35,7 @@ CLUSTER="${KIND_CLUSTER:-trading-model-ci}"
 NS="trading-model-staging"
 K="kubectl --context kind-${CLUSTER}"
 CERT_MANAGER="v1.21.3" # same as deploy/staging-local/bootstrap.sh
+CURL_IMAGE="curlimages/curl:8.11.1@sha256:c1fe1679c34d9784c1b0d1e5f62ac0a79fca01fb6377cdd33e90473c6f9f9a69" # multi-arch index, as realip.test.sh
 API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS key dev:read+dlq:write+risk:admin:<secret> injected by ci-render.mjs
 SERVICES="$(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$ROOT/deploy/k8s/services/kustomization.yaml" | grep -vx edge-proxy | tr '\n' ' ')" # edge-proxy is not a first-party image
 # First-party images: the IMAGES of deploy.yml.
@@ -911,7 +912,7 @@ verify_egress() {
 	local url="https://example.com"
 	log "internet egress: refused to the collector, allowed without policy"
 	retry 3 $K run egress-control -n default --rm -i --restart=Never --quiet \
-		--image=curlimages/curl:8.11.1 -- curl -s -o /dev/null -m 10 "$url" || {
+		--image="$CURL_IMAGE" -- curl -s -o /dev/null -m 10 "$url" || {
 		log "  the control pod has no internet: the check proves nothing"
 		return 1
 	}

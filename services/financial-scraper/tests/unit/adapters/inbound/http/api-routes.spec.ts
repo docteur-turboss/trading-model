@@ -120,7 +120,7 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 	/** GET the path, check the response against the route's entry. */
 	async function get(route: ApiRoute, path: string) {
-		const res = await fetch(`${baseUrl}${path}`);
+		const res = await fetch(`${baseUrl}/v2${path}`);
 		const body = (await res.json()) as any;
 		expect(responseIssues(route, res.status, body)).toEqual([]);
 		return { status: res.status, body };

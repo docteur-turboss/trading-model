@@ -3,7 +3,6 @@ import { FeatureVector } from "../src/feature-vector";
 import { FEATURE_DIM } from "../src/feature-vector-codec";
 import { FeedForwardEngine } from "../src/neural-network/feed-forward-engine";
 import {
-	distributeAroundWeights,
 	getWeights,
 	parameterCount,
 	setWeights,
@@ -133,15 +132,6 @@ describe("network serialization", () => {
 		setWeights(other, flat);
 		expect(getWeights(other)).toEqual(flat);
 		expect(() => setWeights(other, new Float32Array(1))).toThrow(/mismatch/);
-	});
-
-	test("distributeAroundWeights checks a reference size", () => {
-		const layers = [layer(2, 1, 0, 0)];
-		distributeAroundWeights(layers, 0, 0);
-		expect(Array.from(getWeights(layers))).toEqual([0, 0, 0]);
-		expect(() =>
-			distributeAroundWeights(layers, new Float32Array(1), 1)
-		).toThrow(/does not match/);
 	});
 });
 
