@@ -41,10 +41,11 @@ spec:
         prometheus.io/scheme: "https"
     spec:
       serviceAccountName: message-manager
-      # preStop 15 s + in-flight publishes (PUBLISH_ACCEPT_TIMEOUT_MS,
-      # 15 s) = 30 s; an HTTP delivery in flight may last up to 90 s
-      # (DELIVERY_ATTEMPT_TIMEOUT_MS): worst case 120 s, the whole grace, so it
-      # may be cut and redelivered. The HTTP path goes with #1241.
+      # preStop 15 s + shutdown deadline 100 s (application/index.ts: close
+      # bounded by PUBLISH_ACCEPT_TIMEOUT_MS, 15 s, then onStop 45 s) = 115 s.
+      # An HTTP delivery may last up to 90 s (DELIVERY_ATTEMPT_TIMEOUT_MS):
+      # one still in flight after onStop is cut and redelivered. The HTTP path
+      # goes with #1241.
       # Messages not delivered yet stay in the Redis journal (ADR-0048).
       terminationGracePeriodSeconds: 120
       securityContext:
