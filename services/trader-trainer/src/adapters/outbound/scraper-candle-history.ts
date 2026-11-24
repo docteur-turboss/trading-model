@@ -1,42 +1,15 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
-import {
-	BaseMarketDataShape,
-	OhlcvShape,
-} from "@trading-model/common/shared/schemas/market-data-schema";
 import type { CandleData } from "@trading-model/contracts/market-data.types";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import { HttpClient } from "@trading-model/http/http-client";
-import {
-	NonNegativeInt,
-	ServiceId,
-	UnixTimestamp,
-	URLString,
-} from "@trading-model/primitives/primitives";
+import { fetchCandlePages } from "@trading-model/http/signals/candle-pages";
 import { HostPort } from "@trading-model/primitives/service-identity";
-import { z } from "zod";
 import type { TradingSymbol } from "../../domain/market-data-types";
 import type { CandleHistoryPort } from "../../domain/ports/candle-history.port";
 
 const MINUTE_MS = 60_000;
 const PAGE_LIMIT = 5000;
-
-const Page = z.object({
-	rows: z.array(
-		z.object({
-			source: BaseMarketDataShape.source,
-			market: BaseMarketDataShape.market,
-			interval: z.enum(
-				CandleInterval.values() as [CandleInterval, ...CandleInterval[]]
-			),
-			...OhlcvShape,
-			trades: z.number().int().optional(),
-			timestamp: z.iso.datetime(),
-			closeTimestamp: z.iso.datetime(),
-		})
-	),
-	nextCursor: z.string().nullable(),
-});
 
 /**
  * Reads candles through the scraper's keyset-paged route
@@ -63,46 +36,20 @@ export class ScraperCandleHistory implements CandleHistoryPort {
 		const base = `https://${HostPort.toAddress(target)}/v2/candles/symbols/${symbol}`;
 		const window = `from=${new Date(at - size * MINUTE_MS).toISOString()}&to=${new Date(at).toISOString()}&limit=${PAGE_LIMIT}`;
 		const candles: CandleData[] = [];
-		let after = "";
-		do {
-			const page = await this._http.get(
-				URLString.of(`${base}?${window}${after}`),
-				{ serviceName: ServiceId.of("financial-scraper") },
-				Page
-			);
-			if (!page) {
-				throw new Error(`Empty candle page for ${symbol}`);
+		for await (const row of fetchCandlePages(
+			this._http,
+			`${base}?${window}`,
+			symbol
+		)) {
+			// One interval, and only candles closed by `at`; one per open time.
+			if (
+				row.interval === CandleInterval.Min1 &&
+				row.closeTimestamp <= at &&
+				candles[candles.length - 1]?.timestamp !== row.timestamp
+			) {
+				candles.push(row);
 			}
-			for (const row of page.rows) {
-				const closeTimestamp = Date.parse(row.closeTimestamp);
-				// One interval, and only candles closed by `at`; one per open time.
-				if (row.interval !== CandleInterval.Min1 || closeTimestamp > at) {
-					continue;
-				}
-				const timestamp = Date.parse(row.timestamp);
-				if (candles[candles.length - 1]?.timestamp === timestamp) {
-					continue;
-				}
-				candles.push({
-					source: row.source,
-					market: row.market,
-					interval: row.interval,
-					open: row.open,
-					high: row.high,
-					low: row.low,
-					close: row.close,
-					volume: row.volume,
-					trades:
-						row.trades === undefined
-							? undefined
-							: NonNegativeInt.of(row.trades),
-					symbol,
-					timestamp: UnixTimestamp.of(timestamp),
-					closeTimestamp: UnixTimestamp.of(closeTimestamp),
-				});
-			}
-			after = page.nextCursor ? `&after=${page.nextCursor}` : "";
-		} while (after);
+		}
 		return candles.slice(-size);
 	}
 }

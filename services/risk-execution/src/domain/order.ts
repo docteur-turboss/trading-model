@@ -1,16 +1,4 @@
-export type OrderStatus =
-	| "received"
-	| "rejected"
-	| "accepted"
-	| "submitted"
-	| "acknowledged"
-	| "broker_rejected"
-	| "unknown"
-	| "partially_filled"
-	| "filled"
-	| "cancel_requested"
-	| "cancelled"
-	| "expired";
+import type { Order, OrderStatus } from "@trading-model/contracts/order-intent";
 
 /** Closed table of ADR-0064 §3: any other transition is an error. */
 const TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
@@ -54,24 +42,6 @@ export const FINAL: ReadonlySet<OrderStatus> = new Set([
 	"cancelled",
 	"expired",
 ]);
-
-export interface Order {
-	clientOrderId: string;
-	decisionId: string;
-	symbol: string;
-	side: "buy" | "sell";
-	quantity: number;
-	limitPrice?: number;
-	referencePrice: number;
-	status: OrderStatus;
-	filledQty: number;
-	/** Cumulative notional and fee of the broker fills, never derived from `quantity`. */
-	quoteQty: number;
-	fee: number;
-	createdAt: number;
-	reason?: string;
-	mode: "paper" | "live";
-}
 
 export function transition(order: Order, to: OrderStatus): void {
 	if (!TRANSITIONS[order.status].includes(to)) {
