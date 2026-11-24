@@ -1329,7 +1329,7 @@ verify_backup() {
 	local bundle_before
 	bundle_before="$(spire_bundle)"
 	# risk:admin only now: in the Secret from the N-1 deploy on, the upgrade under probe dropped requests (N-1 refuses the unknown scope).
-	$K -n "$NS" patch secret trading-model-secrets -p "{\"stringData\":{\"AUTH_TOKENS\":\"dev:read+dlq:write+risk:admin:$API_KEY\"}}" >/dev/null
+	$K -n "$NS" patch secret trading-model-secrets -p "{\"stringData\":{\"AUTH_TOKENS\":\"dev:read+risk:admin:$API_KEY\"}}" >/dev/null
 	$K -n "$NS" rollout restart deployment/api-gateway >/dev/null
 	$K -n "$NS" rollout status deployment/api-gateway --timeout=240s >/dev/null
 	# Engaged before the backup, re-armed after it: the restore must bring it back (issue #1933).
