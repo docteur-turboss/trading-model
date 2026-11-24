@@ -20,7 +20,7 @@ restore verification for the trading-model platform.
 >   audit-logger from the live flow must come back whole: same events, same
 >   hashes, hash chain verified (`tests/backup/audit-chain.js`), then extended
 >   by audit-logger after the restore.
-> - Compose: no backup, disposable stack (do not store real data in it).
+> - Compose: no backup, disposable stack, no reference data ([ADR-0086](../adr/0086-compose-stack-deployed-by-ci-from-released-images.md)).
 >
 > Known limits are listed at the end of this document.
 
@@ -147,7 +147,7 @@ kubectl create job --from=cronjob/db-backup-incremental db-backup-incremental-ma
 
 ### Docker
 
-Compose: no backup, disposable stack. Its volumes cannot be saved by script.
+Compose: no backup, disposable stack, no reference data ([ADR-0086](../adr/0086-compose-stack-deployed-by-ci-from-released-images.md)).
 
 ### Components Backed Up
 
@@ -859,9 +859,7 @@ It prints OK / KO per check and exits 1 on any KO: audit chain
 (`tests/backup/audit-chain.js`, `broken` null, count > 0), dead letter count,
 `market_candles` rows and latest timestamp, SPIRE registration entries
 (read through the server, ADR-0065),
-SPIRE trust bundle retrievable, and the run manifest counts. The manifest
-currently records size and sha256 only, no row counts: the script says so and
-compares nothing. The kind drill runs it after the restore, and checks that it
+SPIRE trust bundle retrievable, and the run manifest counts. The kind drill runs it after the restore, and checks that it
 fails on an altered audit event. Then the service checks:
 
 ```bash
@@ -1073,7 +1071,7 @@ Drill timings (issue #329): the kind drill times every step (`tests/backup/drill
   restore to shorten that window.
 - **DDL between the dump and the instant** (a migration) replays as is: a
   statement the restored schema rejects stops the replay with exit 1.
-- **Compose**: no backup (compose: aucune sauvegarde, pile jetable): a development stack, do not store real data in it ([SETUP.md](SETUP.md#local-development-setup),
+- **Compose**: no backup (compose: aucune sauvegarde, pile jetable): disposable, no reference data ([ADR-0086](../adr/0086-compose-stack-deployed-by-ci-from-released-images.md); [SETUP.md](SETUP.md#local-development-setup),
   [DOCKER.md](DOCKER.md#docker-compose-services)).
 - **Business validation after a restore** is `scripts/verify-restore-k8s.sh`
   (Recovery Verification); it fails when a main table (`market_candles`,
