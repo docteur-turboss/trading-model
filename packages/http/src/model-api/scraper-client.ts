@@ -1,12 +1,17 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import {
+	BaseMarketDataShape,
+	OhlcvShape,
+} from "@trading-model/common/shared/schemas/market-data-schema";
+import {
 	type CandleData,
 	CandleInterval,
 } from "@trading-model/contracts/market-data.types";
 import {
 	ServiceId,
 	TradingSymbol,
+	UnixTimestamp,
 	URLString,
 } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
@@ -21,12 +26,10 @@ const PAGE_LIMIT = 5000;
 const Page = z.object({
 	rows: z.array(
 		z.object({
+			source: BaseMarketDataShape.source,
+			market: BaseMarketDataShape.market,
 			interval: z.string(),
-			open: z.number(),
-			high: z.number(),
-			low: z.number(),
-			close: z.number(),
-			volume: z.number(),
+			...OhlcvShape,
 			timestamp: z.iso.datetime(),
 			closeTimestamp: z.iso.datetime(),
 		})
@@ -100,10 +103,11 @@ export class ScraperClient {
 				}
 				candles.push({
 					...row,
-					symbol,
-					timestamp,
-					closeTimestamp: Date.parse(row.closeTimestamp),
-				} as unknown as CandleData);
+					interval: CandleInterval.Min1,
+					symbol: TradingSymbol.of(symbol),
+					timestamp: UnixTimestamp.of(timestamp),
+					closeTimestamp: UnixTimestamp.of(Date.parse(row.closeTimestamp)),
+				});
 			}
 			after = page.nextCursor ? `&after=${page.nextCursor}` : "";
 		} while (after);
