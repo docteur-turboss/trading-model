@@ -857,9 +857,7 @@ It prints OK / KO per check and exits 1 on any KO: audit chain
 (`tests/backup/audit-chain.js`, `broken` null, count > 0), dead letter count,
 `market_candles` rows and latest timestamp, SPIRE registration entries
 (read through the server, ADR-0065),
-SPIRE trust bundle retrievable, and the run manifest counts. The manifest
-currently records size and sha256 only, no row counts: the script says so and
-compares nothing. The kind drill runs it after the restore, and checks that it
+SPIRE trust bundle retrievable, and the run manifest counts. The kind drill runs it after the restore, and checks that it
 fails on an altered audit event. Then the service checks:
 
 ```bash
