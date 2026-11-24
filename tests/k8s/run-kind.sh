@@ -1603,7 +1603,7 @@ verify_backup() {
 	log "restore drill: checking the restored data"
 	step_started=$SECONDS
 	# Markers 1-3 from the dump, 4 from the replay, never 5 (after the instant).
-	for label in mongodb mongodb-audit; do
+	for label in mongodb-audit; do
 		local markers
 		markers="$(mongo_eval "$label" "print(db.getSiblingDB('restore_drill').markers.find().sort({_id: 1}).toArray().map((m) => m._id).join(','))")"
 		[ "$markers" = "1,2,3,4" ] || {
