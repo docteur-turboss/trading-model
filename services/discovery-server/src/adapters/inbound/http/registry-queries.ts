@@ -1,10 +1,7 @@
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { ApiRouteHandler } from "@trading-model/http/api-route/mount-route";
 import { sendResponse } from "@trading-model/http/response-exception";
-import {
-	toInstanceId,
-	toServiceId,
-} from "@trading-model/primitives/primitives";
+import { InstanceId, ServiceId } from "@trading-model/primitives/primitives";
 import {
 	ALL_SERVICE_NAMES,
 	type ServiceInstanceName,
@@ -57,8 +54,8 @@ export function createRegistryQueries(registry: ServiceRegistry): {
 				return UNKNOWN_SERVICE();
 			}
 			const instance = await registry.instanceStore.getInstance({
-				serviceName: toServiceId(service),
-				instanceId: toInstanceId(params.instanceId),
+				serviceName: ServiceId.of(service),
+				instanceId: InstanceId.of(params.instanceId),
 			});
 			// The store is keyed by instance id only: an instance of another
 			// service, or an expired lease, is not this service's instance.

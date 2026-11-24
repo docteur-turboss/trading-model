@@ -94,6 +94,9 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0084](./0084-text-signals-stored-as-documents-enriched-to-numbers.md) | Text Signals Are Stored as Documents and Enriched Into v1 Numeric Signals | Accepted | 2026-11 |
 | [ADR-0085](./0085-single-mysql-and-spire-server-pods-accepted.md) | One MySQL Pod and One spire-server Pod Are Accepted Until the Production Topology Is Known | Accepted | 2026-11 |
 | [ADR-0086](./0086-compose-stack-deployed-by-ci-from-released-images.md) | The Compose Stack Is Deployed by the CI From Released Images | Accepted | 2026-11 |
+| [ADR-0087](./0087-paper-decision-consumer.md) | Paper Decision Consumer (ADR-0049 Option C) | Accepted | 2026-11 |
+| [ADR-0088](./0088-paged-read-indexes-built-outside-the-migration-job.md) | Paged Market Read Indexes Are Built Outside the Migration Job | Accepted | 2026-11 |
+| [ADR-0089](./0089-model-readers-mount-the-artifact-volume-read-only.md) | Model Readers Mount the Artifact Volume Read-Only | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 

@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+    # edited: a corrected or degraded PR title is checked again (it becomes the squash message).
+    types: [opened, synchronize, reopened, edited]
   # Merge commits to main get verified too, not only at release time.
   # development: the push of a PR merge made by GitHub is skipped (its PR already ran pull_request,
   # see the job conditions); a direct push, any other committer, gets its own run.
@@ -26,11 +28,13 @@ jobs:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       k8s: ${{ steps.changes.outputs.k8s }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
       - id: changes
         env:
@@ -54,8 +58,11 @@ jobs:
   lint:
     needs: gate
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
@@ -66,6 +73,12 @@ jobs:
           restore-keys: bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
       - run: bun run lint
+      # The PR title becomes the squash message: release.mjs reads its gitmoji. Dependabot titles ("Bump x") have none.
+      - name: PR title follows commitlint
+        if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "$TITLE" | bunx --no commitlint --config commitlint.config.mjs
       - run: bun run deps:check
       - run: bun run deps:third-party
       - run: bun run api:check
@@ -78,42 +91,57 @@ jobs:
       - run: bun run compose-ports:check
       - run: bun run env-protection:test
       - run: bun run preflight:test
-      - name: Workflows valid (actionlint; shellcheck off, run blocks not yet clean)
+      - name: Workflows valid (actionlint + shellcheck)
         run: |
           v=1.7.12
           curl -fsSL -o "$RUNNER_TEMP/actionlint.tgz" "https://github.com/rhysd/actionlint/releases/download/v${v}/actionlint_${v}_linux_amd64.tar.gz"
           echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $RUNNER_TEMP/actionlint.tgz" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/actionlint.tgz" -C "$RUNNER_TEMP" actionlint
-          "$RUNNER_TEMP/actionlint" -shellcheck= .github/workflows/*.yml
+          "$RUNNER_TEMP/actionlint" .github/workflows/*.yml
       # actionlint accepts arithmetic in timeout-minutes; GitHub refuses the file (run without jobs, #2111).
       - name: No arithmetic in timeout-minutes expressions
         run: |
           if grep -hE '^\s*timeout-minutes:.*\$\{\{' .github/workflows/*.yml | sed -E "s/'[^']*'//g" | grep -E '[*+/%]|[0-9] - | - [0-9]'; then exit 1; fi
 
   security:
-    # Not in pre-push: bun audit needs the network, gitleaks the full history.
+    # Not in pre-push: bun audit needs the network, gitleaks the full history (release tags only; PRs scan their commits).
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - run: bun audit --audit-level=high
+      # The action only scans the commits of the event; a release tag scans the whole history.
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: gitleaks full history (release tag)
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          v=8.24.3
+          curl -fsSL -o "$RUNNER_TEMP/gitleaks.tgz" "https://github.com/gitleaks/gitleaks/releases/download/v${v}/gitleaks_${v}_linux_x64.tar.gz"
+          echo "9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c  $RUNNER_TEMP/gitleaks.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/gitleaks.tgz" -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" git --log-opts=--all -c .gitleaks.toml --redact .
 
   typecheck:
     needs: gate
     # Also on the merge push to development (gate skipped, see its if), like test.
     if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
@@ -123,19 +151,8 @@ jobs:
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock', '.bun-version') }}
           restore-keys: bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
-      - name: Build packages (dependency order)
-        run: bun run build
-      - name: Type-check services
-        run: |
-          bun run --filter message-manager build
-          bun run --filter discovery-server build
-          bun run --filter financial-scraper build
-          bun run --filter trader-trainer build
-          bun run --filter api-gateway build
-          bun run --filter audit-logger build
-          bun run --filter dlq-service build
-          bun run --filter model-evaluator build
-          bun run --filter risk-execution build
+      - name: Build packages and services
+        run: bun run build:ts
       - name: Type-check the test files of every workspace
         run: bun run typecheck:tests
 
@@ -144,8 +161,11 @@ jobs:
     # Also on the merge push to development (gate skipped, see its if): two green PRs can still break the unit tests together.
     if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
@@ -161,8 +181,11 @@ jobs:
   db-integration:
     needs: gate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
@@ -179,8 +202,11 @@ jobs:
   observability:
     needs: gate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
@@ -201,8 +227,11 @@ jobs:
   k8s-overlays:
     needs: gate
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Render and check the overlays
         run: node tests/k8s/check-overlays.mjs
       - name: check-overlays refuses a staging-local placeholder
@@ -239,9 +268,11 @@ jobs:
     # Also on the merge push to development (gate skipped, see its if), like test.
     if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0 # release tags, for the compatibility checks below
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
@@ -278,10 +309,12 @@ jobs:
   e2e:
     needs: gate
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       # Compose names the images <project>-<service>; the bake step below tags them the same way.
       COMPOSE_PROJECT_NAME: trading-e2e
       MYSQL_ROOT_PASSWORD: ci-password
+      MYSQL_PASSWORD: ci-mysql-app-password
       GRAFANA_PASSWORD: ci-grafana-password
       MYSQL_EXPORTER_PASSWORD: ci-mysql-exporter-password
       MONGO_ROOT_PASSWORD: ci-mongo-root
@@ -293,6 +326,8 @@ jobs:
       DLQ_ALLOWED_SERVICES: message-manager,admin,e2e-test-runner
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
@@ -320,12 +355,12 @@ jobs:
       # One gha cache scope per image: a shared scope would keep only the last image's layers.
       - name: Build the images (layer cache)
         run: |
-          f="-f docker-compose.yml -f docker-compose.build.yml -f tests/e2e/docker-compose.e2e.yml"
+          f=(-f docker-compose.yml -f docker-compose.build.yml -f tests/e2e/docker-compose.e2e.yml)
           args=()
-          for t in $(docker buildx bake $f --print | jq -r '.group.default.targets[]'); do
+          for t in $(docker buildx bake "${f[@]}" --print | jq -r '.group.default.targets[]'); do
             args+=(--set "$t.cache-from=type=gha,scope=e2e-$t" --set "$t.cache-to=type=gha,mode=max,ignore-error=true,scope=e2e-$t")
           done
-          docker buildx bake $f --load "${args[@]}"
+          docker buildx bake "${f[@]}" --load "${args[@]}"
       - if: ${{ always() }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -336,7 +371,7 @@ jobs:
           docker compose -f docker-compose.yml -f docker-compose.build.yml -f tests/e2e/docker-compose.e2e.yml
           up -d --wait --wait-timeout 600
           discovery-server message-manager financial-scraper trader-trainer
-          api-gateway audit-logger dlq-service model-evaluator risk-execution edge-proxy
+          api-gateway audit-logger dlq-service model-evaluator risk-execution decision-consumer edge-proxy
       # Issue #844: no container of the started stack may publish on every interface.
       - name: "No port published on 0.0.0.0 or ::"
         run: |
@@ -409,6 +444,7 @@ jobs:
       # Full history: release N-1 (KIND_PREVIOUS_REF) is built from it.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
       - name: Fetch the N-1 reference (${{ env.KIND_PREVIOUS_REF }})
         run: git fetch --no-tags origin "+refs/heads/${KIND_PREVIOUS_REF#origin/}:refs/remotes/${KIND_PREVIOUS_REF}"
@@ -453,6 +489,7 @@ jobs:
       # Full history: N-1 (KIND_PREVIOUS_REF), built and deployed first.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
       - name: Fetch the N-1 reference (${{ env.KIND_PREVIOUS_REF }})
         run: git fetch --no-tags origin "+refs/heads/${KIND_PREVIOUS_REF#origin/}:refs/remotes/${KIND_PREVIOUS_REF}"
@@ -535,6 +572,7 @@ jobs:
     needs: [gate, lint, security, typecheck, test, db-integration, observability, k8s-overlays, contract, e2e, k8s-images, k8s]
     if: ${{ always() }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - env:
           RESULTS: ${{ join(needs.*.result, ' ') }}

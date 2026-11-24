@@ -7,23 +7,6 @@ type ParsedRequestPath =
 	| { valid: false }
 	| { valid: true; majorVersion: number; serviceName: ServiceId; path: string };
 
-function extractPathComponents(match: RegExpMatchArray): {
-	majorVersion: number;
-	serviceName: ServiceId;
-	path: string;
-} {
-	const groups = match.groups as {
-		major: string;
-		service: string;
-		path?: string;
-	};
-	return {
-		majorVersion: Number.parseInt(groups.major, 10),
-		serviceName: ServiceId.of(groups.service),
-		path: groups.path ?? "/",
-	};
-}
-
 export function parseRequestPath(req: {
 	path: string;
 }): ParsedRequestPath | null {
@@ -31,9 +14,19 @@ export function parseRequestPath(req: {
 	if (!match) {
 		return null;
 	}
-	const { majorVersion, serviceName, path } = extractPathComponents(match);
+	const { major, service, path } = match.groups as {
+		major: string;
+		service: string;
+		path?: string;
+	};
+	const majorVersion = Number.parseInt(major, 10);
 	if (majorVersion < 1) {
 		return { valid: false };
 	}
-	return { valid: true, majorVersion, serviceName, path };
+	return {
+		valid: true,
+		majorVersion,
+		serviceName: ServiceId.of(service),
+		path: path ?? "/",
+	};
 }

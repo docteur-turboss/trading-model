@@ -26,11 +26,11 @@ jest.mock("mongodb", () => ({
 
 import { DateRange } from "@trading-model/primitives/date-range";
 import {
-	toCorrelationId,
-	toInstanceId,
-	toMessageId,
-	toServiceId,
-	toTopic,
+	CorrelationId,
+	InstanceId,
+	MessageId,
+	ServiceId,
+	Topic,
 } from "@trading-model/primitives/primitives";
 import {
 	type AuditEventDocument,
@@ -45,12 +45,12 @@ function makeEvent(
 		ttl: new Date(Date.now() + 90 * 86_400_000),
 		dataHash: "abc123",
 		metadata: {
-			topic: toTopic("test-topic"),
+			topic: Topic.of("test-topic"),
 			eventType: "test.event" as any,
-			publisher: toServiceId("test-service"),
-			instanceId: toInstanceId("instance-1"),
-			messageId: toMessageId("msg-1"),
-			correlationId: toCorrelationId("corr-1"),
+			publisher: ServiceId.of("test-service"),
+			instanceId: InstanceId.of("instance-1"),
+			messageId: MessageId.of("msg-1"),
+			correlationId: CorrelationId.of("corr-1"),
 		},
 		payload: { key: "value" },
 		...overrides,
@@ -115,7 +115,10 @@ describe("AuditRepository", () => {
 		});
 		const withId = (n: number) =>
 			makeEvent({
-				metadata: { ...makeEvent().metadata, messageId: toMessageId(`m-${n}`) },
+				metadata: {
+					...makeEvent().metadata,
+					messageId: MessageId.of(`m-${n}`),
+				},
 			});
 
 		it("should insertMany the chained event, stored as hashed", async () => {
@@ -484,16 +487,17 @@ describe("AuditRepository", () => {
 
 		it("should return statistics from counters, indexed range and a cached breakdown", async () => {
 			MOCK_COLLECTION.estimatedDocumentCount.mockResolvedValue(10);
-			MOCK_COLLECTION.aggregate
-				.mockReturnValueOnce(
-					makeAggregateResult([
-						{ _id: "topic-a", count: 6 },
-						{ _id: "topic-b", count: 4 },
-					])
-				)
-				.mockReturnValueOnce(
-					makeAggregateResult([{ _id: "svc-a", count: 10 }])
-				);
+			MOCK_COLLECTION.aggregate.mockReturnValueOnce(
+				makeAggregateResult([
+					{
+						topics: [
+							{ _id: "topic-a", count: 6 },
+							{ _id: "topic-b", count: 4 },
+						],
+						publishers: [{ _id: "svc-a", count: 10 }],
+					},
+				])
+			);
 			mockDateRange(new Date("2024-01-01"), new Date("2024-12-31"));
 
 			const stats = await repository.getStats();
@@ -511,16 +515,16 @@ describe("AuditRepository", () => {
 			mockDateRange(new Date("2024-01-01"), new Date("2025-01-01"));
 			const again = await repository.getStats();
 
-			expect(MOCK_COLLECTION.aggregate).toHaveBeenCalledTimes(2);
+			expect(MOCK_COLLECTION.aggregate).toHaveBeenCalledTimes(1);
 			expect(again.eventsByTopic).toEqual(stats.eventsByTopic);
 			expect(again.dateRange.latest).toEqual(new Date("2025-01-01"));
 		});
 
 		it("should handle an empty collection", async () => {
 			MOCK_COLLECTION.estimatedDocumentCount.mockResolvedValue(0);
-			MOCK_COLLECTION.aggregate
-				.mockReturnValueOnce(makeAggregateResult([]))
-				.mockReturnValueOnce(makeAggregateResult([]));
+			MOCK_COLLECTION.aggregate.mockReturnValueOnce(
+				makeAggregateResult([{ topics: [], publishers: [] }])
+			);
 			mockDateRange(null, null);
 
 			const stats = await repository.getStats();

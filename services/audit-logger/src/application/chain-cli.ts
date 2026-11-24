@@ -1,6 +1,6 @@
+import { runCli } from "@trading-model/common/utils/run-cli";
 import { openChainCli } from "../config/chain-cli";
 import type { ChainAudit } from "./audit-chain/chain-audit";
-import { runCli } from "./run-cli";
 
 const USAGE = `Audit chain tools (ADR-0027), run inside an audit-logger pod:
   node services/audit-logger/dist/application/chain-cli.js report

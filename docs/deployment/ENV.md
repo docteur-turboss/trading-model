@@ -14,6 +14,7 @@ Service abbreviation legend:
 | DLQ   | dlq-service                                                                                         |
 | ME    | model-evaluator                                                                                     |
 | RX    | risk-execution                                                                                      |
+| DCN   | decision-consumer                                                                                   |
 | DC    | docker-compose.yml (host-side `.env` file)                                                          |
 
 ---
@@ -108,7 +109,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `RATE_LIMIT_MAX`      | number | `100`                            | no       | Max requests per window, per pod: effective limit per client = value x replicas (HPA 2-8), i.e. 200 to 800 per 60 s by default (ADR-0047) | GW       |
 | `CACHE_TTL_MS`        | number | `30000`                          | no       | Cache TTL for proxied responses | GW       |
 | `AUTH_TOKEN_HEADER`   | string | `x-api-key`                      | no       | Header name for auth token      | GW       |
-| `AUTH_TOKENS`         | string | —                                | **yes**  | Comma-separated API keys `name:scope1+scope2:secret` (in production each secret: at least 32 characters, no `change-me`; start refused otherwise) (scopes `read`, `dlq:write`; secret without `:`). A bare secret (old format) is refused at startup (ADR-0059) | GW |
+| `AUTH_TOKENS`         | string | —                                | **yes**  | Comma-separated API keys `name:scope1+scope2:secret` (in production each secret: at least 32 characters, no `change-me`; start refused otherwise) (scopes `read`, `dlq:write`, `risk:admin`; secret without `:`). A bare secret (old format) is refused at startup (ADR-0059) | GW |
 | `PROXY_TIMEOUT_MS`    | number | `10000`                          | no       | Proxy total deadline (ms)       | GW       |
 | `PROXY_MAX_RESPONSE_BYTES` | number | `8388608` (8 MiB)    | no       | Largest upstream answer the gateway buffers; past it the upstream request is cut and the client gets 502 `Upstream response too large` (ADR-0054) | GW |
 | `ALLOWED_PROXY_CIDRS` | string | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8` | no (must not be empty in production) | Comma-separated CIDRs the resolved proxy target IP must be in. Empty: target IP check off; in production the gateway refuses to start | GW |
@@ -145,10 +146,10 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `TRAINER_SEED_OFFSET`             | int          | `0`               | no       | Added to the default PRNG seeds: same value and same data give the same run (A/B measures, ADR-0030) | TT       |
 | `TRAINER_OBSERVE_POSITION`        | boolean      | `true`            | no       | Show the agent its position (`false`: a constant input, to measure what it is worth, ADR-0025) | TT       |
 | `TRAINER_WALK_FORWARD_FOLDS`      | number (1-20)| `1`               | no       | Walk-forward folds per training run (ADR-0030); `1`: a single train/validation split | TT       |
-| `TRAINER_MODEL_DIR`               | string       | `/data/checkpoints/models` | no | Model artifact directory (ADR-0022), on the checkpoint volume shared by the replicas | TT       |
+| `TRAINER_MODEL_DIR`               | string       | `/data/checkpoints/models` | no | Model artifact directory (ADR-0022), on the checkpoint volume shared by the replicas; model-evaluator and risk-execution mount it read-only (ADR-0089) | TT, ME, RX |
 | `TRAINER_MODEL_RETENTION`         | number (≥1)  | `20`              | no       | Model versions kept per symbol           | TT       |
 | `TRAINER_LEASE_NAME` | string | (empty) | no | Kubernetes Lease the trainer pods compete for; only its holder trains, every pod serves the read routes (ADR-0058). Set on `trader-trainer` in K8s; empty (compose, dev): this instance trains | TT |
-| `MODEL_DOWNLOAD_CALLERS`          | string       | _(empty)_         | no       | Comma-separated services allowed to download model weights (ADR-0022). Empty: nobody; `model-evaluator` in compose and K8s (ADR-0049) | TT       |
+| `MODEL_DOWNLOAD_CALLERS`          | string       | _(empty)_         | no       | Comma-separated services allowed to download model weights (ADR-0022). Empty: nobody; `model-evaluator,decision-consumer` in compose and K8s (ADR-0049, ADR-0089) | TT       |
 
 ---
 
@@ -176,6 +177,16 @@ ADR-0064. Limits are validated at startup and refuse to start above their hard c
 | `RISK_LIMITS_JSON` | JSON | `{}` | no | Overrides of the other caps of ADR-0064 §2 (at or below their ceiling) | RX |
 | `RISK_OWNER_ACTOR` | string | `owner` | no | Only this actor re-arms after the drawdown stop (policy §4.4) | RX |
 | `RISK_TICK_MS` | number | `10000` | no | Period of expiry, stale-data, limit and reconciliation checks | RX |
+
+## Decision Consumer
+
+ADR-0089. Paper only: no broker key, no kill switch, no mode choice (ADR-0064 §1, §5, §6).
+
+| Variable | Type | Default | Required | Description | Services |
+| --- | --- | --- | --- | --- | --- |
+| `PROMOTED_MODELS` | string | _(empty)_ | no | Models promoted by hand, `symbol@version` separated by commas, one version per symbol (ADR-0049 §1.4). Empty: nothing decides. A promoted model that is not `admissible` (ADR-0069) decides nothing | DCN |
+| `DECISION_TICK_MS` | number | `10000` | no | Period of the pass over the promoted models; each decides once per closed bar of its manifest interval (1 min or 1 day) | DCN |
+| `DECISION_WINDOW_BARS` | number | `500` | no | Bars of the window a decision is computed on (at least 50): features normalise from its first bar | DCN |
 
 ## Financial Scraper — Market data
 
@@ -327,7 +338,9 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `DLQ_PORT`            | number | `8452`                  | Host port for dlq-service          | DC       |
 | `EDGE_PORT`           | number | `8449`                  | Host port for edge-proxy (HTTP)    | DC       |
 | `EDGE_LIMIT_KEY_INC`  | path   | `./deploy/edge-proxy/edge-limit-key.inc` | Edge rate-limit key file; `edge-limit-key.off.inc` disables the limit for k6 load runs | DC |
-| `MYSQL_ROOT_PASSWORD` | string | `changeme`              | MySQL root password                | DC       |
+| `MYSQL_ROOT_PASSWORD` | string | (required)              | MySQL root password                | DC       |
+| `MYSQL_USER`          | string | `scraper`               | MySQL application user (rights on `MYSQL_DATABASE` only) | DC |
+| `MYSQL_PASSWORD`      | string | (required)              | Password of `MYSQL_USER`           | DC       |
 | `GRAFANA_PASSWORD`    | string | (required)              | Grafana admin password             | DC       |
 | `GRAFANA_OIDC_ENABLED` | string | `false` (compose), unset (K8s) | `true` turns on Grafana OIDC login and hides the local login form (`GF_AUTH_DISABLE_LOGIN_FORM`, K8s); off otherwise (ADR-0063) | DC, K8s |
 | `GRAFANA_ALLOWED_CIDRS` | string | unset | GitHub environment variable (K8s): comma-separated CIDRs, set by `deploy-release.sh render` as `whitelist-source-range` of `grafana-ingress`; `deploy.yml` refuses production without it (issue #1630) | K8s |

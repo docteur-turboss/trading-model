@@ -1,14 +1,4 @@
-/**
- * MarketDataController
- * --------------------
- * Application layer receiving the worker payload.
- *
- * - Validates
- * - Transforms into persistable entities
- * - Routes to the repository
- *
- * Agnostic of the provider (Binance today, Bloomberg tomorrow).
- */
+/** Persists the parts of a market data snapshot in parallel; throws one aggregated error if any part fails. */
 
 import {
 	CANDLES_PERSISTED_TOTAL,
@@ -18,14 +8,14 @@ import {
 import type { MarketDataSnapshot } from "../domain/market-data-snapshot";
 import type { MarketDataRepositoryPort } from "../domain/ports/market-data-repository.port";
 
-export interface MarketDataController {
+export interface MarketDataPersister {
 	persist(payload: MarketDataSnapshot): Promise<void>;
 }
 
 /** Builds the persistence use case on top of a market data repository. */
-export function createMarketDataController(
+export function createMarketDataPersister(
 	repository: MarketDataRepositoryPort
-): MarketDataController {
+): MarketDataPersister {
 	return {
 		async persist(payload: MarketDataSnapshot): Promise<void> {
 			const { candles, recentTrades, orderBook, ticker24h } = payload;
@@ -50,14 +40,16 @@ export function createMarketDataController(
 					})(),
 			]);
 
-			const failures = results.filter((item) => item.status === "rejected");
+			const failures = results.filter(
+				(item): item is PromiseRejectedResult => item.status === "rejected"
+			);
 			if (failures.length > 0) {
-				const errors = failures.map((item) => {
-					const rejected = item as PromiseRejectedResult;
-					return rejected.reason?.message ?? String(rejected.reason);
-				});
+				const errors = failures.map(
+					({ reason }) => reason?.message ?? String(reason)
+				);
 				throw new Error(
-					`Market data persist failed (${failures.length} type(s)): ${errors.join("; ")}`
+					`Market data persist failed (${failures.length} type(s)): ${errors.join("; ")}`,
+					{ cause: failures.map(({ reason }) => reason) }
 				);
 			}
 		},

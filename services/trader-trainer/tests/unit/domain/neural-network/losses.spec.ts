@@ -2,7 +2,7 @@ import { describe, expect, test } from "@jest/globals";
 import {
 	mseGradient,
 	mseLoss,
-} from "../../../../src/domain/neural-network/output-delta-computer";
+} from "../../../../src/domain/neural-network/backprop-engine";
 
 describe("mean squared error", () => {
 	const output = new Float32Array([0.2, 0.5, 0.8]);

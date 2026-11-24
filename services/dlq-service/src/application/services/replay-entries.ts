@@ -1,4 +1,4 @@
-import { toMessageId } from "@trading-model/primitives/primitives";
+import { MessageId } from "@trading-model/primitives/primitives";
 import type {
 	ClaimedEntry,
 	LogPort,
@@ -9,7 +9,7 @@ import type { DlqEntryRef } from "../../shared/types";
 /** Maps claimed entries to the refs a replay batch takes; keeps `service` so the replay targets the failed subscriber. */
 export function toEntryRefs(entries: ClaimedEntry[]): DlqEntryRef[] {
 	return entries.map((entry) => ({
-		id: toMessageId(entry.id),
+		id: MessageId.of(entry.id),
 		message: entry.message,
 		service: entry.service,
 	}));

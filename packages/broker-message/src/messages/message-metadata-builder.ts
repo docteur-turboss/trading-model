@@ -2,16 +2,9 @@ import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import type {
 	DeliveryType,
 	MessageMetadata as MetadataType,
-	RoutingType,
-	SecurityType,
 	ServiceIdentity,
 } from "@trading-model/contracts/message-types";
-import {
-	type CorrelationId,
-	type Topic,
-	toCorrelationId,
-	toTopic,
-} from "@trading-model/primitives/primitives";
+import { CorrelationId, Topic } from "@trading-model/primitives/primitives";
 import {
 	DELIVERY_METADATA_MODE_PREDICATE,
 	EVENT_TYPE_METADATA_PREDICATE,
@@ -27,7 +20,7 @@ export interface ChainingIds {
 }
 
 const toId = (id: CorrelationId | undefined) =>
-	id ? toCorrelationId(IDS_METADATA_PREDICATE.parse(id) as string) : undefined;
+	id ? CorrelationId.of(IDS_METADATA_PREDICATE.parse(id) as string) : undefined;
 
 /** Builds the metadata of an outgoing message. */
 export class MessageMetadataBuilder {
@@ -36,41 +29,30 @@ export class MessageMetadataBuilder {
 	public publisher: ServiceIdentity;
 	public schemaVersion = "1.0.0" as const;
 	private _delivery?: DeliveryType;
-	private _routing?: RoutingType;
-	private _security?: SecurityType;
 	/** `undefined` until an id is set: toJSON then carries no id key at all. */
 	private _ids?: ChainingIds;
 
 	public constructor(
 		topic: Topic,
 		eventType: EventEnumMap,
-		publisher: ServiceIdentity,
-		data: Partial<Omit<MetadataType, "topic" | "eventType" | "publisher">> = {}
+		publisher: ServiceIdentity
 	) {
 		TOPIC_METADATA_PREDICATE.parse(topic);
 		EVENT_TYPE_METADATA_PREDICATE.parse(eventType);
 		PUBLISHER_METADATA_CONTEXT_PREDICATE.parse(publisher);
-		this.topic = toTopic(topic);
+		this.topic = Topic.of(topic);
 		this.eventType = eventType;
 		this.publisher = publisher;
-		this._delivery = data.delivery;
-		this._routing = data.routing;
-		this._security = data.security;
-		this.setIds(data);
 	}
 
-	public setDelivery(context: DeliveryType | null): this {
-		if (context !== null) {
-			DELIVERY_METADATA_MODE_PREDICATE.parse(context);
-		}
-		this._delivery = context ?? undefined;
+	public setDelivery(context: DeliveryType): this {
+		DELIVERY_METADATA_MODE_PREDICATE.parse(context);
+		this._delivery = context;
 		return this;
 	}
-	/** Replaces both ids; `null` clears them, an object with neither id keeps them. */
-	public setIds(context: ChainingIds | null): this {
-		if (context === null) {
-			this._ids = undefined;
-		} else if (context.causationId || context.correlationId) {
+	/** Replaces both ids; an object with neither id keeps them. */
+	public setIds(context: ChainingIds): this {
+		if (context.causationId || context.correlationId) {
 			this._ids = {
 				causationId: toId(context.causationId),
 				correlationId: toId(context.correlationId),
@@ -87,8 +69,6 @@ export class MessageMetadataBuilder {
 			topic: this.topic,
 			...this._ids,
 			delivery: this._delivery,
-			routing: this._routing,
-			security: this._security,
 		};
 	}
 }

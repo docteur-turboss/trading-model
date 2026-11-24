@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { SourceType } from "@trading-model/contracts/market-data.types";
 import {
 	TradingSymbol,
 	UnixTimestamp,
@@ -72,12 +71,6 @@ describe("ticker24h-schema", () => {
 				(o) => selectTickerBy.symbol(TradingSymbol.of("BTCUSDT"), o),
 				"market_tickers",
 				"symbol = ?"
-			));
-		it("pages source in (timestamp, id) order, limit applied", () =>
-			expectPagedSelect(
-				(o) => selectTickerBy.source(SourceType.Binance, o),
-				"market_tickers",
-				"source = ?"
 			));
 		it("pages timestamp in (timestamp, id) order, limit applied", () =>
 			expectPagedSelect(

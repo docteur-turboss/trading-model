@@ -19,16 +19,21 @@ import type {
  * Turned into a connection by `redisConnectionFromEnv`.
  */
 export const RedisEnvSchema = z.object({
+	/** Single-node connection, used when no sentinel is configured. */
 	REDIS_URL: z.string().optional(),
-	/** `host:port,host:port`, each host an IP address or a DNS name. */
+	/** Comma-separated sentinels, `host:port` with an IP or DNS name (`[ipv6]:port`). */
 	REDIS_SENTINELS: z.string().optional(),
 	REDIS_SENTINEL_MASTER_NAME: z.string().optional(),
+	/** ACL user of the service (K8s: one per service, limited to its key prefix). */
 	REDIS_USERNAME: z.string().optional(),
 	REDIS_PASSWORD: z.string().optional(),
+	/** Password of the sentinels, when they require one. */
 	REDIS_SENTINEL_PASSWORD: z.string().optional(),
-	/** `optional` (default) or `required`: TLS to Redis (ADR-0047, issue #930). */
+	/** `optional` (default): clear connections. `required`: TLS to nodes and sentinels, REDIS_TLS_CA needed (ADR-0047, issue #930). */
 	REDIS_TLS_MODE: z.enum(["optional", "required"]).optional(),
+	/** Path of the PEM CA of the Redis server certificates. */
 	REDIS_TLS_CA: z.string().optional(),
+	/** Name the server certificate carries (default `redis`). */
 	REDIS_TLS_SERVERNAME: z.string().optional(),
 	/** Replicas that must hold a bus write before it is accepted (`WAIT`, ADR-0048): 0 on one node, 1+ with Sentinel. */
 	JOURNAL_MIN_REPLICAS: z.coerce.number().int().min(0).default(0),
@@ -43,27 +48,10 @@ export const BusEnvSchema = RedisEnvSchema.extend({
 const DEFAULT_SENTINEL_MASTER_NAME = "mymaster";
 
 /** Environment variables a service reads to reach Redis. */
-export interface RedisEnv {
-	/** Single-node connection, used when no sentinel is configured. */
-	REDIS_URL?: string;
-	/** Comma-separated sentinels, `host:port` with an IP or DNS name (`[ipv6]:port`). */
-	REDIS_SENTINELS?: string;
-	REDIS_SENTINEL_MASTER_NAME?: string;
-	/** ACL user of the service (K8s: one per service, limited to its key prefix). */
-	REDIS_USERNAME?: string;
-	REDIS_PASSWORD?: string;
-	/** Password of the sentinels, when they require one. */
-	REDIS_SENTINEL_PASSWORD?: string;
-	/**
-	 * `optional` (default, release N): clear connections, TLS not used yet.
-	 * `required` (release N+1): TLS to the nodes and sentinels, REDIS_TLS_CA needed.
-	 */
-	REDIS_TLS_MODE?: string;
-	/** Path of the PEM CA of the Redis server certificates. */
-	REDIS_TLS_CA?: string;
-	/** Name the server certificate carries (default `redis`). */
-	REDIS_TLS_SERVERNAME?: string;
-}
+export type RedisEnv = Omit<
+	z.input<typeof RedisEnvSchema>,
+	"JOURNAL_MIN_REPLICAS"
+>;
 
 /** Parses `host:port,host:port`; throws a RangeError on a malformed entry. */
 export function parseRedisNodes(list: string): RedisNodeAddress[] {

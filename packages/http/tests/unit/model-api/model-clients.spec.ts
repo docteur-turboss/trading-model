@@ -1,25 +1,27 @@
 import { EventEmitter } from "node:events";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import https from "node:https";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, jest } from "@jest/globals";
+import { z } from "zod";
 
 const manifestGet = jest.fn<(...args: any[]) => any>();
-jest.mock("@trading-model/http/http-client", () => ({
+jest.mock("../../../src/http-client", () => ({
 	HttpClient: { createWithTls: () => ({ get: manifestGet }) },
 }));
-jest.mock("@trading-model/http/http-tls-loader", () => ({
+jest.mock("../../../src/http-tls-loader", () => ({
 	buildHttpsAgentOptions: () => ({}),
 }));
-jest.mock("../../src/config/address-manager", () => ({
-	FIND_A_SERVICE: async () => ({ host: "trainer", port: 3000 }),
-}));
+const FIND = async () => ({ host: "trainer", port: 3000 }) as never;
 jest.mock("@trading-model/primitives/service-identity", () => ({
 	HostPort: {
 		toAddress: (t: { host: string; port: number }) => `${t.host}:${t.port}`,
 	},
 }));
 
-import { ScraperClient } from "../../src/adapters/outbound/scraper-client";
-import { TrainerClient } from "../../src/adapters/outbound/trainer-client";
+import { ScraperClient } from "../../../src/model-api/scraper-client";
+import { TrainerClient } from "../../../src/model-api/trainer-client";
 
 const TLS = { keyPath: "k", certPath: "c", caPath: "ca" } as never;
 
@@ -56,7 +58,12 @@ describe("TrainerClient", () => {
 		};
 		manifestGet.mockResolvedValue({ data: manifest });
 		await expect(
-			new TrainerClient(TLS).manifest("BTCUSDT", "v1")
+			new TrainerClient(
+				TLS,
+				FIND,
+				z.object({}).loose(),
+				"/nonexistent"
+			).manifest("BTCUSDT", "v1")
 		).resolves.toEqual(manifest);
 		expect(String(manifestGet.mock.calls[0][0])).toBe(
 			"https://trainer:3000/models/BTCUSDT/v1"
@@ -65,10 +72,12 @@ describe("TrainerClient", () => {
 
 	it("returns the weights with their x-model-sha256 header", async () => {
 		answer(200, Buffer.from([1, 2, 3, 4]), { "x-model-sha256": "abc" });
-		const { bytes, sha256 } = await new TrainerClient(TLS).weights(
-			"BTCUSDT",
-			"v1"
-		);
+		const { bytes, sha256 } = await new TrainerClient(
+			TLS,
+			FIND,
+			z.object({}).loose(),
+			"/nonexistent"
+		).weights("BTCUSDT", "v1");
 		expect([...bytes]).toEqual([1, 2, 3, 4]);
 		expect(sha256).toBe("abc");
 	});
@@ -94,7 +103,12 @@ describe("TrainerClient", () => {
 			return req;
 		}) as never);
 		await expect(
-			new TrainerClient(TLS).weights("BTCUSDT", "v1")
+			new TrainerClient(
+				TLS,
+				FIND,
+				z.object({}).loose(),
+				"/nonexistent"
+			).weights("BTCUSDT", "v1")
 		).rejects.toThrow(/larger than/);
 		expect(req.destroy).toHaveBeenCalled();
 	});
@@ -102,8 +116,35 @@ describe("TrainerClient", () => {
 	it("fails on a 403 from the trainer", async () => {
 		answer(403, Buffer.from("{}"));
 		await expect(
-			new TrainerClient(TLS).weights("BTCUSDT", "v1")
+			new TrainerClient(
+				TLS,
+				FIND,
+				z.object({}).loose(),
+				"/nonexistent"
+			).weights("BTCUSDT", "v1")
 		).rejects.toThrow(/HTTP 403/);
+	});
+});
+
+const VERSION = "20261101T000000Z-aaaaaaaaaaaa";
+
+describe("TrainerClient on the artifact store", () => {
+	it("reads weights from the store with the trainer unreachable", async () => {
+		const root = mkdtempSync(join(tmpdir(), "models-"));
+		const dir = join(root, "BTCUSDT", VERSION);
+		mkdirSync(dir, { recursive: true });
+		writeFileSync(join(dir, "weights.f32"), Buffer.from([1, 2, 3, 4]));
+		jest.spyOn(https, "get").mockImplementation((() => {
+			throw new Error("trainer down");
+		}) as never);
+
+		const { bytes } = await new TrainerClient(
+			TLS,
+			FIND,
+			z.object({}).loose(),
+			root
+		).weights("BTCUSDT", VERSION);
+		expect([...bytes]).toEqual([1, 2, 3, 4]);
 	});
 });
 
@@ -127,7 +168,7 @@ describe("ScraperClient", () => {
 				nextCursor: "c1",
 			})
 			.mockResolvedValueOnce({ rows: [row(1)], nextCursor: null });
-		const candles = await new ScraperClient(TLS).candles(
+		const candles = await new ScraperClient(TLS, FIND).candles(
 			"BTCUSDT",
 			0,
 			119_999,
@@ -165,7 +206,7 @@ describe("ScraperClient", () => {
 			],
 			truncated: false,
 		});
-		const bars = await new ScraperClient(TLS).candles(
+		const bars = await new ScraperClient(TLS, FIND).candles(
 			"AAPL",
 			Date.parse("2026-03-11T00:00:00Z"),
 			Date.parse("2026-03-13T00:00:00Z"),

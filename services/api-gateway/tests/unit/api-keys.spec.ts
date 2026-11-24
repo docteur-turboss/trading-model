@@ -40,10 +40,16 @@ describe("requiredScope", () => {
 		expect(requiredScope("GET")).toBe("read");
 		expect(requiredScope("POST")).toBe("dlq:write");
 		expect(requiredScope("DELETE")).toBe("dlq:write");
+		expect(requiredScope("POST", "/v1/risk-execution/admin/kill-switch")).toBe(
+			"risk:admin"
+		);
 	});
 
-	it("only DLQ routes are public writes: dlq:write covers no other route", () => {
-		const writes = PUBLIC_ROUTES.filter((route) => !route.startsWith("GET "));
+	it("only DLQ and kill switch routes are public writes: dlq:write covers no other route", () => {
+		const writes = PUBLIC_ROUTES.filter(
+			(route) =>
+				!(route.startsWith("GET ") || route.includes("/risk-execution/"))
+		);
 
 		expect(writes.every((route) => route.includes("/dlq-service/dlq"))).toBe(
 			true

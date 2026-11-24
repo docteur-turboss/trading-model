@@ -107,6 +107,16 @@ A replay gives the entry back to the one group that failed, under its own `messa
 **Cause:** `service` is down or refuses the callback, or its circuit breaker is open in message-manager (`mm_circuit_breaker_state`).
 **Fix:** check `service` (health, logs) and the message-manager delivery logs for it. Once it answers, the backlog drains by itself, oldest first; both gauges fall. Past 24 h the entries are lost (6).
 
+**Retired topic or a service that dropped a topic (issue #2479):** a consumer group lives until an operator removes it (ADR-0073 §2), so its backlog never drains. A topic no longer in the contracts (`EVENT_VALIDATORS`) leaves the gauges by itself, and a service's consumer reports only the topics it consumes. The group and its stream stay in Redis. Remove them by hand once the code without the topic runs everywhere (no N-1 left that publishes or reads it). Run this in the Redis master as the ACL user `message-manager`, once per group of the topic:
+
+```sh
+P=trading-model:message-manager
+redis-cli --user message-manager XGROUP DESTROY "$P:journal:<topic>" <service>
+redis-cli --user message-manager SREM "$P:journal-groups" "<topic>|<service>"
+```
+
+The undelivered entries of that group are lost. A group of a live topic that a subscriber still declares is recreated at its next start: remove it only after that service stopped consuming the topic.
+
 ## Recovery Verification
 
 ```bash

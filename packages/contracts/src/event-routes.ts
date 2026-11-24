@@ -27,6 +27,7 @@ export const EVENT_PUBLISHERS: Partial<
 	[RiskEvent.OrderTransitioned]: [RISK],
 	[RiskEvent.KillSwitchEngaged]: [RISK],
 	[RiskEvent.KillSwitchRearmed]: [RISK],
+	[RiskEvent.PromotionLoaded]: [ServiceInstanceName.DecisionConsumerService],
 };
 
 /** Bus services and the topics they subscribe to (Redis users of `redis-ha.sh`). */

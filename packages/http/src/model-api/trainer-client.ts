@@ -1,33 +1,41 @@
+import { createHash } from "node:crypto";
 import https from "node:https";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
-import { HttpClient } from "@trading-model/http/http-client";
-import { buildHttpsAgentOptions } from "@trading-model/http/http-tls-loader";
+import {
+	readModelFile,
+	readModelManifest,
+	WEIGHTS_FILE,
+} from "@trading-model/model-runtime/model-artifact-reader";
 import { ServiceId, URLString } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import { z } from "zod";
-import { FIND_A_SERVICE } from "../../config/address-manager";
-import { ModelManifest } from "../../domain/model-evaluation";
+import { HttpClient } from "../http-client";
+import { buildHttpsAgentOptions } from "../http-tls-loader";
 
 /** Total deadline of a weights download (an upstream that trickles bytes must not hold it open). */
 const WEIGHTS_TIMEOUT_MS = 60_000;
 /** Above the largest expected weights file: the body is buffered in memory. */
 const WEIGHTS_MAX_BYTES = 256 * 1024 * 1024;
 
-/** Reads the trainer's versioned model API (ADR-0022): manifest, then weights. */
+/** Reads a model from the artifact store, and from the trainer's versioned model API (ADR-0022) when the store has no copy (expand step, ADR-0089). */
 const TRAINER = ServiceId.of("trader-trainer");
 
-export class TrainerClient {
+export class TrainerClient<Manifest> {
 	private readonly _http: HttpClient;
 
-	constructor(private readonly _tls: TlsPaths) {
+	/** `manifest` is the part of the trainer manifest the caller relies on; `_modelDir` is the read-only artifact volume. */
+	constructor(
+		private readonly _tls: TlsPaths,
+		private readonly _find: (name: ServiceInstanceName) => Promise<HostPort>,
+		private readonly _manifest: z.ZodType<Manifest>,
+		private readonly _modelDir?: string
+	) {
 		this._http = HttpClient.createWithTls(_tls);
 	}
 
 	private async _base(): Promise<string> {
-		const target = await FIND_A_SERVICE(
-			ServiceInstanceName.TraderTrainerService
-		);
+		const target = await this._find(ServiceInstanceName.TraderTrainerService);
 		return `https://${HostPort.toAddress(target)}`;
 	}
 
@@ -35,14 +43,20 @@ export class TrainerClient {
 		symbol: string,
 		version: string,
 		signal?: AbortSignal
-	): Promise<ModelManifest> {
+	): Promise<Manifest> {
+		const stored =
+			this._modelDir &&
+			(await readModelManifest(this._modelDir, symbol, version));
+		if (stored) {
+			return this._manifest.parse(stored);
+		}
 		const url = URLString.of(
 			`${await this._base()}/models/${symbol}/${version}`
 		);
 		const body = await this._http.get(
 			url,
 			{ serviceName: TRAINER, signal },
-			z.object({ data: ModelManifest })
+			z.object({ data: this._manifest })
 		);
 		if (!body) {
 			throw new Error(`Empty manifest answer for ${symbol}/${version}`);
@@ -56,6 +70,15 @@ export class TrainerClient {
 		version: string,
 		signal?: AbortSignal
 	): Promise<{ bytes: Buffer; sha256: string | undefined }> {
+		const stored =
+			this._modelDir &&
+			(await readModelFile(this._modelDir, symbol, version, WEIGHTS_FILE));
+		if (stored) {
+			return {
+				bytes: stored,
+				sha256: createHash("sha256").update(stored).digest("hex"),
+			};
+		}
 		const url = new URL(
 			`${await this._base()}/models/${symbol}/${version}/weights`
 		);

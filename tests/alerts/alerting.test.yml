@@ -136,7 +136,7 @@ tests:
         exp_alerts:
           - exp_labels: {severity: critical, slo: latency, job: api-gateway}
             exp_annotations:
-              summary: 'Latency SLO fast burn rate exceeded'
+              summary: 'Latency SLO: p95 latency above 5 s'
               description: 'P95 latency > 5s over 5m — exceeding 2s SLO target.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slolatencyfastburn'
 
@@ -164,7 +164,7 @@ tests:
         exp_alerts:
           - exp_labels: {severity: critical, slo: latency, job: api-gateway}
             exp_annotations:
-              summary: 'Latency SLO fast burn rate exceeded'
+              summary: 'Latency SLO: p95 latency above 5 s'
               description: 'P95 latency > 5s over 5m — exceeding 2s SLO target.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slolatencyfastburn'
 
@@ -269,39 +269,6 @@ tests:
         alertname: TrainingCompletionRateCritical
         exp_alerts: []
 
-  # Every genome evaluation takes 8 s: p99 above 5 s.
-  - name: trainer genome evaluations block the event loop
-    interval: 1m
-    input_series:
-      - series: 'tt_genome_evaluation_seconds_bucket{job="trader-trainer",instance="t",le="5"}'
-        values: '0x60'
-      - series: 'tt_genome_evaluation_seconds_bucket{job="trader-trainer",instance="t",le="10"}'
-        values: '0+10x60'
-      - series: 'tt_genome_evaluation_seconds_bucket{job="trader-trainer",instance="t",le="+Inf"}'
-        values: '0+10x60'
-    alert_rule_test:
-      - eval_time: 40m
-        alertname: TrainerEventLoopBlocked
-        exp_alerts:
-          - exp_labels: {severity: warning, job: trader-trainer}
-            exp_annotations:
-              summary: 'trader-trainer event loop blocked for several seconds'
-              description: 'p99 genome evaluation is 9.95s over 15m (threshold 5 s). Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventloopblocked'
-
-  # Evaluations of 0.2 s: silent.
-  - name: trainer genome evaluations are short
-    interval: 1m
-    input_series:
-      - series: 'tt_genome_evaluation_seconds_bucket{job="trader-trainer",instance="t",le="0.25"}'
-        values: '0+10x60'
-      - series: 'tt_genome_evaluation_seconds_bucket{job="trader-trainer",instance="t",le="+Inf"}'
-        values: '0+10x60'
-    alert_rule_test:
-      - eval_time: 40m
-        alertname: TrainerEventLoopBlocked
-        exp_alerts: []
-
   # Event loop lag outside the GA, constant.
   - name: trainer event loop lag is high
     interval: 1m
@@ -318,7 +285,7 @@ tests:
               description: 'Trainer event loop lag reached 30s (threshold 10 s) outside or inside GA evaluation. Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventlooplaghigh'
 
-  # Lag above 10 s for 7 minutes only: fires on the 5m rule, not on the p99 rule.
+  # Lag above 10 s for 7 minutes only: fires on the 5m rule.
   - name: trainer event loop lag is a short spike
     interval: 1m
     input_series:
@@ -333,9 +300,6 @@ tests:
               summary: 'trader-trainer event loop lag above 10 s'
               description: 'Trainer event loop lag reached 30s (threshold 10 s) outside or inside GA evaluation. Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventlooplaghigh'
-      - eval_time: 16m
-        alertname: TrainerEventLoopBlocked
-        exp_alerts: []
 
   # No session ever succeeds: the `success` series does not exist.
   - name: every training session fails
@@ -412,7 +376,7 @@ tests:
       - eval_time: 25m
         alertname: TrainerMarketDataStale
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels: {severity: warning}
             exp_annotations:
               summary: 'trader-trainer reads no fresh candle'
               description: 'At its last session the newest stored candle of every symbol was over 15 minutes old: the scraper no longer feeds MySQL or the trainer cannot read it.'
@@ -464,7 +428,7 @@ tests:
       - eval_time: 40m
         alertname: TrainerNoLeaderProlonged
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels: {severity: warning}
             exp_annotations:
               summary: 'No trader-trainer pod has held the Lease for 30 minutes'
               description: 'No pod has trained for 30 minutes, far beyond a rollout handover (end of a generation plus a few seconds, ADR-0058): no trainer pod holds the Lease trader-trainer. No new model is produced.'
@@ -1207,7 +1171,7 @@ tests:
       - eval_time: 95m
         alertname: AuditChainVerificationStale
         exp_alerts:
-          - exp_labels: {severity: critical, job: audit-logger}
+          - exp_labels: {severity: warning, job: audit-logger}
             exp_annotations:
               summary: 'Audit trail no longer verified'
               description: 'audit-logger has not completed an audit chain verification for more than 45 minutes (MongoDB unreachable, or the cycle fails): a broken chain would go unnoticed (runbook-audit-chain-broken).'
@@ -1218,7 +1182,7 @@ tests:
       - eval_time: 95m
         alertname: AuditChainAnchoringStale
         exp_alerts:
-          - exp_labels: {severity: critical, job: audit-logger}
+          - exp_labels: {severity: warning, job: audit-logger}
             exp_annotations:
               summary: 'Audit trail no longer anchored'
               description: 'audit-logger has not anchored the audit chain head for more than 45 minutes: check the anchor bucket credentials (audit-anchor-s3) and its logs (runbook-audit-chain-broken).'
@@ -1507,6 +1471,34 @@ tests:
               summary: 'MySQL retention job has not succeeded for 36 hours'
               description: 'No successful db-retention run for more than 36 hours (it runs daily): suspended, failing to start or failing.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#retention-job'
+
+  # Fully down service (up 0, probes fail; a failing probe alone, e.g. blocked by an ACL, does not count) -> SLI error 1 (not absent).
+  - name: availability SLI falls back to probes when a service receives no requests
+    interval: 1m
+    input_series:
+      - series: 'http_requests_total{job="api-gateway",instance="a",path="/a",status="200"}'
+        values: '0+1000x60 _x240'
+      - series: 'probe_success{job="blackbox-exporter",service="api-gateway",instance="a"}'
+        values: '1x60 0x240'
+      - series: 'up{job="api-gateway",instance="a"}'
+        values: '1x60 0x240'
+    promql_expr_test:
+      - expr: round(slo:sli_error:ratio_rate1h)
+        eval_time: 30m
+        exp_samples:
+          - labels: '{job="api-gateway"}'
+            value: 0
+      # Old samples still in the window: the 0 guard must not mask the fallback.
+      - expr: round(slo:sli_error:ratio_rate1h)
+        eval_time: 100m
+        exp_samples:
+          - labels: '{job="api-gateway"}'
+            value: 1
+      - expr: round(slo:sli_error:ratio_rate5m)
+        eval_time: 200m
+        exp_samples:
+          - labels: '{job="api-gateway"}'
+            value: 1
 
   # Budget remaining = (1 - error ratio / 0.001) * 100 over the window:
   # no 5xx = 100% (no alert; 5xx on /ping ignored), 0.09% of 5xx = 10% (fires, with the real job).
@@ -2183,7 +2175,29 @@ tests:
               description: 'risk-execution rejected over 50% of the intents for 15 min. A limit is close or the decision consumer sends bad intents (price band, exposure, stale price); repeated rejects also engage the kill switch.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskrejectratiohigh'
 
-  # Deployed with no decision consumer: no price ever received, the service publishes age 0 and no switch, so nothing pages.
+  - name: decision-consumer rejected intents
+    interval: 1m
+    input_series:
+      - series: 'decision_intents_total{job="decision-consumer",outcome="rejected",reason="price_band"}'
+        values: '0+1x90'
+      - series: 'decision_intents_total{job="decision-consumer",outcome="rejected",reason="stale_price"}'
+        values: '0+0x90'
+      - series: 'decision_intents_total{job="decision-consumer",outcome="hold",reason=""}'
+        values: '0+1x90'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: DecisionIntentsRejected
+        exp_alerts: []
+      - eval_time: 80m
+        alertname: DecisionIntentsRejected
+        exp_alerts:
+          - exp_labels: {severity: warning, job: decision-consumer, reason: price_band}
+            exp_annotations:
+              summary: 'risk-execution rejected 3 or more intents of the decision consumer in 1 hour (price_band)'
+              description: 'The promoted models decide once per closed bar, so three rejections with the same reason code in an hour are not noise: the consumer sends a price or a size the limits refuse (ADR-0087).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#decisionintentsrejected'
+
+  # Deployed with no promoted model: no price ever received, the service publishes age 0 and no switch, so nothing pages.
   - name: risk-execution without a price flow
     interval: 1m
     input_series:

@@ -13,13 +13,12 @@ import type {
 	Ratio,
 } from "@trading-model/primitives/primitives";
 import {
+	CorrelationId,
 	DurationMs,
 	Price,
-	toCorrelationId,
 } from "@trading-model/primitives/primitives";
 import { ModelPublisher } from "../../../../src/adapters/outbound/model-publisher";
 import { NETWORK_INPUT_LAYOUT } from "../../../../src/domain/agent/agent-state";
-import { DataType } from "../../../../src/domain/data-handlers/data-types";
 import { evalPhase } from "../../../../src/domain/genetic-algorithm/evaluation-phase";
 import { createDefaultGenome } from "../../../../src/domain/genetic-algorithm/factory";
 import type { LamarckGenome } from "../../../../src/domain/genetic-algorithm/genome";
@@ -191,7 +190,7 @@ describe("training.model.published identity of the artifact", () => {
 
 	it("carries the caller's correlation id, or draws one outside a request", async () => {
 		const inRequest = await runWithCorrelationId(
-			toCorrelationId("550e8400-e29b-41d4-a716-446655440000"),
+			CorrelationId.of("550e8400-e29b-41d4-a716-446655440000"),
 			() => publishedMessage()
 		);
 
@@ -342,7 +341,7 @@ describe("replay of a published model (ADR-0079 §3)", () => {
 		(eventDriven) => {
 			const buffer = new MarketDataBuffer();
 			for (const candle of candles) {
-				buffer.addData(DataType.Candle, "BTCUSDT" as never, candle);
+				buffer.addCandle("BTCUSDT" as never, candle);
 			}
 			const test = buffer.getAllWindows("BTCUSDT" as never)![0].test!;
 			const genome = createDefaultGenome("g-1", 1 as PositiveInt, eventDriven);

@@ -15,6 +15,7 @@
     "./utils/comma-separated": "./dist/utils/comma-separated.js",
     "./utils/deterministic-stringify": "./dist/utils/deterministic-stringify.js",
     "./utils/errors": "./dist/utils/errors.js",
+    "./utils/run-cli": "./dist/utils/run-cli.js",
     "./utils/retry": "./dist/utils/retry.js",
     "./utils/safe-stringify": "./dist/utils/safe-stringify.js",
     "./utils/sanitize": "./dist/utils/sanitize.js",
