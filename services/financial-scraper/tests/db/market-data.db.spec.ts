@@ -739,9 +739,9 @@ describe("index-build — paged symbol reads (ADR-0088)", () => {
 	});
 
 	it("should not block writers behind a long snapshot transaction, then build once it ends", async () => {
-		await DATABASE.promise()
-			.query("DROP INDEX IF EXISTS idx_trades_symbol_ts ON market_trades")
-			.catch(() => undefined);
+		await DATABASE.promise().query(
+			"DROP INDEX idx_trades_symbol_ts ON market_trades"
+		);
 		await DATABASE.promise().query(
 			"CREATE INDEX idx_trades_symbol ON market_trades (symbol)"
 		);
@@ -764,5 +764,9 @@ describe("index-build — paged symbol reads (ADR-0088)", () => {
 		expect(result.output).toContain("metadata lock wait timeout");
 		expect(result.code).toBe(0);
 		expect((await explain("market_trades")).key).toBe("idx_trades_symbol_ts");
+		const [redundant] = await DATABASE.promise().query(
+			"SHOW INDEX FROM market_trades WHERE Key_name = 'idx_trades_symbol'"
+		);
+		expect(redundant).toHaveLength(0);
 	}, 60_000);
 });
