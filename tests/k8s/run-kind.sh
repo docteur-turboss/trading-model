@@ -332,7 +332,9 @@ migrations() {
 # crash broke the pipe in runs 43321359421 and 43328471185).
 render_kind() {
 	release_script render "$1/deploy/k8s/overlays/${KIND_OVERLAY:-staging}" ghcr.io/trading-model "$2" >"$3.raw" || return 1
-	node "$ROOT/tests/k8s/ci-render.mjs" <"$3.raw" >"$3" || return 1
+	local scopes="read+dlq:write+risk:admin"
+	[ "$1" = "$ROOT" ] || scopes="read+dlq:write"
+	CI_RENDER_SCOPES="$scopes" node "$ROOT/tests/k8s/ci-render.mjs" <"$3.raw" >"$3" || return 1
 	rm -f "$3.raw"
 }
 
