@@ -79,10 +79,10 @@ describe("createHttpClient", () => {
 		>;
 		instance.mockClear();
 		jest.useFakeTimers();
-		// third retry: 300 ms base doubled twice, at least 1200 ms
+		// third retry: 1200 ms base, jitter ±20 % => at least 960 ms; 900 stays below it
 		const error = { config: { retryCount: 2 }, response: { status: 500 } };
 		const promise = mockResponseRejectedHandler!(error);
-		jest.advanceTimersByTime(1000);
+		jest.advanceTimersByTime(900);
 		await Promise.resolve();
 		expect(instance).not.toHaveBeenCalled();
 		jest.advanceTimersByTime(20000);
