@@ -11,13 +11,9 @@ export type {
 	OhlcvFields,
 } from "./market-data/ohlcv.types";
 export type {
-	BidAsk,
 	BookTickerData,
 	OrderBookData,
 	OrderBookLevel,
 } from "./market-data/orderbook.types";
-export type {
-	OhlcvTickerData,
-	TickerData,
-} from "./market-data/ticker.types";
+export type { TickerData } from "./market-data/ticker.types";
 export type { TradeData } from "./market-data/trade.types";

@@ -83,7 +83,7 @@ describe("audit-logger public routes: operator injection", () => {
 	it.each(PARAMS.flatMap((p) => OPERATORS.map((op) => op(p))))(
 		"GET /events?%s never gives the repository an operator object",
 		async (qs) => {
-			const res = await fetch(`${baseUrl}/events?${qs}`);
+			const res = await fetch(`${baseUrl}/v1/events?${qs}`);
 			expect(res.status).not.toBe(500);
 			for (const [filter] of auditRepo.query.mock.calls) {
 				for (const key of ["topic", "publisher", "correlationId"]) {
@@ -97,7 +97,7 @@ describe("audit-logger public routes: operator injection", () => {
 
 	it("GET /events/:messageId with an operator is a 400/404, never a document", async () => {
 		const res = await fetch(
-			`${baseUrl}/events/${encodeURIComponent('{"$ne":null}')}`
+			`${baseUrl}/v1/events/${encodeURIComponent('{"$ne":null}')}`
 		);
 		expect([400, 404]).toContain(res.status);
 		for (const [id] of auditRepo.findById.mock.calls) {
@@ -106,7 +106,7 @@ describe("audit-logger public routes: operator injection", () => {
 	});
 
 	it("GET /events/stats ignores a hostile query", async () => {
-		const res = await fetch(`${baseUrl}/events/stats?topic[$ne]=x&$where=1`);
+		const res = await fetch(`${baseUrl}/v1/events/stats?topic[$ne]=x&$where=1`);
 		expect(res.status).toBe(200);
 		expect(auditRepo.getStats).toHaveBeenCalledWith();
 	});
@@ -132,7 +132,7 @@ describe("audit-logger public routes: operator injection", () => {
 				rand() < 0.5
 					? `${p}[]=${pick(junk)}&${p}[]=${pick(junk)}`
 					: `${p}[a][b]=${pick(junk)}`;
-			const res = await fetch(`${baseUrl}/events?${qs}`);
+			const res = await fetch(`${baseUrl}/v1/events?${qs}`);
 			expect(res.status).toBeLessThan(500);
 		}
 	});
