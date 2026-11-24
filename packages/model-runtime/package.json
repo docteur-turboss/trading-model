@@ -24,6 +24,7 @@
     "./neural-network/feed-forward-engine": "./dist/neural-network/feed-forward-engine.js",
     "./neural-network/network-serialization": "./dist/neural-network/network-serialization.js",
     "./neural-network/type": "./dist/neural-network/type.js",
+    "./model-artifact-reader": "./dist/model-artifact-reader.js",
     "./model-manifest": "./dist/model-manifest.js",
     "./noise": "./dist/noise.js",
     "./replay": "./dist/replay.js",

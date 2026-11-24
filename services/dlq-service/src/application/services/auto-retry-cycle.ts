@@ -1,4 +1,4 @@
-import { toTopic, type URLString } from "@trading-model/primitives/primitives";
+import { Topic, type URLString } from "@trading-model/primitives/primitives";
 import type {
 	ClaimedEntry,
 	ClaimReleasePort,
@@ -98,7 +98,7 @@ export function createAutoRetryCycle(deps: AutoRetryCycleDeps): AutoRetryCycle {
 		// Not awaited: no operator waits for the auto-retry; a refusal is logged and counted.
 		void deps.audit.notifyReplay({
 			batchId,
-			topic: toTopic("dlq-service"),
+			topic: Topic.of("dlq-service"),
 			success,
 			failed: errors.length,
 			actor: null,

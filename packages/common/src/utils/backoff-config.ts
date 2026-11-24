@@ -1,7 +1,4 @@
-import {
-	DurationMs,
-	toDurationMs,
-} from "@trading-model/primitives/primitives/time-ids";
+import { DurationMs } from "@trading-model/primitives/primitives/time-ids";
 
 export interface BackoffConfig {
 	baseDelayMs?: DurationMs;
@@ -22,7 +19,7 @@ export function computeExponentialBackoff(
 			`baseDelayMs (${base}) must be <= maxDelayMs (${max})`
 		);
 	}
-	return toDurationMs(Math.min(base * 2 ** attempt, max));
+	return DurationMs.of(Math.min(base * 2 ** attempt, max));
 }
 
 /** Proportional jitter: delay = min(maxDelayMs, backoff * (1 + u)), u uniform in [-0.2, 0.2). Replicas retrying after a shared outage spread out. */
@@ -32,5 +29,7 @@ export function computeExponentialBackoffWithJitter(
 ): DurationMs {
 	const max = options.maxDelayMs ?? DurationMs.of(5000);
 	const delay = computeExponentialBackoff(attempt, options);
-	return toDurationMs(Math.min(delay * (1 + (Math.random() * 0.4 - 0.2)), max));
+	return DurationMs.of(
+		Math.min(delay * (1 + (Math.random() * 0.4 - 0.2)), max)
+	);
 }

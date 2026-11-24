@@ -4,11 +4,7 @@ import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import { DlqEvent } from "@trading-model/contracts/dlq-events";
 import { RiskEvent } from "@trading-model/contracts/risk-events";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
-import {
-	toRole,
-	toSubject,
-	toTenantId,
-} from "@trading-model/primitives/primitives";
+import { Role, Subject, TenantId } from "@trading-model/primitives/primitives";
 import { z } from "zod";
 import { TRACEPARENT_PATTERN } from "../../shared/trace-context";
 
@@ -21,20 +17,20 @@ export const SECURITY_METADATA_CONTEXT_PREDICATE = z
 					.string(
 						"authContext.subject must be a string representing the authenticated subject identifier."
 					)
-					.transform(toSubject),
+					.transform(Subject.of),
 				roles: z.array(
 					z
 						.string(
 							"authContext.roles must contain only string role identifiers."
 						)
-						.transform(toRole),
+						.transform(Role.of),
 					"authContext.roles must be an array of role identifiers (string[])."
 				),
 				tenantId: z
 					.string(
 						"authContext.tenantId must be a string representing the tenant identifier."
 					)
-					.transform(toTenantId),
+					.transform(TenantId.of),
 			})
 			.optional(),
 		signature: z

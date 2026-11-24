@@ -3,7 +3,7 @@ import { AuditEvent } from "@trading-model/contracts/audit-events";
 import { DlqEvent } from "@trading-model/contracts/dlq-events";
 import { RiskEvent } from "@trading-model/contracts/risk-events";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
-import { toSymbol } from "@trading-model/primitives/primitives";
+import { TradingSymbol } from "@trading-model/primitives/primitives";
 import {
 	createRecordingBrokerClient,
 	type PublishedRequest,
@@ -210,7 +210,7 @@ async function publishTrainedModel(): Promise<Publication[]> {
 		{ trainerId: "trader-trainer", instanceId: "trader-trainer-1" }
 	);
 	await publisher.publish(
-		toSymbol("BTCUSDT") as never,
+		TradingSymbol.of("BTCUSDT") as never,
 		{
 			id: "agent-1",
 			generation: 3,

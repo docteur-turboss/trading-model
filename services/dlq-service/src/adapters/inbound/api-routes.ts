@@ -3,7 +3,7 @@ import {
 	defineRoute,
 	ErrorResponse,
 } from "@trading-model/http/api-route/api-route";
-import { toTopic } from "@trading-model/primitives/primitives";
+import { Topic } from "@trading-model/primitives/primitives";
 import { z } from "zod";
 
 /**
@@ -17,7 +17,7 @@ import { z } from "zod";
 const OPTIONAL_TOPIC = z
 	.string()
 	.optional()
-	.transform(brand((topic?: string) => (topic ? toTopic(topic) : undefined)));
+	.transform(brand((topic?: string) => (topic ? Topic.of(topic) : undefined)));
 
 const StoredDlqEntry = z.object({
 	id: z.string(),
