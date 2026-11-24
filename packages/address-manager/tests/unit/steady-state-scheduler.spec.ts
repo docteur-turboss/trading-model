@@ -1,8 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import {
-	toInstanceId,
-	toServiceId,
-} from "@trading-model/primitives/primitives";
+import { InstanceId, ServiceId } from "@trading-model/primitives/primitives";
 import type { ScheduledJob } from "../../src/scheduler/scheduler";
 import type { SteadyStateSchedulerOptions } from "../../src/scheduler/steady-state-scheduler";
 import { SteadyStateScheduler } from "../../src/scheduler/steady-state-scheduler";
@@ -79,8 +76,8 @@ describe("SteadyStateScheduler", () => {
 			.calls[1][0] as ScheduledJob;
 		await job.execute();
 		expect(options.heartbeatManager.sendHeartbeat).toHaveBeenCalledWith({
-			serviceName: toServiceId("test-service"),
-			instanceId: toInstanceId("test-instance"),
+			serviceName: ServiceId.of("test-service"),
+			instanceId: InstanceId.of("test-instance"),
 		});
 	});
 });

@@ -10,7 +10,7 @@ import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import {
 	DataSource,
 	Limit,
-	toSymbol,
+	TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
 
@@ -69,8 +69,8 @@ import { normalizeTicker24h } from "../../../../../src/adapters/outbound/binance
 import { normalizeTrades } from "../../../../../src/adapters/outbound/binance/normalizers/trades";
 import { SNAPSHOT_PARTS_FAILED_TOTAL } from "../../../../../src/config/metrics";
 
-const BTC = toSymbol("BTCUSDT");
-const ETH = toSymbol("ETHUSDT");
+const BTC = TradingSymbol.of("BTCUSDT");
+const ETH = TradingSymbol.of("ETHUSDT");
 
 const LIMIT_50 = Limit.of(50, 5000);
 const LIMIT_10 = Limit.of(10, 5000);

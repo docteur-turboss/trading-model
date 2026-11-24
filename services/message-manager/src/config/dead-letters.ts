@@ -7,9 +7,9 @@ import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import { DlqEvent, isDlqEventTopic } from "@trading-model/contracts/dlq-events";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import {
-	toInstanceId,
-	toServiceId,
-	toTopic,
+	InstanceId,
+	ServiceId,
+	Topic,
 } from "@trading-model/primitives/primitives";
 import { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
 import type { DeadLetterInput } from "../domain/ports/dead-letter-store.port";
@@ -31,11 +31,11 @@ export function auditDeadLetter(
 		return;
 	}
 	const metadata = new HELPER.metadataBuilder(
-		toTopic(DlqEvent.EntryAdded),
+		Topic.of(DlqEvent.EntryAdded),
 		DlqEvent.EntryAdded,
 		{
-			instanceId: toInstanceId(ENV.INSTANCE_ID),
-			serviceName: toServiceId(ServiceInstanceName.MessageManagerService),
+			instanceId: InstanceId.of(ENV.INSTANCE_ID),
+			serviceName: ServiceId.of(ServiceInstanceName.MessageManagerService),
 		}
 	)
 		.setDelivery({ mode: DeliveryMode.AtLeastOnce })

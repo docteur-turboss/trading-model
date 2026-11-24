@@ -18,8 +18,7 @@ This document describes the neural network module (`src/domain/neural-network/`)
 | `network-serialization.ts` | Weight serialization: `getWeights`, `setWeights`, `parameterCount`, `distributeAroundWeights` |
 | `activation.ts`            | Activation functions                                                                          |
 | `initializers.ts`          | Weight/bias initializers                                                                      |
-| `output-delta-computer.ts` | Mean squared error loss and output deltas                                                     |
-| `gradient-applier.ts`      | Weight gradients and the SGD step                                                             |
+| `backprop-engine.ts`       | Backward pass: MSE loss, output deltas, weight gradients and the SGD step                     |
 | `normalizers.ts`           | Input normalization strategies                                                                |
 | `type.ts`                  | Shared types                                                                                  |
 | `utils.ts`                 | Utilities                                                                                     |
@@ -38,7 +37,6 @@ interface NeuralNetworkConfig {
   initialisationType: string; // 'random' | 'he' | 'xavier' | 'lecun' | 'zeros'
   normalisationType: string; // 'none' | 'minmax' | 'zscore' | ...
   connectionType: string; // 'fully-connected' | 'dense-skip' | 'residual-connection'
-  enablePool: boolean; // experience replay pool
   poolMaxSize: number; // max pool size (default 10,000)
   gradientClipNorm: number; // gradient clipping threshold
 }
@@ -128,13 +126,13 @@ replay(batchSize, discount)   # minibatch Q-learning update (PER weights when pr
 
 ---
 
-### Optimizer (`gradient-applier.ts`)
+### Optimizer (`backprop-engine.ts`)
 
 Plain SGD: `θ = θ - lr · ∇θ`, on the weights and, when `useBias`, on the biases.
 
 ---
 
-### Loss (`output-delta-computer.ts`)
+### Loss (`backprop-engine.ts`)
 
 Mean squared error: `mean((t - o)²)`, gradient `2 (o - t) / n`. Output and target lengths must match (`RangeError` otherwise).
 

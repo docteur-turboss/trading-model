@@ -30,20 +30,9 @@ describe("createExperiencePool", () => {
 		jest.restoreAllMocks();
 	});
 
-	describe("disabled", () => {
-		it("should ignore every operation", () => {
-			const pool = createExperiencePool(false, 10);
-			pool.add(makeExperience(1));
-			pool.clearPool();
-
-			expect(pool.getPoolSize()).toBe(0);
-			expect(pool.samplePool(3)).toEqual([]);
-		});
-	});
-
 	describe("uniform", () => {
 		it("should evict the oldest experience once the max size is exceeded", () => {
-			const pool = createExperiencePool(true, 2);
+			const pool = createExperiencePool(2);
 			const first = makeExperience(1);
 			pool.add(first);
 			pool.add(makeExperience(2));
@@ -54,7 +43,7 @@ describe("createExperiencePool", () => {
 		});
 
 		it("should sample a batch without exceeding the pool", () => {
-			const pool = createExperiencePool(true, 10);
+			const pool = createExperiencePool(10);
 			for (let i = 0; i < 5; i++) {
 				pool.add(makeExperience(i));
 			}
@@ -64,7 +53,7 @@ describe("createExperiencePool", () => {
 		});
 
 		it("should sample distinct live experiences after eviction", () => {
-			const pool = createExperiencePool(true, 4, undefined, makePRNG(7));
+			const pool = createExperiencePool(4, undefined, makePRNG(7));
 			const live = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(makeExperience);
 			for (const exp of live) {
 				pool.add(exp);
@@ -77,7 +66,7 @@ describe("createExperiencePool", () => {
 		});
 
 		it("should clear the pool", () => {
-			const pool = createExperiencePool(true, 10);
+			const pool = createExperiencePool(10);
 			pool.add(makeExperience(1));
 			pool.add(makeExperience(2));
 
@@ -141,7 +130,7 @@ describe("createExperiencePool", () => {
 		});
 
 		it("should draw a full batch with replacement, even beyond the pool size", () => {
-			const pool = createExperiencePool(true, 10, PER, makePRNG(1));
+			const pool = createExperiencePool(10, PER, makePRNG(1));
 			pool.add(makeExperience(1));
 			pool.add(makeExperience(2));
 
@@ -225,18 +214,6 @@ describe("createExperiencePool", () => {
 			for (let call = 0; call < 3; call++) {
 				const { ids, weights } = pool.sampleWithWeights(20);
 				expect(weights[0]).toBeCloseTo(expectedWeight(ids[0], 0.4), 6);
-			}
-		});
-
-		it("should anneal beta linearly up to 1", () => {
-			const { pool } = makePerPool({ betaAnneal: true, betaAnnealRate: 0.1 });
-
-			for (let call = 0; call < 9; call++) {
-				const beta = Math.min(1, 0.4 + 0.1 * call);
-				const { ids, weights } = pool.sampleWithWeights(20);
-				ids.forEach((id, idx) => {
-					expect(weights[idx]).toBeCloseTo(expectedWeight(id, beta), 6);
-				});
 			}
 		});
 
@@ -335,7 +312,7 @@ describe("createExperiencePool", () => {
 			perConfig: typeof PER | undefined,
 			seed: number
 		): unknown[][] {
-			const pool = createExperiencePool(true, 10, perConfig, makePRNG(seed));
+			const pool = createExperiencePool(10, perConfig, makePRNG(seed));
 			for (let i = 0; i < 6; i++) {
 				pool.add(makeExperience(i));
 			}

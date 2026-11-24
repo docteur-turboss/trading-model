@@ -6,7 +6,7 @@ import {
 	getCorrelationId,
 	runWithCorrelationId,
 } from "@trading-model/http/correlation-id";
-import { toCorrelationId } from "@trading-model/primitives/primitives";
+import { CorrelationId } from "@trading-model/primitives/primitives";
 import type { NextFunction, Request, Response } from "express";
 
 describe("correlationIdMiddleware", () => {
@@ -124,10 +124,10 @@ describe("correlationIdMiddleware", () => {
 		const uuid = "550e8400-e29b-41d4-a716-446655440000";
 
 		expect(
-			runWithCorrelationId(toCorrelationId(uuid), getBusCorrelationId)
+			runWithCorrelationId(CorrelationId.of(uuid), getBusCorrelationId)
 		).toBe(uuid);
 		expect(
-			runWithCorrelationId(toCorrelationId("ctx-1"), getBusCorrelationId)
+			runWithCorrelationId(CorrelationId.of("ctx-1"), getBusCorrelationId)
 		).toBeUndefined();
 		expect(getBusCorrelationId()).toBeUndefined();
 	});
