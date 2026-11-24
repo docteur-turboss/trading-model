@@ -3,12 +3,24 @@ import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { HttpClient } from "@trading-model/http/http-client";
 import { isHttpClientError } from "@trading-model/http/http-client-errors";
-import { ServiceId, URLString } from "@trading-model/primitives/primitives";
+import {
+	DurationMs,
+	ServiceId,
+	URLString,
+} from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import { z } from "zod";
 import { FIND_A_SERVICE } from "../../config/address-manager";
 import { HARD_CEILINGS } from "../../domain/limits";
 import type { MarketPrice, PricePort } from "../../domain/ports";
+
+/**
+ * Two attempts of 2 s plus one backoff (≤ 240 ms): ≤ 4.24 s, under the 5 s
+ * default `submitTimeoutMs` that bounds the call. The client defaults
+ * (10 s × 4 attempts) let the deadline fire first, with no retry ever useful.
+ */
+const PRICE_TIMEOUT_MS = DurationMs.of(2_000);
+const PRICE_RETRY_COUNT = 1;
 
 const Row = z.object({
 	close: z.number().positive(),
@@ -46,7 +58,11 @@ export class ScraperPrices implements PricePort {
 			return prices;
 		}
 		const address = HostPort.toAddress(target);
-		const options = { serviceName: ServiceId.of("financial-scraper") };
+		const options = {
+			serviceName: ServiceId.of("financial-scraper"),
+			timeoutMs: PRICE_TIMEOUT_MS,
+			retryCount: PRICE_RETRY_COUNT,
+		};
 		const now = this._now();
 		const oldest = now - HARD_CEILINGS.haltAgeMs;
 		const keep = (symbol: string, close: number, closeTimestamp: string) => {
