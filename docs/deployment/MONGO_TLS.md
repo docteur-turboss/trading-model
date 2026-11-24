@@ -1,6 +1,6 @@
 # MongoDB client TLS (issue #769)
 
-Expand step of ADR-0060: both replica sets (`mongo-dlq`, `mongo-audit`) run `--tlsMode preferTLS`, so TLS and clear text are accepted for one release. Server certificates come from **cert-manager** (`deploy/k8s/infra/mongo-tls.yaml`, prerequisite as in [MYSQL_TLS.md](./MYSQL_TLS.md)); audit-logger and dlq-service use `tls=true&tlsCAFile=/etc/mongo-tls/ca.crt` and verify the host name. Clients still authenticate with their password (ADR-0067); x.509 client certificates are not part of this step.
+Both replica sets (`mongo-dlq`, `mongo-audit`) run `--tlsMode requireTLS` (contract step of ADR-0060; `preferTLS` was release 3.1.0): clear text is refused. Server certificates come from **cert-manager** (`deploy/k8s/infra/mongo-tls.yaml`, prerequisite as in [MYSQL_TLS.md](./MYSQL_TLS.md)); audit-logger and dlq-service use `tls=true&tlsCAFile=/etc/mongo-tls/ca.crt` and verify the host name. Clients still authenticate with their password (ADR-0067); x.509 client certificates are not part of this step.
 
 | Object | Role |
 |---|---|
@@ -13,6 +13,6 @@ The init container of each pod writes `server.pem` (certificate + key) and `ca.c
 
 mongod reads its certificate at start. After cert-manager renews `mongo-*-tls` (30 days before the end), restart one set at a time: `kubectl rollout restart statefulset/mongo-dlq` then `statefulset/mongo-audit` (rolling, a majority stays up). Services read the CA when they start: after a CA renewal (~4 years) restart the servers first, then `deployment/dlq-service deployment/audit-logger`.
 
-## Contract step (next release)
+## Clients
 
-Not done here: replace `preferTLS` with `requireTLS`, then move the exporter sidecars, the `mongo-*-users` Jobs, the backup / oplog archive scripts and the restore to TLS (`--tls --tlsCAFile`), add the refusal test (plain connection refused) and correct the MongoDB lines of `docs/compliance/*`. Until then MongoDB clients that connect without TLS are still accepted.
+Exporter sidecars, `mongo-*-users` Jobs, backup / oplog scripts and restore connect with `--tls --tlsCAFile` (`ca.crt`: `/keyfile` in the mongod container, Secret `mongo-ca` elsewhere).
