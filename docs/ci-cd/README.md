@@ -95,13 +95,13 @@ CHANGELOG, annotated tag, `git push --follow-tags`). See [release.md](../contrib
 5. `sign` — keyless cosign signature of each pushed digest (ADR-0038);
    `deploy.yml` refuses an unsigned digest. Its matrix must equal `deploy.yml`
    `IMAGES` (`tests/k8s/check-overlays.mjs`)
-6. `verify-images` — in parallel with `sign`: resolves every `deploy.yml`
+6. `verify-images` — after `sign`: resolves every `deploy.yml`
    `IMAGES` entry at `:X.Y.Z` (same loop as the deploy step "Resolve image
    digests") and fails with the list of missing images
 
 Actions are pinned by commit SHA (Dependabot `github-actions` keeps them up to date).
 
-**Permissions:** `contents: read`; the two image jobs add `packages: write`, `sign` adds `packages: write` and `id-token: write`, `verify-images` adds `packages: read`.
+**Permissions:** `contents: read`; the two scan jobs add `packages: write`, `sign` adds `packages: write` and `id-token: write`, `verify-images` adds `packages: read`.
 
 ### Docker Image Tags
 

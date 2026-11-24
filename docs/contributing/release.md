@@ -26,7 +26,7 @@ Prerelease tags never serve as a base. `X.Y.Z` is computed from the last **stabl
 2. `ci`: the whole `ci.yml` runs again on the tagged commit (reusable workflow). No image is pushed if a gate fails.
 3. `scan-services` and `scan-tools` (one build of each of the 13 images pushed as `scan-<run id>`, Trivy by digest), then `sign` promotes the scanned digest to `:X.Y.Z` (+ `:latest`) and signs it to `IMAGE_REGISTRY` (repository variable, default `ghcr.io/<owner>`).
 4. `verify-images`: reads `env.IMAGES` from `deploy.yml` and resolves each `<registry>/<image>:X.Y.Z` with `docker buildx imagetools inspect`, the same loop as the deploy step "Resolve image digests". It fails with the list of missing images.
-5. `sign` (in parallel with `verify-images`): signs the digest of each image with cosign (keyless, ADR-0038). `deploy.yml` refuses any digest without this signature.
+5. `sign` (before `verify-images`): signs the digest of each image with cosign (keyless, ADR-0038). `deploy.yml` refuses any digest without this signature.
 
 A green run therefore means `deploy.yml` can resolve **and** verify every image of this tag. `tests/k8s/check-overlays.mjs` (CI) fails earlier when an `IMAGES` entry is not built by this workflow, or when the `sign` matrix differs from `IMAGES`.
 
