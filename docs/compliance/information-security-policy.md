@@ -64,7 +64,7 @@ All platform assets are documented in:
 ### 5.1 Network Access Control
 
 - **mTLS mandatory:** All service-to-service HTTP communication requires mutual TLS 1.3 with X.509 SVIDs issued by SPIRE after workload attestation (ADR-0011)
-- **Databases, TLS offered but not yet required:** MongoDB runs `preferTLS` and Redis `REDIS_TLS_MODE=optional`, so clients may still connect without TLS until `requireTLS` / `required` (#1580). Protection meanwhile: NetworkPolicies, per-service credentials, LUKS2 on data disks (ADR-0047, ADR-0060). MySQL client connections are TLS-verified with per-service client certificates and `require_secure_transport=ON` (issue #767, `docs/deployment/MYSQL_TLS.md`)
+- **Redis, TLS offered but not yet required:** `REDIS_TLS_MODE=optional`, so clients may still connect without TLS until `required` (#1580). MongoDB requires TLS and authentication (`requireTLS`, ADR-0060, ADR-0067). Protection meanwhile: NetworkPolicies, per-service credentials, LUKS2 on data disks (ADR-0047). MySQL client connections are TLS-verified with per-service client certificates and `require_secure_transport=ON` (issue #767, `docs/deployment/MYSQL_TLS.md`)
 - **Service identity:** Extracted from the certificate SAN (SPIFFE ID `spiffe://...`) via `@trading-model/http/mtls-auth.ts`
 - **Authorization:** ACL-based service-to-service access control via `@trading-model/http/mtls-authorization.ts`
 

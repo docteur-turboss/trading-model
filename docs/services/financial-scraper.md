@@ -102,8 +102,7 @@ Four tables store market data:
 | `market_tickers`   | 24-hour ticker statistics |
 | `market_order_books` | Order book depth snapshots (migration 008, ADR-0053): `bids` / `asks` as JSON `[price, quantity]` pairs, best first; no API route reads them |
 
-`market_publish_cursors` is unused (dropped in release N+1, ADR-0040) and
-`signals` (migration 006) the signals of every dimension ([Signals](#signals-adr-0036)).
+`signals` (migration 006) holds the signals of every dimension ([Signals](#signals-adr-0036)).
 
 See [`docs/architecture/databases.md`](../architecture/databases.md#mysql--financial-scraper) for the full column definitions, SQL DDL, composite primary keys, index conventions, and TypeScript interfaces.
 

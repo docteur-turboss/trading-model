@@ -77,8 +77,8 @@ bash deploy/k8s/scripts/run-migrations.sh trading-model-staging
 - **PDBs:** every PodDisruptionBudget uses `maxUnavailable: 1` in staging (single replicas: `minAvailable: 2` would block `kubectl drain`). HPAs are pinned to 1 pod, so every RollingUpdate Deployment surges first (`maxUnavailable: 0`, `maxSurge: 1`, issue #699): `maxUnavailable: 1` would stop the only pod before its replacement is ready. `tests/k8s/check-overlays.mjs` fails on a Deployment that can run one pod with an effective `maxUnavailable` above 0.
 - **Staging access:** both Ingresses carry `nginx.ingress.kubernetes.io/whitelist-source-range`, set in `overlays/staging/kustomization.yaml`. The committed value (`192.0.2.0/24`, TEST-NET-1) lets nobody in: replace it with the operators' CIDRs, comma separated.
 
-The CI `k8s` job runs the same sequence on kind for release N-1 (the commit
-before: the PR's base branch), upgrades it to N through the release steps of
+The CI `k8s` job runs the same sequence on kind for release N-1 (the last stable
+tag: its manifests and its signed release images), upgrades it to N through the release steps of
 `deploy.yml` (`deploy/k8s/scripts/deploy-release.sh`: images pinned by digest,
 migrations, rollout, rollback), first with a forced failure that must roll every
 Deployment back to N-1, and runs `migrate-down 1` then the migrations again; then the two gates of

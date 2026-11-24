@@ -332,6 +332,44 @@ export class RedisMessageJournal implements MessageJournalPort {
 			.sort((x1, x2) => order.indexOf(x1.id) - order.indexOf(x2.id));
 	}
 
+	/** Removes the group's consumers (dead replicas) with nothing pending and idle for `idleMs`, except `keep`. */
+	async pruneConsumers(
+		group: JournalGroup,
+		keep: string,
+		idleMs: number
+	): Promise<void> {
+		const stream = this.stream(group.topic);
+		let rows: unknown[][];
+		try {
+			rows = (await this._deps.redis.call(
+				"XINFO",
+				"CONSUMERS",
+				stream,
+				group.service
+			)) as unknown[][];
+		} catch (err) {
+			await this._recoverNoGroup(err, group);
+			return;
+		}
+		for (const row of rows) {
+			const info = toRecord(row);
+			const name = String(info.name);
+			if (
+				name !== keep &&
+				Number(info.pending) === 0 &&
+				Number(info.idle) >= idleMs
+			) {
+				await this._deps.redis.call(
+					"XGROUP",
+					"DELCONSUMER",
+					stream,
+					group.service,
+					name
+				);
+			}
+		}
+	}
+
 	/** Lag of the groups of `service` only when given: a bus user has no right on other services' streams. */
 	async lag(service?: string): Promise<JournalGroupLag[]> {
 		const groups = (await this.groups()).filter(

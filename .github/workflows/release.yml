@@ -68,6 +68,10 @@ jobs:
 
   ci:
     uses: ./.github/workflows/ci.yml
+    # The kind jobs pull the images of the previous release (release N-1).
+    permissions:
+      contents: read
+      packages: read
 
   # No `environment:` here, on purpose: it would create the environment
   # unprotected. Reading the settings needs ENVIRONMENT_READ_TOKEN
