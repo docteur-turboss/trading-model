@@ -325,22 +325,16 @@ wait_rollout() {
 # `retention` (CronJob) are not rolled back and keep their certificate, `migrator`
 # only runs in release N Jobs, and no N-1 pod connects as root over the network.
 relax_mysql() {
-	local ns="$1" pod i
+	local ns="$1" pod
 	# Not the label alone: Job pods carry it too (no mysql container).
 	for pod in $(kubectl get pods -n "$ns" -l app.kubernetes.io/component=mysql -o name | grep -E "/mysql-[0-9]+$"); do
-		# The failed upgrade may have left mysqld restarting while the pod still reads Ready (exec: "container not found"): retry.
-		for i in $(seq 1 $((30 * FACTOR))); do
-			kubectl wait -n "$ns" "$pod" --for=condition=Ready --timeout=10s >/dev/null 2>&1 &&
-				kubectl exec -n "$ns" "$pod" -c mysql -- sh -c '
+		kubectl exec -n "$ns" "$pod" -c mysql -- sh -c '
 			m() { MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N -e "$1"; }
 			m "SET GLOBAL require_secure_transport=OFF"
 			# Only the writable member can alter users (replicated to the others).
 			if [ "$(m "SELECT @@super_read_only")" = 0 ]; then
 				m "ALTER USER IF EXISTS \"scraper\"@\"%\" REQUIRE NONE"
-			fi' && continue 2
-			sleep 5
-		done
-		return 1
+			fi' || return 1
 	done
 }
 

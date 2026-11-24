@@ -928,6 +928,7 @@ verify_egress() {
 mongo_ping() {
 	local img uri
 	img="$(grep -m1 -oE 'mongo(:[^@ ]+)?@sha256:[0-9a-f]+' "$ROOT/deploy/k8s/infra/mongo-audit.yaml")"
+	# Probe only checks reachability under NetworkPolicy; the CA is not mounted in this pod.
 	uri="mongodb://$3:27017/?directConnection=true&tls=true&tlsAllowInvalidCertificates=true&serverSelectionTimeoutMS=5000&connectTimeoutMS=5000"
 	$K -n "$NS" run "$1" --rm -i --restart=Never --quiet --image="$img" ${2:+--labels="$2"} --overrides="{
 		\"apiVersion\": \"v1\",

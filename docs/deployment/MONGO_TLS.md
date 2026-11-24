@@ -15,4 +15,4 @@ mongod reads its certificate at start. After cert-manager renews `mongo-*-tls` (
 
 ## Clients
 
-Exporter sidecars, `mongo-*-users` Jobs, backup / oplog scripts and restore connect with `--tls --tlsCAFile` (`ca.crt`: `/keyfile` in the mongod container, Secret `mongo-ca` elsewhere). Still to do: the MongoDB lines of `docs/compliance/*`.
+Exporter sidecars, `mongo-*-users` Jobs, backup / oplog scripts and restore connect with `--tls --tlsCAFile` (`ca.crt`: `/keyfile` in the mongod container, Secret `mongo-ca` elsewhere).
