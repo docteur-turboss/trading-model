@@ -717,7 +717,7 @@ describe("HttpClient", () => {
 					URLString.of("https://cb-svc-3.example.com/api"),
 					{
 						retryCount: 0 as PositiveInt,
-						serviceName: "dlq-service" as unknown as ServiceId,
+						serviceName: "audit-logger" as unknown as ServiceId,
 					}
 				);
 				errorHandler!(new Error("ECONNRESET"));
@@ -730,7 +730,7 @@ describe("HttpClient", () => {
 				URLString.of("https://cb-svc-3.example.com/api"),
 				{
 					retryCount: 0 as PositiveInt,
-					serviceName: "dlq-service" as unknown as ServiceId,
+					serviceName: "audit-logger" as unknown as ServiceId,
 				}
 			);
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
