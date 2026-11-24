@@ -33,8 +33,6 @@ run_job() { # <job> <manifest> [nowait]
   fi
   kubectl delete job "$1" -n "$NS" --ignore-not-found
   sed "s#ghcr.io/trading-model/db-migrate:latest#${MIGRATE_IMAGE:-ghcr.io/trading-model/db-migrate:latest}#" "$2" |
-    sed -e "s#^\( *\)- name: DB_SSL_CA\$#\1- name: DB_SSL_VERIFY\n\1  value: '${TLS_VERIFY:-true}'\n&#" \
-      -e "s#^\( *\)- name: MYSQL_HOME\$#\1- name: TLS_BIND\n\1  value: '${TLS_VERIFY:-true}'\n&#" |
     awk -v f="${DEPLOY_TIMEOUT_FACTOR:-1}" '/^ *activeDeadlineSeconds: *[0-9]+ *$/ { sub(/[0-9]+ *$/, $2 * f) } 1' |
     kubectl apply -n "$NS" -f -
   [ "${3:-}" = nowait ] && return 0
@@ -123,21 +121,7 @@ require_migrate_password
 # The jobs below mount the client certificate Secrets of cert-manager (issue #767), which the
 # overlay (applied after the migrations) would otherwise create too late on an upgrade from a
 # release without them: the pod would wait on a missing Secret until the Job deadline.
-# Upgrade from a release without TLS: mysqld still serves its auto-generated certificate (the
-# overlay rolls it after the migrations), which no client can verify. The jobs then use an
-# encrypted but unverified session (ssl-mode=REQUIRED, DB_SSL_VERIFY=false) for this run only;
-# the overlay re-applies VERIFY_IDENTITY (docs/deployment/MYSQL_TLS.md, "Upgrade").
-# Read on the running pod, not the StatefulSet spec: a partitioned StatefulSet (staging-local,
-# issue #1066) keeps its pod on an older template. mysql-0 is the last member a rolling update replaces.
-TLS_VERIFY=true
-kubectl get pod mysql-0 -n "$NS" -o jsonpath='{.spec.volumes[*].name}' 2>/dev/null |
-  grep -qw mysql-tls || TLS_VERIFY=false
-if [ "$TLS_VERIFY" = true ]; then
-  kubectl apply -n "$NS" -f "$JOBS/../infra/mysql-tls.yaml"
-else
-  echo "mysql still serves its auto-generated certificate: migration jobs use ssl-mode=REQUIRED, no client certificate, users not bound yet (run this script again, user-only, once the overlay rolled mysql)"
-  sed -e 's/ssl-mode=VERIFY_IDENTITY/ssl-mode=REQUIRED/' -e '/^ *ssl-\(cert\|key\)=/d' "$JOBS/../infra/mysql-tls.yaml" | kubectl apply -n "$NS" -f -
-fi
+kubectl apply -n "$NS" -f "$JOBS/../infra/mysql-tls.yaml"
 for s in mysql-client-root mysql-client-migrator mysql-client-retention; do
   for _ in $(seq 60); do
     kubectl get secret "$s" -n "$NS" >/dev/null 2>&1 && continue 2
