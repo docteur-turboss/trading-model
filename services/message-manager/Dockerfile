@@ -40,6 +40,7 @@ COPY --chown=appuser:appgroup --from=deps /app/node_modules ./node_modules
 COPY --chown=appuser:appgroup --from=build /app/packages ./packages
 COPY --chown=appuser:appgroup --from=build /app/services/message-manager/package.json ./services/message-manager/
 COPY --chown=appuser:appgroup --from=build /app/services/message-manager/dist ./services/message-manager/dist
+COPY --chown=appuser:appgroup deploy/probe.js ./probe.js
 RUN chown appuser:appgroup /app
 ARG BUILD_VERSION=dev
 ARG GIT_SHA=unknown
@@ -48,6 +49,6 @@ USER appuser
 
 EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
-  CMD node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
+  CMD node /app/probe.js https://localhost:3000/health/ready
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "services/message-manager/dist/application/index.js"]

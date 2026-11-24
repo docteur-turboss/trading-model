@@ -44,6 +44,6 @@ USER appuser
 
 EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
-  CMD node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
+  CMD node /app/probe.js https://localhost:3000/health/ready
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "services/dlq-service/dist/application/index.js"]
