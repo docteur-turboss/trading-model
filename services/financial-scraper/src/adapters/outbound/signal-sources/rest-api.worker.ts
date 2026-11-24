@@ -7,6 +7,7 @@ import {
 } from "../../../domain/ports/signal-source.port";
 
 const TIMEOUT_MS = 10_000;
+const MAX_ATTEMPTS = 3;
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
 const ACCEPT = {
 	json: "application/json",
@@ -102,8 +103,9 @@ function remember(
 /**
  * `rest_api` protocol: GET of the request URL, JSON body (or CSV / text, as
  * the source declares), 5 MB at most, JSON included. Rejects on a network
- * error, after 10 s, or on a non-2xx status; no retry here, the collector
- * spaces the next ticks of a failing source. A body that cannot be decoded
+ * error, after 3 attempts of 10 s each (only a timeout is retried, at once: the
+ * ECB API is slow when it publishes), or on a non-2xx status; no other retry
+ * here, the collector spaces the next ticks of a failing source. A body that cannot be decoded
  * rejects with an `InvalidPayloadError`.
  *
  * Validators (`ETag`, `Last-Modified`) of the last 200 are kept in memory per
@@ -135,12 +137,20 @@ export function createRestApiWorker(userAgent: string): ProtocolWorker {
 		}
 		Object.assign(headers, validators.get(request.url));
 		// Rethrown with the host only: a query key must not reach a log.
-		const response = await fetch(url, {
-			headers,
-			signal: AbortSignal.timeout(TIMEOUT_MS),
-		}).catch((err: unknown) => {
-			throw new Error(`${normalizeError(err).name} from ${url.host}`);
-		});
+		let response: Response | undefined;
+		// Each attempt lasts TIMEOUT_MS, longer than any source's request spacing (>= 7.5 s).
+		for (let attempt = 1; !response; attempt++) {
+			response = await fetch(url, {
+				headers,
+				signal: AbortSignal.timeout(TIMEOUT_MS),
+			}).catch((err: unknown): undefined => {
+				const { name } = normalizeError(err);
+				if (name === "TimeoutError" && attempt < MAX_ATTEMPTS) {
+					return;
+				}
+				throw new Error(`${name} from ${url.host}`);
+			});
+		}
 		if (response.status === 304) {
 			await response.body?.cancel();
 			return NOT_MODIFIED;
