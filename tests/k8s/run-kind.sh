@@ -16,7 +16,7 @@
 # commit, the commit before on a push; locally e.g. origin/development),
 # KIND_PREVIOUS_REGISTRY (set: N-1 is the release tag KIND_PREVIOUS_REF, its
 # signed images pulled from this registry instead of built; needs cosign; CI
-# sets both to the last stable tag),
+# sets both to the last stable tag with published images),
 # KIND_OVERLAY (overlay of both releases, default staging; staging-local keeps
 # the data StatefulSets partitioned, issue #1066, e.g. with KIND_PREVIOUS_REF=v3.1.0-rc.1).
 # Needs docker, git, kubectl, node, jq.
