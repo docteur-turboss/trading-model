@@ -339,8 +339,10 @@ change; elsewhere it is a `::warning::`.
 refuses a `production` deploy (`::error::`, exit 1) that has neither the
 variable `BACKUP_AGE_RECIPIENTS` nor a `backup-encryption` ConfigMap in the
 namespace, or neither `BACKUP_S3_BUCKET` nor a `trading-model-backup-s3`
-Secret (e.g. a SealedSecret). A resource already in the cluster is enough;
-other environments get a `::warning::`.
+Secret (e.g. a SealedSecret), or no `BACKUP_S3_SECONDARY_BUCKET` (variable or
+key of that Secret). A resource already in the cluster is enough;
+other environments get a `::warning::`. `BACKUP_S3_SECONDARY_CHECK=warn`
+downgrades the missing second bucket in production (emergency deploy only).
 
 **Fallback.** The GitHub environment variable
 `BACKUP_S3_IMMUTABILITY_CHECK=warn` turns the production error into a
@@ -944,7 +946,8 @@ credentials of the cloud account (not the ones stored in the cluster);
    > loses every restorable backup. A second MinIO on the same host would not
    > cover this, so none is run. The second Object Lock bucket at another
    > provider is postponed to the production launch: reopen #1943 then, and
-   > fill `BACKUP_S3_SECONDARY_*` before the first production deploy.
+   > fill `BACKUP_S3_SECONDARY_*` before the first production deploy
+   > (enforced by `scripts/backup-config-check.sh`, issue #2599).
 
    If reachable:
    - keep the **same buckets**: Object Lock (compliance mode; 30-31 days
