@@ -16,11 +16,15 @@ export interface ServiceRoute {
 	serviceName?: ServiceInstanceName;
 }
 
-/** Records outbound call outcomes in circuit breakers, one per hostname and per service. */
+/** Circuit key of a target: its service name, or its hostname for a call that names no service. */
+function targetKey(route: ServiceRoute): string {
+	return route.serviceName ?? route.hostname;
+}
+
+/** Records outbound call outcomes in one circuit breaker per target. */
 export class CircuitRecorder {
-	private readonly _hostnameCircuit = new CircuitBreaker();
-	// Keyed by service name: one state machine per service, default config.
-	private readonly _serviceCircuit = new CircuitBreaker();
+	// Default config: one state machine per target key.
+	private readonly _circuit = new CircuitBreaker();
 
 	checkPreconditions(
 		urlStr: URLString,
@@ -30,45 +34,29 @@ export class CircuitRecorder {
 		const serviceName = options?.serviceName
 			? parseServiceName(options.serviceName)
 			: undefined;
-		_rejectIfOpen(this._hostnameCircuit, hostname, "hostname", hostname);
-		if (serviceName) {
-			_rejectIfOpen(
-				this._serviceCircuit,
-				serviceName,
-				"service",
-				`service ${serviceName}`
+		const route = { hostname, serviceName };
+		const key = targetKey(route);
+		if (this._circuit.check(key) === CircuitState.OPEN) {
+			circuitBreakerRejectionsTotal.inc({
+				target: key,
+				kind: serviceName ? "service" : "hostname",
+			});
+			throw createHttpClientError(
+				serviceName
+					? `Circuit breaker open for service ${serviceName}`
+					: `Circuit breaker open for ${hostname}`,
+				HTTP_STATUS.SERVICE_UNAVAILABLE
 			);
 		}
-		return { hostname, serviceName };
+		return route;
 	}
 
 	recordSuccess(route: ServiceRoute): void {
-		this._hostnameCircuit.recordSuccess(route.hostname);
-		if (route.serviceName) {
-			this._serviceCircuit.recordSuccess(route.serviceName);
-		}
+		this._circuit.recordSuccess(targetKey(route));
 	}
 
 	recordFailure(route: ServiceRoute): void {
-		this._hostnameCircuit.recordFailure(route.hostname);
-		if (route.serviceName) {
-			this._serviceCircuit.recordFailure(route.serviceName);
-		}
-	}
-}
-
-function _rejectIfOpen(
-	circuit: CircuitBreaker,
-	target: string,
-	kind: "hostname" | "service",
-	label: string
-): void {
-	if (circuit.check(target) === CircuitState.OPEN) {
-		circuitBreakerRejectionsTotal.inc({ target, kind });
-		throw createHttpClientError(
-			`Circuit breaker open for ${label}`,
-			HTTP_STATUS.SERVICE_UNAVAILABLE
-		);
+		this._circuit.recordFailure(targetKey(route));
 	}
 }
 

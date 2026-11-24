@@ -1,13 +1,12 @@
 {
   "name": "@trading-model/reliability",
   "version": "1.0.0",
-  "description": "Reliability primitives (circuit breaker, heartbeat interfaces, leader lease) extracted from @trading-model/common",
+  "description": "Reliability primitives (circuit breaker, leader lease) extracted from @trading-model/common",
   "license": "ISC",
   "type": "commonjs",
   "exports": {
     "./circuit-breaker": "./dist/circuit-breaker.js",
     "./circuit-state-machine": "./dist/circuit-state-machine.js",
-    "./heartbeat-sender.port": "./dist/heartbeat-sender.port.js",
     "./kubernetes-lease": "./dist/kubernetes-lease.js",
     "./leadership": "./dist/leadership.js"
   },
