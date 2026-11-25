@@ -54,6 +54,19 @@ if [ "$1" = get ] && [ "$2" = deployment ] && [[ $* == *terminationGracePeriodSe
 fi
 if [ "$1" = get ] && [ "$2" = pods ]; then printf "%b" "${STUB_PODS:-}"; exit 0; fi
 if [ "$1" = get ] && [[ $2 == statefulset/* ]]; then [[ $* == *updateRevision* ]] && printf '%s-abc' "${2#*/}"; exit 0; fi
+# Redis swap (issue #2882): "$STUB_REDIS" = partition replicas updateRevision; pods run revision `old`.
+if [ "$1" = get ] && [ "$2" = statefulset ] && [[ $* == *partition* ]]; then printf '%s' "${STUB_REDIS:-}"; exit 0; fi
+if [ "$1" = get ] && [ "$2" = pod ]; then [[ $* == *podIP* ]] && printf 'ip-%s' "$3" || printf old; exit 0; fi
+# Sentinel in $STUB_MASTER: FAILOVER promotes the last pod asked for its replication state.
+if [ "$1" = exec ] && [ -n "${STUB_MASTER:-}" ]; then
+	case "$*" in
+	*get-master-addr-by-name*) cat "$STUB_MASTER" ;;
+	*"INFO replication"*) echo master_link_status:up; echo "ip-$2" >"$STUB_MASTER.next" ;;
+	*"SENTINEL FAILOVER"*) mv "$STUB_MASTER.next" "$STUB_MASTER" ;;
+	esac
+	exit 0
+fi
+[ "$1" = patch ] && exit 0
 if [ "$1" = get ] && [ "$2" = statefulset ]; then [ -z "${STUB_NO_REDIS:-}" ] || exit 1; [ "$3" = redis ] && printf 'redis-abc'; exit 0; fi
 [ "$1" = exec ] && exit 0
 if [ "$1" = create ] && [ "$2" = job ]; then cat "$STUB_JOB_JSON"; exit 0; fi
@@ -179,6 +192,18 @@ sts_names() { awk '/^---/ { k = "" } /^kind:/ { k = $2 } k == "StatefulSet" && /
 	[ "$(log_line 'apply -f -')" -lt "$(log_line 'rollout status statefulset/redis ')" ]; } &&
 	ok "Redis StatefulSets left out of the overlay, applied after the Deployment rollouts and redis-tls, then waited for" ||
 	ko "redis last: $(cat "$WORK/log")"
+printf '#!/bin/sh\n' >"$WORK/bin/sleep"
+chmod +x "$WORK/bin/sleep"
+echo ip-redis-0 >"$WORK/master"
+: >"$WORK/log"
+STUB_MASTER="$WORK/master" STUB_REDIS="1 1 new" bash "$SCRIPT" redis-last ns <"$WORK/app.yaml" >/dev/null &&
+	[ "$(grep -oE '"replicas":[0-9]|"partition":[0-9]|SENTINEL FAILOVER' "$WORK/log" | tr '\n' ' ')" = '"replicas":2 SENTINEL FAILOVER "partition":0 SENTINEL FAILOVER "replicas":1 "partition":1 ' ] &&
+	[ "$(cat "$WORK/master")" = ip-redis-0 ] &&
+	ok "partitioned redis-0 on an older template: redis-1 promoted, redis-0 updated and master again, back to 1 pod" || ko "redis swap: $(cat "$WORK/log")"
+: >"$WORK/log"
+STUB_MASTER="$WORK/master" STUB_REDIS="1 1 old" bash "$SCRIPT" redis-last ns <"$WORK/app.yaml" >/dev/null && ! grep -q patch "$WORK/log" &&
+	ok "partitioned redis-0 already on the current template: no swap" || ko "redis no swap: $(cat "$WORK/log")"
+rm "$WORK/bin/sleep"
 STUB_NO_REDIS=1 bash "$SCRIPT" without-redis ns <"$WORK/app.yaml" | cmp -s - "$WORK/app.yaml" &&
 	ok "without-redis keeps the Redis StatefulSets on a first deploy" || ko "without-redis dropped documents on a first deploy"
 
