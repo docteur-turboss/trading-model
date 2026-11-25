@@ -270,7 +270,7 @@ cluster() {
 		# A failed create (kindest/node pull) leaves a half-made cluster: drop it between attempts.
 		# KIND_NODES=3: the group that proves the production topology (tests/k8s/kind-three-nodes.yaml, #2657).
 		local config=()
-		[ "${KIND_NODES:-1}" != 3 ] || config=(--config "$ROOT/tests/k8s/kind-three-nodes.yaml")
+		[ "${KIND_NODES:-1}" != 3 ] || { config=(--config "$ROOT/tests/k8s/kind-three-nodes.yaml"); mkdir -p /tmp/kind-rwx; }
 		retry 3 bash -c '"$0" delete cluster --name "$1" >/dev/null 2>&1; "$0" create cluster --name "$1" --wait 180s "${@:2}"' "$KIND" "$CLUSTER" "${config[@]}"
 	fi
 	# Prerequisite of mysql-tls.yaml (ADR-0060), as on a real cluster (deploy/staging-local/bootstrap.sh).
@@ -1206,7 +1206,7 @@ verify_bus() {
 	wait_for 600 "$K -n $NS exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=\$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli --user message-manager XINFO GROUPS $key' | awk 'prev==\"name\"{g=(\$0==\"model-evaluator\")} g&&prev==\"entries-read\"{r=\$0} g&&prev==\"pending\"{p=\$0} g&&prev==\"lag\"{l=\$0} {prev=\$0} END{exit !(r>=1 && p==0 && l==0)}'" || {
 		$K -n "$NS" exec redis-0 -c redis -- sh -c "REDISCLI_AUTH=\$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli --user message-manager XINFO GROUPS $key" 2>&1 | tail -40
 		$K -n "$NS" get pods -o wide | grep -E 'redis|model-evaluator|trader-trainer|message-manager'
-		$K -n "$NS" logs deploy/trader-trainer -c trader-trainer --tail=60 2>&1 | grep -iE "train|publish|error" | tail -30
+		$K -n "$NS" logs deploy/trader-trainer -c trader-trainer --tail=60 2>&1 | grep -iE "train|publish|error" | grep -v ENOTFOUND | tail -30
 		return 1
 	}
 	! bus_delivered model-evaluator | grep -q 'status="failed"' || { log "  model-evaluator failed deliveries: $(bus_delivered model-evaluator)"; return 1; }

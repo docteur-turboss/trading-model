@@ -2,6 +2,8 @@
 # Redis (master + 2 replicas, 3 sentinels) and the DoNotSchedule spread have somewhere to go.
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
+# The rwx-csi hostPath PV (kind-fixtures.yaml) must be one directory on every node: without the
+# shared mount, a trainer on a worker writes to that worker's root-owned dir and fails (EACCES).
 nodes:
   - role: control-plane
     # Untainted: the 3 nodes all take pods, the runner has no more.
@@ -10,5 +12,10 @@ nodes:
         kind: InitConfiguration
         nodeRegistration:
           taints: []
+    extraMounts: &rwx
+      - hostPath: /tmp/kind-rwx
+        containerPath: /var/local/kind-rwx
   - role: worker
+    extraMounts: *rwx
   - role: worker
+    extraMounts: *rwx
