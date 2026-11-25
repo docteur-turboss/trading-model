@@ -4,7 +4,7 @@
 > **Regulatory framework:** MiFID II (Art. 17, RTS 6), MAR (Art. 12, 16), ESMA guidelines  
 > **Last review:** 2026-11-19
 
-> **⚠️ No live execution.** The platform places no real order and must not do so until every prerequisite of §6 is met: kill switch, pre-trade limits (position, value, frequency), Binance terms of use for trading on `api.binance.com` (not established, see [third-party-dpas.md](third-party-dpas.md)), an annual review, a demonstrated edge (the MT4 walk-forward passes every criterion of [ADR-0030](../adr/0030-mt4-point-in-time-features-and-success-criteria.md), at least 30 days of paper trading included) and a model admission gate (§6 items 11-12). As of 2026-11-11, MT4 fails every criterion. An admission verdict is computed on the test segment and written to the manifest (ADR-0069), but it blocks nothing, so no real capital may be committed. The controls marked "Not implemented" below do not exist in the code.
+> **⚠️ No live execution.** The platform places no real order and must not do so until every prerequisite of §6 is met: kill switch, pre-trade limits (position, value, frequency), Binance terms of use for trading on `api.binance.com` (not established, see [third-party-dpas.md](third-party-dpas.md)), an annual review, a demonstrated edge (the MT4 walk-forward passes every criterion of [ADR-0030](../adr/0030-mt4-point-in-time-features-and-success-criteria.md), at least 30 days of paper trading included) and a model admission gate (§6 items 11-12). As of 2026-11-11, MT4 fails every criterion. An admission verdict is computed on the test segment and written to the manifest (ADR-0069), but it is enforced pre-trade (`model_not_admitted` in `risk-execution`, ADR-0064 §2), but no model passes it today. The controls marked "Not implemented" below do not exist in the code.
 
 ## 1. Scope
 
@@ -66,7 +66,9 @@ The platform should undergo an annual review covering:
 
 Not applicable — the platform does not implement market making strategies.
 
-## 5. MAR Compliance (Market Abuse Regulation)
+## 5. Market Abuse Compliance (MiCA Title VI and MAR)
+
+The traded pairs are crypto-assets: the market abuse prohibitions of MiCA Title VI (Regulation (EU) 2023/1114, Art. 86-92) would apply to any person from the first real trade. MAR (Art. 12, 16) applies only to financial instruments. The assessment below uses MAR Art. 12 patterns as the common baseline; applicability to the operating entity is to be confirmed by counsel (see also [third-party-dpas.md](third-party-dpas.md) for the Binance side of MiCA).
 
 ### 5.1 Detection & Reporting (Art. 16)
 
@@ -95,13 +97,13 @@ When transitioning from research/simulation to production algorithmic trading, t
 | 3 | Deploy market-making obligations if applicable (Art. 17-18) | Not planned |
 | 4 | Implement kill switch functionality | Implemented in `risk-execution` (paper), drill passed 2026-11-20 ([risk-drill-log](risk-drill-log.md)); policy [Loss Limits and Kill Switch Policy](risk-limits-policy.md) §8 (Status); architecture in [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §5 (Accepted, option A). Order and kill switch events are not lost when the bus refuses: a local outbox (`risk-event-outbox.json` in `RISK_STATE_DIR`, 1000 events) is replayed on the next success, tick and restart, with a stable `eventId`; its volume must be backed up (#1933) |
 | 5 | Annual RTS 6 conformance testing | Schedule via CI/CD pipeline |
-| 6 | MAR suspicious transaction reporting | Integrate audit-logger with regulatory reporting |
+| 6 | MiCA Title VI market abuse assessment of the agents (crypto-assets) and MAR suspicious transaction reporting (financial instruments) | Integrate audit-logger with regulatory reporting |
 | 7 | Maintain algorithmic trading register | See [data-processing-register.md](data-processing-register.md) |
 | 8 | Ensure latency monitoring | Implement Prometheus metrics for agent inference time |
-| 9 | Establish Binance terms of use for trading on `api.binance.com` | Not established, see [third-party-dpas.md](third-party-dpas.md) |
+| 9 | Establish Binance terms of use for trading on `api.binance.com`, and Twelve Data terms (rank 2 `non-commercial`) for any commercial use | Not established, see [third-party-dpas.md](third-party-dpas.md) |
 | 10 | Annual review of this document | Last review 2026-11-19 |
 | 11 | **Blocking:** demonstrated edge: the MT4 walk-forward passes every criterion of [ADR-0030](../adr/0030-mt4-point-in-time-features-and-success-criteria.md), at least 30 days of paper trading against backtest included | Not met: the 2026-10-31 run fails every criterion for every fitness (ADR-0030, Results); no paper-trading runner exists |
-| 12 | **Blocking:** model admission gate: a model is used for a decision only if it meets the ADR-0030 criteria ([ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) §1.4) | Verdict only (ADR-0069): models are published with `admissible`; no consumer enforces it yet; the barrier is the "Admitted model" pre-trade check of [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §2 |
+| 12 | **Blocking:** model admission gate: a model is used for a decision only if it meets the ADR-0030 criteria ([ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md) §1.4) | Enforced pre-trade: `risk-execution` refuses `model_not_admitted` (`pre-trade.ts`), the "Admitted model" check of [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) §2 |
 
 ## 7. Cross-References
 
