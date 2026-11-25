@@ -112,9 +112,12 @@ export class DeadStreams {
 		return true;
 	}
 
-	/** Dead letters of a topic, oldest first. */
-	list(topic: string, count = 100): Promise<DeadLetter[]> {
-		return this._range(topic, "-", "+", count);
+	/**
+	 * Up to 100 dead letters of a topic, oldest first. Pass the id of the last letter
+	 * received as `after` (exclusive) to read the next page.
+	 */
+	list(topic: string, after?: string, count = 100): Promise<DeadLetter[]> {
+		return this._range(topic, after ? `(${after}` : "-", "+", count);
 	}
 
 	/**

@@ -17,28 +17,42 @@ services:
   financial-scraper:
     build:
       context: .
-      dockerfile: services/financial-scraper/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE: financial-scraper
   trader-trainer:
     build:
       context: .
-      dockerfile: services/trader-trainer/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE: trader-trainer
   api-gateway:
     build:
       context: .
-      dockerfile: services/api-gateway/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE: api-gateway
   audit-logger:
     build:
       context: .
-      dockerfile: services/audit-logger/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE: audit-logger
   model-evaluator:
     build:
       context: .
-      dockerfile: services/model-evaluator/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE: model-evaluator
   risk-execution:
     build:
       context: .
-      dockerfile: services/risk-execution/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE: risk-execution
   decision-consumer:
     build:
       context: .
-      dockerfile: services/decision-consumer/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE: decision-consumer

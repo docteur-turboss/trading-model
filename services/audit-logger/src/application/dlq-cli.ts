@@ -9,7 +9,9 @@ import { openDlqCli } from "../config/dlq-cli";
 import type { MongoDlqImportReport } from "../domain/mongo-dlq-import-report";
 
 const USAGE = `Dead letters of the bus (ADR-0073), run inside an audit-logger pod:
-  node services/audit-logger/dist/application/dlq-cli.js <operator> list <topic>
+  node services/audit-logger/dist/application/dlq-cli.js <operator> list <topic> [after]
+      Prints 100 entries at most, oldest first; <after> is the id of the last entry of
+      the previous page (excluded), to read the next one.
   node services/audit-logger/dist/application/dlq-cli.js <operator> replay <topic> <id>...
       Gives each entry back to the one group that failed, then removes it.
   node services/audit-logger/dist/application/dlq-cli.js <operator> delete <topic> <id>...
@@ -20,7 +22,7 @@ const USAGE = `Dead letters of the bus (ADR-0073), run inside an audit-logger po
 
 export interface DlqCliDeps {
 	streams: {
-		list(topic: string): Promise<unknown[]>;
+		list(topic: string, after?: string): Promise<unknown[]>;
 		replay(topic: string, id: string): Promise<boolean>;
 		delete(topic: string, id: string): Promise<boolean>;
 	};
@@ -49,14 +51,14 @@ export async function runDlqCli(
 	const valid =
 		actor &&
 		topic &&
-		((command === "list" && ids.length === 0) ||
+		((command === "list" && ids.length <= 1) ||
 			((command === "replay" || command === "delete") && ids.length > 0));
 	if (!valid) {
 		deps.err(USAGE);
 		return 2;
 	}
 	if (command === "list") {
-		deps.out(JSON.stringify(await deps.streams.list(topic), null, 2));
+		deps.out(JSON.stringify(await deps.streams.list(topic, ids[0]), null, 2));
 		return 0;
 	}
 	const done: string[] = [];

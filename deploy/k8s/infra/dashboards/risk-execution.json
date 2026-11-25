@@ -21,16 +21,16 @@
       }
     },
     {
-      "title": "Exposure (limit 0.3)",
+      "title": "Exposure (limit 0.1)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 9, "x": 6, "y": 0 },
       "targets": [{ "expr": "max by (mode) (risk_exposure_ratio)", "legendFormat": "{{mode}}" }],
       "fieldConfig": {
         "defaults": {
-          "max": 0.35,
+          "max": 0.12,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0.3 }]
+            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0.1 }]
           },
           "custom": { "thresholdsStyle": { "mode": "line" } }
         }

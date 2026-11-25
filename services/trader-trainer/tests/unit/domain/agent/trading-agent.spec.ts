@@ -43,6 +43,7 @@ function makeConfig(
 			initialPrice: Price.of(100),
 			feeRate: Percentage.zero(),
 			executionCostRate: Percentage.zero(),
+			maxExposureFraction: 0.3,
 		},
 		tradeAmount: Volume.of(1),
 		stateManagerCfg: {

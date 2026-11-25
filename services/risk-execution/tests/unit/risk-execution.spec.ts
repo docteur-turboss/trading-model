@@ -359,17 +359,19 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 				price: { price: 60_000, at: T0 },
 			});
 		};
-		expect(check(0.051, { BTCUSDT: 0.2 })).toBe("instrument_exposure"); // 15 060 > 15 000
-		expect(check(0.001, { BTCUSDT: 0.2, ETHUSDT: 6 })).toBe("global_exposure"); // 30 060 > 30 000
-		// A buy is valued at its limit: 0.25 BTC is 15 000 at 60 000, 15 150 at the marketable limit 60 600.
-		expect(check(0.05, { BTCUSDT: 0.2 }, 60_000)).toBeNull();
-		expect(check(0.05, { BTCUSDT: 0.2 })).toBe("instrument_exposure");
+		expect(check(0.0671, { BTCUSDT: 0.1 })).toBe("instrument_exposure"); // 10 126 > 10 000
+		expect(check(0.002, { BTCUSDT: 0.1, ETHUSDT: 1.3 })).toBe(
+			"global_exposure"
+		); // 10 021 > 10 000
+		// A buy is valued at its limit: 0.1655 BTC is 9 930 at 60 000, 10 029 at the marketable limit 60 600.
+		expect(check(0.0655, { BTCUSDT: 0.1 }, 60_000)).toBeNull();
+		expect(check(0.0655, { BTCUSDT: 0.1 })).toBe("instrument_exposure");
 	});
 
-	it("caps the global exposure across two instruments (30 %)", async () => {
+	it("caps the global exposure across two instruments (10 %)", async () => {
 		const limits = RiskLimits.parse({
 			...LIMITS,
-			instrumentExposurePct: 0.3,
+			instrumentExposurePct: 0.1,
 			orderNotionalPct: 0.1,
 			instruments: {
 				BTCUSDT: { maxQuantity: 1 },
@@ -378,13 +380,11 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		});
 		const ctx = build({ limits });
 		await ctx.svc.start();
-		for (let n = 0; n < 3; n++) {
-			await ctx.svc.submitIntent(intent({ quantity: 0.16 })); // 28 800 of 30 000
-		}
+		await ctx.svc.submitIntent(intent({ quantity: 0.1 })); // 6 000 of 10 000
 		const r = await ctx.svc.submitIntent(
 			intent({
 				symbol: "ETHUSDT",
-				quantity: 1,
+				quantity: 1.4,
 				referencePrice: 3_000,
 				model: { symbol: "ETHUSDT", version: "v1" },
 			})
@@ -396,7 +396,7 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		const limits = RiskLimits.parse({
 			...LIMITS,
 			allocatedCapital: 10_000,
-			instrumentExposurePct: 0.3,
+			instrumentExposurePct: 0.1,
 			orderNotionalPct: 0.1,
 			instruments: { BTCUSDT: { maxQuantity: 1 } },
 		});
@@ -502,6 +502,9 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 				...LIMITS,
 				globalExposurePct: HARD_CEILINGS.globalExposurePct + 0.01,
 			})
+		).toThrow();
+		expect(() =>
+			RiskLimits.parse({ ...LIMITS, globalExposurePct: 0.3 })
 		).toThrow();
 		expect(() =>
 			RiskLimits.parse({ ...LIMITS, maxIntentAgeMs: 61_000 })

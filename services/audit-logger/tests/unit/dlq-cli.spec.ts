@@ -57,8 +57,16 @@ describe("dlq-cli", () => {
 
 		await expect(run(["alice", "list", "t"])).resolves.toBe(0);
 
-		expect(streams.list).toHaveBeenCalledWith("t");
+		expect(streams.list).toHaveBeenCalledWith("t", undefined);
 		expect(JSON.parse(out[0] as string)).toEqual([{ id: "1-0" }]);
+	});
+
+	it("passes the cursor of a list page", async () => {
+		const { run, streams } = cli();
+
+		await expect(run(["alice", "list", "t", "5-0"])).resolves.toBe(0);
+
+		expect(streams.list).toHaveBeenCalledWith("t", "5-0");
 	});
 
 	it("replays entries and records dlq.replay.completed with the operator as actor", async () => {
@@ -116,7 +124,7 @@ describe("dlq-cli", () => {
 	it.each([
 		[[]],
 		[["alice", "replay", "t"]],
-		[["alice", "list", "t", "1-0"]],
+		[["alice", "list", "t", "1-0", "2-0"]],
 		[["alice", "purge", "t"]],
 	])("prints the usage and exits 2 for %j", async (args) => {
 		const { run, err, publish } = cli();

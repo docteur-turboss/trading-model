@@ -47,10 +47,10 @@ jobs:
           # deploy/: manifests, tool images, migrate; tests/k8s/: the kind runner; scripts/: the deploy, migration,
           # backup/restore (incl. verify-restore-k8s.sh) and sealed-secrets scripts the jobs call; tests/backup/: audit-chain.js and
           # drill-timings.sh of the restore drill (same filter as the drill step); tests/e2e/binance-stub/: the stub run-kind.sh
-          # loads in the cluster; services/*/Dockerfile: the images kind builds;
+          # loads in the cluster; Dockerfile: the images kind builds;
           # ci.yml: this job definition. services/*/src and packages/*/src alone: unit/e2e jobs cover them.
           if [ "$EVENT" = pull_request ] && ! git diff --name-only "$BASE...$GITHUB_SHA" |
-            grep -qE '^(deploy/|tests/k8s/|scripts/[^/]*(deploy-|backup|restore|migrat|fetch-offsite|retention|sealed-secrets|split-cluster)|tests/(backup|e2e/binance-stub)/|services/[^/]+/Dockerfile$|.github/workflows/ci.yml$)'; then
+            grep -qE '^(deploy/|tests/k8s/|scripts/[^/]*(deploy-|backup|restore|migrat|fetch-offsite|retention|sealed-secrets|split-cluster)|tests/(backup|e2e/binance-stub)/|Dockerfile$|.github/workflows/ci.yml$)'; then
             k8s=false
           fi
           echo "k8s=$k8s" >> "$GITHUB_OUTPUT"
