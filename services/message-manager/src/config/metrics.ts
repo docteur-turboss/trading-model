@@ -12,12 +12,6 @@ export const MESSAGES_PUBLISHED_TOTAL = new promClient.Counter({
 	labelNames: ["topic"] as const,
 });
 
-export const MESSAGES_UNROUTED_TOTAL = new promClient.Counter({
-	name: "mm_messages_unrouted_total",
-	help: "Total number of published messages dropped because their topic had no subscriber",
-	labelNames: ["topic"] as const,
-});
-
 export const DELIVERY_LATENCY_SECONDS = new promClient.Histogram({
 	name: "mm_delivery_latency_seconds",
 	help: "Message delivery latency in seconds",
@@ -54,5 +48,6 @@ export {
 	JOURNAL_PENDING_ENTRIES,
 	MESSAGES_DELIVERED_TOTAL,
 	MESSAGES_DLQ_TOTAL,
+	MESSAGES_UNROUTED_TOTAL,
 } from "@trading-model/broker-message/bus/metrics";
 export { metricsHandler };

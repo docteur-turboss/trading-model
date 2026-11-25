@@ -15,6 +15,7 @@ import {
 	JOURNAL_PENDING_ENTRIES,
 	MESSAGES_DELIVERED_TOTAL,
 	MESSAGES_DLQ_TOTAL,
+	MESSAGES_UNROUTED_TOTAL,
 	PUBLISHER_REJECTED_TOTAL,
 } from "../../../src/bus/metrics";
 import { publishToBus } from "../../../src/bus/publisher";
@@ -58,8 +59,11 @@ describe("publishToBus", () => {
 
 	it("should drop a message nobody subscribes to, and refuse it when a subscriber is required", async () => {
 		const { journal, redis } = bus();
+		const unrouted = jest.spyOn(MESSAGES_UNROUTED_TOTAL, "inc");
 
 		await publishToBus(journal, "p", METADATA);
+		expect(unrouted).toHaveBeenCalledWith({ topic: METADATA.topic });
+		unrouted.mockClear();
 		await expect(
 			publishToBus(journal, "p", {
 				...METADATA,
@@ -67,6 +71,7 @@ describe("publishToBus", () => {
 			} as never)
 		).rejects.toThrow("No subscriber");
 
+		expect(unrouted).not.toHaveBeenCalled();
 		expect(redis.streams.size).toBe(0);
 	});
 
