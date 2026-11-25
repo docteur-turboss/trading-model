@@ -10,7 +10,7 @@ Pub/sub message brokering service with configurable delivery guarantees.
 | Port (host)      | `8444`                                                             |
 | Port (container) | `3000`                                                             |
 | Dependencies     | common, validation, http, crypto, address-manager, broker-message |
-| Persistence      | Redis: subscriptions and the durable message journal (Streams, [ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md)); dead letters in dlq-service |
+| Persistence      | Redis: subscriptions and the durable message journal (Streams, [ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md)); dead letters in Redis dead streams ([ADR-0073](../adr/0073-message-bus-as-a-redis-streams-library.md)) |
 | Validation       | Zod (dedicated schemas)                                            |
 
 ## Messaging Model
@@ -18,9 +18,9 @@ Pub/sub message brokering service with configurable delivery guarantees.
 - Topic-based publish/subscribe over HTTP
 - Subscription registry with instance-level deduplication
 - Three delivery semantics: `AT_MOST_ONCE`, `AT_LEAST_ONCE`, `EXACTLY_ONCE` (single attempt, not an end-to-end guarantee: see [ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md))
-- TTL-based message expiration with Dead Letter Queue routing (dlq-service)
+- TTL-based message expiration, routed to the dead stream of the topic
 - Parallel dispatch to all subscribers of a topic
-- Undeliverable messages are sent to dlq-service (the journal entry stays pending while it is unreachable)
+- Undeliverable messages go to the Redis dead stream of their topic (ADR-0073); operators list, replay or delete them with `audit-dlq` (`dlq-cli.js`, [runbook-message-bus-outage](../operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost))
 
 ## REST Endpoints
 
@@ -57,11 +57,13 @@ Body (validated by `PublishSchema`):
 
 **Response:** `202 Accepted` with `{ "messageId": "..." }`, once the message is written to the durable journal (Redis Streams, ADR-0048). Delivery and retries run afterwards, outside the request; `503` when the topic has no subscriber nor journal group and `delivery.requireSubscriber` is set, or the journal could not hold the message.
 
-### Subscribe to a Topic
+### Replay a Dead Letter
 
 **`POST /message/replay`**
 
-Replays a dead letter to the one service whose delivery failed (ADR-0043). Body: `{ "service": "<subscriber service>", "message": { "payload": ..., "metadata": ... } }`; the metadata keeps the `messageId` and `emittedAt` it was stamped with. The message is journaled for that service alone (the other consumer groups skip the entry), so no other subscriber, `audit-logger` included, receives a duplicate. Caller: dlq-service only (SPIFFE); never in the gateway `PUBLIC_ROUTES`. **Response:** `204` once journaled.
+Replays a historical dlq-service entry (MongoDB, before ADR-0073) to the one service whose delivery failed (ADR-0043); dead-stream entries are replayed by `audit-dlq` straight into the journal. Body: `{ "service": "<subscriber service>", "message": { "payload": ..., "metadata": ... } }`; the metadata keeps the `messageId` and `emittedAt` it was stamped with. The message is journaled for that service alone (the other consumer groups skip the entry), so no other subscriber, `audit-logger` included, receives a duplicate. Caller: dlq-service only (SPIFFE); never in the gateway `PUBLIC_ROUTES`. **Response:** `204` once journaled.
+
+### Subscribe to a Topic
 
 **`POST /subscribe`**
 
@@ -125,7 +127,7 @@ Previously validated as `z.unknown()`, the `authContext` object is now strictly 
 - **Retry with backoff**: `AT_LEAST_ONCE` retries up to 10 times (90s per attempt, handler cut at 85s, no HTTP-client retry underneath) with exponential backoff (1s base, 20s cap) and ±20% random jitter; the retry state (attempts, last attempt) is the pending list of the journal, shared by the replicas: a retry is due once the previous attempt has timed out and its backoff passed, and any replica takes it over if the one that owned it died
 - **Circuit breaker**: After 5 consecutive dispatch failures, new messages for that subscriber are not sent: they stay pending in the journal and are retried until the breaker resets on a successful delivery
 - **Alerting**: Persistent delivery failures are logged at ERROR level with topic, service name, and attempt count
-- **Dead Letter Queue**: Undelivered messages are written to their Redis dead stream (ADR-0073), which dlq-service reads. While it cannot take one, the journal entry stays pending and is retried (no local file)
+- **Dead Letter Queue**: Undelivered messages are written to their Redis dead stream (ADR-0073), read by `audit-dlq` (runbook-message-bus-outage, section 4). While Redis cannot take one, the journal entry stays pending and is retried (no local file)
 - **Graceful shutdown**: on SIGTERM the instance leaves discovery, keeps serving for `CACHE_TTL_MS`, stops its delivery worker after the attempts in flight (85 s at most); messages not delivered yet stay in the journal for the other replicas (K8s `terminationGracePeriodSeconds: 120`, compose `stop_grace_period: 2m`)
 - **Durable journal**: one Redis stream per topic, one consumer group per subscriber service (delivery once per service, at least once); entries older than 24 h are trimmed, and an undelivered one is counted (`mm_journal_trimmed_pending_total`), logged and alerted (`JournalEntriesTrimmed`); the backlog of each group is read every 15 s (`XINFO GROUPS`, `XPENDING`, `XRANGE`: calls per group, none per message) into `mm_journal_pending_entries` and `mm_journal_oldest_pending_age_seconds` (`JournalBacklogOld` at 15 min); `JOURNAL_MIN_REPLICAS` replicas must hold a write before the 202 (`WAIT`); production needs Redis with AOF
 - **Partitioning**: Via `partitionKey` in routing metadata
