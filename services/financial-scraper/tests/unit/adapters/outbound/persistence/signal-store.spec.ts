@@ -56,6 +56,14 @@ describe("MySqlSignalStore", () => {
 		expect(MOCK_QUERY).not.toHaveBeenCalled();
 	});
 
+	it("replaces the stored value of a restated source", async () => {
+		await MySqlSignalStore.save([SIGNAL], true);
+
+		expect(MOCK_QUERY.mock.calls[0][0]).toMatch(
+			/ON DUPLICATE KEY UPDATE payload = new\.payload/
+		);
+	});
+
 	it("inserts the signals in one statement, leaving a stored id as it was", async () => {
 		await MySqlSignalStore.save([SIGNAL]);
 

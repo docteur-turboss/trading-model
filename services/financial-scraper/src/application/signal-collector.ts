@@ -245,7 +245,8 @@ export class SignalCollector {
 			return;
 		}
 		await this._deps.store.save(
-			this._toSignals(source, request, payload, this._deps.now(), true)
+			this._toSignals(source, request, payload, this._deps.now(), true),
+			source.restated
 		);
 	}
 
@@ -272,7 +273,7 @@ export class SignalCollector {
 			result = "invalid_payload";
 			const signals = this._toSignals(source, request, payload, ingestedAt);
 			result = "store_error";
-			await this._deps.store.save(signals);
+			await this._deps.store.save(signals, source.restated);
 			worker.confirm?.(url);
 			result = "success";
 			SIGNAL_LAST_SUCCESS.set({ source: source.id }, ingestedAt / 1000);

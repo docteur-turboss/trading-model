@@ -119,7 +119,7 @@ describe("preTradeReject on crafted states", () => {
 		const state = newState(CAPITAL, T0);
 		edit(state);
 		return preTradeReject({
-			intent: intent({ allowRepeat: false }),
+			intent: intent({ allowRepeat: false, limitPrice: 60_000 }),
 			limits: LIMITS,
 			state,
 			now: T0,
@@ -218,6 +218,21 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		expect(await reject({ quantity: 0.05, limitPrice: 60_300 })).toBe(
 			"accepted"
 		);
+	});
+
+	it("sends an intent without a limit at the far end of the band", async () => {
+		const ctx = build();
+		await ctx.svc.start();
+		for (const [side, limit] of [
+			["buy", 60_600],
+			["sell", 59_400],
+		] as const) {
+			const r = await ctx.svc.submitIntent(intent({ side, quantity: 0.01 }));
+			expect(ctx.store.value?.orders[r.clientOrderId]).toMatchObject({
+				status: "filled",
+				limitPrice: expect.closeTo(limit, 6),
+			});
+		}
 	});
 
 	it("rejects a model that is not admitted", async () => {
@@ -344,13 +359,13 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 				price: { price: 60_000, at: T0 },
 			});
 		};
-		expect(check(0.0671, { BTCUSDT: 0.1 })).toBe("instrument_exposure"); // 10 026 > 10 000
+		expect(check(0.0671, { BTCUSDT: 0.1 })).toBe("instrument_exposure"); // 10 126 > 10 000
 		expect(check(0.002, { BTCUSDT: 0.1, ETHUSDT: 1.3 })).toBe(
 			"global_exposure"
-		); // 10 020 > 10 000
-		// A buy limit is valued at its own price: 0.1655 BTC is 9 930 at the read price, 10 013 at 60 500.
-		expect(check(0.0655, { BTCUSDT: 0.1 })).toBeNull();
-		expect(check(0.0655, { BTCUSDT: 0.1 }, 60_500)).toBe("instrument_exposure");
+		); // 10 021 > 10 000
+		// A buy is valued at its limit: 0.1655 BTC is 9 930 at 60 000, 10 029 at the marketable limit 60 600.
+		expect(check(0.0655, { BTCUSDT: 0.1 }, 60_000)).toBeNull();
+		expect(check(0.0655, { BTCUSDT: 0.1 })).toBe("instrument_exposure");
 	});
 
 	it("caps the global exposure across two instruments (10 %)", async () => {
@@ -756,6 +771,7 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 				intent: intent({
 					quantity: 0.01665,
 					referencePrice: 60_000,
+					limitPrice: 60_000,
 					allowRepeat: false,
 				}),
 				limits: LIMITS,

@@ -30,7 +30,7 @@ The platform must demonstrate that algorithmic trading systems conform to specif
 | Test | Implementation | Evidence |
 |---|---|---|
 | **Market data integrity** — input validation and sanitisation | Zod schemas validate all incoming market data (`services/financial-scraper/src/adapters/outbound/binance/`) | Integration tests |
-| **Agent behaviour bounds** — max exposure only | `maxExposureFraction` (0.1, set explicitly by `rl-backend.ts`, recorded in the model manifest as `riskLimits`) rejects a buy that would take the position value above that fraction of the initial cash (`packages/model-runtime/src/env/trade-executor.ts`, validated in `wallet-validation.ts`). No order frequency limit exists | Unit tests |
+| **Agent behaviour bounds** — max exposure only | `maxExposureFraction` (0.1, set explicitly by `rl-backend.ts`, recorded in the model manifest as `riskLimits`) reduces a buy to that fraction of the initial cash at the fill price (refused only when nothing is left) (`packages/model-runtime/src/env/trade-executor.ts`, validated in `wallet-validation.ts`). No order frequency limit exists | Unit tests |
 | **Order generation validation** — no erroneous orders | Training operates in simulation mode only; no real order execution | N/A (simulation only) |
 | **Kill functionality** — ability to halt trading | Implemented in `risk-execution`, paper only, see [Loss Limits and Kill Switch Policy](risk-limits-policy.md) §8 (Status) | ⚠️ Paper only, no live adapter |
 
