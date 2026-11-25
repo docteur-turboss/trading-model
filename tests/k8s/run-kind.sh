@@ -897,9 +897,18 @@ verify_network() {
 verify_ha() {
 	log "Redis HA: 3 pods on 3 nodes, WAIT 1, Sentinel failover"
 	# After the upgrade and rollback drills (Redis at 1 pod there): release N again with the HA patches of ci-render.mjs.
+	local redis="$K -n $NS exec redis-sentinel-0 -c sentinel --" tls="--tls --cacert /etc/redis-tls/ca.crt --sni redis"
+	sentinel() {
+		$redis sh -c "REDISCLI_AUTH=\$REDIS_INTERNAL_PASSWORD redis-cli $tls -p 26380 --raw SENTINEL $*"
+	}
+	# Scale first, without a template change: the HA render rolls redis-0 (the master) seconds after the
+	# replicas are Ready, before the sentinels know them and each other, and no failover can follow.
+	$K -n "$NS" scale statefulset/redis statefulset/redis-sentinel --replicas=3 || return 1
+	$K -n "$NS" rollout status statefulset/redis --timeout=300s || return 1
+	$K -n "$NS" rollout status statefulset/redis-sentinel --timeout=300s || return 1
+	wait_for 120 '[ "$(sentinel replicas mymaster | grep -c "^ip$")" -ge 2 ] && sentinel ckquorum mymaster | grep -q "3 usable"' || return 1
 	CI_RENDER_HA=1 apply_release "$ROOT" "$WORK/digests-current" || return 1
 	release_script redis-last "$NS" <"$WORK/app.yaml" || return 1
-	local redis="$K -n $NS exec redis-sentinel-0 -c sentinel --" tls="--tls --cacert /etc/redis-tls/ca.crt --sni redis"
 	[ "$($K -n "$NS" get pod -l app.kubernetes.io/component=redis -o jsonpath='{range .items[*]}{.spec.nodeName}{"
 "}{end}' | sort -u | wc -l)" -eq 3 ] || {
 		log "the 3 Redis pods are not on 3 nodes"
