@@ -12,18 +12,6 @@ jest.mock("../../../src/application/server", () => ({
 	})),
 }));
 
-const CALLS: string[] = [];
-const MOCK_LEAVE = jest.fn(async (..._args: any[]) => {
-	CALLS.push("leave");
-});
-
-jest.mock("../../../src/config/address-manager", () => ({
-	BOOTSTRAP_ADDRESS_MANAGER: jest.fn((..._args: any[]) => ({
-		stop: jest.fn<(...args: any[]) => any>(),
-		leave: MOCK_LEAVE,
-	})),
-}));
-
 const MOCK_CLOSE_MESSAGE_MANAGER = jest.fn(
 	async (..._args: any[]) => undefined
 );
@@ -51,11 +39,6 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 		APP_VERSION: "1.0.0",
 		SERVICE_NAME: "message-manager-service",
 		INSTANCE_ID: "instance-1",
-		CACHE_TTL_MS: 30000,
-		SERVICE_PING_TIMEOUT_MS: "2000",
-		TOKEN_REFRESH_INTERVAL_MS: "60000",
-		TTL_REFRESH_INTERVAL_MS: "15000",
-		ADDRESS_MANAGER_URL: "https://address-manager.example.com",
 		MESSAGE_CALLBACK_PATH: "message",
 	},
 }));
@@ -75,50 +58,14 @@ describe("app/index", () => {
 		expect(typeof opts.createServer).toBe("function");
 	});
 
-	it("onStop should handle null addressManager", () => {
-		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
-		expect(() => opts.onStop()).not.toThrow();
-	});
-
 	it("onStop should close the subscription store connection", async () => {
 		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
 		await opts.onStop();
 		expect(MOCK_CLOSE_MESSAGE_MANAGER).toHaveBeenCalled();
 	});
 
-	it("onStart should bootstrap address manager", () => {
-		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
-		expect(() => opts.onStart()).not.toThrow();
-	});
-
-	it("onStop should stop address manager after start", () => {
-		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
-		opts.onStart();
-		expect(() => opts.onStop()).not.toThrow();
-	});
-
 	it("should let in-flight publishes finish before closing", () => {
 		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
 		expect(opts.shutdown.closeTimeoutMs).toBe(PUBLISH_ACCEPT_TIMEOUT_MS);
-	});
-
-	// Publishers keep the address they resolved for CACHE_TTL_MS: until then
-	// this instance must keep serving.
-	it("should leave discovery, then serve CACHE_TTL_MS more before closing", async () => {
-		jest.useFakeTimers();
-		const opts: any = MOCK_CREATE_BOOTSTRAP.mock.calls[0][0];
-		opts.onStart();
-		let done = false;
-		const closing = opts.shutdown.beforeClose().then(() => {
-			done = true;
-		});
-		await Promise.resolve();
-		expect(CALLS).toContain("leave");
-		await jest.advanceTimersByTimeAsync(29_999);
-		expect(done).toBe(false);
-		await jest.advanceTimersByTimeAsync(1);
-		await closing;
-		expect(done).toBe(true);
-		jest.useRealTimers();
 	});
 });

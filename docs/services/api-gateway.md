@@ -32,7 +32,7 @@ Lightweight health check.
 
 **`/v{version}/{serviceName}/{path}`**
 
-Proxies the public routes listed in `PUBLIC_ROUTES` (`services/api-gateway/src/shared/public-routes.ts`, published as `docs/services/openapi/api-gateway.yaml`) to the target internal service, reached at its DNS name (ADR-0072). `PUBLIC_ROUTES` lists each route per major (`/v2/financial-scraper/candles/symbols/:symbol`): a major a service does not serve answers `404`. Any other route answers `404` before resolution: the gateway calls services with its own SVID, so proxying service-to-service routes (discovery `/register` or `/heartbeat`, message-manager `/message` or `/subscribe`...) would lend its identity to every API client. A path that URL normalization would change (`..`, `%2e`, `\`) is refused too.
+Proxies the public routes listed in `PUBLIC_ROUTES` (`services/api-gateway/src/shared/public-routes.ts`, published as `docs/services/openapi/api-gateway.yaml`) to the target internal service, reached at its DNS name (ADR-0072). `PUBLIC_ROUTES` lists each route per major (`/v2/financial-scraper/candles/symbols/:symbol`): a major a service does not serve answers `404`. Any other route answers `404` before resolution: the gateway calls services with its own SVID, so proxying service-to-service routes (message-manager `/message` or `/subscribe`...) would lend its identity to every API client. A path that URL normalization would change (`..`, `%2e`, `\`) is refused too.
 
 **Headers:**
 

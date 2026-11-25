@@ -68,7 +68,7 @@ Complete procedure to add a bare Linux server running the development Compose st
 ```bash
 sudo hostnamectl set-hostname trading-<role>-<number>
 # Examples:
-#   trading-discovery-1
+#   trading-message-1
 #   trading-scraper-2
 #   trading-trainer-3
 ```
@@ -242,7 +242,6 @@ Expected:
 NAME               IMAGE                                                   STATUS
 trading-mongo      mongo:7                                                 Up (healthy)
 trading-mysql      mysql:8                                                 Up (healthy)
-trading-discovery  ghcr.io/trading-model/discovery-server:latest           Up (healthy)
 trading-message    ghcr.io/trading-model/message-manager:latest            Up (healthy)
 trading-scraper    ghcr.io/trading-model/financial-scraper:latest          Up (healthy)
 trading-trainer    ghcr.io/trading-model/trader-trainer:latest             Up (healthy)
@@ -256,7 +255,7 @@ Individual health checks:
 ```bash
 # Services only accept SPIFFE mTLS clients (ADR-0011): probe them from inside
 # their container, with its SVID (what the compose healthcheck does)
-for c in trading-discovery trading-message trading-scraper trading-trainer \
+for c in trading-message trading-scraper trading-trainer \
          trading-gateway trading-audit trading-dlq; do
   printf '%s: ' "$c"
   docker exec "$c" node -e "$SVID_GET" https://localhost:3000/ping; echo

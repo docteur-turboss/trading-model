@@ -55,7 +55,7 @@ permissions:
 # tests/k8s/check-overlays.mjs fails when an overlay uses an image missing here.
 env:
   IMAGES: >-
-    discovery-server message-manager financial-scraper trader-trainer
+    message-manager financial-scraper trader-trainer
     api-gateway audit-logger dlq-service model-evaluator risk-execution decision-consumer spire-tools backup-tools db-migrate
 
 concurrency:
@@ -170,7 +170,7 @@ jobs:
       # cluster (local kind staging). Unset: 1.
       DEPLOY_TIMEOUT_FACTOR: ${{ vars.DEPLOY_TIMEOUT_FACTOR || '1' }}
       # Canary services (canary-all and canary-cleanup read this one list).
-      CANARY_SERVICES: discovery-server message-manager financial-scraper api-gateway audit-logger dlq-service
+      CANARY_SERVICES: message-manager financial-scraper api-gateway audit-logger dlq-service
       # Free-text inputs reach scripts through env only, never ${{ }} in run:.
       DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
       ALLOW_FIRING_ALERTS: ${{ inputs.allow_firing_alerts }}
@@ -762,8 +762,8 @@ jobs:
           bash scripts/backup-recipients-check.sh --environment "$ENV" --min "$min"
 
       # Production refuses to deploy without a backup encryption key and an
-      # off-site copy (issue #331): each comes from the GitHub environment or
-      # from the resource already in the namespace (ConfigMap
+      # off-site copy at two providers (issue #331, #2599): each comes from
+      # the GitHub environment or from the resource already in the namespace (ConfigMap
       # backup-encryption, Secret trading-model-backup-s3, e.g. a
       # SealedSecret). Other environments warn. Checked before any change.
       - name: Check backup configuration is present
@@ -773,6 +773,8 @@ jobs:
         env:
           BACKUP_AGE_RECIPIENTS: ${{ vars.BACKUP_AGE_RECIPIENTS }}
           BACKUP_S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
+          BACKUP_S3_SECONDARY_BUCKET: ${{ vars.BACKUP_S3_SECONDARY_BUCKET }}
+          BACKUP_S3_SECONDARY_CHECK: ${{ vars.BACKUP_S3_SECONDARY_CHECK }}
         run: |
           bash scripts/backup-config-check.sh --environment "$DEPLOY_ENVIRONMENT" \
             --namespace "$NAMESPACE"

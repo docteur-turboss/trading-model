@@ -132,6 +132,10 @@ record() {
 
 forget() {
 	kubectl delete configmap "$REVISIONS_CM" -n "$1" --ignore-not-found
+	# discovery-server (retired, ADR-0072): the apply no longer carries it. Removed only after a
+	# good release: pods of release N need it to be Ready, so a rollback to N must still find it.
+	kubectl delete deployment/discovery-server service/discovery-server hpa/discovery-server-hpa pdb/discovery-server-pdb networkpolicy/discovery-server-network-policy serviceaccount/discovery-server -n "$1" --ignore-not-found
+	kubectl delete vpa/discovery-server-vpa -n "$1" --ignore-not-found 2>/dev/null || true
 }
 
 # Deployments driven by an HPA carry no spec.replicas in the overlay. A

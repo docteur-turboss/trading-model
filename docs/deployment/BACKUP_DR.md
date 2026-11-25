@@ -36,7 +36,7 @@ restore verification for the trading-model platform.
 | `risk-execution-pvc` (`state.json`, `paper-ledger.json`) | risk-execution (kill switch, orders, positions; paper ledger, ADR-0064) | High | 24 h (daily tar, K8s only; `--until` restores the daily run at or before the instant) | 1 hour (a missing state starts with the kill switch on until an operator re-arms) |
 | `model-evaluations-pvc`       | model-evaluator (evaluation results)          | Low         | Not backed up: recomputed by replay (ADR-0079) | Rebuilt |
 | SealedSecrets controller keys | Sealed Secrets controller (namespace `sealed-secrets`, ADR-0035): decrypts every SealedSecret of `deploy/k8s/secrets/` | Critical | Daily run of `scripts/backup-sealed-secrets-key.sh` by `sealed-secrets-key-backup.yml` (ADR-0035), plus a manual run after a manual key change ([sealed-secrets.md](sealed-secrets.md#back-up-the-controller-keys)): a renewed key is off-site within 24 h | 1 hour |
-| Redis                         | message-manager journal (ADR-0048), discovery-server, dlq-service, readiness | High (journal), Low (rest) | Not backed up: journal protected by AOF and replication only | Journal not rebuildable; rest rebuilt |
+| Redis                         | message-manager journal (ADR-0048), dlq-service, readiness | High (journal), Low (rest) | Not backed up: journal protected by AOF and replication only | Journal not rebuildable; rest rebuilt |
 | Loki (access and operational logs) | edge-proxy, Promtail-collected services (K8s `deploy/k8s/infra/loki.yaml`, 10Gi; Compose `loki-data`) | Low (security evidence kept 31 days) | Not backed up | Rebuilt |
 | Prometheus TSDB               | Prometheus (K8s `deploy/k8s/infra/prometheus.yaml`, 50Gi; Compose `prometheus-data`) | Low | Not backed up | Rebuilt |
 | Grafana (dashboards, datasources, local DB) | Grafana (K8s `deploy/k8s/infra/grafana.yaml`, 10Gi; Compose `grafana-data`) | Low | Not backed up | Rebuilt |
@@ -339,8 +339,11 @@ change; elsewhere it is a `::warning::`.
 refuses a `production` deploy (`::error::`, exit 1) that has neither the
 variable `BACKUP_AGE_RECIPIENTS` nor a `backup-encryption` ConfigMap in the
 namespace, or neither `BACKUP_S3_BUCKET` nor a `trading-model-backup-s3`
-Secret (e.g. a SealedSecret). A resource already in the cluster is enough;
-other environments get a `::warning::`.
+Secret (e.g. a SealedSecret), or no `BACKUP_S3_SECONDARY_BUCKET` (variable or
+key of that Secret, which counts only when `BACKUP_S3_BUCKET` is unset: otherwise
+the deploy rewrites the Secret from the variables). A resource already in the cluster is enough;
+other environments get a `::warning::`. `BACKUP_S3_SECONDARY_CHECK=warn`
+downgrades the missing second bucket in production (emergency deploy only).
 
 **Fallback.** The GitHub environment variable
 `BACKUP_S3_IMMUTABILITY_CHECK=warn` turns the production error into a
@@ -840,8 +843,7 @@ operator key, or the escrow key from the safe if it is lost
    restarts the SPIRE server
 5. Restore the trainer checkpoints
 6. Run `bash scripts/verify-restore-k8s.sh` (business checks, see Recovery
-   Verification), then verify health endpoints, service registration in
-   discovery-server and the Prometheus targets (all `up` means mTLS works)
+   Verification), then verify health endpoints and the Prometheus targets (all `up` means mTLS works)
 
 ### Recovery Verification
 
@@ -865,7 +867,7 @@ fails on an altered audit event. Then the service checks:
 curl -s http://localhost:8449/v1/trader-trainer/training-status -H "x-api-key: <AUTH_TOKENS value>"
 
 # Check core service health (mTLS via SPIRE SVIDs, run inside a service container)
-for svc in discovery-server message-manager api-gateway; do
+for svc in message-manager api-gateway; do
   docker compose exec -T "$svc" node -e "$SVID_GET" https://localhost:3000/ping
 done
 ```
@@ -942,7 +944,8 @@ credentials of the cloud account (not the ones stored in the cluster);
    > loses every restorable backup. A second MinIO on the same host would not
    > cover this, so none is run. The second Object Lock bucket at another
    > provider is postponed to the production launch: reopen #1943 then, and
-   > fill `BACKUP_S3_SECONDARY_*` before the first production deploy.
+   > fill `BACKUP_S3_SECONDARY_*` before the first production deploy
+   > (enforced by `scripts/backup-config-check.sh`, issue #2599).
 
    If reachable:
    - keep the **same buckets**: Object Lock (compliance mode; 30-31 days
@@ -1002,7 +1005,7 @@ credentials of the cloud account (not the ones stored in the cluster);
 7. **Verify the restore.** `K8S_NAMESPACE=trading-model bash
    scripts/verify-restore-k8s.sh`
    ([Recovery Verification](#recovery-verification)); check that
-   every service registers in discovery-server and that all Prometheus
+   all Prometheus
    targets are `up` (mTLS through SPIRE works).
 
 8. **Switch the entry point.** The hosts are in `deploy/k8s/ingress/`

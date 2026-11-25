@@ -4,8 +4,7 @@ Service abbreviation legend:
 
 | Abbr. | Service                                                                                             |
 | ----- | --------------------------------------------------------------------------------------------------- |
-| All   | All services (discovery-server, message-manager, financial-scraper, trader-trainer, etc.)           |
-| DS    | discovery-server                                                                                    |
+| All   | All services (message-manager, financial-scraper, trader-trainer, etc.)           |
 | MM    | message-manager                                                                                     |
 | FS    | financial-scraper                                                                                   |
 | TT    | trader-trainer                                                                                      |
@@ -37,24 +36,18 @@ Defined in `@trading-model/http` (`config/env` — `BaseEnvSchema`), validated a
 
 ---
 
-## Address Manager — registered services
+## Address Manager
 
-Used by services that register with the discovery-server.
+Used by services that resolve other services (DNS).
 
 Defined in `@trading-model/address-manager` (`config/address-manager-env` — `AddressManagerEnvSchema`), validated at startup via `application/services/validate-env`.
 
 | Variable                          | Type   | Default                         | Required | Description                                      | Services       |
 | --------------------------------- | ------ | ------------------------------- | -------- | ------------------------------------------------ | -------------- |
 | `APP_NAME`                        | string | _varies_                        | **yes**  | Logical application name                         | MM, FS, TT, AL, DLQ |
-| `APP_VERSION`                     | string | `1.0.0`                         | no       | Version registered in discovery: its major is the gateway prefix `/v<major>` (FS: `2.0.0`, the others 1.x) | MM, FS, TT, AL, DLQ |
-| `SERVICE_NAME`                    | string | _varies_                        | **yes**  | Service identity (discovery; `build_info` label)  | MM, FS, TT, AL, DLQ, GW, DS |
+| `APP_VERSION`                     | string | `1.0.0`                         | no       | Application version: its major is the gateway prefix `/v<major>` (FS: `2.0.0`, the others 1.x) | MM, FS, TT, AL, DLQ |
+| `SERVICE_NAME`                    | string | _varies_                        | **yes**  | Service identity (`build_info` label)  | MM, FS, TT, AL, DLQ, GW |
 | `INSTANCE_ID`                     | string | _varies_                        | **yes**  | Unique instance identifier                       | MM, FS, TT, AL, DLQ |
-| `CACHE_TTL_MS`                    | number | `30000`                         | no       | In-memory cache TTL                              | MM, FS, TT, AL, DLQ |
-| `SERVICE_PING_TIMEOUT_MS`         | number | `2000`                          | no       | Timeout for health check pings                   | MM, FS, TT, AL, DLQ |
-| `TOKEN_REFRESH_INTERVAL_MS`       | number | `60000`                         | no       | Auth token refresh interval                      | MM, FS, TT, AL, DLQ |
-| `TTL_REFRESH_INTERVAL_MS`         | number | `15000`                         | no       | Service lease TTL refresh interval               | MM, FS, TT, AL, DLQ |
-| `ADDRESS_MANAGER_URL`             | URL    | `https://discovery-server:3000` | **yes**  | Discovery server base URL                        | MM, FS, TT, AL, DLQ |
-| `DISCOVERY_TIMEOUT_MS`            | number | `5000`                          | no       | Timeout of the calls to the discovery server     | MM, FS, TT, AL, DLQ |
 | `DNS_NAME_MAP`                    | string | `'{}'`                          | no       | Custom DNS name to address mapping (JSON object); not read by the gateway | MM, FS, TT, AL, DLQ |
 | `MESSAGE_CALLBACK_PATH`           | string | `message`                       | no       | Callback path for incoming messages              | MM, FS, TT, AL, DLQ |
 
@@ -66,26 +59,15 @@ Defined in `@trading-model/persistence/redis-env` (`RedisEnvSchema`) and turned 
 
 | Variable                     | Type   | Default    | Required | Description                                                               | Services                |
 | ---------------------------- | ------ | ---------- | -------- | ------------------------------------------------------------------------- | ----------------------- |
-| `REDIS_SENTINELS`            | string | —          | no       | Sentinels as `host:port,host:port` (IP or DNS name); takes precedence over `REDIS_URL` | DS, MM, DLQ, AL, TT, ME, RX, DCN |
-| `REDIS_SENTINEL_MASTER_NAME` | string | `mymaster` | no       | Master group name the sentinels monitor (only with `REDIS_SENTINELS`)     | DS, MM, DLQ, AL, TT, ME, RX, DCN |
-| `REDIS_USERNAME`             | string | —          | no       | ACL user of the service (K8s: `discovery`, `message-manager`, `dlq-service`, ADR-0047; bus users `audit-logger`, `trader-trainer`, `model-evaluator`, `risk-execution`, `decision-consumer`, ADR-0073; only with `REDIS_SENTINELS`) | DS, MM, DLQ, AL, TT, ME, RX, DCN |
-| `REDIS_PASSWORD`             | string | —          | no       | Password of that user (only with `REDIS_SENTINELS`; with `REDIS_URL` put it in the URL). K8s: key `REDIS_<SERVICE>_PASSWORD` of `trading-model-secrets` | DS, MM, DLQ, AL, TT, ME, RX, DCN |
-| `REDIS_SENTINEL_PASSWORD`    | string | —          | no       | Password the sentinels require (K8s: key `REDIS_INTERNAL_PASSWORD` of `trading-model-secrets`) | DS, MM, DLQ, AL, TT, ME, RX, DCN |
-| `REDIS_TLS_MODE` | `optional` | `required` | `optional` | no | `required`: TLS to Redis and the sentinels, needs `REDIS_TLS_CA` (release N+1, ADR-0047, `docs/deployment/REDIS_TLS.md`) | DS, MM, DLQ, AL, TT, ME, RX, DCN |
-| `REDIS_TLS_CA` | path | — | with `required` | PEM CA of the Redis server certificates (K8s: `ca.crt` of Secret `redis-tls`) | DS, MM, DLQ, AL, TT, ME, RX, DCN |
-| `REDIS_TLS_SERVERNAME` | string | `redis` | no | Name the Redis certificate must carry (nodes are reached by IP) | DS, MM, DLQ, AL, TT, ME, RX, DCN |
+| `REDIS_SENTINELS`            | string | —          | no       | Sentinels as `host:port,host:port` (IP or DNS name); takes precedence over `REDIS_URL` | MM, DLQ, AL, TT, ME, RX, DCN |
+| `REDIS_SENTINEL_MASTER_NAME` | string | `mymaster` | no       | Master group name the sentinels monitor (only with `REDIS_SENTINELS`)     | MM, DLQ, AL, TT, ME, RX, DCN |
+| `REDIS_USERNAME`             | string | —          | no       | ACL user of the service (K8s: `message-manager`, `dlq-service`, ADR-0047; bus users `audit-logger`, `trader-trainer`, `model-evaluator`, `risk-execution`, `decision-consumer`, ADR-0073; only with `REDIS_SENTINELS`) | MM, DLQ, AL, TT, ME, RX, DCN |
+| `REDIS_PASSWORD`             | string | —          | no       | Password of that user (only with `REDIS_SENTINELS`; with `REDIS_URL` put it in the URL). K8s: key `REDIS_<SERVICE>_PASSWORD` of `trading-model-secrets` | MM, DLQ, AL, TT, ME, RX, DCN |
+| `REDIS_SENTINEL_PASSWORD`    | string | —          | no       | Password the sentinels require (K8s: key `REDIS_INTERNAL_PASSWORD` of `trading-model-secrets`) | MM, DLQ, AL, TT, ME, RX, DCN |
+| `REDIS_TLS_MODE` | `optional` | `required` | `optional` | no | `required`: TLS to Redis and the sentinels, needs `REDIS_TLS_CA` (release N+1, ADR-0047, `docs/deployment/REDIS_TLS.md`) | MM, DLQ, AL, TT, ME, RX, DCN |
+| `REDIS_TLS_CA` | path | — | with `required` | PEM CA of the Redis server certificates (K8s: `ca.crt` of Secret `redis-tls`) | MM, DLQ, AL, TT, ME, RX, DCN |
+| `REDIS_TLS_SERVERNAME` | string | `redis` | no | Name the Redis certificate must carry (nodes are reached by IP) | MM, DLQ, AL, TT, ME, RX, DCN |
 | `BUS_TRANSPORT` | `library` \| `http` | — | no | Bus transport (ADR-0073, `BusEnvSchema`): `library` = Redis Streams in process, refuses to start without `REDIS_URL` / `REDIS_SENTINELS`; `http` = message-manager, Redis settings ignored; unset = `library` when Redis is set (N-1 rule). Set by every deployment | AL, TT, ME, RX, DCN |
-
----
-
-## Discovery Server
-
-| Variable                      | Type   | Default          | Required | Description                        | Services |
-| ----------------------------- | ------ | ---------------- | -------- | ---------------------------------- | -------- |
-| `CLEANUP_SERVICE_INTERVAL_MS` | number | `600000` (10min) | no       | Interval for expired lease cleanup | DS       |
-| `SIGNING_SECRET`              | string | —                | **yes** in production | HMAC secret of the instance tokens (in production: at least 32 characters, no `change-me`; start refused otherwise); shared by the replicas, stable across restarts (random per process otherwise) | DS |
-| `REDIS_URL`                   | string | —                | **yes** in production (or `REDIS_SENTINELS`) | Redis URL for distributed registry; in memory otherwise (outside production) | DS       |
-| `ALLOWED_REGISTRATION_CIDRS`  | string | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8` | no (must not be empty in production) | Comma-separated CIDRs allowed to register. Empty: the check is off; in production the service refuses to start | DS |
 
 ---
 
@@ -328,7 +310,6 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 
 | Variable              | Type   | Default                 | Description                        | Services |
 | --------------------- | ------ | ----------------------- | ---------------------------------- | -------- |
-| `DISCOVERY_PORT`      | number | `8443`                  | Host port for discovery-server     | DC       |
 | `MESSAGE_PORT`        | number | `8444`                  | Host port for message-manager      | DC       |
 | `SCRAPER_PORT`        | number | `8445`                  | Host port for financial-scraper    | DC       |
 | `TRAINER_PORT`        | number | `8446`                  | Host port for trader-trainer       | DC       |
@@ -365,7 +346,8 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 
 | Variable | Type | Default | Description |
 | -------- | ---- | ------- | ----------- |
-| `BACKUP_S3_SECONDARY_BUCKET` (+ `_REGION`, `_ENDPOINT`, `_PROVIDER`, `_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY`) | `s3://bucket/prefix` + store settings | unset | Optional second off-site backup bucket at another provider: when set, `upload_offsite` sends it every file sent to `BACKUP_S3_BUCKET` (same tiers, metric `component="offsite-secondary"`), and `deploy.yml` checks it like the first (`scripts/backup-bucket-check.sh`). GitHub environment variables / secrets of the same names; `deploy.yml` writes them to the Secret `trading-model-backup-s3`. Unset: nothing changes |
+| `BACKUP_S3_SECONDARY_BUCKET` (+ `_REGION`, `_ENDPOINT`, `_PROVIDER`, `_ACCESS_KEY_ID`, `_SECRET_ACCESS_KEY`) | `s3://bucket/prefix` + store settings | unset | Second off-site backup bucket at another provider: when set, `upload_offsite` sends it every file sent to `BACKUP_S3_BUCKET` (same tiers, metric `component="offsite-secondary"`), and `deploy.yml` checks it like the first (`scripts/backup-bucket-check.sh`). GitHub environment variables / secrets of the same names; `deploy.yml` writes them to the Secret `trading-model-backup-s3`. Unset: production deploy fails (`scripts/backup-config-check.sh`), warning elsewhere |
+| `BACKUP_S3_SECONDARY_CHECK` | `warn` | unset | `warn` turns the production error of `scripts/backup-config-check.sh` for a missing second off-site bucket into a warning (emergency deploy); remove it once `BACKUP_S3_SECONDARY_BUCKET` is set. GitHub environment variable |
 | `BACKUP_S3_ALLOWED_REGIONS` | space-separated list | EU regions of AWS (`eu-*`), Scaleway (`fr-par nl-ams pl-waw`), OVH (`gra sbg rbx par`) | Regions the off-site backup bucket may be in. `deploy.yml` runs `scripts/backup-bucket-check.sh`: a bucket elsewhere, or whose region cannot be read, is an error in production and a warning elsewhere (`BACKUP_S3_IMMUTABILITY_CHECK=warn` downgrades both). GDPR art. 44, `docs/compliance/third-party-dpas.md` |
 
 ---
@@ -395,7 +377,6 @@ APP_VERSION=1.0.0
 INSTANCE_ID=instance-1
 
 # Port mapping (host : container)
-DISCOVERY_PORT=8443
 MESSAGE_PORT=8444
 SCRAPER_PORT=8445
 TRAINER_PORT=8446

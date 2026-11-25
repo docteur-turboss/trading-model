@@ -70,7 +70,6 @@ All platform assets are documented in:
 | Method | Used For | Implementation |
 |---|---|---|
 | mTLS (SPIRE SVIDs) | Service-to-service | SPIRE Server + `spiffe-helper` sidecars (Workload API) |
-| HMAC-SHA256 tokens | Service registration | `discovery-server` token generation + `address-manager` lifecycle |
 | API keys | External admin access | `AUTH_TOKENS` env var in `api-gateway` |
 
 ## 6. Cryptography

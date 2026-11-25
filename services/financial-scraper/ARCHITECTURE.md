@@ -142,7 +142,7 @@ Collection of the sources of every dimension declared in the source registry; se
 | -------------------------------- | ------------------------------------------------------------------------------------------ |
 | `@trading-model/common`          | Bootstrap, shared types, error classes, event types |
 | `@trading-model/http`    | Server factory (`createSecureServer`) |
-| `@trading-model/address-manager` | Service discovery client (register, heartbeat, token rotation)                             |
+| `@trading-model/address-manager` | DNS service resolution client                                                             |
 
 ### External
 
@@ -165,7 +165,6 @@ All configuration is validated at startup via Zod schemas from `@trading-model/c
 
 - **mTLS via SPIRE** — all inter-service communication uses mutual TLS, automatic via SPIRE SVIDs (ADR-0011); no manual certificates
 - **MySQL connection** — user, password, host, port, database name
-- **Discovery Server URL** — for service registration and heartbeat
 - **Cron schedule** — `SCRAPE_INTERVAL` (cron expression, default every minute)
 - **Tracked symbols** — `SYMBOLS_TO_TRACK` (JSON array or CSV list)
 

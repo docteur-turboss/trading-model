@@ -7,10 +7,7 @@ import {
 	TRAINER_ROUTES,
 	type TrainerRoutesOptions,
 } from "../adapters/inbound/http/routes";
-import {
-	ADDRESS_MANAGER_ROUTES,
-	REGISTRATION_READINESS,
-} from "../config/address-manager";
+import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
 import { metricsHandler } from "../config/metrics";
 import { ENV } from "../infrastructure/config/env";
 import type { Trainer } from "./trainer";
@@ -26,11 +23,6 @@ export function createServer(trainer: Trainer, models: TrainerRoutesOptions) {
 
 			ADDRESS_MANAGER_ROUTES(app);
 		},
-		// No discovery lookup: resolution falls back to the last known address during a discovery outage.
-		readiness: [
-			svidReadinessCheck(ENV),
-			REGISTRATION_READINESS,
-			redisReadinessCheck(ENV),
-		],
+		readiness: [svidReadinessCheck(ENV), redisReadinessCheck(ENV)],
 	});
 }

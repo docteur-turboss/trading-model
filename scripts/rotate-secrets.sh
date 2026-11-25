@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # Rotates application secrets of trading-model-secrets, by hand (no CronJob does it).
-# Usage: bash scripts/rotate-secrets.sh [--component signing|tokens|dlq|mysql|all]
-#   signing  SIGNING_SECRET        -> discovery-server (instance tokens: services re-register)
+# Usage: bash scripts/rotate-secrets.sh [--component tokens|dlq|mysql|all]
 #   tokens   AUTH_TOKENS           -> api-gateway (only the key API_KEY_NAME is replaced, the others kept;
 #            ADR-0059 `name:scopes:secret`). The new key is written to a 0600 file, path logged.
 #   dlq      DLQ_AUTH_HMAC_SECRET  -> dlq-service
-#   all      the three above
+#   all      the two above
 #   mysql    MYSQL_PASSWORD (user scraper) -> financial-scraper, no downtime: ALTER USER ... RETAIN CURRENT PASSWORD,
 #            Secret, restart, DISCARD OLD PASSWORD
 # Other database passwords (MYSQL_*, MONGO_ROOT_PASSWORD, redis, REDIS_*_PASSWORD) are refused: see
@@ -138,7 +137,6 @@ rotate_secret() {
 
 rotate_component() {
   case "$1" in
-    signing) rotate_secret SIGNING_SECRET 32 "" discovery-server ;;
     tokens) rotate_secret AUTH_TOKENS 24 "${API_KEY_NAME}:${API_KEY_SCOPES}:" api-gateway ;;
     dlq) rotate_secret DLQ_AUTH_HMAC_SECRET 32 "" dlq-service ;;
     mysql) PRE_HOOK=mysql_add POST_HOOK=mysql_discard rotate_secret MYSQL_PASSWORD 24 "" financial-scraper financial-scraper-collector ;;
@@ -147,15 +145,15 @@ rotate_component() {
 }
 
 COMPONENT=all
-USAGE="Usage: $0 [--component signing|tokens|dlq|mysql|all]"
+USAGE="Usage: $0 [--component tokens|dlq|mysql|all]"
 if [ $# -gt 0 ]; then
   [ $# -eq 2 ] && [ "$1" = --component ] || { echo "$USAGE" >&2; exit 1; }
   COMPONENT="$2"
 fi
 
 case "$COMPONENT" in
-  signing | tokens | dlq | mysql) rotate_component "$COMPONENT" ;;
-  all) for c in signing tokens dlq; do rotate_component "$c"; done ;;
+  tokens | dlq | mysql) rotate_component "$COMPONENT" ;;
+  all) for c in tokens dlq; do rotate_component "$c"; done ;;
   MYSQL_* | MONGO_ROOT_PASSWORD | REDIS_* | redis | mongo)
     die "this database password is not rotated by this script (Redis: ACL rights for a rotation identity are not granted, ADR-0047): follow 'Rotate a database password' in docs/deployment/sealed-secrets.md" ;;
   *) echo "$USAGE" >&2; exit 1 ;;
