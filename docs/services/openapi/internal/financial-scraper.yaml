@@ -46,7 +46,7 @@ paths:
       operationId: "getV2CandlesLatest"
       tags:
         - "financial-scraper"
-      summary: "Newest closed candle of each listed symbol (any source, interval)"
+      summary: "Newest closed candle of each listed symbol, opened in the last hour (any source, interval)"
       x-registry-entry: "candlesLatest"
       parameters:
         - name: "symbols"

@@ -7,6 +7,7 @@ import {
 	describe,
 	expect,
 	it,
+	jest,
 } from "@jest/globals";
 import {
 	CandleInterval,
@@ -204,10 +205,10 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
 		await expect(tables()).resolves.toEqual(ALL_TABLES);
 
-		// 014 (candles index), 013 (cursors, down recreates them), 012 (trades id, down is a no-op), 010 (index), 009 (signals.area), 008 (market_order_books).
-		migrate("down", "6");
+		// 013 (cursors, down recreates them), 012 (trades id, down is a no-op), 010 (index), 009 (signals.area), 008 (market_order_books).
+		migrate("down", "5");
 		await expect(appliedMigrations()).resolves.toEqual(
-			MIGRATION_IDS.slice(0, -6)
+			MIGRATION_IDS.slice(0, -5)
 		);
 		await expect(tables()).resolves.toEqual(
 			[
@@ -603,13 +604,35 @@ describe("selectLatestClosedCandles — real MySQL", () => {
 		]);
 	});
 
-	it("should use the symbol/close index", async () => {
-		// MySQL resolves MAX() from the index while optimizing (EXPLAIN key is null): check the index exists.
-		const [indexes] = await DATABASE.promise().query(
-			"SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'market_candles' AND index_name = 'idx_candles_symbol_close'"
+	it("should read an index range per symbol, without dependent subquery or table scan, before index-build (issue #2592)", async () => {
+		const db = DATABASE.promise();
+		// Enough history that the optimizer weighs a scan of the symbol against the bounded range.
+		await db.query(
+			`INSERT /*+ SET_VAR(cte_max_recursion_depth = 20000) */ INTO market_candles (symbol, market, source, interval_value, open, high, low, close, volume, timestamp, close_timestamp)
+			 WITH RECURSIVE n (i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 20000)
+			 SELECT ELT(1 + i % 2, 'BTCUSDT', 'ETHUSDT'), 'crypto', 'binance', '1m', 1, 1, 1, 1, 1, '2026-01-01' + INTERVAL i MINUTE, '2026-01-01' + INTERVAL i + 1 MINUTE FROM n`
+		);
+		await db.query("ANALYZE TABLE market_candles");
+		const query = jest.spyOn(DATABASE, "query");
+
+		const rows = await selectLatestClosedCandles(
+			[SYMBOL, ETH],
+			new Date(Date.UTC(2026, 0, 14))
 		);
 
-		expect(indexes).toHaveLength(2);
+		expect(rows).toHaveLength(2);
+		const [sql, params] = query.mock.calls[0] as unknown as [string, unknown[]];
+		query.mockRestore();
+		const [plan] = (await db.query(`EXPLAIN ${sql}`, params)) as unknown as [
+			{ select_type: string; type: string }[],
+		];
+		// Not DELETE: its unpurged rows and these statistics would skew the later plan specs.
+		await db.query("TRUNCATE TABLE market_candles");
+		expect(plan).toHaveLength(2);
+		for (const step of plan) {
+			expect(step.select_type).not.toBe("DEPENDENT SUBQUERY");
+			expect(step.type).not.toBe("ALL");
+		}
 	});
 });
 

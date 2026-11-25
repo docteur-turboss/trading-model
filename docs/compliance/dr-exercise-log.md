@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Document owner** | Platform Security Lead |
+| **Document owner** | Maintainer (single role) |
 | **Purpose** | Versioned record of every disaster-recovery exercise and restore drill: when, which scenario, how long each step took, and how that compares with the RTO / RPO |
 | **Policy** | [Business Continuity Policy](business-continuity-policy.md) § 7 (annual tabletop exercise and full recovery drill) |
 | **Targets** | [BACKUP_DR.md](../deployment/BACKUP_DR.md) (data-store RTO / RPO) and [Business Continuity Policy](business-continuity-policy.md) § 2.2 (service-tier RTO) |
@@ -102,5 +102,5 @@ kind (seconds):
 
 No annual tabletop exercise or full recovery drill has been recorded yet; the
 Business Continuity Policy declares them (§ 7). The first one is an
-organisational task (owner: Platform Security Lead) and starts a new entry
+organisational task (owner: maintainer) and starts a new entry
 above this one.
