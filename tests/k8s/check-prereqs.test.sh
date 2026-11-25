@@ -17,6 +17,7 @@ cat >"$WORK/bin/kubectl" <<'STUB'
 #!/usr/bin/env bash
 # $STUB_CRDS: CRDs "group/Kind" served; $STUB_HAVE: "resource/name" objects present.
 if [ "$1" = get ] && [ "$2" = crd ]; then printf '%b' "$STUB_CRDS"; exit 0; fi
+if [ "$1" = -n ]; then [ -n "${STUB_ACCESS_LOG:-}" ] && printf '%s' "$STUB_ACCESS_LOG"; exit 0; fi
 if [ "$1" = get ]; then case " $STUB_HAVE " in *" $2/$3 "*) exit 0 ;; esac; exit 1; fi
 exit 2
 STUB
@@ -68,6 +69,16 @@ done
 
 out=$(run 'bitnami.com/SealedSecret\ncert-manager.io/ClusterIssuer\n' "$ALL_HAVE" "$RENDER")
 [[ $out == *"VerticalPodAutoscaler"* && $out != *"SealedSecret"* ]] && ok "only the VPA CRD missing" || ko "VPA only: $out"
+
+# ingress controller access log: required in production, a warning elsewhere
+export STUB_ACCESS_LOG=
+out=$(DEPLOY_ENVIRONMENT=production run "$ALL_CRDS" "$ALL_HAVE" "$RENDER")
+[[ $out == *"disable-access-log"* && $out != *"present"* ]] && ok "production refuses access log on" || ko "production access log: $out"
+out=$(DEPLOY_ENVIRONMENT=staging run "$ALL_CRDS" "$ALL_HAVE" "$RENDER")
+[[ $out == *"::warning::"* && $out == *"present"* ]] && ok "staging only warns" || ko "staging access log: $out"
+export STUB_ACCESS_LOG=true
+out=$(DEPLOY_ENVIRONMENT=production run "$ALL_CRDS" "$ALL_HAVE" "$RENDER")
+[[ $out == *"present"* ]] && ok "production passes with access log off" || ko "production access log off: $out"
 
 # the real overlays: every prerequisite they name is a known one
 for env in staging production; do

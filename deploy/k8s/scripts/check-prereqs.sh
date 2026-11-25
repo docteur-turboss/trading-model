@@ -5,6 +5,8 @@
 # every StorageClass, IngressClass and cert-manager ClusterIssuer they name.
 # Lists everything missing and exits 1, so deploy.yml stops before any apply
 # (a missing CRD otherwise fails "no matches for kind" half way through).
+# Also the ingress controller access log (register activity 6): off is required
+# in production ($DEPLOY_ENVIRONMENT, as deploy.yml), a warning elsewhere.
 #   kubectl kustomize deploy/k8s/overlays/staging | bash deploy/k8s/scripts/check-prereqs.sh
 set -euo pipefail
 
@@ -41,6 +43,15 @@ while IFS= read -r n; do [ -z "$n" ] || check ingressclass "$n" IngressClass; do
 	<(sed -nE 's/^[[:space:]]*ingressClassName:[[:space:]]*"?([^"[:space:]]+)"?.*/\1/p' <<<"$rendered" | sort -u)
 while IFS= read -r n; do [ -z "$n" ] || check clusterissuer "$n" ClusterIssuer; done < \
 	<(sed -nE 's#^[[:space:]]*cert-manager\.io/cluster-issuer:[[:space:]]*"?([^"[:space:]]+)"?.*#\1#p' <<<"$rendered" | sort -u)
+
+al=$(kubectl -n ingress-nginx get configmap ingress-nginx-controller -o jsonpath='{.data.disable-access-log}' 2>/dev/null || true)
+if [ "$al" != true ]; then
+	if [ "${DEPLOY_ENVIRONMENT:-}" = production ]; then
+		missing+=('ConfigMap ingress-nginx/ingress-nginx-controller without disable-access-log: "true"')
+	else
+		echo "::warning::ingress-nginx access log is not disabled (disable-access-log: \"true\"): production refuses this"
+	fi
+fi
 
 if [ ${#missing[@]} -gt 0 ]; then
 	echo "::error::The cluster lacks prerequisites of the manifests (docs/deployment/KUBERNETES.md, Prerequisites):"
