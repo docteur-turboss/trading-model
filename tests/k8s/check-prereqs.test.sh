@@ -16,7 +16,7 @@ mkdir -p "$WORK/bin"
 cat >"$WORK/bin/kubectl" <<'STUB'
 #!/usr/bin/env bash
 # $STUB_CRDS: CRDs "group/Kind" served; $STUB_HAVE: "resource/name" objects present.
-if [ "$2" = apiservice ]; then [ -n "$STUB_METRICS" ] && printf True; exit 0; fi
+if [ "$2" = apiservice ]; then [ -z "$STUB_ERR" ] || { echo "Error from server (Forbidden): apiservices" >&2; exit 1; }; [ -n "$STUB_METRICS" ] && printf True; exit 0; fi
 if [ "$1" = get ] && [ "$2" = crd ]; then printf '%b' "$STUB_CRDS"; exit 0; fi
 if [ "$1" = get ]; then case " $STUB_HAVE " in *" $2/$3 "*) exit 0 ;; esac; exit 1; fi
 exit 2
@@ -77,6 +77,8 @@ out=$(run "$ALL_CRDS" "$ALL_HAVE" "$hpa")
 [[ $out == *"present"* ]] && ok "HPA with metrics-server passes" || ko "HPA with metrics-server: $out"
 out=$(STUB_METRICS= run "$ALL_CRDS" "$ALL_HAVE" "$hpa")
 [[ $out == *"metrics.k8s.io"* ]] && ok "HPA without metrics-server refused" || ko "HPA without metrics-server: $out"
+out=$(STUB_ERR=1 run "$ALL_CRDS" "$ALL_HAVE" "$hpa")
+[[ $out == *"Forbidden"* && $out != *"lacks prerequisites"* ]] && ok "apiservice query error shown, not 'absent'" || ko "apiservice error: $out"
 out=$(STUB_METRICS= run "$ALL_CRDS" "$ALL_HAVE" "$RENDER")
 [[ $out == *"present"* ]] && ok "no HPA, no metrics-server needed" || ko "no HPA: $out"
 

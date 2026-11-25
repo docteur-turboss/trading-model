@@ -44,9 +44,10 @@ while IFS= read -r n; do [ -z "$n" ] || check clusterissuer "$n" ClusterIssuer; 
 
 # HPAs read CPU through metrics-server; without it they stay inert, silently.
 # Only when HPAs are rendered (the kind CI render drops them, tests/k8s/ci-render.mjs).
-if grep -qx 'kind: HorizontalPodAutoscaler' <<<"$rendered" &&
-	[ "$(kubectl get apiservice v1beta1.metrics.k8s.io -o jsonpath='{.status.conditions[?(@.type=="Available")].status}' 2>/dev/null)" != True ]; then
-	missing+=("APIService v1beta1.metrics.k8s.io Available (metrics-server)")
+if grep -qx 'kind: HorizontalPodAutoscaler' <<<"$rendered"; then
+	# --ignore-not-found: absent = empty answer; Forbidden or any other error fails the script (set -e).
+	metrics=$(kubectl get apiservice v1beta1.metrics.k8s.io --ignore-not-found -o jsonpath='{.status.conditions[?(@.type=="Available")].status}')
+	[ "$metrics" = True ] || missing+=("APIService v1beta1.metrics.k8s.io Available (metrics-server)")
 fi
 
 if [ ${#missing[@]} -gt 0 ]; then
