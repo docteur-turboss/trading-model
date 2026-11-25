@@ -23,6 +23,7 @@ export const TRAINING_EVENT_VALIDATORS = {
 			.regex(/^[0-9a-f]{64}$/)
 			.optional(),
 		admissible: z.boolean().optional(),
+		minSharpe: z.number().optional(),
 		gaControl: z.object({
 			populationSize: z.number(),
 			elitismFraction: z.number(),
