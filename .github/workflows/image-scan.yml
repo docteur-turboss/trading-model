@@ -53,7 +53,7 @@ jobs:
         run: |
           list=$(yq '.env.IMAGES' .github/workflows/deploy.yml)
           # if, not &&: a failed test on the last image (a tool) would fail the loop, so the pipe (pipefail).
-          services=$(for i in $list; do if [ -f "services/$i/Dockerfile" ]; then echo "$i"; fi; done | jq -R . | jq -sc .)
+          services=$(for i in $list; do if [ -d "services/$i" ]; then echo "$i"; fi; done | jq -R . | jq -sc .)
           tools=$(yq -o=json -I=0 '.jobs["scan-tools"].strategy.matrix.include' .github/workflows/release.yml)
           if [ "$services" = "[]" ] || [ "$tools" = "null" ] || [ "$tools" = "[]" ]; then
             echo "::error::image list not found in deploy.yml IMAGES or release.yml scan-tools"
@@ -85,8 +85,9 @@ jobs:
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
-          file: services/${{ matrix.service }}/Dockerfile
+          file: Dockerfile
           build-args: |
+            SERVICE=${{ matrix.service }}
             BUILD_VERSION=scan
             GIT_SHA=${{ github.sha }}
           load: true

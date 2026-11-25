@@ -3,7 +3,7 @@
 # Usage: docker compose -f docker-compose.yml -f tests/e2e/docker-compose.e2e.yml up -d --wait
 services:
   binance-stub:
-    image: oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d
+    image: oven/bun:1.4.5@sha256:3aa040e5445efa09d75bb428a64ba50db13e2b3ac9b6b0c7f145615f62b2ee18
     container_name: trading-binance-stub
     restart: unless-stopped
     logging:

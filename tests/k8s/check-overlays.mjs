@@ -274,8 +274,8 @@ const deployed = deployImages();
 // release.yml derives services from IMAGES; tools stay hard-coded `include` entries.
 const releaseTools = new Set([...readFileSync(".github/workflows/release.yml", "utf8").matchAll(/^ {10}- image: (\S+)$/gm)].map((m) => m[1]));
 for (const image of deployed) {
-	if (!existsSync(`services/${image}/Dockerfile`) && !releaseTools.has(image)) {
-		errors.push(`deploy.yml IMAGES: ${image} is built by release.yml neither as a service (services/${image}/Dockerfile) nor as a tool (- image: ${image})`);
+	if (!existsSync(`services/${image}`) && !releaseTools.has(image)) {
+		errors.push(`deploy.yml IMAGES: ${image} is built by release.yml neither as a service (services/${image}/) nor as a tool (- image: ${image})`);
 	}
 }
 for (const env of OVERLAYS) {
