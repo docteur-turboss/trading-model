@@ -460,6 +460,7 @@ cmd_smoke_test() {
 
   # Every Redis node must know each bus user (redis-ha.sh bus_user): a node on an older template
   # lacks the newer ones while every readiness probe stays green (issue #2882).
+  # shortcut: clear port only (REDIS_TLS_MODE optional); add --tls with the required step (ADR-0047).
   local users="" user pod
   for user in $(sed -n 's/^\tbus_user \([a-z-]*\) .*/\1/p' "$K8S_DIR/infra/redis-ha.sh"); do
     [[ " ${SMOKE_SKIP:-} " == *" $user "* ]] || users+=" $user"

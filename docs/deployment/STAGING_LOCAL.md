@@ -204,8 +204,10 @@ restart, the services do not.
   redis-last` adds `redis-1` on the new one, makes it master by `SENTINEL
   FAILOVER`, updates `redis-0` as its replica, fails back and returns to one
   pod and `partition: 1` (issue #2882), so the ACL of `redis-ha.sh` reaches it
-  at each deploy. `redis-sentinel-0` keeps its template: it holds no service
-  user, only the internal password and the `exporter` user;
+  at each deploy. The PVC `redis-data-redis-1` (a full copy of the data)
+  stays after it: delete it to free the disk. `redis-sentinel-0` keeps its
+  template: it holds no service user, only the internal password and the
+  `exporter` user;
 - until restarted, the pods lack what the new template adds. 3.1.0: no
   exporter, so no Prometheus target and no `mysql_up` / `redis_up` /
   `mongodb_up` series. `MySQLDown`, `RedisDown` and `MongoDBDown` stay silent
@@ -213,8 +215,9 @@ restart, the services do not.
   own alerts.
 
 To take a new template, plan the restart (database down meanwhile) outside a
-deploy. Release `redis` and `redis-sentinel` together: a Redis node restarted
-alone waits for the master its sentinel still names, the dead pod (PR #579).
+deploy. `redis` alone needs none (above). For `redis-sentinel`, release `redis`
+with it: a Redis node restarted alone waits for the master its sentinel still
+names, the dead pod (PR #579).
 
 ```bash
 NS=trading-model-staging

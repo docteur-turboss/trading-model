@@ -66,7 +66,13 @@ if [ "$1" = exec ] && [ -n "${STUB_MASTER:-}" ]; then
 	esac
 	exit 0
 fi
-[ "$1" = patch ] && exit 0
+# Swap marker (annotation trading-model/redis-swap) in the file $STUB_SWAP.
+if [ "$1" = get ] && [[ $* == *redis-swap* ]]; then cat "${STUB_SWAP:-/dev/null}"; exit 0; fi
+if [ "$1" = patch ]; then
+	[[ $* == *'redis-swap":"1"'* ]] && echo 1 >"$STUB_SWAP"
+	[[ $* == *'redis-swap":null'* ]] && : >"$STUB_SWAP"
+	exit 0
+fi
 if [ "$1" = get ] && [ "$2" = statefulset ]; then [ -z "${STUB_NO_REDIS:-}" ] || exit 1; [ "$3" = redis ] && printf 'redis-abc'; exit 0; fi
 [ "$1" = exec ] && exit 0
 if [ "$1" = create ] && [ "$2" = job ]; then cat "$STUB_JOB_JSON"; exit 0; fi
@@ -196,13 +202,26 @@ printf '#!/bin/sh\n' >"$WORK/bin/sleep"
 chmod +x "$WORK/bin/sleep"
 echo ip-redis-0 >"$WORK/master"
 : >"$WORK/log"
+export STUB_SWAP="$WORK/swap"
+: >"$STUB_SWAP"
 STUB_MASTER="$WORK/master" STUB_REDIS="1 1 new" bash "$SCRIPT" redis-last ns <"$WORK/app.yaml" >/dev/null &&
 	[ "$(grep -oE '"replicas":[0-9]|"partition":[0-9]|SENTINEL FAILOVER' "$WORK/log" | tr '\n' ' ')" = '"replicas":2 SENTINEL FAILOVER "partition":0 SENTINEL FAILOVER "replicas":1 "partition":1 ' ] &&
 	[ "$(cat "$WORK/master")" = ip-redis-0 ] &&
+	[ ! -s "$STUB_SWAP" ] && grep -q "SENTINEL RESET mymaster" "$WORK/log" &&
 	ok "partitioned redis-0 on an older template: redis-1 promoted, redis-0 updated and master again, back to 1 pod" || ko "redis swap: $(cat "$WORK/log")"
 : >"$WORK/log"
 STUB_MASTER="$WORK/master" STUB_REDIS="1 1 old" bash "$SCRIPT" redis-last ns <"$WORK/app.yaml" >/dev/null && ! grep -q patch "$WORK/log" &&
 	ok "partitioned redis-0 already on the current template: no swap" || ko "redis no swap: $(cat "$WORK/log")"
+# Rollback of a run stopped inside the swap, master on redis-1: redis-0 master and one pod before the undo.
+echo ip-redis-1 >"$WORK/master"
+echo 1 >"$STUB_SWAP"
+printf 'statefulset/redis 3
+' >"$WORK/revs"
+: >"$WORK/log"
+STUB_MASTER="$WORK/master" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
+	[ "$(cat "$WORK/master")" = ip-redis-0 ] && [ ! -s "$STUB_SWAP" ] &&
+	[ "$(log_line '"replicas":1')" -lt "$(log_line 'rollout undo statefulset/redis ')" ] &&
+	ok "rollback inside a swap: redis-0 master again and back to 1 pod before the Redis undo" || ko "rollback swap: $(cat "$WORK/log")"
 rm "$WORK/bin/sleep"
 STUB_NO_REDIS=1 bash "$SCRIPT" without-redis ns <"$WORK/app.yaml" | cmp -s - "$WORK/app.yaml" &&
 	ok "without-redis keeps the Redis StatefulSets on a first deploy" || ko "without-redis dropped documents on a first deploy"
