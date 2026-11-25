@@ -43,11 +43,32 @@ The release that retires message-manager and dlq-service (ADR-0073, issue #1241)
 The same release moves risk-execution and decision-consumer onto the bus, with the new Redis users `risk-execution` and `decision-consumer` (`redis-ha.sh`). Redis only creates them when its pods restart: `deploy.yml` applies Redis last, and in staging-local `redis-0` is held by `partition: 1`, so restart Redis as [STAGING_LOCAL.md](../deployment/STAGING_LOCAL.md) describes right after the deploy. Until then Redis refuses both users: risk-execution keeps its `risk.*` events in its outbox file and replays them once Redis accepts it, and decision-consumer makes no decision (its `risk.promotion.loaded` publish fails, retried at each tick). Neither has a Redis readiness check, so the rollout itself is not blocked.
 
 1. Deploy the release ([DEPLOY.md](../deployment/DEPLOY.md)). Rollback to the previous release is still possible here.
-2. Import from an audit-logger pod, against the still-running `mongo-dlq` (values from the old Secret `trading-model-secrets`):
+2. Import from an audit-logger pod, against the still-running `mongo-dlq` (values from the old Secret `trading-model-secrets`). The old `mongodb-network-policy` also survives the deploy, and its 27017 ingress only admits `dlq-service`, `mongodb` and `mongodb-init`: audit-logger would be refused and the import would time out. Open 27017 to audit-logger with a temporary NetworkPolicy for the duration of the import, then delete it. `app-role.yaml` grants create/delete on `networkpolicies`, so the namespace deploy identity (`KUBECONFIG_<ENV>_APP`) is enough. The URI lists `mongo-dlq-0..2`: on a 1-replica cluster (staging-local), check the members with `rs.conf()` first and keep only the existing ones.
 
    ```bash
    NS=trading-model   # or trading-model-staging
+   kubectl -n "$NS" apply -f - <<'EOF'
+   apiVersion: networking.k8s.io/v1
+   kind: NetworkPolicy
+   metadata:
+     name: mongo-dlq-import
+   spec:
+     podSelector:
+       matchLabels:
+         app.kubernetes.io/component: mongodb
+     policyTypes:
+       - Ingress
+     ingress:
+       - from:
+           - podSelector:
+               matchLabels:
+                 app.kubernetes.io/component: audit-logger
+         ports:
+           - port: 27017
+             protocol: TCP
+   EOF
    kubectl -n "$NS" exec deploy/audit-logger -- env      MONGO_DLQ_URI='mongodb://mongo-dlq-0.mongo-dlq-headless:27017,mongo-dlq-1.mongo-dlq-headless:27017,mongo-dlq-2.mongo-dlq-headless:27017/dlq?replicaSet=rs0&authSource=admin&tls=true&tlsCAFile=/etc/mongo-tls/ca.crt'      MONGO_DLQ_USERNAME=dlq-service      MONGO_DLQ_PASSWORD="$(kubectl -n "$NS" get secret trading-model-secrets -o jsonpath='{.data.MONGO_DLQ_PASSWORD}' | base64 -d)"      node services/audit-logger/dist/application/dlq-cli.js <operator> import-mongo
+   kubectl -n "$NS" delete networkpolicy mongo-dlq-import   # after the import (and its verification, step 3)
    ```
 
    Compose: `docker compose exec -e MONGO_DLQ_URI='mongodb://mongo:27017/dlq?authSource=admin' -e MONGO_DLQ_USERNAME=dlq-service -e MONGO_DLQ_PASSWORD="$MONGO_DLQ_PASSWORD" audit-logger node services/audit-logger/dist/application/dlq-cli.js <operator> import-mongo`. `MONGO_DLQ_DB` defaults to `dlq`; the collection is `dlq_entries`.
