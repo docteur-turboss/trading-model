@@ -123,20 +123,31 @@ interface LatestRow extends RowDataPacket {
 	closeTimestamp: Date;
 }
 
-/** Newest candle closed by `now` of each symbol, whatever its source and interval (one row per symbol). */
+/** Older candles are past every risk-execution halt threshold (15 min); the bound keeps a read to one hour of rows per symbol, index-build done or not (issue #2592). */
+const LATEST_WINDOW_MS = 3_600_000;
+/** A slow read fails fast instead of holding one of the 10 pool connections. */
+const LATEST_MAX_EXECUTION_MS = 2_000;
+const LATEST_BRANCH = `(SELECT symbol, CAST(close AS DOUBLE) AS close, close_timestamp AS closeTimestamp FROM market_candles
+ WHERE symbol = ? AND timestamp >= ? AND close_timestamp <= ? ORDER BY close_timestamp DESC, id DESC LIMIT 1)`;
+
+/** Newest candle closed by `now` and opened within the last hour, of each symbol, whatever its source and interval (one row per symbol, highest id on a tie). */
 export async function selectLatestClosedCandles(
 	symbols: readonly string[],
 	now: Date
 ): Promise<LatestRow[]> {
+	const unique = [...new Set(symbols)];
+	const from = new Date(now.getTime() - LATEST_WINDOW_MS);
 	const [rows] = await DATABASE.promise().query<LatestRow[]>(
-		`SELECT symbol, CAST(close AS DOUBLE) AS close, close_timestamp AS closeTimestamp FROM market_candles c
-		 WHERE symbol IN (?) AND close_timestamp = (
-		   SELECT MAX(close_timestamp) FROM market_candles WHERE symbol = c.symbol AND close_timestamp <= ?)
-		 ORDER BY id DESC`,
-		[symbols, now]
+		unique
+			.map(() => LATEST_BRANCH)
+			.join(" UNION ALL ")
+			.replace(
+				"SELECT",
+				`SELECT /*+ MAX_EXECUTION_TIME(${LATEST_MAX_EXECUTION_MS}) */`
+			),
+		unique.flatMap((symbol) => [symbol, from, now])
 	);
-	const seen = new Set<string>();
-	return rows.filter((row) => !seen.has(row.symbol) && seen.add(row.symbol));
+	return rows;
 }
 
 interface LastRow extends RowDataPacket {
