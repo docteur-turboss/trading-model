@@ -7,9 +7,10 @@ jest.mock("@trading-model/contracts/logger-registry", () => ({
 	getLogger: () => ({ warn: jest.fn(), error: jest.fn(), info: jest.fn() }),
 }));
 
+import { verifyModel } from "@trading-model/model-runtime/model-manifest";
 import { createDecisionTick } from "../../src/application/decide";
 import { DECISION_INTENTS_TOTAL } from "../../src/config/metrics";
-import { parsePromoted, verifyModel } from "../../src/domain/decision";
+import { parsePromoted } from "../../src/domain/decision";
 
 const HOUR = 3_600_000;
 const NOW = 100 * HOUR + 5 * 60_000;
@@ -242,7 +243,7 @@ describe("domain", () => {
 				weights: WEIGHTS,
 				headerSha256: SHA,
 			})
-		).toThrow(/not the promoted/);
+		).toThrow(/not the expected/);
 		m.weights.length = 3;
 		expect(() =>
 			verifyModel({

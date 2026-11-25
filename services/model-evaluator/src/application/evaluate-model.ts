@@ -1,14 +1,16 @@
 import type { CandleData } from "@trading-model/contracts/market-data.types";
-import { DAY_MS } from "@trading-model/model-runtime/features/feature-builder";
+import {
+	isSupportedInterval,
+	type ModelManifest,
+	verifyModel,
+} from "@trading-model/model-runtime/model-manifest";
 import { MODEL_REPLAY_SHARPE_GAP } from "../config/metrics";
 import {
 	type EvaluationRecord,
-	type ModelManifest,
 	type PublishedModel,
 	type ReplayOutcome,
 	replayOutcome,
 	toRecord,
-	verifyModel,
 } from "../domain/model-evaluation";
 
 interface Store {
@@ -40,7 +42,6 @@ interface Scraper {
 	): Promise<CandleData[]>;
 }
 
-const MINUTE_MS = 60_000;
 /** Whole evaluation, under the bus handler deadline (85 s) so it stops before its redelivery starts. */
 const EVALUATION_BUDGET_MS = 75_000;
 
@@ -56,7 +57,7 @@ async function replay(
 		return { replay: "failed", reason: "no-window" };
 	}
 	const intervalMs = window.intervalMs;
-	if (intervalMs !== MINUTE_MS && intervalMs !== DAY_MS) {
+	if (!isSupportedInterval(intervalMs)) {
 		return {
 			replay: "failed",
 			reason: `unsupported-interval: ${intervalMs} ms`,
@@ -115,7 +116,7 @@ export function createEvaluateModel(deps: {
 			signal
 		);
 		verifyModel({
-			event,
+			model: event,
 			manifest,
 			weights: weights.bytes,
 			headerSha256: weights.sha256,
