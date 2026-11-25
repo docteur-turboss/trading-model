@@ -90,6 +90,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `AUTH_TOKEN_HEADER`   | string | `x-api-key`                      | no       | Header name for auth token      | GW       |
 | `AUTH_TOKENS`         | string | —                                | **yes**  | Comma-separated API keys `name:scope1+scope2:secret` (in production each secret: at least 32 characters, no `change-me`; start refused otherwise) (scopes `read`, `risk:admin`; secret without `:`). A bare secret (old format) is refused at startup (ADR-0059) | GW |
 | `PROXY_TIMEOUT_MS`    | number | `10000`                          | no       | Proxy total deadline (ms)       | GW       |
+| `PROXY_MAX_CONCURRENT` | number | `16` | no | Proxied requests in flight at once; past it 503 + `Retry-After: 1` (buffered answers up to `PROXY_MAX_RESPONSE_BYTES` each) | GW |
 | `PROXY_MAX_RESPONSE_BYTES` | number | `8388608` (8 MiB)    | no       | Largest upstream answer the gateway buffers; past it the upstream request is cut and the client gets 502 `Upstream response too large` (ADR-0054) | GW |
 | `ALLOWED_PROXY_CIDRS` | string | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8` | no (must not be empty in production) | Comma-separated CIDRs the resolved proxy target IP must be in. Empty: target IP check off; in production the gateway refuses to start | GW |
 

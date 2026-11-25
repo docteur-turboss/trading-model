@@ -20,6 +20,8 @@ const API_GATEWAY_ENV_SHAPE = {
 		.int()
 		.positive()
 		.default(8 * 1024 * 1024),
+	/** Proxied requests in flight at once; past it the gateway answers 503 (buffered answers bound the memory). */
+	PROXY_MAX_CONCURRENT: z.coerce.number().int().positive().default(16),
 	ALLOWED_PROXY_CIDRS: z.string().default(DEFAULT_PRIVATE_CIDRS),
 } satisfies Record<string, z.ZodTypeAny>;
 
