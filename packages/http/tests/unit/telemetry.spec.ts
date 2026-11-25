@@ -1,6 +1,18 @@
 import type { AddressInfo } from "node:net";
 import { NodeSDK } from "@opentelemetry/sdk-node";
-import { createHttpInstrumentation, isProbeRequest } from "../../src/telemetry";
+import {
+	createExpressInstrumentation,
+	createHttpInstrumentation,
+	isProbeRequest,
+} from "../../src/telemetry";
+
+describe("createExpressInstrumentation", () => {
+	it("ignores middleware layers", () => {
+		expect(createExpressInstrumentation().getConfig().ignoreLayersType).toEqual(
+			["middleware"]
+		);
+	});
+});
 
 describe("isProbeRequest", () => {
 	it.each(["/ping", "/health/ready", "/metrics", "/metrics?x=1", "/ping?a=b"])(
