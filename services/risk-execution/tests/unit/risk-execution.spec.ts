@@ -489,6 +489,9 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 			})
 		).toThrow();
 		expect(() =>
+			RiskLimits.parse({ ...LIMITS, globalExposurePct: 0.3 })
+		).toThrow();
+		expect(() =>
 			RiskLimits.parse({ ...LIMITS, maxIntentAgeMs: 61_000 })
 		).toThrow();
 		expect(() => RiskLimits.parse({ allocatedCapital: 1 })).toThrow();
