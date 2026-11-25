@@ -1,7 +1,7 @@
 # Runbook: Risk/Execution Kill Switch, Reconciliation, Stale Prices
 
 **Severity:** L1 (`KillSwitchEngaged`, `ReconciliationMismatch`), L2 (`RiskRejectRatioHigh`, `RiskMarketDataStale`, `RiskTickFailing`)
-**Alerts:** `KillSwitchEngaged`, `ReconciliationMismatch`, `RiskRejectRatioHigh`, `RiskMarketDataStale`, `RiskTickFailing`, `DecisionIntentsRejected`, `DecisionPassFailing`
+**Alerts:** `KillSwitchEngaged`, `ReconciliationMismatch`, `RiskRejectRatioHigh`, `RiskMarketDataStale`, `RiskTickFailing`, `RiskOutboxDropped`, `RiskOutboxPending`, `DecisionIntentsRejected`, `DecisionPassFailing`
 **Decision:** [ADR-0064](../../adr/0064-risk-and-execution-context-before-order-flow.md) · **Policy:** [risk-limits-policy](../../compliance/risk-limits-policy.md) · **Drill log:** [risk-drill-log](../../compliance/risk-drill-log.md)
 
 `risk-execution` owns every order (paper only: simulated broker, no live adapter). The switch state is in `/data/risk-execution/state.json` on its PVC. Nothing re-arms the switch except an operator, by hand.
