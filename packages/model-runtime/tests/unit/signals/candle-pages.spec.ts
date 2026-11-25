@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import type { HttpClient } from "@trading-model/http/http-client";
 import { TradingSymbol } from "@trading-model/primitives/primitives";
-import type { HttpClient } from "../../../src/http-client";
 import { fetchCandlePages } from "../../../src/signals/candle-pages";
 
 const row = (timestamp: string) => ({

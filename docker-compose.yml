@@ -331,7 +331,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
+      test: node /app/probe.js https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -387,7 +387,7 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
+      test: node /app/probe.js https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -425,7 +425,7 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
+      test: node /app/probe.js https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -460,7 +460,7 @@ services:
       - backend-net
       - data-net
     healthcheck:
-      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
+      test: node /app/probe.js https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -499,7 +499,7 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
+      test: node /app/probe.js https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -538,7 +538,7 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
+      test: node /app/probe.js https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -568,7 +568,7 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
+      test: node /app/probe.js https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3

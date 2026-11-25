@@ -4,9 +4,9 @@ import {
 	type CandleData,
 	CandleInterval,
 } from "@trading-model/contracts/market-data.types";
+import { HttpClient } from "@trading-model/http/http-client";
 import { TradingSymbol } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
-import { HttpClient } from "../http-client";
 import { fetchCandlePages } from "../signals/candle-pages";
 import { ScraperSignalHistory } from "../signals/scraper-signal-history";
 import { SignalBarHistory } from "../signals/signal-bar-history";

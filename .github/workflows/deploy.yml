@@ -736,9 +736,21 @@ jobs:
           AWS_ACCESS_KEY_ID="$key_id" AWS_SECRET_ACCESS_KEY="$secret" AWS_REGION="$region" \
             bash scripts/backup-bucket-check.sh --environment "$DEPLOY_ENVIRONMENT" \
               --bucket "$bucket" --endpoint "$endpoint" --min-days "$retention"
-          # Optional second bucket at another provider: same rules.
-          if [ -n "$BACKUP_S3_SECONDARY_BUCKET" ]; then
-            AWS_ACCESS_KEY_ID="$BACKUP_S3_SECONDARY_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$BACKUP_S3_SECONDARY_SECRET_ACCESS_KEY"               AWS_REGION="$BACKUP_S3_SECONDARY_REGION"               bash scripts/backup-bucket-check.sh --environment "$DEPLOY_ENVIRONMENT"                 --bucket "$BACKUP_S3_SECONDARY_BUCKET" --endpoint "$BACKUP_S3_SECONDARY_ENDPOINT" --min-days "$retention"
+          # Optional second bucket at another provider: same rules, same Secret fallback.
+          sec="$BACKUP_S3_SECONDARY_BUCKET" sec_endpoint="$BACKUP_S3_SECONDARY_ENDPOINT" sec_region="$BACKUP_S3_SECONDARY_REGION"
+          sec_key_id="$BACKUP_S3_SECONDARY_ACCESS_KEY_ID" sec_secret="$BACKUP_S3_SECONDARY_SECRET_ACCESS_KEY"
+          if [ -z "$sec" ] && kubectl -n "$NS" get secret trading-model-backup-s3 >/dev/null 2>&1; then
+            sec_get() { kubectl -n "$NS" get secret trading-model-backup-s3 -o "jsonpath={.data.$1}" | base64 -d; }
+            sec="$(sec_get BACKUP_S3_SECONDARY_BUCKET)"
+            sec_endpoint="$(sec_get BACKUP_S3_SECONDARY_ENDPOINT)"
+            sec_region="$(sec_get BACKUP_S3_SECONDARY_REGION)"
+            sec_key_id="$(sec_get BACKUP_S3_SECONDARY_ACCESS_KEY_ID)"
+            sec_secret="$(sec_get BACKUP_S3_SECONDARY_SECRET_ACCESS_KEY)"
+            [ -z "$sec_key_id" ] || echo "::add-mask::$sec_key_id"
+            [ -z "$sec_secret" ] || echo "::add-mask::$sec_secret"
+          fi
+          if [ -n "$sec" ]; then
+            AWS_ACCESS_KEY_ID="$sec_key_id" AWS_SECRET_ACCESS_KEY="$sec_secret" AWS_REGION="$sec_region"               bash scripts/backup-bucket-check.sh --environment "$DEPLOY_ENVIRONMENT"                 --bucket "$sec" --endpoint "$sec_endpoint" --min-days "$retention"
           fi
 
       # At least two distinct age recipients in production (operator key +

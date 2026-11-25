@@ -6,6 +6,7 @@ import {
 	type CandleData,
 	CandleInterval,
 } from "@trading-model/contracts/market-data.types";
+import type { HttpClient } from "@trading-model/http/http-client";
 import {
 	NonNegativeInt,
 	ServiceId,
@@ -14,7 +15,6 @@ import {
 	URLString,
 } from "@trading-model/primitives/primitives";
 import { z } from "zod";
-import type { HttpClient } from "../http-client";
 
 const Page = z.object({
 	rows: z.array(

@@ -97,7 +97,7 @@ write_dump mysql "$BACKUPS/mysql/financial_scraper_${TIMESTAMP}.sql.gz${AGE_SUFF
 write_dump spire "$BACKUPS/spire/data_${TIMESTAMP}.tar${AGE_SUFFIX}" echo x 2>/dev/null
 write_dump checkpoints "$BACKUPS/checkpoints/checkpoints_${TIMESTAMP}.tar.gz${AGE_SUFFIX}" echo x 2>/dev/null
 write_manifest 2>/dev/null
-out="$(BACKUP_DIR="$BACKUPS" BACKUP_AGE_IDENTITY="$WORK/key.txt" bash "$ROOT/scripts/restore-k8s.sh" --dry-run \
+out="$(RESTORE_HELPER_IMAGE=helper:test BACKUP_DIR="$BACKUPS" BACKUP_AGE_IDENTITY="$WORK/key.txt" bash "$ROOT/scripts/restore-k8s.sh" --dry-run \
 	--components mysql,spire,checkpoints --timestamp 2026-01-01_020000 2>&1 || true)"
 if echo "$out" | grep -q 'financial_scraper_2026-01-01_020000.sql.gz.age' &&
 	echo "$out" | grep -q 'data_2026-01-01_020000.tar.age'; then

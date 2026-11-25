@@ -3,8 +3,8 @@ import { busJournalFromEnv } from "@trading-model/broker-message/create-message-
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
 import { EVENT_SUBSCRIBERS } from "@trading-model/contracts/event-routes";
-import { ScraperClient } from "@trading-model/http/model-api/scraper-client";
-import { TrainerClient } from "@trading-model/http/model-api/trainer-client";
+import { ScraperClient } from "@trading-model/model-runtime/model-api/scraper-client";
+import { TrainerClient } from "@trading-model/model-runtime/model-api/trainer-client";
 import { InstanceId } from "@trading-model/primitives/primitives";
 import { createMessageHandler } from "../adapters/inbound/evaluation-subscriber";
 import { FileEvaluationStore } from "../adapters/outbound/file-evaluation-store";
