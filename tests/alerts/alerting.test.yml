@@ -1804,7 +1804,7 @@ tests:
           - exp_labels: {severity: warning, job: mysql, instance: '10.0.0.1:9104'}
             exp_annotations:
               summary: 'MySQL 10.0.0.1:9104 accepts plain connections'
-              description: 'require_secure_transport has been OFF on 10.0.0.1:9104 for 15 minutes: a deploy rollback relaxed MySQL TLS (scraper no longer needs a client certificate) and nothing restored it.'
+              description: 'require_secure_transport has been OFF on 10.0.0.1:9104 for 15 minutes: it was set OFF by hand or mysql.cnf was not applied.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mysqlsecuretransportoff'
 
   - name: a database its exporter cannot query is reported per member
