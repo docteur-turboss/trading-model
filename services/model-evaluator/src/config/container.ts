@@ -5,12 +5,12 @@ import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
 import { EVENT_SUBSCRIBERS } from "@trading-model/contracts/event-routes";
 import { ScraperClient } from "@trading-model/model-runtime/model-api/scraper-client";
 import { TrainerClient } from "@trading-model/model-runtime/model-api/trainer-client";
+import { ModelManifest } from "@trading-model/model-runtime/model-manifest";
 import { InstanceId } from "@trading-model/primitives/primitives";
 import { createMessageHandler } from "../adapters/inbound/evaluation-subscriber";
 import { FileEvaluationStore } from "../adapters/outbound/file-evaluation-store";
 import { createEvaluateModel } from "../application/evaluate-model";
 import { createServer } from "../application/server";
-import { ModelManifest } from "../domain/model-evaluation";
 import { ENV } from "../infrastructure/config/env";
 import { FIND_A_SERVICE } from "./address-manager";
 

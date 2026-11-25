@@ -3,18 +3,17 @@ import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { CandleData } from "@trading-model/contracts/market-data.types";
 import type { Intent } from "@trading-model/contracts/order-intent";
 import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
-import { DAY_MS } from "@trading-model/model-runtime/features/feature-builder";
+import {
+	isSupportedInterval,
+	type ModelManifest,
+	verifyModel,
+} from "@trading-model/model-runtime/model-manifest";
 import { decideOnLastBar } from "@trading-model/model-runtime/replay";
 import {
 	DECISION_INTENTS_TOTAL,
 	DECISION_SKIPPED_TOTAL,
 } from "../config/metrics";
-import {
-	decisionId,
-	type ModelManifest,
-	type PromotedModel,
-	verifyModel,
-} from "../domain/decision";
+import { decisionId, type PromotedModel } from "../domain/decision";
 
 interface Trainer {
 	manifest(symbol: string, version: string): Promise<ModelManifest>;
@@ -47,8 +46,6 @@ interface Audit {
 		sha256: string;
 	}): Promise<void>;
 }
-
-const MINUTE_MS = 60_000;
 
 /** A promoted model once verified and audited. */
 interface Loaded {
@@ -111,7 +108,7 @@ export function createDecisionTick(deps: {
 			return undefined;
 		}
 		const intervalMs = manifest.replay?.intervalMs;
-		if (intervalMs !== MINUTE_MS && intervalMs !== DAY_MS) {
+		if (intervalMs === undefined || !isSupportedInterval(intervalMs)) {
 			skip(model, "unsupported-interval");
 			return undefined;
 		}

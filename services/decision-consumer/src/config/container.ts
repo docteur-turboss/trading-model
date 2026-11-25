@@ -4,12 +4,13 @@ import { getLogger } from "@trading-model/contracts/logger-registry";
 import { runJob } from "@trading-model/http/correlation-id";
 import { ScraperClient } from "@trading-model/model-runtime/model-api/scraper-client";
 import { TrainerClient } from "@trading-model/model-runtime/model-api/trainer-client";
+import { ModelManifest } from "@trading-model/model-runtime/model-manifest";
 import { InstanceId } from "@trading-model/primitives/primitives";
 import { PromotionAudit } from "../adapters/outbound/promotion-audit";
 import { RiskClient } from "../adapters/outbound/risk-client";
 import { createDecisionTick } from "../application/decide";
 import { createServer } from "../application/server";
-import { ModelManifest, parsePromoted } from "../domain/decision";
+import { parsePromoted } from "../domain/decision";
 import { ENV } from "../infrastructure/config/env";
 import { FIND_A_SERVICE } from "./address-manager";
 

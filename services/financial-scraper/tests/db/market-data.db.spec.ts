@@ -715,6 +715,15 @@ describe("signals — real MySQL", () => {
 		await expect(findBtc()).resolves.toEqual([signal()]);
 	});
 
+	it("should replace the stored value of a restated source and keep the first one otherwise", async () => {
+		const second = signal({ payload: { ...PAYLOAD, value: 1 } });
+		await MySqlSignalStore.save([signal()], true);
+		await MySqlSignalStore.save([second], true);
+
+		await expect(count("signals")).resolves.toBe(1);
+		await expect(findBtc()).resolves.toEqual([second]);
+	});
+
 	it("should leave out the dimensions that do not apply to the asset", async () => {
 		await MySqlSignalStore.save([
 			signal({

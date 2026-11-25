@@ -27,8 +27,9 @@ const CANDLE_INTERVAL_MS = 60_000;
  * `riskLimits.maxExposureFraction`.
  * 6: sharpe, avgPnl and maxDrawdown measured on the test segment
  * (`evaluatedOn`), not on the data the selection used (ADR-0068).
+ * 7: a buy is reduced to the cap at the fill price instead of refused.
  */
-const MODEL_METRICS_VERSION = 6;
+const MODEL_METRICS_VERSION = 7;
 
 interface ModelMetrics {
 	metricsVersion?: number;
