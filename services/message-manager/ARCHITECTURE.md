@@ -75,7 +75,7 @@ Central message router exposing the messaging API. Responsibilities:
 
 Per-instance message delivery handler. Responsibilities:
 
-- Resolves the target service address via the Address Manager (service discovery).
+- Resolves the target service address via the Address Manager (DNS name).
 - Sends the message via HTTPS POST to the subscriber's callback endpoint.
 - Implements a **retry loop** with configurable delivery semantics:
 
@@ -162,7 +162,7 @@ Service A                    Dispatcher                    Service B
                   ▼
          ┌────────────────┐
          │ resolveTarget  │
-         │ (via discovery)│
+         │ (via DNS)      │
          └───────┬────────┘
                  │
                  ▼
@@ -208,7 +208,7 @@ Service A                    Dispatcher                    Service B
 | Dependency                       | Purpose                                                                                       |
 | -------------------------------- | --------------------------------------------------------------------------------------------- |
 | `@trading-model/common`          | HttpClient, middleware (catchSync, ResponseException), types, server factories, error classes |
-| `@trading-model/address-manager` | Service discovery client for resolving subscriber endpoint addresses                          |
+| `@trading-model/address-manager` | DNS service resolution client for resolving subscriber endpoint addresses                          |
 | `express`                        | HTTP server framework                                                                         |
 | `zod`                            | Runtime request body validation                                                               |
 | `helmet`                         | Security headers                                                                              |

@@ -254,7 +254,7 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u <USERNAME> --password-stdin
 IMAGE_TAG=2.0.3 docker compose pull
 
 # Or pull a specific service
-docker pull ghcr.io/<owner>/discovery-server:2.0.3
+docker pull ghcr.io/<owner>/message-manager:2.0.3
 ```
 
 ## Production deployment

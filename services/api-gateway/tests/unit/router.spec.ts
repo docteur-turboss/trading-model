@@ -207,7 +207,6 @@ describe("router", () => {
 				"/v2/financial-scraper/signals/assets/BTC?from=2026-11-01&to=2026-11-02"
 			);
 
-			// Release N strips /v<major> for N-1 services (ADR-0072).
 			expect(forwardRequest).toHaveBeenCalledWith(
 				expect.objectContaining({
 					target: { host: "10.0.1.5", port: 3000 },

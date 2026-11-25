@@ -55,7 +55,7 @@ permissions:
 # tests/k8s/check-overlays.mjs fails when an overlay uses an image missing here.
 env:
   IMAGES: >-
-    discovery-server message-manager financial-scraper trader-trainer
+    message-manager financial-scraper trader-trainer
     api-gateway audit-logger dlq-service model-evaluator risk-execution decision-consumer spire-tools backup-tools db-migrate
 
 concurrency:
@@ -170,7 +170,7 @@ jobs:
       # cluster (local kind staging). Unset: 1.
       DEPLOY_TIMEOUT_FACTOR: ${{ vars.DEPLOY_TIMEOUT_FACTOR || '1' }}
       # Canary services (canary-all and canary-cleanup read this one list).
-      CANARY_SERVICES: discovery-server message-manager financial-scraper api-gateway audit-logger dlq-service
+      CANARY_SERVICES: message-manager financial-scraper api-gateway audit-logger dlq-service
       # Free-text inputs reach scripts through env only, never ${{ }} in run:.
       DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
       ALLOW_FIRING_ALERTS: ${{ inputs.allow_firing_alerts }}

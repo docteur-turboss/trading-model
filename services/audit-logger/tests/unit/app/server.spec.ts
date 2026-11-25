@@ -28,7 +28,6 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 		APP_NAME: "audit-logger",
 		SERVICE_NAME: "audit",
 		INSTANCE_ID: "instance-1",
-		ADDRESS_MANAGER_URL: "https://address-manager:3000",
 	},
 }));
 

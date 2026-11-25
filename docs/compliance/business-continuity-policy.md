@@ -17,7 +17,7 @@ This policy defines the Business Continuity (BC) and Disaster Recovery (DR) fram
 
 | Tier | Definition | Services | Maximum Tolerable Downtime (MTD) |
 |---|---|---|---|
-| **T1 — Critical** | Core platform function; loss immediately impacts compliance or security | spire-server, discovery-server | 15 minutes |
+| **T1 — Critical** | Core platform function; loss immediately impacts compliance or security | spire-server | 15 minutes |
 | **T2 — High** | Core business function; loss significantly impacts platform capability | message-manager, audit-logger, trader-trainer | 1 hour |
 | **T3 — Medium** | Supporting function; loss impacts operations but not compliance | financial-scraper, dlq-service, api-gateway | 4 hours |
 | **T4 — Low** | Non-critical; loss has minimal operational impact | monitoring stack | 24 hours |
@@ -33,7 +33,7 @@ This policy defines the Business Continuity (BC) and Disaster Recovery (DR) fram
 
 **Two RTOs, two meanings.** The service-tier RTO above is the time to get the
 *service* running again when its data store is intact (restart, reschedule,
-failover to a replica, SVID re-issue): T1 spire-server and discovery-server
+failover to a replica, SVID re-issue): T1 spire-server
 15 minutes, T2 audit-logger, message-manager and trader-trainer 1 hour. The
 **data-store RTO** of [BACKUP_DR.md](../deployment/BACKUP_DR.md) (4 hours;
 1 hour for trained agents and the SealedSecrets controller keys) is the time to
@@ -114,8 +114,6 @@ Backup schedule, retention, encryption, verification and restore drills: see [BA
 ```
 SPIRE Server ────────────────────┐
                                 │
-Discovery Server ───────────────┤
-                                │
 Message Manager ────────────────┤
                                 ├──► All Other Services
 Database (MongoDB/MySQL/Redis)──┤
@@ -127,10 +125,9 @@ Monitoring Stack ───────────────┘
 
 1. **Databases** — MongoDB, MySQL, Redis (restore from backup if needed)
 2. **SPIRE Server** — restore SPIRE datastore, reconcile entries, re-issue SVIDs
-3. **Discovery Server** — Start first for service registry
-4. **Message Manager** — Start next for inter-service communication
-5. **All other services** — Parallel start (financial-scraper, trader-trainer, etc.)
-6. **Monitoring Stack** — Prometheus, Grafana, Loki, Jaeger
+3. **Message Manager** — Start next for inter-service communication
+4. **All other services** — Parallel start (financial-scraper, trader-trainer, etc.)
+5. **Monitoring Stack** — Prometheus, Grafana, Loki, Jaeger
 
 ## 6. Communication During Disruption
 

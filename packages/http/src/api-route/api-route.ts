@@ -50,10 +50,8 @@ export interface ApiRoute {
 	 * a middleware mounted with it; documented in the OpenAPI.
 	 * - `SignedRequest`: HMAC headers `x-service-name`, `x-timestamp`,
 	 *   `x-signature` (`@trading-model/crypto` request signer).
-	 * - `InstanceToken`: `x-instance-token`, the token discovery-server hands
-	 *   out at registration.
 	 */
-	security?: readonly ("SignedRequest" | "InstanceToken")[];
+	security?: readonly "SignedRequest"[];
 	/** Public route kept one release before its removal (ADR-0072): `deprecated` in the OpenAPI. */
 	deprecated?: true;
 	params?: z.ZodType;

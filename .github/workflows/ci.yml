@@ -380,7 +380,7 @@ jobs:
         run: >-
           docker compose -f docker-compose.yml -f docker-compose.build.yml -f tests/e2e/docker-compose.e2e.yml
           up -d --wait --wait-timeout 600
-          discovery-server message-manager financial-scraper trader-trainer
+          message-manager financial-scraper trader-trainer
           api-gateway audit-logger dlq-service model-evaluator risk-execution decision-consumer edge-proxy
       # Issue #844: no container of the started stack may publish on every interface.
       - name: "No port published on 0.0.0.0 or ::"
@@ -425,7 +425,7 @@ jobs:
           name: zap-baseline-report
           path: zap-out/zap-report.html
           if-no-files-found: warn
-      # Last: restarts message-manager and discovery to check the mesh heals.
+      # Last: restarts message-manager to check the mesh heals.
       - name: Resilience (service restarts)
         run: bun run test:e2e -- resilience
       - name: Dump service logs

@@ -54,9 +54,7 @@ jest.mock("../../../src/application/audit-chain/chain-audit-scheduler", () => ({
 	ChainAuditScheduler: jest.fn((..._args: any[]) => MOCK_CHAIN_AUDIT_SCHEDULER),
 }));
 
-const MOCK_ADDRESS_MANAGER = { stop: jest.fn<(...args: any[]) => any>() };
 jest.mock("../../../src/config/address-manager", () => ({
-	BOOTSTRAP_ADDRESS_MANAGER: jest.fn((..._args: any[]) => MOCK_ADDRESS_MANAGER),
 	AddressManager: { stop: jest.fn<(...args: any[]) => any>() },
 	ADDRESS_MANAGER_ROUTES: jest.fn<(...args: any[]) => any>(),
 }));
@@ -138,7 +136,6 @@ describe("Audit Logger entry point (index.ts)", () => {
 		expect(
 			MOCK_BROKER_MESSAGE_INSTANCE.stopMessageManager
 		).toHaveBeenCalledTimes(1);
-		expect(MOCK_ADDRESS_MANAGER.stop).toHaveBeenCalledTimes(1);
 		expect(MOCK_MONGO_CLIENT.close).toHaveBeenCalledTimes(1);
 	});
 
