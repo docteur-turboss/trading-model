@@ -75,7 +75,7 @@ Central message router exposing the messaging API. Responsibilities:
 
 Per-instance message delivery handler. Responsibilities:
 
-- Resolves the target service address via the Address Manager (service discovery).
+- Resolves the target service address via the Address Manager (DNS name).
 - Sends the message via HTTPS POST to the subscriber's callback endpoint.
 - Implements a **retry loop** with configurable delivery semantics:
 
@@ -86,7 +86,7 @@ Per-instance message delivery handler. Responsibilities:
 | `exactly-once`  | Single attempt, no broker retry; a failure is dead-lettered (`SINGLE_ATTEMPT_FAILED`). No duplicate downstream depends on subscriber idempotency ([ADR-0019](../../docs/adr/0019-message-broker-as-built.md)). |
 
 - **TTL expiration**: If `emittedAt + ttl < now`, the message is routed to the Dead Letter Queue.
-- **DLQ**: dead letters go to dlq-service (signed `POST /dlq`); while it cannot take one, the journal entry stays pending and is retried (ADR-0019, ADR-0048).
+- **DLQ**: dead letters go to the Redis dead stream of their topic (`RedisDeadLetterStore`, ADR-0073); while Redis cannot take one, the journal entry stays pending and is retried.
 - The whole policy (DLQ, drop or retry) is decided in the domain by `DeliveryErrorClassifier` (`domain/delivery-error-classifier.ts`); the application layer only carries it out. A subscriber answer saying the message itself is wrong (400 — payload refused by its topic schema —, 413, 415, 422) is dead-lettered at once (`REJECTED_BY_SUBSCRIBER`) instead of after 10 attempts; auth, routing, throttling and server errors keep the retries.
 
 ### Message Contracts (`@trading-model/contracts/message-types`)
@@ -162,7 +162,7 @@ Service A                    Dispatcher                    Service B
                   ▼
          ┌────────────────┐
          │ resolveTarget  │
-         │ (via discovery)│
+         │ (via DNS)      │
          └───────┬────────┘
                  │
                  ▼
@@ -208,7 +208,7 @@ Service A                    Dispatcher                    Service B
 | Dependency                       | Purpose                                                                                       |
 | -------------------------------- | --------------------------------------------------------------------------------------------- |
 | `@trading-model/common`          | HttpClient, middleware (catchSync, ResponseException), types, server factories, error classes |
-| `@trading-model/address-manager` | Service discovery client for resolving subscriber endpoint addresses                          |
+| `@trading-model/address-manager` | DNS service resolution client for resolving subscriber endpoint addresses                          |
 | `express`                        | HTTP server framework                                                                         |
 | `zod`                            | Runtime request body validation                                                               |
 | `helmet`                         | Security headers                                                                              |
@@ -233,4 +233,4 @@ Service A                    Dispatcher                    Service B
 | **Shared subscription registry (Redis)**   | Every replica reads the same subscriptions (`RedisSubscriptionStore`, one hash per topic): a subscription made on one replica routes the messages published on any other, and survives a restart. Subscribers renew theirs every 15s (`@trading-model/broker-message`); a subscription not renewed for 60s expires. Without Redis, `InMemorySubscriptionStore` (single replica only). A message whose topic has no subscriber is dropped and counted (`mm_messages_unrouted_total`, alert `MessagesUnrouted`). |
 | **Parallel dispatch (Promise.allSettled)** | Ensures one slow or failing subscriber does not block delivery to others.                                                                                                                                    |
 | **Bounded retry backoff**                  | Exponential backoff (1s base, 20s cap, ±20% jitter), 10 attempts of at most 10s, spaced by the pending list of the journal (`retryDueMs`, `backoff-calculator.spec.ts`); the budget no longer holds a publisher request. |
-| **Dead letters in dlq-service**            | `HttpDeadLetterStore` sends them to dlq-service; while it refuses, the journal entry stays pending; no database in message-manager itself.                                                    |
+| **Dead letters in Redis dead streams**     | `RedisDeadLetterStore` writes them to the dead stream of their topic (ADR-0073), handled with `audit-dlq`; while Redis refuses, the journal entry stays pending.                                |

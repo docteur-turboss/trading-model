@@ -221,7 +221,7 @@ spec:
         - port: 3000
           protocol: TCP
   egress:
-    # discovery-server and trader-trainer (HTTPS on 3000).
+    # trader-trainer (HTTPS on 3000).
     - to:
         - podSelector: {}
       ports:

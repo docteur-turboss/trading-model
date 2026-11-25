@@ -2,7 +2,7 @@
 #  release.yml — Build & push Docker images on version tag
 #  Triggers on push of tags vX.Y.Z (e.g. v2.0.3, or v2.1.0-rc.1).
 #  Runs the whole CI first (ci.yml) on the tagged commit: no image is pushed
-#  unless every gate passes. Then builds the 7 service images + the tooling
+#  unless every gate passes. Then builds the service images + the tooling
 #  images (spire-tools, the K8s SPIRE entry reconciler; backup-tools, the
 #  db-backup CronJob) and pushes each as :X.Y.Z (no leading v).
 #  :latest moves to the release only when it is the highest stable version:
@@ -115,7 +115,6 @@ jobs:
       fail-fast: false
       matrix:
         service:
-          - discovery-server
           - message-manager
           - financial-scraper
           - trader-trainer
@@ -271,7 +270,6 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - discovery-server
           - message-manager
           - financial-scraper
           - trader-trainer

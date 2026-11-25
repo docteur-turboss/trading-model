@@ -254,7 +254,7 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u <USERNAME> --password-stdin
 IMAGE_TAG=2.0.3 docker compose pull
 
 # Or pull a specific service
-docker pull ghcr.io/<owner>/discovery-server:2.0.3
+docker pull ghcr.io/<owner>/message-manager:2.0.3
 ```
 
 ## Production deployment
@@ -369,7 +369,7 @@ Moving an existing cluster over: `deploy.yml` (step "Release replicas of autosca
 ## Rollback
 
 Rollback is automatic on failure in the `Deploy` workflow. Before applying the
-overlay it records the revision of each of the 9 Deployments; on failure it
+overlay it records the revision of each Deployment; on failure it
 runs `kubectl rollout undo --to-revision=<recorded>` for each of them. These
 steps (record, apply by digest, wait for rollout, rollback) live in
 `deploy/k8s/scripts/deploy-release.sh`, which the CI `k8s` job runs too: it
@@ -479,7 +479,7 @@ critical alerts firing before the deploy", before any cluster change, lists them
 their labels (`deploy-k8s.sh firing-critical`) into `VERIFY_BASELINE_FILE`, and
 `verify-release` only reports them, since a rollback cannot clear them (e.g. a backup alert
 waiting for a production-only fix). An alert that differs by any label (another instance,
-service, symbol...) still fails. In production that step refuses to start the deploy while a
+service, symbol...) still fails, except `run` (which backup job saw it), ignored on both sides. In production that step refuses to start the deploy while a
 critical alert fires; a hotfix meant to clear it runs with the `workflow_dispatch` input
 `allow_firing_alerts` (default `false`): the step then logs the alerts and `github.actor` as
 a warning and production uses the baseline as staging does. An alert of the baseline that resolves then fires again during the

@@ -23,7 +23,6 @@ This directory contains operational procedures, policies, and runbooks for the T
 | [Deployment Failure](runbooks/runbook-deployment-failure.md) | Failed deployment rollback procedure            |
 | [Latency and Errors](runbooks/runbook-latency-and-errors.md) | SLO burn-rate alerts (availability, latency) |
 | [Circuit Breaker Open](runbooks/runbook-circuit-breaker-open.md) | `HttpCircuitBreakerRejecting`: a caller refuses its calls to a failing dependency |
-| [Service Discovery](runbooks/runbook-discovery.md) | `InstanceCountLow`, `HeartbeatStopped`: lost redundancy, lost leases |
 | [DLQ Backlog](runbooks/runbook-dlq-backlog.md) | `DlqAuditEventLost`: DLQ action missing from the audit chain |
 | [Trainer Failures](runbooks/runbook-trainer.md) | `TrainingCompletionRateLow`, `ModelArtifactWriteFailing` (ADR-0022) |
 

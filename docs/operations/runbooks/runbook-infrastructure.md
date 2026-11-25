@@ -63,7 +63,7 @@ kubectl -n $NS logs <pod> -c <container> --previous --tail=100
 
 - Exit after a configuration error (missing env var, Secret key, ConfigMap):
   fix the overlay or the Secret, then `kubectl -n $NS rollout restart`.
-- Dependency down at startup (MySQL, Redis, discovery-server): fix it first,
+- Dependency down at startup (MySQL, Redis): fix it first,
   the pod recovers by itself.
 - Bad release: roll back
   ([runbook-deployment-failure](runbook-deployment-failure.md)).
