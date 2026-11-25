@@ -1238,13 +1238,17 @@ describe("accounting effects (ADR-0064 §4-§5)", () => {
 		s.cash = 94_000;
 		s.positions = { BTCUSDT: 0.1, ETHUSDT: 1 };
 		mark(s, "BTCUSDT", 60_000);
-		rollDay(s, T0 + 13 * 3_600_000); // 23:00 UTC, same day
+		rollDay(s, T0 + 13 * 3_600_000, LIMITS.haltAgeMs); // 23:00 UTC, same day
 		expect(s.day).toEqual({
 			date: "2026-11-20",
 			startEquity: CAPITAL,
 			symbols: {},
 		});
-		rollDay(s, T0 + 14 * 3_600_000);
+		const midnight = T0 + 14 * 3_600_000;
+		rollDay(s, midnight, LIMITS.haltAgeMs); // BTC mark is 14 h old: deferred
+		expect(s.day.date).toBe("2026-11-20");
+		s.marks.BTCUSDT.at = midnight;
+		rollDay(s, midnight, LIMITS.haltAgeMs);
 		expect(s.day).toEqual({
 			date: "2026-11-21",
 			startEquity: 100_000,

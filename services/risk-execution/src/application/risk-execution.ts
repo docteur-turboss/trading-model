@@ -223,7 +223,6 @@ export class RiskExecution {
 		});
 		return this._run(async () => {
 			const now = this._now();
-			rollDay(this._state, now);
 			const clientOrderId = `rx-${intent.decisionId}`;
 			// First: an existing idempotency key is never rewritten (ADR-0064 §3).
 			if (
@@ -245,6 +244,7 @@ export class RiskExecution {
 				),
 				this._readPrices([intent.symbol], barMs),
 			]);
+			rollDay(this._state, now, this._d.limits.haltAgeMs);
 			const price = read[intent.symbol];
 			const reason = preTradeReject({
 				intent,
@@ -300,8 +300,8 @@ export class RiskExecution {
 
 	private async _tick(): Promise<void> {
 		const now = this._now();
-		rollDay(this._state, now);
 		await this._readPrices(Object.keys(this._d.limits.instruments));
+		rollDay(this._state, now, this._d.limits.haltAgeMs);
 		for (const order of Object.values(this._state.orders).filter(isOpen)) {
 			if (order.status !== "accepted") {
 				await this._resolve(order);
