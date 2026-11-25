@@ -9,17 +9,11 @@ describe("AddressManagerEnvSchema", () => {
 		APP_NAME: "test-app",
 		SERVICE_NAME: "test-service",
 		INSTANCE_ID: "instance-1",
-		ADDRESS_MANAGER_URL: "https://am.example.com",
 	};
 
 	it("uses defaults for optional fields", () => {
 		const result = AddressManagerEnvSchema.parse(baseEnv);
 		expect(result.APP_VERSION).toBe("1.0.0");
-		expect(result.CACHE_TTL_MS).toBe(30000);
-		expect(result.SERVICE_PING_TIMEOUT_MS).toBe(2000);
-		expect(result.DISCOVERY_TIMEOUT_MS).toBe(5000);
-		expect(result.TOKEN_REFRESH_INTERVAL_MS).toBe(60000);
-		expect(result.TTL_REFRESH_INTERVAL_MS).toBe(15000);
 		expect(result.MESSAGE_CALLBACK_PATH).toBe("message");
 		expect(result.DNS_NAME_MAP).toEqual({});
 	});

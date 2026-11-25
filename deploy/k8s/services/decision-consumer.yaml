@@ -197,7 +197,7 @@ spec:
         - port: 3000
           protocol: TCP
   egress:
-    # discovery-server, message-manager, trader-trainer, financial-scraper and risk-execution (HTTPS on 3000).
+    # message-manager, trader-trainer, financial-scraper and risk-execution (HTTPS on 3000).
     - to:
         - podSelector: {}
       ports:

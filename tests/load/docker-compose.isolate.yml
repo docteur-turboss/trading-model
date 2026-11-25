@@ -12,9 +12,6 @@ services:
   migrate:
     container_name: !reset null
     ports: !reset []
-  discovery-server:
-    container_name: !reset null
-    ports: !reset []
   spire-server:
     container_name: !reset null
     ports: !reset []
@@ -40,9 +37,6 @@ services:
     container_name: !reset null
     ports: !reset []
   dlq-service:
-    container_name: !reset null
-    ports: !reset []
-  spiffe-helper-discovery:
     container_name: !reset null
     ports: !reset []
   spiffe-helper-message:

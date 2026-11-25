@@ -32,7 +32,6 @@ from inside its own container, with its SVID.
 
 | Service           | Route           | Compose container   |
 |-------------------|-----------------|---------------------|
-| discovery-server  | `/ping`         | `trading-discovery` |
 | message-manager   | `/health/ready` | `trading-message`   |
 | api-gateway       | `/ping`         | `trading-gateway`   |
 | audit-logger      | `/ping`         | `trading-audit`     |
@@ -114,4 +113,4 @@ then `POST http://localhost:9093/api/v2/silences` (or the UI).
 
 Never silence `Watchdog`: it is the heartbeat to the dead man's switch, and
 silencing it reads as "alerting is down". See also
-[ALERTING.md](ALERTING.md) and [runbook-discovery](runbooks/runbook-discovery.md).
+[ALERTING.md](ALERTING.md).

@@ -34,10 +34,6 @@ services:
       binance-stub:
         condition: service_healthy
 
-  discovery-server:
-    environment:
-      SIGNING_SECRET: e2e-signing-secret-0123456789abcdef0123456789
-
   # External E2E traffic authenticates with this key (tests/e2e/helpers.ts).
   api-gateway:
     environment:

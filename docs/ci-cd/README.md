@@ -7,7 +7,7 @@ The jobs, steps and versions live in `.github/workflows/*.yml`: read the file, n
 | Workflow | File | Trigger | Jobs |
 | -------- | ---- | ------- | ---- |
 | CI | `ci.yml` | `pull_request`, `push` to `main` / `development`, `workflow_call` (Release) | `gate`, `lint`, `security`, `typecheck`, `test`, `db-integration`, `observability`, `k8s-overlays`, `contract`, `e2e`, `k8s-images`, `k8s`, `k8s-result` |
-| Release | `release.yml` | push of a `v*` tag | `version`, `ci`, image scan and build, `sign`, `verify-images` |
+| Release | `release.yml` | push of a `v*` tag | `version`, `ci`, `scan-services` + `scan-tools` (one build per image, Trivy by digest), `sign` (promotes the scanned digest to `X.Y.Z`, signs it), `verify-images` (after `sign`) |
 | Deploy | `deploy.yml` | manual | Staging / production deploy by digest (optional canary, smoke test, auto rollback) |
 | Deploy compose | `deploy-compose.yml` | manual (release tag) | Compose stack deploy by digest on the self-hosted runner (ADR-0086) |
 | Backup Restore Test | `backup-test.yml` | weekly cron, pull request touching backup scripts, manual | Backup / restore scripts, dry-run restore |

@@ -4,7 +4,6 @@ import { ServiceInstanceName } from "@trading-model/primitives/service-instance-
 
 describe("DEFAULT_ACL", () => {
 	it("should contain entries for all known services", () => {
-		expect(DEFAULT_ACL[ServiceInstanceName.DiscoveryService]).toBeDefined();
 		expect(DEFAULT_ACL[ServiceInstanceName.AuditLoggerService]).toBeDefined();
 		expect(
 			DEFAULT_ACL[ServiceInstanceName.MessageManagerService]

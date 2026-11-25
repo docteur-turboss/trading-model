@@ -30,19 +30,7 @@ describe("API Gateway E2E", () => {
 		expect(status).toBe(200);
 	});
 
-	it("still serves the deprecated discovery registry in release N (ADR-0072)", async () => {
-		const { status, body } = await externalRequest(
-			"/v1/discovery-server/services",
-			{ headers: AUTH }
-		);
-		expect(status).toBe(200);
-		expect(JSON.parse(body)).toEqual(
-			expect.arrayContaining(["financial-scraper"])
-		);
-	});
-
-	it("routes a canonical service name to its legacy registration name", async () => {
-		// financial-scraper registers under its canonical name.
+	it("routes a canonical service name", async () => {
 		const { status, body } = await externalRequest(
 			"/v2/financial-scraper/candles/symbols/BTCUSDT",
 			{ headers: AUTH }
@@ -83,8 +71,6 @@ describe("API Gateway E2E", () => {
 	});
 
 	it.each([
-		["/v1/discovery-server/register", "POST"],
-		["/v1/discovery-server/heartbeat", "POST"],
 		["/v1/message-manager/message", "POST"],
 		["/v1/message-manager/subscribe", "DELETE"],
 	])("does not lend its identity to %s (%s)", async (path, method) => {

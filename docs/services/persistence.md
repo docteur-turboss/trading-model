@@ -25,4 +25,4 @@ import { buildRedisKey } from "@trading-model/persistence/redis-key-builder";
 
 ## See also
 
-[AGENTS.md](../../AGENTS.md) "Databases & migrations", [ADR-0023](../adr/0023-discovery-registry-in-redis.md), [common.md](./common.md).
+[AGENTS.md](../../AGENTS.md) "Databases & migrations", [common.md](./common.md).
