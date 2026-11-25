@@ -9,10 +9,17 @@ import {
 	RiskExecution,
 	type RiskExecutionDeps,
 } from "../../src/application/risk-execution";
+import {
+	applyFill,
+	limitBreaches,
+	reconciliationDiffs,
+	rollDay,
+} from "../../src/domain/accounting";
 import { assertExecutionLock } from "../../src/domain/execution-mode";
 import { HARD_CEILINGS, RiskLimits } from "../../src/domain/limits";
 import { FINAL, transition } from "../../src/domain/order";
 import type {
+	BrokerAccount,
 	BrokerOrderView,
 	BrokerPort,
 	StatePort,
@@ -1108,6 +1115,206 @@ describe("reconciliation (ADR-0064 §4)", () => {
 		expect(
 			ctx.events.some((e) => e.startsWith("reconciliation.mismatch"))
 		).toBe(true);
+	});
+});
+
+describe("accounting effects (ADR-0064 §4-§5)", () => {
+	const mark = (s: RiskState, symbol: string, price: number) => {
+		s.marks[symbol] = { price, at: T0 };
+	};
+	const order = (over: Partial<Order>): Order =>
+		({
+			clientOrderId: "o1",
+			symbol: "BTCUSDT",
+			side: "buy",
+			status: "submitted",
+			filledQty: 0,
+			quoteQty: 0,
+			fee: 0,
+			...over,
+		}) as Order;
+	const fill = (filledQty: number, quoteQty: number, fee: number) =>
+		({ filledQty, quoteQty, fee }) as BrokerOrderView;
+
+	it("books a buy then a partial sell, fees included, by delta of the cumulative fills", () => {
+		const s = newState(CAPITAL, T0);
+		mark(s, "BTCUSDT", 60_000);
+		const buy = order({});
+		expect(applyFill(s, buy, fill(0.1, 6_000, 6))).toBe(0.1);
+		expect(s.cash).toBe(93_994);
+		expect(s.positions.BTCUSDT).toBe(0.1);
+		expect(s.day.symbols.BTCUSDT).toEqual({ startValue: 0, flow: -6_006 });
+
+		const sell = order({ clientOrderId: "o2", side: "sell" });
+		applyFill(s, sell, fill(0.04, 2_600, 2.6));
+		expect(applyFill(s, sell, fill(0.06, 3_900, 3.9))).toBeCloseTo(0.02, 12);
+		expect(s.cash).toBeCloseTo(97_890.1, 9);
+		expect(s.positions.BTCUSDT).toBeCloseTo(0.04, 12);
+		expect(s.day.symbols.BTCUSDT.flow).toBeCloseTo(-2_109.9, 9);
+		expect(sell).toMatchObject({ filledQty: 0.06, quoteQty: 3_900, fee: 3.9 });
+
+		// A view with no new fill books nothing, not even a day entry.
+		expect(applyFill(s, sell, fill(0.06, 3_900, 3.9))).toBe(0);
+		const eth = order({ symbol: "ETHUSDT" });
+		expect(applyFill(s, eth, fill(0, 0, 0))).toBe(0);
+		expect(s.cash).toBeCloseTo(97_890.1, 9);
+		expect(s.day.symbols.ETHUSDT).toBeUndefined();
+	});
+
+	it("opens a day entry at the value of a position held before the fill", () => {
+		const s = newState(CAPITAL, T0);
+		s.positions.ETHUSDT = 1;
+		mark(s, "ETHUSDT", 3_000);
+		applyFill(s, order({ symbol: "ETHUSDT" }), fill(1, 3_000, 3));
+		expect(s.day.symbols.ETHUSDT).toEqual({ startValue: 3_000, flow: -3_003 });
+		expect(s.positions.ETHUSDT).toBe(2);
+	});
+
+	it("rolls the day only when the UTC date changes", () => {
+		const s = newState(CAPITAL, T0);
+		s.cash = 94_000;
+		s.positions = { BTCUSDT: 0.1, ETHUSDT: 1 };
+		mark(s, "BTCUSDT", 60_000);
+		rollDay(s, T0 + 13 * 3_600_000); // 23:00 UTC, same day
+		expect(s.day).toEqual({
+			date: "2026-11-20",
+			startEquity: CAPITAL,
+			symbols: {},
+		});
+		rollDay(s, T0 + 14 * 3_600_000);
+		expect(s.day).toEqual({
+			date: "2026-11-21",
+			startEquity: 100_000,
+			symbols: {
+				BTCUSDT: { startValue: 6_000, flow: 0 },
+				ETHUSDT: { startValue: 0, flow: 0 },
+			},
+		});
+	});
+
+	it.each<[string, (s: RiskState) => void, string[]]>([
+		[
+			"daily loss at the limit",
+			(s) => {
+				s.cash = 98_000;
+			},
+			["daily_loss"],
+		],
+		[
+			"daily loss under the limit",
+			(s) => {
+				s.cash = 98_000.01;
+			},
+			[],
+		],
+		[
+			"drawdown at the limit",
+			(s) => {
+				s.hwm = 110_000;
+			},
+			["drawdown"],
+		],
+		[
+			"drawdown under the limit",
+			(s) => {
+				s.hwm = 109_999.99;
+			},
+			[],
+		],
+		[
+			"symbol loss at the limit",
+			(s) => {
+				s.day.symbols.BTCUSDT = { startValue: 1_000, flow: 0 };
+			},
+			["daily_loss_symbol"],
+		],
+		[
+			"symbol loss under the limit",
+			(s) => {
+				s.day.symbols.BTCUSDT = { startValue: 999.99, flow: 0 };
+			},
+			[],
+		],
+	])("limitBreaches: %s", (_n, edit, reasons) => {
+		const s = newState(CAPITAL, T0);
+		edit(s);
+		expect(limitBreaches(s, LIMITS).map((b) => b.reason)).toEqual(reasons);
+	});
+
+	it("limitBreaches raises the high-water mark and names the symbol", () => {
+		const s = newState(CAPITAL, T0);
+		s.cash = 120_000;
+		s.day.symbols.ETHUSDT = { startValue: 2_000, flow: 0 };
+		expect(limitBreaches(s, LIMITS)).toEqual([
+			{ symbol: "ETHUSDT", reason: "daily_loss_symbol" },
+		]);
+		expect(s.hwm).toBe(120_000);
+	});
+
+	it.each<[string, (s: RiskState) => BrokerAccount, string[]]>([
+		["matching", () => ({ cash: CAPITAL, positions: {}, openOrders: [] }), []],
+		[
+			"position drift of 1e-9",
+			() => ({ cash: CAPITAL, positions: { BTCUSDT: 1e-9 }, openOrders: [] }),
+			[],
+		],
+		[
+			"position drift of 2e-9",
+			() => ({ cash: CAPITAL, positions: { BTCUSDT: 2e-9 }, openOrders: [] }),
+			["position:BTCUSDT"],
+		],
+		[
+			"position held only by us",
+			(s) => {
+				s.positions.ETHUSDT = 1;
+				return { cash: CAPITAL, positions: {}, openOrders: [] };
+			},
+			["position:ETHUSDT"],
+		],
+		[
+			"open order missing at the broker",
+			(s) => {
+				s.orders.o1 = order({});
+				return { cash: CAPITAL, positions: {}, openOrders: [] };
+			},
+			["open_orders"],
+		],
+		[
+			"open order only at the broker",
+			() => ({ cash: CAPITAL, positions: {}, openOrders: ["x"] }),
+			["open_orders"],
+		],
+		[
+			"different open order at the broker",
+			(s) => {
+				s.orders.o1 = order({});
+				return { cash: CAPITAL, positions: {}, openOrders: ["x"] };
+			},
+			["open_orders"],
+		],
+		[
+			"same open order, final orders ignored",
+			(s) => {
+				s.orders.o1 = order({ status: "partially_filled" });
+				s.orders.o2 = order({ clientOrderId: "o2", status: "filled" });
+				return { cash: CAPITAL, positions: {}, openOrders: ["o1"] };
+			},
+			[],
+		],
+		[
+			"balance drift at the tolerance",
+			() => ({ cash: CAPITAL + 100, positions: {}, openOrders: [] }),
+			[],
+		],
+		[
+			"balance drift over the tolerance",
+			() => ({ cash: CAPITAL - 100.01, positions: {}, openOrders: [] }),
+			["balance"],
+		],
+	])("reconciliationDiffs: %s", (_n, setup, diffs) => {
+		const s = newState(CAPITAL, T0);
+		const account = setup(s);
+		expect(reconciliationDiffs(s, account, LIMITS)).toEqual(diffs);
 	});
 });
 
