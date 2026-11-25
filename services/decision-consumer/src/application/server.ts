@@ -1,3 +1,4 @@
+import { svidReadinessCheck } from "@trading-model/http/readiness";
 import { createServiceServer } from "@trading-model/http/service-server-factory";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import type { Application } from "express";
@@ -14,5 +15,6 @@ export function createServer() {
 			app.get("/metrics", metricsHandler);
 			ADDRESS_MANAGER_ROUTES(app);
 		},
+		readiness: [svidReadinessCheck(ENV)],
 	});
 }
