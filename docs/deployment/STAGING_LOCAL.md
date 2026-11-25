@@ -200,10 +200,18 @@ restart, the services do not.
   revision, not the newest one, but a ConfigMap it mounts by a bare name
   (no hash suffix) is read as the last deploy left it (issues #1456, #1460; enforced
   for every partitioned StatefulSet by `tests/k8s/check-overlays.mjs`);
-- the Redis ACL written by `redis-ha.sh` reaches a partitioned `redis-0` only
-  with the planned `redis` / `redis-sentinel` restart: code must not need a
-  new Redis command in the release that grants it, nor a new ACL user
-  (issue #1931);
+- except `redis`: when `redis-0` runs an older template, `deploy-release.sh
+  redis-last` adds `redis-1` on the new one, makes it master by `SENTINEL
+  FAILOVER`, updates `redis-0` as its replica, fails back and returns to one
+  pod and `partition: 1` (issue #2882), so the ACL of `redis-ha.sh` reaches it
+  at each deploy. Writes are held on the old master over each failover, so no
+  bus entry is lost (ADR-0090), except over the first one from a `redis-0`
+  older than ADR-0090 (v3.1.0), whose `ha` user cannot pause: a write taken in
+  the second before clients follow the switch can be lost, once (accepted by
+  the owner, issue #2882). The PVC `redis-data-redis-1` (a full copy of the data)
+  stays after it: delete it to free the disk. `redis-sentinel-0` keeps its
+  template: it holds no service user, only the internal password and the
+  `exporter` user;
 - until restarted, the pods lack what the new template adds. 3.1.0: no
   exporter, so no Prometheus target and no `mysql_up` / `redis_up` /
   `mongodb_up` series. `MySQLDown`, `RedisDown` and `MongoDBDown` stay silent
@@ -211,8 +219,9 @@ restart, the services do not.
   own alerts.
 
 To take a new template, plan the restart (database down meanwhile) outside a
-deploy. Release `redis` and `redis-sentinel` together: a Redis node restarted
-alone waits for the master its sentinel still names, the dead pod (PR #579).
+deploy. `redis` alone needs none (above). For `redis-sentinel`, release `redis`
+with it: a Redis node restarted alone waits for the master its sentinel still
+names, the dead pod (PR #579).
 
 ```bash
 NS=trading-model-staging

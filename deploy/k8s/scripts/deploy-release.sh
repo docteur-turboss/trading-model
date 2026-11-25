@@ -29,7 +29,8 @@
 #       restarts under the pods of this release only: those of a release older
 #       than issue #1112 lose the registry when Redis restarts under them (ADR-0045,
 #       issue #1156). Clients of this release run against the previous Redis meanwhile
-#       (REDIS_TLS_MODE=optional, same ACL users).
+#       (REDIS_TLS_MODE=optional, same ACL users). A partitioned redis-0 on an older
+#       template (staging-local) is then replaced through a Sentinel failover (issue #2882).
 #   deploy-release.sh dry-run <namespace> <node-agents-dir> < rendered.yaml
 #       Preflight (issue #805): `kubectl apply --dry-run=server` of the render
 #       on stdin, cluster scope + node agents with CLUSTER_KUBECONFIG, the rest
@@ -97,10 +98,90 @@ redis_last() {
 	# The pods mount Secret redis-tls (ADR-0047), issued from the Certificate the overlay
 	# just applied: from a release without Redis TLS they would stay in ContainerCreating (issue #1138).
 	kubectl wait --for=condition=Ready certificate/redis-tls -n "$ns" --timeout="$((300 * FACTOR))s" || return 1
+	redis_unswap "$ns" || return 1
 	redis_statefulsets 1 | kubectl apply -f - || return 1
 	for sts in $STATEFULSETS; do
 		kubectl rollout status "statefulset/$sts" -n "$ns" --timeout="$((300 * FACTOR))s" || return 1
 	done
+	redis_swap "$ns"
+}
+
+# redis-cli in container $3 of Redis pod $2, with the password of its start script (redis-ha.sh).
+# shortcut: clear ports only (REDIS_TLS_MODE optional); add --tls with the required step (ADR-0047).
+redis_cli() {
+	local ns="$1" pod="$2" container="$3"
+	shift 3
+	kubectl exec "$pod" -n "$ns" -c "$container" -- sh -c 'REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" exec redis-cli --raw "$@"' sh "$@"
+}
+
+repl_offset() {
+	redis_cli "$1" "$2" redis --user ha INFO replication | sed -n 's/^master_repl_offset:\([0-9]*\).*/\1/p'
+}
+
+# Makes Redis pod $2 the master once it is a synced replica. The old master holds writes (CLIENT
+# PAUSE WRITE) until the replica has them all, the sentinel promotes it (SENTINEL FAILOVER), the old
+# master turns replica and resumes: a held write gets READONLY and is published again, none is lost
+# (ADR-0090). Only an old master whose `ha` user predates ADR-0090 (NOPERM) fails over unpaused: a
+# write it takes before the clients follow the switch (failoverDetector) is lost.
+failover_to() {
+	local ns="$1" pod="$2" old="redis-$((1 - ${2#redis-}))" ip paused="" waited=0 offset
+	ip=$(kubectl get pod "$pod" -n "$ns" -o jsonpath='{.status.podIP}') || return 1
+	until [ "$(redis_cli "$ns" redis-sentinel-0 sentinel -p 26379 SENTINEL get-master-addr-by-name mymaster | head -n 1)" = "$ip" ]; do
+		# Writes are held 30 passes at most.
+		if [ "$waited" -ge $((300 * FACTOR)) ] || { [ -n "$paused" ] && [ $((waited - paused)) -ge 30 ]; }; then
+			echo "::error::The sentinel did not make $pod the Redis master in $waited s"
+			[ -z "$paused" ] || redis_cli "$ns" "$old" redis --user ha CLIENT UNPAUSE >/dev/null
+			return 1
+		fi
+		# Paused only once the sentinel can promote: replica linked and listed (else NOGOODSLAVE).
+		if redis_cli "$ns" "$pod" redis --user ha INFO replication | grep '^master_link_status:up' >/dev/null &&
+			redis_cli "$ns" redis-sentinel-0 sentinel -p 26379 SENTINEL replicas mymaster | grep -x "$ip" >/dev/null; then
+			# Re-armed each pass; expires by itself if this run dies. Any other answer: next pass.
+			case "$(redis_cli "$ns" "$old" redis --user ha CLIENT PAUSE 30000 WRITE 2>&1)" in
+			OK)
+				paused=${paused:-$waited}
+				offset=$(repl_offset "$ns" "$pod")
+				[ -n "$offset" ] && [ "$offset" = "$(repl_offset "$ns" "$old")" ] &&
+					redis_cli "$ns" redis-sentinel-0 sentinel -p 26379 SENTINEL FAILOVER mymaster
+				;;
+			*NOPERM*) redis_cli "$ns" redis-sentinel-0 sentinel -p 26379 SENTINEL FAILOVER mymaster ;;
+			esac
+		fi
+		sleep 1
+		waited=$((waited + 1))
+	done
+	[ -n "$paused" ] || return 0
+	redis_cli "$ns" "$old" redis --user ha REPLICAOF "$ip" 6379 >/dev/null &&
+		redis_cli "$ns" "$old" redis --user ha CLIENT UNPAUSE >/dev/null
+}
+
+# staging-local holds its single redis-0 by `partition: 1`: it keeps the template, so the ACL users,
+# of an older release (issue #2882). Replaced without stopping the master: redis-1 joins on the new
+# template, takes the master role, redis-0 is updated as its replica and takes the role back.
+redis_swap() {
+	local ns="$1" part replicas upd t="--timeout=$((300 * FACTOR))s"
+	read -r part replicas upd <<<"$(kubectl get statefulset redis -n "$ns" -o jsonpath='{.spec.updateStrategy.rollingUpdate.partition} {.spec.replicas} {.status.updateRevision}')"
+	[ "$part" = 1 ] && [ "$replicas" = 1 ] &&
+		[ "$(kubectl get pod redis-0 -n "$ns" -o jsonpath='{.metadata.labels.controller-revision-hash}')" != "$upd" ] || return 0
+	echo "redis-0 runs a template older than $upd: replaced through a Sentinel failover"
+	kubectl patch statefulset redis -n "$ns" -p '{"metadata":{"annotations":{"trading-model/redis-swap":"1"}},"spec":{"replicas":2}}' &&
+		kubectl rollout status statefulset/redis -n "$ns" "$t" &&
+		failover_to "$ns" redis-1 &&
+		kubectl patch statefulset redis -n "$ns" -p '{"spec":{"updateStrategy":{"rollingUpdate":{"partition":0}}}}' &&
+		kubectl rollout status statefulset/redis -n "$ns" "$t" &&
+		redis_unswap "$ns" &&
+		kubectl rollout status statefulset/redis -n "$ns" "$t" &&
+		# The sentinel would keep the IPs of the replaced pods in its replica list.
+		redis_cli "$ns" redis-sentinel-0 sentinel -p 26379 SENTINEL RESET mymaster >/dev/null
+}
+
+# Ends a swap (annotation trading-model/redis-swap), also one a stopped run left with the master on
+# redis-1: the apply or a rollout undo would restart it first, and one sentinel (quorum 2) never
+# fails over by itself. redis-0 takes the master role back, then one pod and `partition: 1`.
+redis_unswap() {
+	[ "$(kubectl get statefulset redis -n "$1" --ignore-not-found -o jsonpath='{.metadata.annotations.trading-model/redis-swap}')" = 1 ] || return 0
+	failover_to "$1" redis-0 &&
+		kubectl patch statefulset redis -n "$1" -p '{"metadata":{"annotations":{"trading-model/redis-swap":null}},"spec":{"replicas":1,"updateStrategy":{"rollingUpdate":{"partition":1}}}}'
 }
 
 # Image N is pulled on the node that runs the current pod (restricted profile), so the Recreate
@@ -385,7 +466,7 @@ resync_last_applied() {
 # back alone restarts while the sentinels still name its old pod IP, waits for
 # that dead master and fails its startup probe (PR #579).
 rollback() {
-	local ns="$1" file="$2" dep rev failed=0 target entry undone=() waited=0
+	local ns="$1" file="$2" dep rev failed=0 target entry undone=() waited=0 unswapped=yes
 	# The apply may have failed because the API server went down (run 43665338171): wait for it.
 	until kubectl get deployments -n "$ns" >/dev/null; do
 		[ "$waited" -lt $((300 * FACTOR)) ] || {
@@ -395,7 +476,13 @@ rollback() {
 		sleep 10
 		waited=$((waited + 10))
 	done
+	redis_unswap "$ns" || {
+		echo "::error::redis-0 did not take the master role back from redis-1: Redis left as is, not rolled back"
+		failed=1
+		unswapped=no
+	}
 	while read -r dep rev; do
+		[[ $dep == statefulset/redis && $unswapped == no ]] && continue
 		target="$dep"
 		[[ $dep == */* ]] || target="deployment/$dep"
 		if [ "$rev" = none ]; then

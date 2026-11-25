@@ -740,11 +740,24 @@ upgrade() {
 		mysql_root "INSERT /*+ SET_VAR(cte_max_recursion_depth = 500000) */ INTO financial_scraper.market_trades (symbol, market, source, trade_id, price, quantity, side, timestamp) WITH RECURSIVE n (i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 500000) SELECT 'FILLUSDT', 'crypto', 'binance', $chunk * 500000 + i, 1, 1, 'buy', UTC_TIMESTAMP(3) - INTERVAL 1 DAY FROM n" || return 1
 	done
 
+	# As staging-local (issue #2882): redis-0 held on N-1 by `partition: 1`; redis-last must
+	# bring it the users of N through Sentinel failovers, without losing a journal entry.
+	$K -n "$NS" patch statefulset redis -p '{"spec":{"updateStrategy":{"rollingUpdate":{"partition":1}}}}'
+	local journal_before journal_after
+	journal_before="$(journal_len)" || return 1
 	log "upgrade N-1 → N, availability probed through edge-proxy"
 	verify_collection_gap "upgrade N-1 → N" release_under_probe || {
 		log "the upgrade to release N failed, dropped requests, or stopped the market data 30 s or more"
 		return 1
 	}
+	[ "$($K -n "$NS" get pod redis-0 -o jsonpath='{.metadata.labels.controller-revision-hash}')" = \
+		"$($K -n "$NS" get statefulset redis -o jsonpath='{.status.updateRevision}')" ] &&
+		journal_after="$(journal_len)" && [ "$journal_after" -ge "$journal_before" ] &&
+		wait_for 300 '[ "$(risk_outbox_len)" = 0 ]' || {
+		log "partitioned redis-0 not on the template of N, journal entries lost (${journal_after:-?} after $journal_before) or risk-execution outbox not drained"
+		return 1
+	}
+	log "  partitioned redis-0 on the template of N, journal $journal_before entries before, $journal_after after, risk-execution outbox empty"
 	local widened
 	widened="$(mysql_root "SELECT CONCAT(COLUMN_TYPE, ' ', (SELECT COUNT(*) FROM financial_scraper.market_trades WHERE symbol = 'FILLUSDT'), ' ', (SELECT COUNT(*) FROM financial_scraper._migrations WHERE id = '$widen')) FROM information_schema.columns WHERE table_schema = 'financial_scraper' AND table_name = 'market_trades' AND column_name = 'id'" | tr -d '\r')"
 	[ "$widened" = "bigint unsigned 3000000 1" ] || {
@@ -1126,6 +1139,19 @@ verify_redis_tls() {
 		fi
 	done
 	log "  REDIS_TLS_MODE=$mode, TLS session verified on the data node and the sentinel"
+}
+
+# Entries of journal streams audit-logger reads in N-1 and N, summed (on redis-0, as audit-logger).
+journal_len() {
+	# shellcheck disable=SC2016 # expanded in the pod
+	$K -n "$NS" exec redis-0 -c redis -- sh -c 'for t in audit.heartbeat training.model.published risk.order.transitioned; do
+		REDISCLI_AUTH=$REDIS_AUDIT_LOGGER_PASSWORD redis-cli --user audit-logger XLEN "trading-model:message-manager:journal:$t"; done' |
+		awk '!/^[0-9]+$/ { bad = 1 } { s += $1 } END { if (bad || NR != 3) exit 1; print s }'
+}
+
+# Events risk-execution keeps in its outbox file until the bus accepts them (config/audit.ts).
+risk_outbox_len() {
+	$K -n "$NS" exec deployment/risk-execution -c risk-execution -- node -e 'const f="/data/risk-execution/risk-event-outbox.json",s=require("fs");console.log(s.existsSync(f)?JSON.parse(s.readFileSync(f)).length:0)'
 }
 
 # Bus library (ADR-0073, issue #1835): model-evaluator reads its topic in process
