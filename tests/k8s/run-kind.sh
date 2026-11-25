@@ -1201,7 +1201,11 @@ verify_bus() {
 	wait_for 120 "$K -n $NS exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=\$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli --user message-manager XINFO CONSUMERS $key model-evaluator' | grep -q '^model-evaluator-'"
 	# The group is shared with message-manager's HTTP workers, so the counter of model-evaluator
 	# alone may stay at 0: assert on the group (read, nothing pending, no lag) and on no failed delivery.
-	wait_for 600 "$K -n $NS exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=\$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli --user message-manager XINFO GROUPS $key' | awk 'prev==\"name\"{g=(\$0==\"model-evaluator\")} g&&prev==\"entries-read\"{r=\$0} g&&prev==\"pending\"{p=\$0} g&&prev==\"lag\"{l=\$0} {prev=\$0} END{exit !(r>=1 && p==0 && l==0)}'"
+	wait_for 600 "$K -n $NS exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=\$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli --user message-manager XINFO GROUPS $key' | awk 'prev==\"name\"{g=(\$0==\"model-evaluator\")} g&&prev==\"entries-read\"{r=\$0} g&&prev==\"pending\"{p=\$0} g&&prev==\"lag\"{l=\$0} {prev=\$0} END{exit !(r>=1 && p==0 && l==0)}'" || {
+		$K -n "$NS" exec redis-0 -c redis -- sh -c "REDISCLI_AUTH=\$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli --user message-manager XINFO GROUPS $key" 2>&1 | tail -40
+		$K -n "$NS" get pods -o wide | grep -E 'redis|model-evaluator|trader-trainer|message-manager'
+		return 1
+	}
 	! bus_delivered model-evaluator | grep -q 'status="failed"' || { log "  model-evaluator failed deliveries: $(bus_delivered model-evaluator)"; return 1; }
 	$K -n "$NS" exec deploy/audit-logger -c audit-logger -- node services/audit-logger/dist/application/dlq-cli.js kind list training.model.published
 }
