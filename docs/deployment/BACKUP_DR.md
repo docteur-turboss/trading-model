@@ -339,8 +339,11 @@ change; elsewhere it is a `::warning::`.
 refuses a `production` deploy (`::error::`, exit 1) that has neither the
 variable `BACKUP_AGE_RECIPIENTS` nor a `backup-encryption` ConfigMap in the
 namespace, or neither `BACKUP_S3_BUCKET` nor a `trading-model-backup-s3`
-Secret (e.g. a SealedSecret). A resource already in the cluster is enough;
-other environments get a `::warning::`.
+Secret (e.g. a SealedSecret), or no `BACKUP_S3_SECONDARY_BUCKET` (variable or
+key of that Secret, which counts only when `BACKUP_S3_BUCKET` is unset: otherwise
+the deploy rewrites the Secret from the variables). A resource already in the cluster is enough;
+other environments get a `::warning::`. `BACKUP_S3_SECONDARY_CHECK=warn`
+downgrades the missing second bucket in production (emergency deploy only).
 
 **Fallback.** The GitHub environment variable
 `BACKUP_S3_IMMUTABILITY_CHECK=warn` turns the production error into a
@@ -794,7 +797,7 @@ the `spiffe-helper` sidecars, or wait for their rotation, if a workload
 still rejects peers after the restore. The CI drill checks that Prometheus scrapes every
 target over mTLS after the restore.
 
-Restore MySQL accounts first: dumps exclude the `mysql` schema, so after the loss of the MySQL volume run `bash deploy/k8s/scripts/run-migrations.sh trading-model user-only` (recreates `migrator`, `retention`, `exporter`) before `restore-k8s.sh --components mysql`. Otherwise later migrations, the retention job and the MySQL exporters cannot log in. The SPIRE step does not need MySQL (ADR-0065).
+Restore MySQL accounts first: dumps exclude the `mysql` schema, so after the loss of the MySQL volume run `bash deploy/k8s/scripts/run-migrations.sh trading-model user-only` (recreates `migrator`, `retention`, `exporter`) before `restore-k8s.sh --components mysql`. Otherwise later migrations, the retention job and the MySQL exporters cannot log in. The SPIRE step does not need MySQL (ADR-0065). The CI `k8s` restore drill covers this path: it deletes the `mysql-data-mysql-0` volume, runs `user-only`, then restores and checks the three accounts.
 
 ## Disaster Recovery
 
@@ -941,7 +944,8 @@ credentials of the cloud account (not the ones stored in the cluster);
    > loses every restorable backup. A second MinIO on the same host would not
    > cover this, so none is run. The second Object Lock bucket at another
    > provider is postponed to the production launch: reopen #1943 then, and
-   > fill `BACKUP_S3_SECONDARY_*` before the first production deploy.
+   > fill `BACKUP_S3_SECONDARY_*` before the first production deploy
+   > (enforced by `scripts/backup-config-check.sh`, issue #2599).
 
    If reachable:
    - keep the **same buckets**: Object Lock (compliance mode; 30-31 days
