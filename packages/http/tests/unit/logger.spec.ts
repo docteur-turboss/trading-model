@@ -44,6 +44,22 @@ describe("Logger", () => {
 		});
 	});
 
+	describe("log_messages_total", () => {
+		it("counts written lines by level, not filtered ones", async () => {
+			const { register } = await import("prom-client");
+			const count = async (level: string) =>
+				(
+					await register.getSingleMetric("log_messages_total")?.get()
+				)?.values.find((v) => v.labels.level === level)?.value ?? 0;
+			const [errors, debugs] = [await count("error"), await count("debug")];
+			const warnLogger = new Logger(LogLevel.Warn);
+			warnLogger.error("boom");
+			warnLogger.debug("dropped");
+			expect(await count("error")).toBe(errors + 1);
+			expect(await count("debug")).toBe(debugs);
+		});
+	});
+
 	describe("debug", () => {
 		it("should log debug messages when level is DEBUG", () => {
 			logger.debug("test debug");

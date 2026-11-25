@@ -519,6 +519,23 @@ tests:
               description: 'trader-trainer has had its outbound calls to service financial-scraper refused by the open HTTP circuit breaker for 10 minutes.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md#symptom'
 
+  - name: sustained error logs fire ErrorLogBurst
+    interval: 1m
+    input_series:
+      - series: 'log_messages_total{job="risk-execution",instance="r",level="error"}'
+        values: '0+3x40'
+      - series: 'log_messages_total{job="api-gateway",instance="g",level="error"}'
+        values: '0+0x40'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: ErrorLogBurst
+        exp_alerts:
+          - exp_labels: {severity: warning, job: risk-execution}
+            exp_annotations:
+              summary: 'Burst of error logs on risk-execution'
+              description: 'risk-execution wrote 45 error log lines in 15 minutes (threshold 20).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#errorlogburst'
+
   # K8s: the HTTP-only replicas persist nothing, the collector does.
   - name: market data flows through the collector only
     interval: 1m

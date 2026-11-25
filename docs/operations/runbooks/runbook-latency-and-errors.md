@@ -106,6 +106,20 @@ Fix the dependency, roll back a bad deploy
 stuck pod (`kubectl -n $NS rollout restart deploy/$JOB`). A burn-rate alert
 consumes error budget: apply the [error budget policy](../slo.md#error-budget-policy).
 
+## ErrorLogBurst
+
+`ErrorLogBurst` (warning): more than 20 `error` log lines in 15 min on a job,
+for 10 min. `log_messages_total{level}` counts every line the logger writes, so
+it also covers failures that have no metric of their own.
+
+```bash
+kubectl -n $NS logs deploy/$JOB --since=15m | grep '"level":"error"\|ERROR' | sort | uniq -c | sort -rn | head
+```
+
+Fix the most frequent message with the runbook of its dependency. If the
+errors are expected (known noisy dependency), lower the log level of that
+message instead of raising the threshold.
+
 ## SLO error budget low
 
 ### Symptom
