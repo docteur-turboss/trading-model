@@ -6,6 +6,7 @@ import type {
 } from "@trading-model/contracts/order-intent";
 import { PaperBroker } from "../../src/adapters/outbound/paper-broker";
 import {
+	RearmRefusedError,
 	RiskExecution,
 	type RiskExecutionDeps,
 } from "../../src/application/risk-execution";
@@ -934,6 +935,37 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		expect(emitted[0].previousHwm).toBeGreaterThan(state.hwm);
 		await ctx.svc.tick();
 		expect(ctx.svc.status().killSwitch.global).toBeNull();
+	});
+
+	it("cumulative loss floor survives an owner re-arm, engages once, and only a lower allocated capital lifts it", async () => {
+		const limits = RiskLimits.parse({
+			...LIMITS,
+			drawdownPct: 0.0025,
+			cumulativeLossPct: 0.0085,
+		});
+		const ctx = build({ limits });
+		await ctx.svc.start();
+		await ctx.svc.submitIntent(intent());
+		market.BTCUSDT = 48_000; // -600: drawdown only, floor (99 150) not crossed
+		await ctx.svc.tick();
+		await ctx.svc.rearm({ scope: "global" }, "reviewed", "owner");
+		market.BTCUSDT = 42_000; // -300 more: drawdown and floor both crossed
+		await ctx.svc.tick();
+		await ctx.svc.tick();
+		const engaged = ctx.events
+			.filter((e) => e.startsWith("kill_switch.engaged:"))
+			.map((e) => e.split(":")[1]);
+		expect(engaged).toEqual(["drawdown", "drawdown", "cumulative_loss"]);
+		await expect(
+			ctx.svc.rearm({ scope: "global" }, "reviewed", "owner")
+		).rejects.toThrow(RearmRefusedError);
+		const lowered = build({
+			limits: RiskLimits.parse({ ...limits, allocatedCapital: 99_000 }),
+			store: ctx.store,
+		});
+		await lowered.svc.start();
+		await lowered.svc.rearm({ scope: "global" }, "capital lowered", "owner");
+		expect(lowered.svc.status().killSwitch.global).toBeNull();
 	});
 
 	it("a re-arm that cannot be saved leaves the switch engaged and emits nothing", async () => {
