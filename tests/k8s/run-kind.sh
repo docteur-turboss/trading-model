@@ -166,7 +166,7 @@ previous_checkout() {
 # resolves them in the registry. `kind load` imports images under their tag
 # only: a reference by digest is added, so pods pinned by digest find them.
 node_digests() {
-	local node="${CLUSTER}-control-plane" img ref digest
+	local node="${CLUSTER}-control-plane" img ref digest n
 	for img in $IMAGES; do
 		ref="ghcr.io/trading-model/$img"
 		digest="$(docker exec "$node" ctr -n k8s.io images ls "name==$ref:$1" | awk 'NR == 2 {print $3}')"
@@ -174,7 +174,9 @@ node_digests() {
 			log "$ref:$1 is not in the kind node"
 			return 1
 		}
-		docker exec "$node" ctr -n k8s.io images tag --force "$ref:$1" "$ref@$digest" >/dev/null
+		for n in $("$KIND" get nodes --name "$CLUSTER"); do # every node: a pod may land on a worker (KIND_NODES=3)
+			docker exec "$n" ctr -n k8s.io images tag --force "$ref:$1" "$ref@$digest" >/dev/null
+		done
 		echo "$img $digest"
 	done
 }
