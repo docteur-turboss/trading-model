@@ -90,7 +90,7 @@ export class EpisodeScores {
 	 */
 	maxDrawdown(): number {
 		let maxDD = 0;
-		let peak = Number.NEGATIVE_INFINITY;
+		let peak = 0;
 		let running = 0;
 		for (const result of this._scores) {
 			running += result;

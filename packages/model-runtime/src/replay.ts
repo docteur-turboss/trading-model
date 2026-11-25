@@ -174,7 +174,12 @@ export function replayModel(input: {
 		genome.rl.horizon,
 		{
 			step: (step, barsSince) => stepOf(agent, step, barsSince),
-			pnl: () => Number(agent.wallet.getPnL()),
+			pnl: (mark) => {
+				if (mark) {
+					agent.wallet.setPrice(mark.price);
+				}
+				return Number(agent.wallet.getPnL());
+			},
 		},
 		curve
 	);

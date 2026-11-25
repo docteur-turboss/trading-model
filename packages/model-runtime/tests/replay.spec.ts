@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 import type { CandleData } from "@trading-model/contracts/market-data.types";
 import { AGENT_STATE_DIM } from "../src/agent/agent-state";
+import { playEpisode } from "../src/agent/decision-events";
 import { FEATURE_DIM } from "../src/feature-vector-codec";
 import { ActivationType, NormalisationType } from "../src/neural-network/type";
 import {
@@ -62,7 +63,7 @@ function genome(variant: "every-bar" | "on-event"): {
 								minGap: 2,
 							},
 						}
-					: { frameSkip: 2 },
+					: { frameSkip: 3 },
 			},
 		},
 		// Weights the greedy policy trades with on these candles.
@@ -198,5 +199,27 @@ describe("decideOnLastBar (ADR-0087)", () => {
 				candles: candles.slice(0, 1),
 			})
 		).toBeUndefined();
+	});
+});
+
+describe("playEpisode last bar", () => {
+	it("marks a buy to the final close when the last bar is no decision", () => {
+		const steps = [100, 100, 90].map((price) => ({ price }) as never);
+		const curve: number[] = [];
+		let mark = 100;
+		const { pnl } = playEpisode(
+			steps,
+			{ frameSkip: 3 },
+			{
+				step: () => undefined,
+				pnl: (last?: { price: number }) => {
+					mark = last?.price ?? mark;
+					return mark - 100;
+				},
+			},
+			curve
+		);
+		expect(pnl).toBe(-10);
+		expect(curve[2]).toBe(-10);
 	});
 });
