@@ -69,6 +69,17 @@ groups:
           description: 'Prometheus has had no up series for {{ $labels.job }} for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
 
+      - alert: EdgeProxyProbeFailing
+        # The edge-proxy has no `up` series: only the blackbox probe sees it down.
+        expr: probe_success{service="edge-proxy"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'edge-proxy /ping probe fails'
+          description: 'The blackbox-exporter has not got a 200 from the edge-proxy /ping for 2 minutes: the API is unreachable from outside while the server-side SLO can stay green.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#edge-proxy-probe-failing'
+
       - alert: CertificateExpiry
         expr: probe_ssl_earliest_cert_expiry - time() < 5400
         for: 5m
