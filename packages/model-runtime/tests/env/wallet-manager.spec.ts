@@ -176,6 +176,7 @@ describe("Wallet module", () => {
 				initialPrice: Price.of(50),
 				feeRate: Percentage.zero(),
 				executionCostRate: Percentage.zero(),
+				maxExposureFraction: 0.3,
 			});
 			const result = wallet.buy(Volume.of(5));
 			expect(result).toBe(true);
@@ -246,6 +247,7 @@ describe("Wallet module", () => {
 				initialPrice: Price.of(50),
 				feeRate: Percentage.zero(),
 				executionCostRate: Percentage.zero(),
+				maxExposureFraction: 0.3,
 			});
 			wallet.buy(Volume.of(5));
 			const result = wallet.sell(Volume.of(2));
@@ -314,6 +316,7 @@ describe("Wallet module", () => {
 				initialPrice: Price.of(50),
 				feeRate: Percentage.zero(),
 				executionCostRate: Percentage.zero(),
+				maxExposureFraction: 0.3,
 			});
 			wallet.buy(Volume.of(5));
 			wallet.sell(Volume.of(2));
@@ -344,6 +347,7 @@ describe("Wallet module", () => {
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
 				executionCostRate: Percentage.zero(),
+				maxExposureFraction: 0.3,
 				feeRate: Percentage.of(0.01),
 			});
 			wallet.buy(Volume.of(5));
@@ -404,6 +408,7 @@ describe("Wallet module", () => {
 				initialPrice: Price.of(100),
 				feeRate: Percentage.of(0.001),
 				executionCostRate: Percentage.of(0.0005),
+				maxExposureFraction: 0.3,
 			});
 
 		test("a buy pays fill × (1 + cost) plus the fee, marked at the close", () => {

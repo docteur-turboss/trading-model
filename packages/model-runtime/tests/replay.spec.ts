@@ -93,13 +93,13 @@ describe("replayModel (ADR-0079 §3)", () => {
 		}
 	);
 
-	it("replays at the manifest exposure cap, default 0.3 when absent", () => {
+	it("replays at the manifest exposure cap, default 0.1 when absent", () => {
 		const { network } = genome("every-bar").genome;
 		const cap = (maxExposureFraction?: number) =>
 			policyAgentConfig(network, { ...SIMULATOR, maxExposureFraction }).wallet
 				.maxExposureFraction;
 		expect(cap(1)).toBe(1);
-		expect(cap()).toBe(0.3);
+		expect(cap()).toBe(0.1);
 	});
 
 	it("drops inconsistent candles and those before the last gap, as the trainer does", () => {
