@@ -14,6 +14,7 @@ import { HostPort } from "@trading-model/primitives/service-identity";
 import type { Request } from "express";
 import {
 	type ProxyDeps,
+	ProxyOverloadedError,
 	type ResponseCachePort,
 	UpstreamResponseTooLargeError,
 	UpstreamTimeoutError,
@@ -119,6 +120,15 @@ function buildProxyErrorResponse(
 	});
 	// The cause stays in the log: returned to the client, connection errors
 	// would map the internal network.
+	if (err instanceof ProxyOverloadedError) {
+		return {
+			...sendResponse(
+				{ error: "Gateway overloaded" },
+				HTTP_STATUS.SERVICE_UNAVAILABLE
+			),
+			headers: { "Retry-After": "1" },
+		};
+	}
 	if (err instanceof UpstreamTimeoutError) {
 		return sendResponse(
 			{ error: "Upstream timeout" },

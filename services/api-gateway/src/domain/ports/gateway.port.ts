@@ -36,6 +36,14 @@ export class UpstreamResponseTooLargeError extends Error {
 	}
 }
 
+/** Too many proxied requests in flight (PROXY_MAX_CONCURRENT): the dispatcher answers 503 with Retry-After. */
+export class ProxyOverloadedError extends Error {
+	constructor(readonly maxConcurrent: number) {
+		super(`More than ${maxConcurrent} proxied requests in flight`);
+		this.name = "ProxyOverloadedError";
+	}
+}
+
 /** The upstream did not finish answering within PROXY_TIMEOUT_MS: the dispatcher answers 504. */
 export class UpstreamTimeoutError extends Error {
 	constructor(readonly timeoutMs: number) {
