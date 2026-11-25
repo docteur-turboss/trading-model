@@ -2,34 +2,7 @@
 
 ## Local deployment (development)
 
-Create `.env` first, then replace the example values of `MYSQL_ROOT_PASSWORD`, `GATEWAY_AUTH_TOKENS` and `SIGNING_SECRET` (see [SETUP.md](SETUP.md#5-configure-environment)): without them the gateway and discovery-server refuse to start.
-
-Start all services:
-
-```bash
-cp .env.example .env   # then replace the example values
-docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build   # builds from the sources
-```
-
-The base `docker-compose.yml` only references released images (`IMAGE_REGISTRY`, `IMAGE_TAG`). The long-running compose stack is deployed by the `deploy-compose.yml` workflow from a release tag, never by `git checkout` + `docker compose up` on the host (ADR-0086).
-
-Follow logs:
-
-```bash
-docker compose logs -f
-```
-
-Stop:
-
-```bash
-docker compose down
-```
-
-Stop **and delete volumes** (data loss):
-
-```bash
-docker compose down -v
-```
+See the [quickstart](../getting-started/quickstart.md). The base `docker-compose.yml` only references released images (`IMAGE_REGISTRY`, `IMAGE_TAG`); build from sources with `-f docker-compose.build.yml`. The long-running compose stack is deployed by the `deploy-compose.yml` workflow from a release tag, never by `git checkout` + `docker compose up` on the host (ADR-0086).
 
 ---
 
@@ -396,7 +369,7 @@ Moving an existing cluster over: `deploy.yml` (step "Release replicas of autosca
 ## Rollback
 
 Rollback is automatic on failure in the `Deploy` workflow. Before applying the
-overlay it records the revision of each of the 9 Deployments; on failure it
+overlay it records the revision of each Deployment; on failure it
 runs `kubectl rollout undo --to-revision=<recorded>` for each of them. These
 steps (record, apply by digest, wait for rollout, rollback) live in
 `deploy/k8s/scripts/deploy-release.sh`, which the CI `k8s` job runs too: it
