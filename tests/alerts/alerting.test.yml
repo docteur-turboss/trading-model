@@ -984,7 +984,7 @@ tests:
           - exp_labels: {severity: warning, topic: market.ticker}
             exp_annotations:
               summary: 'Messages dropped on market.ticker: no subscriber'
-              description: 'message-manager drops the messages published on market.ticker: the topic has no journal group (no service ever subscribed to it). audit-logger subscribes to the audit, training and dlq topics: check that the subscribers are up and renew their subscriptions, and that message-manager reaches Redis.'
+              description: 'The bus drops the messages published on market.ticker: the topic has no journal group (no service ever subscribed to it). audit-logger subscribes to the audit, training and dlq topics: check that the subscribers are up and renew their subscriptions, and that message-manager reaches Redis.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic'
 
   - name: journal entries trimmed before delivery
