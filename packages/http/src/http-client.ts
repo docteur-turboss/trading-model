@@ -13,7 +13,10 @@ import {
 	getDefaultCircuitRecorder,
 	type ServiceRoute,
 } from "./circuit-recorder";
-import { createHttpClientTimeoutError } from "./http-client-errors";
+import {
+	createHttpClientTimeoutError,
+	isHttpClientError,
+} from "./http-client-errors";
 import {
 	isConnectionRefused,
 	isTargetAnswer,
@@ -112,7 +115,7 @@ export class HttpClient {
 	private async _request<TResponse>(
 		context: RequestContext<TResponse>
 	): Promise<TResponse | undefined> {
-		const route = this._circuitRecorder.checkPreconditions(
+		let route = this._circuitRecorder.checkPreconditions(
 			context.urlStr,
 			context.options
 		);
@@ -122,6 +125,13 @@ export class HttpClient {
 		const retryCount = context.options?.retryCount ?? DEFAULT_RETRY_COUNT;
 
 		for (let attempt = 0; attempt <= retryCount; attempt++) {
+			if (attempt > 0) {
+				// Every failed attempt counts in the circuit: stop once it opens.
+				route = this._circuitRecorder.checkPreconditions(
+					context.urlStr,
+					context.options
+				);
+			}
 			try {
 				const result = await this._send(context, tls);
 				this._circuitRecorder.recordSuccess(route);
@@ -134,14 +144,17 @@ export class HttpClient {
 				}
 				const idempotent =
 					context.options?.idempotent ?? context.method !== "POST";
-				const retryable = idempotent
-					? shouldRetry(lastError)
-					: isConnectionRefused(lastError);
+				// A 429 is never retried: Retry-After is not honoured, so the caller backs off.
+				const retryable =
+					!(isHttpClientError(lastError) && lastError.statusCode === 429) &&
+					(idempotent
+						? shouldRetry(lastError)
+						: isConnectionRefused(lastError));
+				this._recordFailure(route, lastError);
 				if (attempt < retryCount && retryable) {
 					await sleep(computeRetryDelay(attempt));
 					continue;
 				}
-				this._recordFailure(route, lastError);
 				throw lastError;
 			}
 		}
