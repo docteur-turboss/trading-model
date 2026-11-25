@@ -78,6 +78,21 @@ The periodic tick threw for 5 min (`risk tick failed` log line, counter `risk_ti
 1. Read the `risk tick failed` error: PVC full or read-only (`df` in the pod), broker unreachable, state file unwritable.
 2. Fix the cause, then check `GET /admin/status`. Copy `state.json` out of the pod before restarting (the daily backup may be older).
 
+## RiskOutboxPending
+
+Order or kill switch events the bus refused wait in the outbox file (gauge `risk_outbox_pending`, `risk event kept for replay` and `risk outbox replay stopped` log lines). They replay at every tick and at restart; past 1000 the oldest is dropped (`RiskOutboxDropped`).
+
+1. Find why the bus refuses: Redis down or failing over, or an ACL error (`WRONGPASS`, `NOPERM` in the `risk outbox replay stopped` error).
+2. Fix the bus. The next tick replays the file and the gauge returns to 0.
+
+## RiskOutboxDropped
+
+The outbox hit 1000 events: the oldest were dropped (`risk outbox full: oldest event dropped` error log, counter `risk_outbox_dropped_total`). Those order or kill switch events are missing from the audit chain (ADR-0027).
+
+1. Read the `dropped` field of each log line: it holds the full event (topic, fields, `eventId`).
+2. Fix the bus as in [RiskOutboxPending](#riskoutboxpending).
+3. Record the lost events (order transitions, kill switch changes) in the incident log; they cannot be replayed.
+
 ## Drill
 
 Before paper trading, every quarter, before live and after any change to the service, its limits or its broker adapter: run the scenario of policy §7 (`services/risk-execution/tests/drill/kill-switch-drill.spec.ts` for the code path) and log the result in [risk-drill-log](../../compliance/risk-drill-log.md). A failed step blocks paper and live trading until a passing re-run.

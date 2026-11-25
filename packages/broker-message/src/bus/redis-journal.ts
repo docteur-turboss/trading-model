@@ -126,6 +126,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 	>();
 	private readonly _readers = new Map<string, BlockingBusRedis>();
 	private _writer: Promise<BlockingBusRedis> | undefined;
+	private _batch: Promise<number> | undefined;
 
 	constructor(private readonly _deps: RedisMessageJournalDeps) {
 		this._now = _deps.now ?? Date.now;
@@ -187,12 +188,8 @@ export class RedisMessageJournal implements MessageJournalPort {
 		)) as string;
 		const required = this._deps.minReplicas ?? 0;
 		if (required > 0) {
-			const replicated = await writer.call(
-				"WAIT",
-				String(required),
-				String(WAIT_REPLICAS_TIMEOUT_MS)
-			);
-			if (Number(replicated) < required) {
+			const replicated = await this._waitBatch(writer, required);
+			if (replicated < required) {
 				if (!keepOnRefusal) {
 					// The publisher sends again under a new messageId: drop this entry so it is not delivered twice.
 					await writer.call("XDEL", this.stream(topic), entryId);
@@ -205,6 +202,24 @@ export class RedisMessageJournal implements MessageJournalPort {
 				);
 			}
 		}
+	}
+
+	/**
+	 * One `WAIT` for every `XADD` answered in the same tick: it covers all the entries written before it
+	 * on this connection. The batch closes when the `WAIT` is sent, so a later `XADD` opens the next one.
+	 * A refused or failed `WAIT` reaches every caller of the batch.
+	 */
+	private _waitBatch(
+		writer: Pick<BlockingBusRedis, "call">,
+		required: number
+	): Promise<number> {
+		this._batch ??= Promise.resolve().then(() => {
+			this._batch = undefined;
+			return writer
+				.call("WAIT", String(required), String(WAIT_REPLICAS_TIMEOUT_MS))
+				.then(Number);
+		});
+		return this._batch;
 	}
 
 	/** True when a consumer group reads the topic (cached 1 s): without one a message would reach nobody. */

@@ -3,7 +3,7 @@ import type { Source } from "../../../domain/signals";
 import { type NoOverlapTask, scheduleNoOverlap } from "./no-overlap";
 
 interface Collector {
-	collect(source: Source): Promise<void>;
+	collect(source: Source, signal?: AbortSignal): Promise<void>;
 }
 
 /**
@@ -25,7 +25,7 @@ export class SignalCronScheduler {
 				scheduleNoOverlap(
 					"financial-scraper.signals",
 					source.schedule,
-					() => this._collector.collect(source),
+					(signal) => this._collector.collect(source, signal),
 					() =>
 						logger.warn(
 							"Previous signal collection still running: tick skipped",

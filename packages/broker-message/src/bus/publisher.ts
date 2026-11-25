@@ -3,6 +3,7 @@ import type { MessageMetadata } from "@trading-model/contracts/message-types";
 import { messageManagerError } from "../shared/errors";
 import { withTraceparent } from "../shared/trace-context";
 import { createMessage } from "./message-factory";
+import { MESSAGES_UNROUTED_TOTAL } from "./metrics";
 import type { RedisMessageJournal } from "./redis-journal";
 
 /**
@@ -23,6 +24,7 @@ export async function publishToBus(
 				`No subscriber for topic ${topic}: publish refused, send it again`
 			);
 		}
+		MESSAGES_UNROUTED_TOTAL.inc({ topic });
 		getLogger().warn("Message dropped: no subscriber for its topic", {
 			context: { topic, messageId },
 		});
