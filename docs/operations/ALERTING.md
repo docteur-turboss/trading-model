@@ -40,6 +40,11 @@ Slack is down: configure that external check to notify someone directly
 
 | Alert | Catches |
 | --- | --- |
+| `BusPublisherRejected` | critical | [runbook-message-bus-outage#7](runbooks/runbook-message-bus-outage.md#7-entries-dropped-unreadable-or-publisher-rejected) |
+| `BusJournalUnreadable` | warning | [runbook-message-bus-outage#7](runbooks/runbook-message-bus-outage.md#7-entries-dropped-unreadable-or-publisher-rejected) |
+| `ModelPublishFailing` | warning | [runbook-trainer#modelpublishfailing](runbooks/runbook-trainer.md#modelpublishfailing) |
+| `TrainerSignalReadErrors` | warning | [runbook-trainer#trainersignalreaderrors](runbooks/runbook-trainer.md#trainersignalreaderrors) |
+| `AuditChainCollisionsExhausted` | warning | [runbook-audit-chain-broken#auditchaincollisionsexhausted](runbooks/runbook-audit-chain-broken.md#auditchaincollisionsexhausted) |
 | `Watchdog` | the whole pipeline (through the external dead man's switch) |
 | `AlertmanagerNotificationsFailing` | a receiver that rejects notifications (wrong webhook, missing Pushover key): at least 50 % of an integration's attempts failed over 15 min. One transient failure (DNS timeout) retried by the next send does not fire; an integration with no traffic does not fire |
 | `PrometheusRuleEvaluationFailures` | a rule that cannot be evaluated |

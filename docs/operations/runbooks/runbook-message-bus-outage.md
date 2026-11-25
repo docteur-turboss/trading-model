@@ -98,6 +98,11 @@ node services/audit-logger/dist/application/dlq-cli.js <operator> delete <topic>
 **Symptoms:** `MessagesUnrouted` (warning) with `topic`: publishers drop the messages of a topic no service subscribed to (counted in `mm_messages_unrouted_total`, logged `Message dropped: no subscriber for its topic`). A service that is only down keeps its group, so its messages wait up to 24 h instead.
 **Fix:** check that the subscribing service is up and that its logs show no subscription or Redis error. audit-logger subscribes to the audit and training topics: if all of them are unrouted, look at audit-logger and Redis first.
 
+### 7. Entries dropped: unreadable or publisher rejected
+
+**Symptoms:** `BusJournalUnreadable` (warning, `mm_journal_unreadable_total`): entries whose message field is not JSON were acknowledged and dropped. `BusPublisherRejected` (critical, `bus_publisher_rejected_total`, labels `topic`, `publisher`): entries whose publisher is not allowed on the topic (`EVENT_PUBLISHERS`) were dropped.
+**Fix:** read the subscriber logs for the dropped entry. Unreadable: find the publisher that writes non-JSON (version skew, manual `XADD`). Rejected: a service publishes on a topic it does not own. Fix its code or `EVENT_PUBLISHERS`; if no deployed change explains the `publisher`, treat it as spoofing (a compromised service or Redis access) and rotate the Redis credentials.
+
 ## Recovery Verification
 
 ```bash

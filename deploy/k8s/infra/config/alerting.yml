@@ -723,6 +723,51 @@ groups:
           description: 'The collector dropped {{ $value | humanize }} span(s) in 10 minutes: traces are lost between the collector and Jaeger. Check the jaeger Service and the collector logs.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#otelspanexportfailing'
 
+      - alert: BusPublisherRejected
+        expr: 'sum by (job, topic, publisher) (increase(bus_publisher_rejected_total[1h])) > 0'
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Bus entries rejected: {{ $labels.publisher }} may not publish on {{ $labels.topic }}'
+          description: 'A subscriber dropped entries whose publisher is not allowed on the topic (EVENT_PUBLISHERS): a misconfigured service, or a service that spoofs another publisher.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#7-entries-dropped-unreadable-or-publisher-rejected'
+
+      - alert: BusJournalUnreadable
+        expr: 'sum by (job, topic) (increase(mm_journal_unreadable_total[1h])) > 0'
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Journal entries of {{ $labels.topic }} were not JSON and were dropped ({{ $labels.job }})'
+          description: 'The subscriber acknowledged and discarded entries whose message field is not valid JSON: messages are lost.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#7-entries-dropped-unreadable-or-publisher-rejected'
+
+      - alert: ModelPublishFailing
+        expr: 'sum by (job) (increase(tt_model_publish_failures_total[1h])) > 0'
+        labels:
+          severity: warning
+        annotations:
+          summary: 'trader-trainer stored a model but could not publish it'
+          description: 'decision-consumer and model-evaluator never learn about the stored model until the next one is published.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelpublishfailing'
+
+      - alert: TrainerSignalReadErrors
+        expr: 'sum by (job) (increase(tt_signal_read_errors_total[1h])) > 0'
+        labels:
+          severity: warning
+        annotations:
+          summary: 'trader-trainer trains without signals (read errors)'
+          description: 'Signal windows could not be read from financial-scraper: the sessions train on market data only.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainersignalreaderrors'
+
+      - alert: AuditChainCollisionsExhausted
+        expr: 'sum by (job) (increase(audit_chain_sequence_collisions_total{outcome="exhausted"}[1h])) > 0'
+        labels:
+          severity: warning
+        annotations:
+          summary: 'audit-logger gave up appending an event after repeated chain collisions'
+          description: 'Retries on the chain sequence ran out (writers contend for the head, ADR-0050): the event was not appended.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-audit-chain-broken.md#auditchaincollisionsexhausted'
+
       - alert: Watchdog
         expr: vector(1)
         for: 0m
