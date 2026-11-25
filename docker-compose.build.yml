@@ -6,10 +6,6 @@ services:
     build:
       context: .
       dockerfile: deploy/migrate/Dockerfile
-  discovery-server:
-    build:
-      context: .
-      dockerfile: services/discovery-server/Dockerfile
   spire-bootstrap:
     build:
       context: deploy/spire

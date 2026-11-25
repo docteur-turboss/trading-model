@@ -99,7 +99,7 @@ jobs:
       - name: Resolve image digests
         shell: bash
         run: |
-          map="discovery-server:discovery-server message-manager:message-manager financial-scraper:financial-scraper
+          map="message-manager:message-manager financial-scraper:financial-scraper
             trader-trainer:trader-trainer api-gateway:api-gateway audit-logger:audit-logger dlq-service:dlq-service
             model-evaluator:model-evaluator risk-execution:risk-execution decision-consumer:decision-consumer spire-bootstrap:spire-tools migrate:db-migrate"
           { echo "services:"; } > "$RUNNER_TEMP/next.yml"
@@ -137,7 +137,7 @@ jobs:
               printf '  %s:\n    image: trading-model-rollback/%s:prev\n' "$svc" "$svc" >> "$RUNNER_TEMP/prev.yml"
             fi
           done
-          docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' trading-discovery > "$RUNNER_TEMP/prev.dir" || true
+          docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' trading-message > "$RUNNER_TEMP/prev.dir" || true
 
       - name: Deploy
         shell: bash

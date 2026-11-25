@@ -21,7 +21,7 @@ All trading-model services expose health check endpoints for Kubernetes probes.
 
 ### Readiness (`/health/ready`)
 
-- Checks dependencies (DB, discovery server, Redis)
+- Checks dependencies (DB, Redis)
 - Returns 200 when ready to serve traffic, 503 otherwise
 - Used by: `readinessProbe`
 
@@ -37,7 +37,6 @@ Services with additional health endpoints:
 
 | Service               | Endpoint       | Returns                                          |
 | --------------------- | -------------- | ------------------------------------------------ |
-| discovery-server      | `GET /ping`    | `{"status":"ok"}` (no /health)                    |
 
 ## Implementation
 

@@ -7,10 +7,7 @@ import { ScraperSignalHistory } from "@trading-model/model-runtime/signals/scrap
 import { DurationMs } from "@trading-model/primitives/primitives";
 import type { Leadership } from "@trading-model/reliability/leadership";
 import { ScraperCandleHistory } from "../adapters/outbound/scraper-candle-history";
-import {
-	BOOTSTRAP_ADDRESS_MANAGER,
-	FIND_A_SERVICE,
-} from "../config/address-manager";
+import { FIND_A_SERVICE } from "../config/address-manager";
 import {
 	createTraderTrainerContainer,
 	createTrainingLeadership,
@@ -19,7 +16,6 @@ import { MessageManager } from "../config/message-manager";
 import { ENV } from "../infrastructure/config/env";
 import { createServer } from "./server";
 
-let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> | undefined;
 let leadership: Leadership | null = null;
 
 const CONTAINER = createTraderTrainerContainer(
@@ -38,8 +34,6 @@ createBootstrap({
 	createServer: () =>
 		createServer(trainer, { models, downloadCallers: MODEL_DOWNLOAD_CALLERS }),
 	onStart: async () => {
-		addressManager = BOOTSTRAP_ADDRESS_MANAGER();
-
 		await trainer.rehydrate(symbols);
 
 		// Every pod serves the read routes; only the Lease holder trains (ADR-0058).
@@ -63,7 +57,6 @@ createBootstrap({
 		// Before leaving discovery: the model of the session ended early is
 		// published on the bus. Then the Lease goes to the successor.
 		await leadership?.stop();
-		await addressManager?.stop();
 		await MessageManager.stopMessageManager();
 		await shutdownTelemetry();
 	},

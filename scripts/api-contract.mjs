@@ -56,7 +56,6 @@ const API_MAJOR_VERSION = 1;
 /** Services the gateway proxies to, by canonical (SPIFFE) name. */
 const PROXIED_SERVICES = [
 	"audit-logger",
-	"discovery-server",
 	"dlq-service",
 	"financial-scraper",
 	"message-manager",
@@ -68,12 +67,6 @@ const PROXIED_SERVICES = [
 /** Routes of proxied services that the gateway does not expose (PUBLIC_ROUTES). */
 const INFRASTRUCTURE_PATHS = new Set(["/metrics", "/health", "/health/ready", "/ping", "/status"]);
 const SERVICE_TO_SERVICE = {
-	"discovery-server": [
-		"POST /register",
-		"POST /heartbeat",
-		"POST /token/rotate",
-		"POST /unregister",
-	],
 	"audit-logger": ["POST /message"],
 	"model-evaluator": ["POST /message"],
 	"risk-execution": ["POST /intents", "POST /orders/:clientOrderId/cancel", "GET /positions/:symbol", "GET /admin/status"],
@@ -90,10 +83,6 @@ const SERVICE_TO_SERVICE = {
  * subscribe, so its proof is the owner's subscription (`intents(`).
  */
 const CALLERS = {
-	"discovery-server POST /register": { caller: "packages/address-manager", call: /_url\("\/register"\)/ },
-	"discovery-server POST /heartbeat": { caller: "packages/address-manager", call: /_url\("\/heartbeat"\)/ },
-	"discovery-server POST /token/rotate": { caller: "packages/address-manager", call: /\/token\/rotate`/ },
-	"discovery-server POST /unregister": { caller: "packages/address-manager", call: /_url\("\/unregister"\)/ },
 	"message-manager POST /message": { caller: "packages/broker-message", call: /\}\/message`/ },
 	"message-manager POST /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
 	"message-manager DELETE /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
@@ -593,15 +582,7 @@ const SECURITY_SCHEMES = {
 			in: "header",
 			name: "x-signature",
 			description:
-				"Hex HMAC-SHA256(secret, '<x-service-name>:<x-timestamp>:<sha256 hex of the JSON body, or of {} without body>:<METHOD>:<service path>'), see examples/manage-dlq.sh",
-		},
-	},
-	InstanceToken: {
-		InstanceToken: {
-			type: "apiKey",
-			in: "header",
-			name: "x-instance-token",
-			description: "Token discovery-server returned to the instance at registration (or its last rotation)",
+				"Hex HMAC-SHA256(secret, '<x-service-name>:<x-timestamp>:<sha256 hex of the JSON body, or of {} without body>:<METHOD>:<path the service receives, /v1/dlq...>'), see examples/manage-dlq.sh",
 		},
 	},
 };

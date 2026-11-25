@@ -8,7 +8,7 @@ import { MySqlSignalStore } from "../../services/financial-scraper/src/adapters/
 
 /**
  * Signal contract: trader-trainer's `ScraperSignalHistory` → financial-scraper's
- * `GET /signals/assets/:assetId`. The real adapter reads over HTTP from the
+ * `GET /v2/signals/assets/:assetId`. The real adapter reads over HTTP from the
  * real route; only the MySQL store and the mTLS client are replaced (the
  * client keeps its schema check).
  */

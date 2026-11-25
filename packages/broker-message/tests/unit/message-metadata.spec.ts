@@ -14,7 +14,7 @@ import { MessageMetadataBuilder } from "../../src/messages/message-metadata-buil
 const TEST_TOPIC = "test.event.created";
 const TEST_EVENT = "training.model.published";
 const TEST_PUBLISHER = {
-	serviceName: ServiceInstanceName.DiscoveryService as unknown as ServiceId,
+	serviceName: ServiceInstanceName.AuditLoggerService as unknown as ServiceId,
 	instanceId: "550e8400-e29b-41d4-a716-446655440000" as InstanceId,
 };
 
@@ -38,7 +38,7 @@ describe("MessageMetadataBuilder", () => {
 			expect(m.topic).toBe(TEST_TOPIC);
 			expect(m.eventType).toBe(TEST_EVENT);
 			expect(m.publisher.serviceName).toBe(
-				ServiceInstanceName.DiscoveryService
+				ServiceInstanceName.AuditLoggerService
 			);
 		});
 
@@ -70,7 +70,7 @@ describe("MessageMetadataBuilder", () => {
 			expect(result.eventType).toBe(TEST_EVENT);
 			expect(result.schemaVersion).toBe("1.0.0");
 			expect(result.publisher.serviceName).toBe(
-				ServiceInstanceName.DiscoveryService
+				ServiceInstanceName.AuditLoggerService
 			);
 		});
 	});

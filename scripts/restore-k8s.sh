@@ -336,6 +336,12 @@ purge_expired_rows() {
     warn "--no-retention: rows past their retention stay until the next db-retention run"
     return
   fi
+  # `user-only` on an empty volume ran before these tables existed: the retention user has no grant yet.
+  local t
+  for t in market_candles market_trades market_tickers market_order_books signals; do
+    echo "GRANT SELECT, DELETE ON financial_scraper.${t} TO 'retention'@'%';"
+  done | mysql_root_sh "$(mysql_primary_pod)" 'mysql --user=root' ||
+    warn "Retention grants not applied (no retention user?): the purge below may be denied"
   local job
   job="db-retention-post-restore-$(date -u +%Y%m%d%H%M%S)"
   log "Purging rows past their retention (Job ${job})..."

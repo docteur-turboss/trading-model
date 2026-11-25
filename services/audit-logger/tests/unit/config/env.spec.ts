@@ -8,7 +8,6 @@ const REQUIRED_ENV: Record<string, string> = {
 	APP_NAME: "audit-logger",
 	SERVICE_NAME: "audit",
 	INSTANCE_ID: "instance-1",
-	ADDRESS_MANAGER_URL: "https://address-manager:3000",
 };
 
 describe("env validation", () => {
@@ -27,7 +26,6 @@ describe("env validation", () => {
 			expect(ENV.APP_NAME).toBe("audit-logger");
 			expect(ENV.SERVICE_NAME).toBe("audit");
 			expect(ENV.INSTANCE_ID).toBe("instance-1");
-			expect(ENV.ADDRESS_MANAGER_URL).toBe("https://address-manager:3000");
 		});
 	});
 

@@ -27,7 +27,6 @@ All access to trading-model platform resources shall be authenticated, authorise
 |---|---|---|
 | **Transport** | mTLS TLS 1.3 | `@trading-model/http/service-server-factory.ts` |
 | **Identity** | SPIFFE ID (SAN `spiffe://...`) | `@trading-model/http/mtls-auth.ts` |
-| **Bearer token** | HMAC-SHA256 (service registration) | `discovery-server` → `address-manager` |
 | **API key** | External access, one named key per client with its scopes (`read`, `dlq:write`, `risk:admin`; ADR-0059) | `api-gateway` — `AUTH_TOKENS` env var (`name:scopes:secret`) |
 
 ### 2.2 Authorisation Layers
@@ -46,7 +45,6 @@ Every service instance is provisioned with an X.509 SVID issued by the SPIRE Ser
 
 | Identity | SPIFFE ID (SAN) | Issued By | Validity |
 |---|---|---|---|
-| `discovery-server` | `spiffe://trading-model.local/ns/trading-model/sa/discovery-server` | SPIRE Server | 4 h TTL (auto-rotated) |
 | `message-manager` | `spiffe://trading-model.local/ns/trading-model/sa/message-manager` | SPIRE Server | 4 h TTL (auto-rotated) |
 | `financial-scraper` | `spiffe://trading-model.local/ns/trading-model/sa/financial-scraper` | SPIRE Server | 4 h TTL (auto-rotated) |
 | `trader-trainer` | `spiffe://trading-model.local/ns/trading-model/sa/trader-trainer` | SPIRE Server | 4 h TTL (auto-rotated) |
@@ -56,17 +54,6 @@ Every service instance is provisioned with an X.509 SVID issued by the SPIRE Ser
 | `edge-proxy` | `spiffe://trading-model.local/ns/trading-model/sa/edge-proxy` | SPIRE Server | 4 h TTL (auto-rotated) |
 
 **Enforcement:** `@trading-model/http/mtls-auth.ts` extracts the client identity from the SVID's verified SPIFFE ID SAN. Requests without a valid SVID are rejected at the TLS handshake level (all environments). `mtls-authorization.ts` enforces the ACL on every inbound request.
-
-### 3.2 Service Registration Tokens
-
-Services obtain HMAC-SHA256 tokens from the discovery-server upon registration. These instance tokens authenticate the lease routes (heartbeat, deregistration) of the discovery-server; service identity itself is the SPIFFE SVID.
-
-| Lifecycle Phase | Action | Implementation |
-|---|---|---|
-| **Registration** | Service registers with discovery-server via mTLS | `address-manager` |
-| **Token issuance** | Discovery-server generates HMAC-SHA256 token | `discovery-server` |
-| **Token refresh** | Periodic refresh via `address-manager` scheduler | `address-manager` scheduler |
-| **Token revocation** | On service deregistration or certificate expiry | `discovery-server` |
 
 ## 4. ACL Definition
 

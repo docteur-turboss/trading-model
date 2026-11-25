@@ -145,7 +145,7 @@ bash scripts/init-sealed-secrets.sh
 
 See [Sealed Secrets guide](sealed-secrets.md) for detailed setup, key rotation, and migration instructions.
 
-Secrets are rotated by hand with `scripts/rotate-secrets.sh`; no CronJob does it. The former `secret-rotation` CronJob only restarted two Deployments and held write rights on every Secret (issue #424). `kubectl apply` without `--prune` does not remove it: `deploy.yml` deletes it after applying the overlay. On a cluster deployed by hand, delete it once (add `-n <namespace>`):
+Secrets are rotated by hand with `scripts/rotate-secrets.sh`; no CronJob does it. The former `secret-rotation` CronJob only restarted two Deployments and held write rights on every Secret (issue #424). The CronJob no longer exists since v3.1.0 and no deployment removes it. On a cluster older than that, delete it once by hand (add `-n <namespace>`):
 
 ```bash
 kubectl delete cronjob/secret-rotation role/secret-rotator-role \
@@ -227,7 +227,6 @@ HPAs are configured in `deploy/k8s/config/<service>-autoscaling.yaml` (`trader-t
 
 | Service               | Min | Max | Metric                           |
 | --------------------- | --- | --- | -------------------------------- |
-| discovery-server      | 3   | 10  | CPU 70%, Memory 75%              |
 | message-manager       | 3   | 12  | CPU 65%, Memory 70%, Queue depth |
 | api-gateway           | 2   | 8   | CPU 70%, Memory 75%              |
 | financial-scraper     | 2   | 6   | CPU 70%, Memory 75%              |
