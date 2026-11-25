@@ -1,6 +1,9 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { createHandlers } from "../../src/adapters/inbound/handlers";
-import type { RiskExecution } from "../../src/application/risk-execution";
+import {
+	RearmRefusedError,
+	type RiskExecution,
+} from "../../src/application/risk-execution";
 
 const as = (service: string) =>
 	({
@@ -106,13 +109,17 @@ describe("risk-execution routes: each caller only reaches its own routes (ADR-00
 			400
 		);
 		risk.rearm.mockRejectedValueOnce(
-			new Error("Only the owner re-arms after the drawdown stop")
+			new RearmRefusedError("Only the owner re-arms after the drawdown stop")
 		);
 		const refused = await h.adminRearm(
 			input({ ...noSymbol, scope: "global" }),
 			viaGateway("op")
 		);
 		expect(refused.status).toBe(403);
+		risk.rearm.mockRejectedValueOnce(new Error("disk full"));
+		await expect(
+			h.adminRearm(input({ ...noSymbol, scope: "global" }), viaGateway("op"))
+		).rejects.toThrow("disk full");
 		expect(
 			(
 				await h.adminRearm(

@@ -907,6 +907,21 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		expect(ctx.svc.status().killSwitch.global).toBeNull();
 	});
 
+	it("a re-arm that cannot be saved leaves the switch engaged and emits nothing", async () => {
+		const emitted: string[] = [];
+		const ctx = build({ emit: (e) => emitted.push(e) });
+		await ctx.svc.start();
+		await ctx.svc.engage({ scope: "global" }, "operator", "ops");
+		ctx.store.save = async () => {
+			throw new Error("disk full");
+		};
+		await expect(
+			ctx.svc.rearm({ scope: "global" }, "x", "ops")
+		).rejects.toThrow("disk full");
+		expect(ctx.svc.status().killSwitch.global).toBe("operator");
+		expect(emitted).not.toContain("kill_switch.rearmed");
+	});
+
 	it("an unreadable state counts as on and cannot be re-armed", async () => {
 		const ctx = build();
 		ctx.store.unreadable = true;
