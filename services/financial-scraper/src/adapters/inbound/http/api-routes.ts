@@ -203,7 +203,7 @@ export const SCRAPER_API = {
 	}),
 	candlesSince: query(
 		"/v2/candles/timestamp/:timestamp",
-		"Candles opened after a date, within 7 days of it at most (`to` is capped at date + 7 days)",
+		"Candles opened after a date; `to` is required, at most 7 days after the date (400 otherwise)",
 		AT_DATE,
 		Candle
 	),

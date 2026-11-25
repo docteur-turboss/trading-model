@@ -160,32 +160,28 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			expect(status).toBe(400);
 		});
 
-		it("queries the candles after a date", async () => {
+		it("queries the candles after a date, within the window", async () => {
 			selectCandlesBy.timestamp.after.mockResolvedValue([CANDLE]);
-
-			await get(SCRAPER_API.candlesSince, "/candles/timestamp/2026-10-28");
-
-			expect(selectCandlesBy.timestamp.after).toHaveBeenCalledWith(
-				Date.parse("2026-10-28"),
-				{
-					limit: DEFAULT_PAGE_LIMIT + 1,
-					to: Date.parse("2026-11-04"),
-				}
-			);
-		});
-
-		it("keeps a narrower `to` of the client on the candles after a date", async () => {
-			selectCandlesBy.timestamp.after.mockResolvedValue([]);
 
 			await get(
 				SCRAPER_API.candlesSince,
-				"/candles/timestamp/2026-10-28?to=2026-10-29"
+				"/candles/timestamp/2026-10-28?to=2026-11-04"
 			);
 
 			expect(selectCandlesBy.timestamp.after).toHaveBeenCalledWith(
 				Date.parse("2026-10-28"),
-				{ limit: DEFAULT_PAGE_LIMIT + 1, to: Date.parse("2026-10-29") }
+				{ limit: DEFAULT_PAGE_LIMIT + 1, to: Date.parse("2026-11-04") }
 			);
+		});
+
+		it.each([
+			"/candles/timestamp/2026-10-28",
+			"/candles/timestamp/2026-10-28?to=2026-11-05",
+		])("%s: refuses a missing or too wide `to` with a 400", async (path) => {
+			const { status } = await get(SCRAPER_API.candlesSince, path);
+
+			expect(status).toBe(400);
+			expect(selectCandlesBy.timestamp.after).not.toHaveBeenCalled();
 		});
 	});
 

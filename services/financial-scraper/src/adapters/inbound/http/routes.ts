@@ -64,18 +64,19 @@ function _registerCandleRoutes(router: Router): void {
 	mountRoute(router, SCRAPER_API.candlesLatest, async ({ query }) =>
 		json({ rows: await selectLatestClosedCandles(query.symbols, new Date()) })
 	);
-	mountRoute(router, SCRAPER_API.candlesSince, ({ params, query }) =>
-		page(
+	mountRoute(router, SCRAPER_API.candlesSince, ({ params, query }) => {
+		const { to } = query;
+		if (to === undefined || to > params.timestamp + MAX_SINCE_WINDOW_MS) {
+			return sendResponse(
+				{ error: "`to` is required and at most 7 days after the date" },
+				HTTP_STATUS.BAD_REQUEST
+			);
+		}
+		return page(
 			(window) => selectCandlesBy.timestamp.after(params.timestamp, window),
-			{
-				...query,
-				to: Math.min(
-					query.to ?? Number.POSITIVE_INFINITY,
-					params.timestamp + MAX_SINCE_WINDOW_MS
-				),
-			}
-		)
-	);
+			query
+		);
+	});
 }
 
 function _registerSignalRoutes(router: Router): void {
