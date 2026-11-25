@@ -82,7 +82,10 @@ describe("API Gateway E2E", () => {
 		const { status } = await externalRequest(path, {
 			method,
 			headers: AUTH,
-			body: { serviceName: "api-gateway", ip: "10.0.0.9", port: 22 },
+			// fetch refuses a body on GET.
+			...(method === "GET"
+				? {}
+				: { body: { serviceName: "api-gateway", ip: "10.0.0.9", port: 22 } }),
 		});
 		expect(status).toBe(404);
 	});
