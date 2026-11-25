@@ -13,7 +13,7 @@ export const MESSAGES_DLQ_TOTAL = new promClient.Counter({
 	labelNames: ["topic", "reason"] as const,
 });
 
-/** Messages published on a topic with no subscriber, dropped by message-manager or by the bus library. */
+/** Messages published on a topic with no subscriber, dropped by the bus library. */
 export const MESSAGES_UNROUTED_TOTAL = new promClient.Counter({
 	name: "mm_messages_unrouted_total",
 	help: "Total number of published messages dropped because their topic had no subscriber",
