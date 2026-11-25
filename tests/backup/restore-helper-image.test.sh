@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Helper-pod image of scripts/restore-k8s.sh (issue #323): the image of the
-# db-backup CronJob without override, a warned fallback to :latest when the
+# db-backup CronJob without override, a refusal (exit 1) when the
 # CronJob is absent, RESTORE_HELPER_IMAGE first. Fake kubectl in the PATH.
 set -uo pipefail
 
@@ -39,8 +39,8 @@ check "CronJob present: header shows its digest" has "Helper image: ${DIGEST}"
 check "CronJob present: no fallback warning" hasnt "falls back"
 
 run FAKE_CRONJOB_IMAGE=
-check "CronJob absent: falls back to :latest" has "Helper image: ghcr.io/trading-model/backup-tools:latest"
-check "CronJob absent: warns" has "falls back"
+check "CronJob absent: refuses, names the variable" has "Restore REFUSED: CronJob db-backup not readable"
+check "CronJob absent: no helper image" hasnt "Helper image:"
 
 run FAKE_CRONJOB_IMAGE="$DIGEST" RESTORE_HELPER_IMAGE=registry.example/custom:1
 check "override wins" has "Helper image: registry.example/custom:1"
