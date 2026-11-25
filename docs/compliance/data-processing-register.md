@@ -122,7 +122,7 @@ This register documents the processing activities of the trading-model platform,
 | **Data subjects**        | Operators                                                                                                          |
 | **Legal basis**          | Legitimate interest (Art. 6(1)(f)): security and traceability of operator actions                                  |
 | **Recipients**           | Internal: operators (Grafana/Loki, audit trail via api-gateway). No third party besides the OIDC identity provider |
-| **Transfers outside EU** | None from the platform; the identity provider is the operating entity's (`third-party-dpas.md`)                    |
+| **Transfers outside EU** | None from the platform; the identity provider's region is the operator's choice: see its sheet in `third-party-dpas.md` |
 | **Retention period**     | Grafana accounts (PVC `grafana-data`): deleted when the operator leaves, at the latest at the quarterly Grafana account review. Login logs: 31 days (Loki). `actor`: 1827 days in the immutable audit chain; before delivery, in `risk-event-outbox.json` of the risk-execution PVC (up to 1000 events, removed once the bus accepts them) (Art. 17(3)(b) when a record-keeping obligation applies, otherwise (e)) |
 | **Technical measures**   | Key names must be pseudonyms (`op-01`, ADR-0059); the mapping to a person is kept outside the system, so erasing an operator means destroying its mapping row, never touching the chain. Viewer role by default, `GRAFANA_OIDC_ALLOWED_DOMAINS` |
 | **System**               | Grafana (`grafana-data`), Promtail → Loki, audit-logger → MongoDB                                    |

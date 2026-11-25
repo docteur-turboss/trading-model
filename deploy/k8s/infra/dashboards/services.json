@@ -26,7 +26,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total[5m])) by (job)",
+          "expr": "sum(rate(http_requests_total{path!~\"/ping|/health/ready|/metrics\"}[5m])) by (job)",
           "legendFormat": "{{job}}"
         }
       ]
@@ -59,7 +59,7 @@
       "gridPos": { "h": 6, "w": 8, "x": 16, "y": 12 },
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) by (job) / sum(rate(http_requests_total[5m])) by (job)",
+          "expr": "sum(rate(http_requests_total{status=~\"5..\",path!~\"/ping|/health/ready|/metrics\"}[5m])) by (job) / sum(rate(http_requests_total{path!~\"/ping|/health/ready|/metrics\"}[5m])) by (job)",
           "legendFormat": "{{job}}"
         }
       ]

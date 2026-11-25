@@ -4,7 +4,10 @@ import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import type { ApiRouteHandler } from "@trading-model/http/api-route/mount-route";
 import { sendResponse } from "@trading-model/http/response-exception";
 import type { Request } from "express";
-import type { RiskExecution } from "../../application/risk-execution";
+import {
+	RearmRefusedError,
+	type RiskExecution,
+} from "../../application/risk-execution";
 import type { KillTarget } from "../../domain/accounting";
 import type { RISK_API } from "./api-routes";
 
@@ -16,7 +19,7 @@ const callerOf = (req: Request): string | null => {
 	const identity = (req as Request & { clientIdentity?: string })
 		.clientIdentity;
 	return identity?.includes("spiffe://")
-		? String(extractCanonicalServiceName(identity))
+		? extractCanonicalServiceName(identity)
 		: null;
 };
 /** API key name (ADR-0059): `x-actor`, trusted only from the gateway, which sets it. */
@@ -52,6 +55,15 @@ const forbidden = (req: Request, ...allowed: string[]) =>
 				},
 				HTTP_STATUS.FORBIDDEN
 			);
+
+const needsNamedKey = () =>
+	sendResponse(
+		{
+			error: "Forbidden",
+			reason: "only api-gateway, for a named API key, may call this route",
+		},
+		HTTP_STATUS.FORBIDDEN
+	);
 
 type Handler<Key extends keyof typeof RISK_API> = ApiRouteHandler<
 	(typeof RISK_API)[Key]
@@ -101,13 +113,7 @@ export function createHandlers(
 	const adminEngage: Handler<"adminEngage"> = async ({ body }, req) => {
 		const actor = actorOf(req);
 		if (!actor) {
-			return sendResponse(
-				{
-					error: "Forbidden",
-					reason: "only api-gateway, for a named API key, may call this route",
-				},
-				HTTP_STATUS.FORBIDDEN
-			);
+			return needsNamedKey();
 		}
 		const target = killTarget(body);
 		if (!target) {
@@ -119,13 +125,7 @@ export function createHandlers(
 	const adminRearm: Handler<"adminRearm"> = async ({ body }, req) => {
 		const actor = actorOf(req);
 		if (!actor) {
-			return sendResponse(
-				{
-					error: "Forbidden",
-					reason: "only api-gateway, for a named API key, may call this route",
-				},
-				HTTP_STATUS.FORBIDDEN
-			);
+			return needsNamedKey();
 		}
 		const target = killTarget(body);
 		if (!target) {
@@ -134,10 +134,10 @@ export function createHandlers(
 		try {
 			await risk.rearm(target, body.reason, actor);
 		} catch (error) {
-			return sendResponse(
-				{ error: error instanceof Error ? error.message : "refused" },
-				HTTP_STATUS.FORBIDDEN
-			);
+			if (!(error instanceof RearmRefusedError)) {
+				throw error; // the error middleware answers 5xx
+			}
+			return sendResponse({ error: error.message }, HTTP_STATUS.FORBIDDEN);
 		}
 		return sendResponse({ status: "rearmed" as const }, HTTP_STATUS.OK);
 	};

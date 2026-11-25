@@ -134,7 +134,7 @@ paths:
             enum:
               - "true"
               - "false"
-        - name: "page"
+        - name: "before"
           in: "query"
           required: false
           schema:
@@ -208,13 +208,14 @@ paths:
                       additionalProperties: false
                   total:
                     type: "integer"
-                  page:
+                  nextCursor:
+                    nullable: true
                     type: "integer"
                   limit:
                     type: "integer"
                 required:
                   - "docs"
-                  - "page"
+                  - "nextCursor"
                   - "limit"
                 additionalProperties: false
         "400":
@@ -645,7 +646,7 @@ paths:
           required: true
           schema:
             type: "string"
-            pattern: "^[A-Za-z0-9._-]+$"
+            pattern: "^[A-Za-z0-9][A-Za-z0-9._-]*$"
       responses:
         "200":
           description: "OK"
@@ -732,7 +733,7 @@ paths:
           required: true
           schema:
             type: "string"
-            pattern: "^[A-Za-z0-9._-]+$"
+            pattern: "^[A-Za-z0-9][A-Za-z0-9._-]*$"
         - name: "version"
           in: "path"
           required: true

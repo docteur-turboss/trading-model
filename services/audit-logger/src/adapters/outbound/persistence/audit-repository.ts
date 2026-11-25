@@ -133,9 +133,10 @@ export class AuditRepository {
 
 	async ensureIndexes(): Promise<void> {
 		await this._collection.createIndexes([
-			{ key: { [METADATA_FIELDS.correlationId]: 1 } },
-			{ key: { [METADATA_FIELDS.publisher]: 1, receivedAt: -1 } },
-			{ key: { [METADATA_FIELDS.topic]: 1, receivedAt: -1 } },
+			// Filter + chainSequence: a filtered page is read in index order, no in-memory sort.
+			{ key: { [METADATA_FIELDS.correlationId]: 1, chainSequence: -1 } },
+			{ key: { [METADATA_FIELDS.publisher]: 1, chainSequence: -1 } },
+			{ key: { [METADATA_FIELDS.topic]: 1, chainSequence: -1 } },
 			{ key: { receivedAt: -1 } },
 			{ key: { [METADATA_FIELDS.messageId]: 1 }, unique: true },
 			{ key: { ttl: 1 }, expireAfterSeconds: 0 },

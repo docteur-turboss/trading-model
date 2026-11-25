@@ -69,6 +69,17 @@ groups:
           description: 'Prometheus has had no up series for {{ $labels.job }} for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
 
+      - alert: EdgeProxyProbeFailing
+        # The edge-proxy has no `up` series: only the blackbox probe sees it down.
+        expr: probe_success{service="edge-proxy"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'edge-proxy /ping probe fails'
+          description: 'The blackbox-exporter has not got a 200 from the edge-proxy /ping for 2 minutes: the API is unreachable from outside while the server-side SLO can stay green.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#edge-proxy-probe-failing'
+
       - alert: CertificateExpiry
         expr: probe_ssl_earliest_cert_expiry - time() < 5400
         for: 5m
@@ -88,6 +99,17 @@ groups:
           summary: '{{ $labels.job }} refuses calls to {{ $labels.target }}'
           description: '{{ $labels.job }} has had its outbound calls to {{ $labels.kind }} {{ $labels.target }} refused by the open HTTP circuit breaker for 10 minutes.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md#symptom'
+
+      - alert: ErrorLogBurst
+        # Catches errors that have no metric of their own (logger counts every written line).
+        expr: sum by (job) (increase(log_messages_total{level="error"}[15m])) > 20
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Burst of error logs on {{ $labels.job }}'
+          description: '{{ $labels.job }} wrote {{ $value | humanize }} error log lines in 15 minutes (threshold 20).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#errorlogburst'
 
       - alert: HighMemoryUsage
         expr: nodejs_heap_size_used_bytes / nodejs_heap_size_limit_bytes > 0.9
@@ -720,6 +742,51 @@ groups:
           summary: 'The OTel collector fails to export spans'
           description: 'The collector dropped {{ $value | humanize }} span(s) in 10 minutes: traces are lost between the collector and Jaeger. Check the jaeger Service and the collector logs.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#otelspanexportfailing'
+
+      - alert: BusPublisherRejected
+        expr: 'sum by (job, topic, publisher) (increase(bus_publisher_rejected_total[1h])) > 0'
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Bus entries rejected: {{ $labels.publisher }} may not publish on {{ $labels.topic }}'
+          description: 'A subscriber dropped entries whose publisher is not allowed on the topic (EVENT_PUBLISHERS): a misconfigured service, or a service that spoofs another publisher.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#7-entries-dropped-unreadable-or-publisher-rejected'
+
+      - alert: BusJournalUnreadable
+        expr: 'sum by (job, topic) (increase(mm_journal_unreadable_total[1h])) > 0'
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Journal entries of {{ $labels.topic }} were not JSON and were dropped ({{ $labels.job }})'
+          description: 'The subscriber acknowledged and discarded entries whose message field is not valid JSON: messages are lost.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#7-entries-dropped-unreadable-or-publisher-rejected'
+
+      - alert: ModelPublishFailing
+        expr: 'sum by (job) (increase(tt_model_publish_failures_total[1h])) > 0'
+        labels:
+          severity: warning
+        annotations:
+          summary: 'trader-trainer stored a model but could not publish it'
+          description: 'decision-consumer and model-evaluator never learn about the stored model until the next one is published.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelpublishfailing'
+
+      - alert: TrainerSignalReadErrors
+        expr: 'sum by (job) (increase(tt_signal_read_errors_total[1h])) > 0'
+        labels:
+          severity: warning
+        annotations:
+          summary: 'trader-trainer trains without signals (read errors)'
+          description: 'Signal windows could not be read from financial-scraper: the sessions train on market data only.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainersignalreaderrors'
+
+      - alert: AuditChainCollisionsExhausted
+        expr: 'sum by (job) (increase(audit_chain_sequence_collisions_total{outcome="exhausted"}[1h])) > 0'
+        labels:
+          severity: warning
+        annotations:
+          summary: 'audit-logger gave up appending an event after repeated chain collisions'
+          description: 'Retries on the chain sequence ran out (writers contend for the head, ADR-0050): the event was not appended.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-audit-chain-broken.md#auditchaincollisionsexhausted'
 
       - alert: Watchdog
         expr: vector(1)

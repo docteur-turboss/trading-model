@@ -48,6 +48,7 @@ MODE="${1:-}"
 NAMESPACE=trading-model
 NODE_NAMESPACE=trading-model-node
 SEALED_NAMESPACE=sealed-secrets
+INGRESS_NAMESPACE=ingress-nginx
 ENVIRONMENT=production
 SERVER=""
 DURATION=168h
@@ -175,6 +176,12 @@ else
 	ensure_namespace "$NODE_NAMESPACE"
 	kubectl -n "$NODE_NAMESPACE" apply -f "$RBAC/node-role.yaml" >&2
 	bind_role deploy-node-agents "$NODE_NAMESPACE"
+	if kubectl get namespace "$INGRESS_NAMESPACE" >/dev/null 2>&1; then
+		kubectl -n "$INGRESS_NAMESPACE" apply -f "$RBAC/ingress-role.yaml" >&2
+		bind_role deploy-check-ingress "$INGRESS_NAMESPACE"
+	else
+		log "Namespace ${INGRESS_NAMESPACE} absent: no access log check right (run this script again after installing the ingress controller)"
+	fi
 	if kubectl get namespace "$SEALED_NAMESPACE" >/dev/null 2>&1; then
 		kubectl -n "$SEALED_NAMESPACE" apply -f "$RBAC/sealed-secrets-role.yaml" >&2
 		bind_role deploy-check-controller "$SEALED_NAMESPACE"
