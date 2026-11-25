@@ -282,6 +282,16 @@ groups:
           description: 'risk-execution stopped new orders and cancelled the open ones. It stays on until an operator re-arms it by hand after checking the cause (loss limit, stale data, reconciliation, rejections).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#killswitchengaged'
 
+      - alert: RiskDrawdownApproaching
+        expr: 'max by (job, mode) (risk_drawdown_ratio) > 0.7'
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Drawdown above 70 % of its limit ({{ $labels.mode }})'
+          description: 'The drawdown from the high-water mark has been above 70 % of its limit for 5 min. At 100 % the kill switch engages by itself.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskdrawdownapproaching'
+
       - alert: RiskTickFailing
         expr: 'sum by (job, mode) (increase(risk_tick_failures_total[10m])) > 0'
         for: 5m
