@@ -6,6 +6,7 @@ import { EVENT_SUBSCRIBERS } from "@trading-model/contracts/event-routes";
 import { TrainingEvent } from "@trading-model/contracts/training-events";
 import { ScraperClient } from "@trading-model/http/model-api/scraper-client";
 import { TrainerClient } from "@trading-model/http/model-api/trainer-client";
+import { ModelManifest } from "@trading-model/model-runtime/model-manifest";
 import { InstanceId } from "@trading-model/primitives/primitives";
 import {
 	createMessageHandler,
@@ -14,7 +15,6 @@ import {
 import { FileEvaluationStore } from "../adapters/outbound/file-evaluation-store";
 import { createEvaluateModel } from "../application/evaluate-model";
 import { createServer } from "../application/server";
-import { ModelManifest } from "../domain/model-evaluation";
 import { ENV } from "../infrastructure/config/env";
 import { AddressManager, FIND_A_SERVICE } from "./address-manager";
 
