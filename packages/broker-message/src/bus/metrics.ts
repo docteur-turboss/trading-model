@@ -13,6 +13,13 @@ export const MESSAGES_DLQ_TOTAL = new promClient.Counter({
 	labelNames: ["topic", "reason"] as const,
 });
 
+/** Messages published on a topic with no subscriber, dropped by the bus library. */
+export const MESSAGES_UNROUTED_TOTAL = new promClient.Counter({
+	name: "mm_messages_unrouted_total",
+	help: "Total number of published messages dropped because their topic had no subscriber",
+	labelNames: ["topic"] as const,
+});
+
 export const JOURNAL_TRIMMED_PENDING_TOTAL = new promClient.Counter({
 	name: "mm_journal_trimmed_pending_total",
 	help: "Journal entries trimmed (24 h) before their service received them: messages lost",

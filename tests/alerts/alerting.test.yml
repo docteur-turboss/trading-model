@@ -959,6 +959,23 @@ tests:
               description: '2 dead letter(s) wait in the dead stream of market.candlestick.series.fetch (a subscriber group gave up on them): list, replay or delete them with the audit-dlq CLI, see the runbook.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
+  - name: messages without subscriber are dropped
+    interval: 1m
+    input_series:
+      - series: 'mm_messages_unrouted_total{job="audit-logger",instance="m",topic="market.ticker"}'
+        values: '0+5x30'
+      - series: 'mm_messages_unrouted_total{job="audit-logger",instance="m",topic="market.trade"}'
+        values: '0 4 8 8x27'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: MessagesUnrouted
+        exp_alerts:
+          - exp_labels: {severity: warning, topic: market.ticker}
+            exp_annotations:
+              summary: 'Messages dropped on market.ticker: no subscriber'
+              description: 'The bus library drops the messages published on market.ticker: no service subscribed to it (no journal group). audit-logger subscribes to the audit and training topics: check that the subscribers are up and consuming, and that Redis answers.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-no-subscriber-on-a-topic'
+
   - name: journal entries trimmed before delivery
     interval: 1m
     input_series:

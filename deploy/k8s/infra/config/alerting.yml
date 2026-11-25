@@ -412,6 +412,19 @@ groups:
           description: '{{ $value | humanize }} dead letter(s) wait in the dead stream of {{ $labels.topic }} (a subscriber group gave up on them): list, replay or delete them with the audit-dlq CLI, see the runbook.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
+      # A topic with no journal group (no service ever subscribed) drops its messages.
+      # Expected for a few seconds at a cold start (publishers up before subscribers),
+      # so only a drop lasting 10 minutes alerts.
+      - alert: MessagesUnrouted
+        expr: sum by (topic) (rate(mm_messages_unrouted_total[5m])) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Messages dropped on {{ $labels.topic }}: no subscriber'
+          description: 'The bus library drops the messages published on {{ $labels.topic }}: no service subscribed to it (no journal group). audit-logger subscribes to the audit and training topics: check that the subscribers are up and consuming, and that Redis answers.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-no-subscriber-on-a-topic'
+
       - alert: JournalEntriesTrimmed
         expr: sum by (topic, service) (increase(mm_journal_trimmed_pending_total[15m])) > 0 or sum by (topic, service) (mm_journal_trimmed_pending_total unless mm_journal_trimmed_pending_total offset 15m) > 0
         for: 0m

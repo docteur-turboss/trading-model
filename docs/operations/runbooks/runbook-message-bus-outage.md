@@ -1,6 +1,6 @@
 # Runbook: Message Bus Outage
 
-**Alerts:** `MessageDeliveryLowSuccessRate`, `BusDeadLetters`, `JournalBacklogOld`, `JournalEntriesTrimmed`  
+**Alerts:** `MessageDeliveryLowSuccessRate`, `BusDeadLetters`, `MessagesUnrouted`, `JournalBacklogOld`, `JournalEntriesTrimmed`  
 **Severity:** L1
 
 ## Architecture Context
@@ -19,6 +19,7 @@ An outage affects:
 
 - `MessageDeliveryLowSuccessRate`: more than 0.5 % of messages dead-lettered over 5 min.
 - `BusDeadLetters`: a dead stream holds entries waiting for an operator.
+- `MessagesUnrouted`: a topic has had no subscriber for 10 min (see 6).
 - `JournalBacklogOld`: a subscriber has not acknowledged an entry for 15 min (see 3).
 - `JournalEntriesTrimmed`: undelivered journal entries were trimmed after 24 h: messages lost (see 5).
 - Publishers log connection errors to Redis.
@@ -91,6 +92,11 @@ node services/audit-logger/dist/application/dlq-cli.js <operator> delete <topic>
 **Symptoms:** `JournalEntriesTrimmed` (critical) with `topic` and `service`; the subscriber logs `Journal entry trimmed before delivery: message lost` with the entry id.
 **Cause:** `service` did not receive its messages for more than 24 h (ADR-0048). They are gone from the journal and not dead-lettered. Only the named `service` is affected: the other groups of the topic keep their own entries.
 **Fix:** bring `service` back up. Then recover what it missed from the source: re-scrape the candles for `market.*` topics; for `audit-logger`, accept the gap and run `chain-cli.js acknowledge-loss` if its chain reports a loss (runbook-audit-chain-broken).
+
+### 6. No subscriber on a topic
+
+**Symptoms:** `MessagesUnrouted` (warning) with `topic`: publishers drop the messages of a topic no service subscribed to (counted in `mm_messages_unrouted_total`, logged `Message dropped: no subscriber for its topic`). A service that is only down keeps its group, so its messages wait up to 24 h instead.
+**Fix:** check that the subscribing service is up and that its logs show no subscription or Redis error. audit-logger subscribes to the audit and training topics: if all of them are unrouted, look at audit-logger and Redis first.
 
 ## Recovery Verification
 
