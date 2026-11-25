@@ -18,6 +18,7 @@ cat >"$WORK/bin/kubectl" <<'STUB'
 # $STUB_CRDS: CRDs "group/Kind" served; $STUB_HAVE: "resource/name" objects present.
 if [ "$2" = apiservice ]; then [ -z "$STUB_ERR" ] || { echo "Error from server (Forbidden): apiservices" >&2; exit 1; }; [ -n "$STUB_METRICS" ] && printf True; exit 0; fi
 if [ "$1" = get ] && [ "$2" = crd ]; then printf '%b' "$STUB_CRDS"; exit 0; fi
+if [ "$1" = -n ]; then [ -n "${STUB_ACCESS_LOG:-}" ] && printf '%s' "$STUB_ACCESS_LOG"; exit 0; fi
 if [ "$1" = get ]; then case " $STUB_HAVE " in *" $2/$3 "*) exit 0 ;; esac; exit 1; fi
 exit 2
 STUB
@@ -81,6 +82,16 @@ out=$(STUB_ERR=1 run "$ALL_CRDS" "$ALL_HAVE" "$hpa")
 [[ $out == *"Forbidden"* && $out != *"lacks prerequisites"* ]] && ok "apiservice query error shown, not 'absent'" || ko "apiservice error: $out"
 out=$(STUB_METRICS= run "$ALL_CRDS" "$ALL_HAVE" "$RENDER")
 [[ $out == *"present"* ]] && ok "no HPA, no metrics-server needed" || ko "no HPA: $out"
+
+# ingress controller access log: required in production, a warning elsewhere
+export STUB_ACCESS_LOG=
+out=$(DEPLOY_ENVIRONMENT=production run "$ALL_CRDS" "$ALL_HAVE" "$RENDER")
+[[ $out == *"disable-access-log"* && $out != *"present"* ]] && ok "production refuses access log on" || ko "production access log: $out"
+out=$(DEPLOY_ENVIRONMENT=staging run "$ALL_CRDS" "$ALL_HAVE" "$RENDER")
+[[ $out == *"::warning::"* && $out == *"present"* ]] && ok "staging only warns" || ko "staging access log: $out"
+export STUB_ACCESS_LOG=true
+out=$(DEPLOY_ENVIRONMENT=production run "$ALL_CRDS" "$ALL_HAVE" "$RENDER")
+[[ $out == *"present"* ]] && ok "production passes with access log off" || ko "production access log off: $out"
 
 # the real overlays: every prerequisite they name is a known one
 for env in staging production; do

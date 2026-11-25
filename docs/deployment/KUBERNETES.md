@@ -100,7 +100,7 @@ or right after the overlay on a first deploy, when MySQL does not exist yet).
 > ConfigMap `ingress-nginx-controller` set `disable-access-log: "true"` (the
 > default format logs full caller IP, User-Agent and Referer to the node, with a
 > retention and access nobody controls; `deploy/staging-local/bootstrap.sh
-> prereqs` does it) and leave `use-forwarded-headers` unset, so the controller
+> prereqs` does it; `check-prereqs.sh` fails a production deploy otherwise) and leave `use-forwarded-headers` unset, so the controller
 > overwrites any `X-Forwarded-For` sent by the caller. The edge-proxy trusts that
 > header only from the pod CIDR of each overlay (`realip.inc` next to its
 > `kustomization.yaml`, merged into ConfigMap `edge-proxy-nginx`; set the
