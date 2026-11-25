@@ -44,7 +44,6 @@ SERVICES="$(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$ROOT/deploy/k8s/services/kustom
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
 PREVIOUS_REF="${KIND_PREVIOUS_REF:-HEAD^1}"
-[ "${KIND_NODES:-1}" != 3 ] || export CI_RENDER_HA=1 # 3 nodes: Redis HA and spread patches of ci-render.mjs
 # Release N-1 checkout, image digests, recorded revisions: kept between the
 # steps of the CI job, removed by `delete`.
 WORK="$(dirname "$ROOT")/.kind-${CLUSTER}"
@@ -895,6 +894,9 @@ verify_network() {
 # Sentinel failover, a rolling restart of a 3-replica Deployment that never drops below 2 ready.
 verify_ha() {
 	log "Redis HA: 3 pods on 3 nodes, WAIT 1, Sentinel failover"
+	# After the upgrade and rollback drills (Redis at 1 pod there): release N again with the HA patches of ci-render.mjs.
+	CI_RENDER_HA=1 apply_release "$ROOT" "$WORK/digests-current" || return 1
+	release_script redis-last "$NS" <"$WORK/app.yaml" || return 1
 	local redis="$K -n $NS exec redis-sentinel-0 -c sentinel --" tls="--tls --cacert /etc/redis-tls/ca.crt --sni redis"
 	[ "$($K -n "$NS" get pod -l app.kubernetes.io/component=redis -o jsonpath='{range .items[*]}{.spec.nodeName}{"
 "}{end}' | sort -u | wc -l)" -eq 3 ] || {
