@@ -7,10 +7,10 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { z } from "zod";
 
 const manifestGet = jest.fn<(...args: any[]) => any>();
-jest.mock("../../../src/http-client", () => ({
+jest.mock("@trading-model/http/http-client", () => ({
 	HttpClient: { createWithTls: () => ({ get: manifestGet }) },
 }));
-jest.mock("../../../src/http-tls-loader", () => ({
+jest.mock("@trading-model/http/http-tls-loader", () => ({
 	buildHttpsAgentOptions: () => ({}),
 }));
 const FIND = async () => ({ host: "trainer", port: 3000 }) as never;

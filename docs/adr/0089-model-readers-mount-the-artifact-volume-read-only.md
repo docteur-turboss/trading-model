@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0022](./0022-versioned-model-artifacts.md) (versioned artifacts), [ADR-0044](./0044-singleton-trainer.md) (trainer singleton), [ADR-0040](./0040-locked-resumable-migrations-and-expand-contract.md) (expand/contract), [ADR-0069](./0069-model-admission-verdict-on-the-test-segment.md) (admission), [ADR-0016](./0016-shared-contracts-ownership.md) (shared contracts)
-**Verified by:** `services/risk-execution/tests/unit/trainer-admission.spec.ts`, `packages/http/tests/unit/model-api/model-clients.spec.ts`, `bun run deps:check`
+**Verified by:** `services/risk-execution/tests/unit/trainer-admission.spec.ts`, `packages/model-runtime/tests/unit/model-api/model-clients.spec.ts`, `bun run deps:check`
 
 ## Context
 

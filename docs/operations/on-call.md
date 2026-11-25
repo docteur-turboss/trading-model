@@ -36,10 +36,11 @@ from inside its own container, with its SVID.
 | api-gateway       | `/ping`         | `trading-gateway`   |
 | audit-logger      | `/ping`         | `trading-audit`     |
 | dlq-service       | `/health`       | `trading-dlq`       |
-| financial-scraper | `/health`       | `trading-scraper`   |
+| financial-scraper | `/ping`         | `trading-scraper`   |
 | trader-trainer    | `/ping`         | `trading-trainer`   |
 | model-evaluator   | `/ping`         | `trading-model-evaluator` |
 | risk-execution    | `/ping`         | `trading-risk-execution` |
+| decision-consumer | `/health/ready` | `trading-decision-consumer` |
 
 Service images have no `curl`. Define `SVID_GET` once in your shell: Node reads the container SVID and sends the request (optional arguments after the URL: method, headers as JSON, body; exit 1 on a status of 300 or more). Every runbook uses it.
 
@@ -95,7 +96,7 @@ kubectl exec -n trading-model -it deployment/<service-name> -- sh
 ### Silence an alert (maintenance)
 
 Alertmanager is the only place to silence. `amtool` ships in the Alertmanager
-image (0.27.0 at the pinned digest), so run it inside the pod or container.
+image (v0.35.0 at the pinned digest), so run it inside the pod or container.
 
 ```bash
 # Kubernetes
