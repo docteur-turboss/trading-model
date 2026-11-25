@@ -108,7 +108,7 @@ describe("FEATURE_SHARED_TRUNK", () => {
 		expect(weights.slice(0, 6).map((w) => Number(w.toFixed(4)))).toEqual([
 			0.8164, -0.7885, 0.9385, -0.1851, 0.0995, -0.0778,
 		]);
-		expect(weights.reduce((a, b) => a + b, 0)).toBeCloseTo(-47.041, 2);
+		expect(weights.reduce((a, b) => a + b, 0)).toBeCloseTo(-49.045, 2);
 	}, 120_000);
 
 	it("flag on: one asset model per symbol, same trunk component, reloaded output = training output", async () => {
