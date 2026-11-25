@@ -89,9 +89,9 @@ describe("AuditRepository", () => {
 			await repository.ensureIndexes();
 
 			expect(MOCK_COLLECTION.createIndexes).toHaveBeenCalledWith([
-				{ key: { "metadata.correlationId": 1 } },
-				{ key: { "metadata.publisher": 1, receivedAt: -1 } },
-				{ key: { "metadata.topic": 1, receivedAt: -1 } },
+				{ key: { "metadata.correlationId": 1, chainSequence: -1 } },
+				{ key: { "metadata.publisher": 1, chainSequence: -1 } },
+				{ key: { "metadata.topic": 1, chainSequence: -1 } },
 				{ key: { receivedAt: -1 } },
 				{ key: { "metadata.messageId": 1 }, unique: true },
 				{ key: { ttl: 1 }, expireAfterSeconds: 0 },
@@ -369,17 +369,49 @@ describe("AuditRepository", () => {
 			const result = await repository.query({
 				topic: "test-topic" as any,
 				publisher: "test-service" as any,
-				page: 1 as any,
 				limit: 10 as any,
+				withTotal: true,
 			});
 
 			expect(MOCK_COLLECTION.countDocuments).toHaveBeenCalled();
 			expect(result).toMatchObject({
 				docs: [expect.any(Object)],
-				page: 1,
+				nextCursor: null,
 				limit: 10,
 				total: 1,
 			});
+		});
+
+		it("never counts by default and pages by chainSequence cursor, without skip", async () => {
+			const chain = {
+				sort: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+				skip: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+				limit: jest.fn<(...args: any[]) => any>().mockReturnThis(),
+				toArray: jest
+					.fn<(...args: any[]) => any>()
+					.mockResolvedValue([
+						makeEvent({ chainSequence: 7 }),
+						makeEvent({ chainSequence: 6 }),
+					]),
+			};
+			MOCK_COLLECTION.find.mockReturnValue(chain);
+
+			const result = await repository.query({
+				topic: "t" as any,
+				limit: 1 as any,
+				before: 9,
+			});
+
+			expect(MOCK_COLLECTION.countDocuments).not.toHaveBeenCalled();
+			expect(MOCK_COLLECTION.estimatedDocumentCount).not.toHaveBeenCalled();
+			expect(MOCK_COLLECTION.find.mock.calls[0][0]).toMatchObject({
+				chainSequence: { $lt: 9 },
+			});
+			expect(chain.sort).toHaveBeenCalledWith({ chainSequence: -1 });
+			expect(chain.skip).not.toHaveBeenCalled();
+			expect(result).not.toHaveProperty("total");
+			expect(result.docs).toHaveLength(1);
+			expect(result.nextCursor).toBe(7);
 		});
 
 		it("should apply date range filters", async () => {
@@ -437,7 +469,7 @@ describe("AuditRepository", () => {
 		});
 
 		it("should cap limit at 1000", async () => {
-			await repository.query({ limit: 5000 as any });
+			await repository.query({ limit: 5000 as any, withTotal: true });
 
 			expect(MOCK_COLLECTION.estimatedDocumentCount).toHaveBeenCalled();
 
@@ -454,13 +486,12 @@ describe("AuditRepository", () => {
 			});
 			MOCK_COLLECTION.estimatedDocumentCount.mockResolvedValue(0);
 
-			const result = await repository.query({});
+			const result = await repository.query({ withTotal: true });
 
 			expect(result).toMatchObject({
 				docs: [],
-				page: 1,
+				nextCursor: null,
 				limit: 100,
-				total: 0,
 			});
 		});
 	});
@@ -510,6 +541,11 @@ describe("AuditRepository", () => {
 					earliest: new Date("2024-01-01"),
 					latest: new Date("2024-12-31"),
 				},
+			});
+
+			// Bounded to a window: the pipeline starts with a `receivedAt` $match.
+			expect(MOCK_COLLECTION.aggregate.mock.calls[0][0][0]).toMatchObject({
+				$match: { receivedAt: { $gte: expect.any(Date) } },
 			});
 
 			mockDateRange(new Date("2024-01-01"), new Date("2025-01-01"));

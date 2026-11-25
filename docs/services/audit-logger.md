@@ -47,7 +47,8 @@ List and filter audit events, newest first. Parameters and responses are declare
 | `correlationId` | string                | Filter by correlation ID                        |
 | `startDate`     | ISO date or date-time | `receivedAt` at or after                        |
 | `endDate`       | ISO date or date-time | `receivedAt` at or before                       |
-| `page`          | integer ≥ 1           | Page number (default: 1)                        |
+| `before`        | integer ≥ 1           | Cursor: events with `chainSequence` below it (`nextCursor` of the previous page) |
+| `withTotal`     | boolean               | `true` adds `total` (a count, slow on a large trail; default: `false`) |
 | `limit`         | integer ≥ 1           | Results per page (default: 100, capped at 1000) |
 
 **Response:** `200 OK`
@@ -73,15 +74,16 @@ List and filter audit events, newest first. Parameters and responses are declare
       "payload": { "modelId": "model-123" }
     }
   ],
-  "total": 1234,
-  "page": 1,
+  "nextCursor": 1135,
   "limit": 100
 }
 ```
 
+`nextCursor` is `null` on the last page; `total` only appears with `withTotal=true`.
+
 **`GET /v1/events/stats`**
 
-Aggregate audit statistics.
+Aggregate audit statistics. `eventsByTopic` and `eventsByPublisher` cover the last 24 h only (`totalEvents` is the whole collection).
 
 **Response:** `200 OK`
 
