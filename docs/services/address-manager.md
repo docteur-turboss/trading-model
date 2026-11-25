@@ -13,7 +13,7 @@ Client-side library of every service: where the other services are, and (until r
 ```ts
 import { createServiceAddressManager } from '@trading-model/address-manager/create-service-address-manager';
 
-const { AddressManager, BOOTSTRAP_ADDRESS_MANAGER, ADDRESS_MANAGER_ROUTES, FIND_A_SERVICE, REGISTRATION_READINESS } =
+const { AddressManager, BOOTSTRAP_ADDRESS_MANAGER, ADDRESS_MANAGER_ROUTES, FIND_A_SERVICE } =
   createServiceAddressManager(ENV);
 ```
 
