@@ -1,0 +1,140 @@
+# ============================================================================
+#  image-scan.yml — Trivy scan of the release images between two releases
+# ----------------------------------------------------------------------------
+#  release.yml scans every image only when a vX.Y.Z tag is pushed, so a CVE in a
+#  base image used to surface only at release time (v3.1.0-rc.3 backup-tools,
+#  v3.2.1 db-migrate). This workflow builds the same images locally (no push) and
+#  scans them with the same settings as release.yml scan-services / scan-tools:
+#    - on a pull request to development that touches an image input,
+#    - on every push to development,
+#    - daily, to catch a CVE published after the last build.
+#  Lists: services from deploy.yml IMAGES (like release.yml), tools from the
+#  scan-tools matrix of release.yml, so neither can drift from the release.
+# ============================================================================
+name: Image scan
+
+on:
+  pull_request:
+    branches: [development]
+    paths:
+      - "**/Dockerfile"
+      - "deploy/**"
+      - "bun.lock"
+      - ".trivyignore.yaml"
+      - ".github/workflows/image-scan.yml"
+  push:
+    branches: [development]
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  images:
+    runs-on: ubuntu-24.04
+    outputs:
+      services: ${{ steps.list.outputs.services }}
+      tools: ${{ steps.list.outputs.tools }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: List the release images
+        id: list
+        shell: bash
+        run: |
+          list=$(yq '.env.IMAGES' .github/workflows/deploy.yml)
+          services=$(for i in $list; do [ -f "services/$i/Dockerfile" ] && echo "$i"; done | jq -R . | jq -sc .)
+          tools=$(yq -o=json -I=0 '.jobs["scan-tools"].strategy.matrix.include' .github/workflows/release.yml)
+          if [ "$services" = "[]" ] || [ "$tools" = "null" ] || [ "$tools" = "[]" ]; then
+            echo "::error::image list not found in deploy.yml IMAGES or release.yml scan-tools"
+            exit 1
+          fi
+          {
+            echo "services=$services"
+            echo "tools=$tools"
+          } >> "$GITHUB_OUTPUT"
+
+  scan-services:
+    needs: images
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.images.outputs.services) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # Loaded into the local daemon, never pushed: no packages write right needed.
+      - name: Build image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          build-args: |
+            BUILD_VERSION=scan
+            GIT_SHA=${{ github.sha }}
+          load: true
+          push: false
+          tags: image-scan/${{ matrix.service }}:${{ github.sha }}
+          # No GHA cache, as in release.yml: a cached layer would hide distro fixes published since.
+
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_IGNOREFILE: .trivyignore.yaml
+        with:
+          image-ref: image-scan/${{ matrix.service }}:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+  scan-tools:
+    needs: images
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.images.outputs.tools) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          target: ${{ matrix.target }}
+          load: true
+          push: false
+          tags: image-scan/${{ matrix.image }}:${{ github.sha }}
+
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_IGNOREFILE: .trivyignore.yaml
+        with:
+          image-ref: image-scan/${{ matrix.image }}:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
