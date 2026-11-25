@@ -3,7 +3,6 @@
 import {
 	CANDLES_PERSISTED_TOTAL,
 	TICKERS_PERSISTED_TOTAL,
-	TRADES_PERSISTED_TOTAL,
 } from "../config/metrics";
 import type { MarketDataSnapshot } from "../domain/market-data-snapshot";
 import type { MarketDataRepositoryPort } from "../domain/ports/market-data-repository.port";
@@ -18,7 +17,7 @@ export function createMarketDataPersister(
 ): MarketDataPersister {
 	return {
 		async persist(payload: MarketDataSnapshot): Promise<void> {
-			const { candles, recentTrades, orderBook, ticker24h } = payload;
+			const { candles, orderBook, ticker24h } = payload;
 			const results = await Promise.allSettled([
 				candles?.length &&
 					(async () => {
@@ -26,11 +25,6 @@ export function createMarketDataPersister(
 						for (const { symbol } of candles) {
 							CANDLES_PERSISTED_TOTAL.inc({ symbol });
 						}
-					})(),
-				recentTrades?.length &&
-					(async () => {
-						await repository.insertTrades(recentTrades);
-						TRADES_PERSISTED_TOTAL.inc(recentTrades.length);
 					})(),
 				orderBook && repository.insertOrderBook(orderBook),
 				ticker24h?.length &&

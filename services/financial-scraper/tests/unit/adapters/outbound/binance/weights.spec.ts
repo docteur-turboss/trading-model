@@ -28,12 +28,6 @@ describe("BINANCE_WEIGHTS", () => {
 		});
 	});
 
-	describe("trades", () => {
-		it("should return 25", () => {
-			expect(BINANCE_WEIGHTS.trades()).toBe(25);
-		});
-	});
-
 	describe("candlesticks", () => {
 		it("should return 2", () => {
 			expect(BINANCE_WEIGHTS.candlesticks()).toBe(2);

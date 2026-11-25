@@ -66,7 +66,7 @@ interface CandleData extends BaseMarketData {
 
 ### `market_trades` — Individual trade data
 
-Sample of the last 100 trades per symbol per minute. Purged by `db-retention` on `timestamp` after `RETENTION_TRADES_DAYS` (180 in K8s).
+No longer collected or read since issue #2693 (it held a sample of 100 trades per minute, not the trades); the table is dropped in the release after. Purged by `db-retention` on `timestamp` after `RETENTION_TRADES_DAYS` (180 in K8s).
 
 | Column | Type | Constraints | Description |
 | ------ | ---- | ----------- | ----------- |

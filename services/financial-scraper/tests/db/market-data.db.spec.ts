@@ -13,7 +13,6 @@ import {
 	CandleInterval,
 	MarketType,
 	SourceType,
-	TradeSide,
 } from "@trading-model/contracts/market-data.types";
 import type { Signal } from "@trading-model/contracts/wire/signals";
 import {
@@ -39,17 +38,12 @@ import {
 	insertTicker,
 	selectTickerBy,
 } from "../../src/adapters/outbound/persistence/schema/ticker24h.schema";
-import {
-	insertTrades,
-	selectTradesBy,
-} from "../../src/adapters/outbound/persistence/schema/trades.schema";
 import { MySqlSignalStore } from "../../src/adapters/outbound/persistence/signal-store";
 import { DATABASE } from "../../src/config/db";
 import type {
 	CandleData,
 	OrderBookData,
 	TickerData,
-	TradeData,
 } from "../../src/domain/market-data.types";
 import { createMigrateRunner } from "./migrate-runner";
 
@@ -106,20 +100,6 @@ function candle(overrides: Partial<CandleData> = {}): CandleData {
 		trades: NonNegativeInt.of(42),
 		timestamp: T0,
 		closeTimestamp: UnixTimestamp.of(T0 + 59_999),
-		...overrides,
-	};
-}
-
-function trade(overrides: Partial<TradeData> = {}): TradeData {
-	return {
-		symbol: SYMBOL,
-		market: MarketType.Crypto,
-		source: SourceType.Binance,
-		tradeId: 1n,
-		price: Price.of(100.5),
-		quantity: Volume.of(0.25),
-		side: TradeSide.Buy,
-		timestamp: T0,
 		...overrides,
 	};
 }
@@ -345,71 +325,7 @@ describe("market_candles — real MySQL", () => {
 	});
 });
 
-describe("market_trades — real MySQL", () => {
-	it("should keep trade ids beyond Number.MAX_SAFE_INTEGER exact", async () => {
-		const tradeId = 9_007_199_254_740_993n;
-
-		await insertTrades([trade({ tradeId })]);
-
-		const [row] = await selectTradesBy.symbol(SYMBOL, PAGE);
-		expect(BigInt(row.tradeId)).toBe(tradeId);
-		expect(row.side).toBe(TradeSide.Buy);
-		expect(row.timestamp.getTime()).toBe(T0);
-	});
-
-	it("should store a replayed trade once", async () => {
-		await insertTrades([trade(), trade({ tradeId: 2n })]);
-
-		await insertTrades([trade({ side: TradeSide.Sell })]);
-
-		await expect(count("market_trades")).resolves.toBe(2);
-		await expect(selectTradesBy.timestamp(T0, PAGE)).resolves.toHaveLength(2);
-	});
-
-	it("should page in (timestamp, id) order without a gap or a duplicate, ties included", async () => {
-		// Five trades, three on the same millisecond: the cursor id breaks the tie.
-		await insertTrades([
-			trade({ tradeId: 5n, timestamp: UnixTimestamp.of(T0 + 1) }),
-			trade({ tradeId: 1n }),
-			trade({ tradeId: 2n }),
-			trade({ tradeId: 3n }),
-			trade({ tradeId: 4n, timestamp: UnixTimestamp.of(T0 + 2) }),
-		]);
-
-		const seen: bigint[] = [];
-		let after: { timestamp: number; id: number } | undefined;
-		for (let pages = 0; pages < 10; pages++) {
-			const rows = await selectTradesBy.symbol(SYMBOL, { limit: 2, after });
-			expect(rows.length).toBeLessThanOrEqual(2);
-			seen.push(...rows.map((row) => BigInt(row.tradeId)));
-			const last = rows[rows.length - 1];
-			if (rows.length < 2) {
-				break;
-			}
-			after = { timestamp: last.timestamp.getTime(), id: last.id };
-		}
-
-		expect(seen).toEqual([1n, 2n, 3n, 5n, 4n]);
-		await expect(
-			selectTradesBy.symbol(SYMBOL, {
-				limit: 100,
-				from: T0 + 1,
-				to: T0 + 2,
-			})
-		).resolves.toHaveLength(1);
-	});
-
-	it("should upsert past the INT limit once the id is BIGINT UNSIGNED (issue #2017)", async () => {
-		await DATABASE.promise().query(
-			"ALTER TABLE market_trades AUTO_INCREMENT = 2147483648"
-		);
-
-		await insertTrades([trade({ tradeId: 77n })]);
-
-		const [row] = await selectTradesBy.symbol(SYMBOL, PAGE);
-		expect(row.id).toBeGreaterThan(2_147_483_647);
-	});
-
+describe("market_trades migration — real MySQL (table kept until its removal release)", () => {
 	it("should move INT trades into the BIGINT table in batches, keeping their ids (issue #2377)", async () => {
 		const db = DATABASE.promise();
 		// Undo 012 (INT to BIGINT) and every migration after it.
@@ -442,19 +358,15 @@ describe("market_trades — real MySQL", () => {
 		)) as unknown as [{ type: string }[]];
 		expect(column.type).toBe("bigint unsigned");
 		await expect(tables()).resolves.not.toContain("market_trades_old");
-		await insertTrades([trade({ tradeId: 77n })]);
+		await db.query(
+			"INSERT INTO market_trades (symbol, market, source, trade_id, price, quantity, side, timestamp) VALUES ('BTCUSDT', 'crypto', 'binance', 77, 1, 1, 'buy', ?)",
+			[new Date(T0)]
+		);
 		const [[latest]] = (await db.query(
 			"SELECT id FROM market_trades WHERE trade_id = 77 AND timestamp = ?",
 			[new Date(T0)]
 		)) as unknown as [{ id: number }[]];
 		expect(latest.id).toBeGreaterThan(45000);
-	});
-
-	it("should reject a side outside the column enum", async () => {
-		await expect(
-			insertTrades([trade({ side: "hold" as TradeSide })])
-		).rejects.toThrow();
-		await expect(count("market_trades")).resolves.toBe(0);
 	});
 });
 

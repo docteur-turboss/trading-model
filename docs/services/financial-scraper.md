@@ -28,16 +28,15 @@ Every answer is bounded (ADR-0054). Query parameters:
 
 | Parameter | Routes | Meaning |
 | --------- | ------ | ------- |
-| `limit` | trades, tickers, candles | rows per answer, 1 to 5000, default 500 |
-| `after` | trades, tickers, candles | `nextCursor` of the previous page (opaque) |
-| `from`, `to` | trades, tickers, candles | optional window on `timestamp`, ISO dates, `[from, to)` |
+| `limit` | tickers, candles | rows per answer, 1 to 5000, default 500 |
+| `after` | tickers, candles | `nextCursor` of the previous page (opaque) |
+| `from`, `to` | tickers, candles | optional window on `timestamp`, ISO dates, `[from, to)` |
 
-Trades, tickers and candles answer `{ "rows": [...], "nextCursor": "..." | null,
+Tickers and candles answer `{ "rows": [...], "nextCursor": "..." | null,
 "truncated": boolean }`, rows oldest first (ties in insertion order); follow
 `nextCursor` as `after` until it is `null`. The signals route is described in [Signals](#signals-adr-0036).
 
-Trades, tickers and candles come from MySQL: their instants are ISO date-times
-and `tradeId` (BIGINT) is a decimal string, exact past 2^53:
+Tickers and candles come from MySQL: their instants are ISO date-times:
 
 ```json
 {
@@ -91,7 +90,7 @@ Four tables store market data:
 | Table              | Content                   |
 | ------------------ | ------------------------- |
 | `market_candles`   | OHLCV candle data         |
-| `market_trades`    | Individual trade data     |
+| `market_trades`    | No longer collected or read (issue #2693; it only held a sample of 100 trades per minute); rows expire by retention, the table is dropped in the next release (ADR-0040) |
 | `market_tickers`   | 24-hour ticker statistics |
 | `market_order_books` | Order book depth snapshots (migration 008, ADR-0053): `bids` / `asks` as JSON `[price, quantity]` pairs, best first; no API route reads them |
 
@@ -101,14 +100,13 @@ See [`docs/architecture/databases.md`](../architecture/databases.md#mysql--finan
 
 ## Background Jobs (Scheduled Tasks)
 
-A `node-cron` cycle (`ScrapeCronOrchestrator`) asks the market data source (`MarketDataSourcePort`, Binance today: `BinanceMarketDataSource`, ADR-0026) for a snapshot of each symbol, persists it. Nothing is published on the bus (ADR-0078). A snapshot holds 6 data types:
+A `node-cron` cycle (`ScrapeCronOrchestrator`) asks the market data source (`MarketDataSourcePort`, Binance today: `BinanceMarketDataSource`, ADR-0026) for a snapshot of each symbol, persists it. Nothing is published on the bus (ADR-0078). A snapshot holds 5 data types:
 
 1. **Candlesticks** (OHLCV candles)
-2. **Recent Trades** (recent trades)
-3. **Order Book Snapshot** (order book depth)
-4. **Order Book Ticker** (best bid/ask)
-5. **24hr Ticker Stats** (24h statistics)
-6. **Price Ticker** (current price)
+2. **Order Book Snapshot** (order book depth)
+3. **Order Book Ticker** (best bid/ask)
+4. **24hr Ticker Stats** (24h statistics)
+5. **Price Ticker** (current price)
 
 - `node-cron` runs the cycle with concurrency control via `p-limit`
 - The Binance source fetches all 6 data types in parallel and normalizes them
@@ -288,7 +286,7 @@ dimensions and metrics: nothing changes here (ADR-0036, decision 14).
 
 ```
 HTTP Server
-  ├── Financial routes (/trade/*, /ticker/*, /candles/*, /signals/assets/*)
+  ├── Financial routes (/ticker/*, /candles/*, /signals/assets/*)
   ├── AddressManager routes (ping)
 
 Background
