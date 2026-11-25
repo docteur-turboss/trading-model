@@ -1,5 +1,6 @@
 # =============================================================================
-#  Dockerfile — risk-execution
+#  Dockerfile — every service image
+#  docker build --build-arg SERVICE=<name> .   (context: monorepo root)
 #  Multi-stage: deps → build → runtime
 # =============================================================================
 
@@ -16,13 +17,14 @@ RUN bun install --frozen-lockfile --production --ignore-scripts --linker hoisted
 
 # ── Stage 2: Build shared packages + service ────────────────────────────────
 FROM oven/bun:1.4.5@sha256:3aa040e5445efa09d75bb428a64ba50db13e2b3ac9b6b0c7f145615f62b2ee18 AS build
+ARG SERVICE
 WORKDIR /app
 COPY package.json bun.lock tsconfig.base.json ./
 COPY packages/ packages/
 COPY services/ services/
 RUN bun install --frozen-lockfile --ignore-scripts --linker hoisted
 RUN bun run build
-WORKDIR /app/services/risk-execution
+WORKDIR /app/services/${SERVICE}
 RUN bun run build
 
 # ── Stage 3: Runtime image ──────────────────────────────────────────────────
@@ -30,6 +32,7 @@ RUN bun run build
 # sockets nor server.setSecureContext, which SPIFFE mTLS (ADR-0011) relies on
 # for caller identity and SVID rotation.
 FROM node:26.13.1-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS runtime
+ARG SERVICE
 WORKDIR /app
 # npm/npx are unused at runtime; their bundled deps (undici, brace-expansion) trip the release scan (ADR-0038).
 RUN apk add --no-cache tini && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
@@ -40,19 +43,19 @@ RUN apk add --no-cache tini && rm -rf /usr/local/lib/node_modules/npm /usr/local
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 COPY --chown=appuser:appgroup --from=deps /app/node_modules ./node_modules
 COPY --chown=appuser:appgroup --from=build /app/packages ./packages
-COPY --chown=appuser:appgroup --from=build /app/services/risk-execution/package.json ./services/risk-execution/
-COPY --chown=appuser:appgroup --from=build /app/services/risk-execution/dist ./services/risk-execution/dist
+COPY --chown=appuser:appgroup --from=build /app/services/${SERVICE}/package.json ./services/${SERVICE}/
+COPY --chown=appuser:appgroup --from=build /app/services/${SERVICE}/dist ./services/${SERVICE}/dist
 COPY --chown=appuser:appgroup deploy/probe.js ./probe.js
 RUN chown appuser:appgroup /app
-# A named volume copies the owner of its mount point: without this, compose mounts /data/risk-execution root-owned (EACCES on mkdir).
-RUN mkdir -p /data/risk-execution && chown appuser:appgroup /data/risk-execution
+# A named volume copies the owner of its mount point: without this, compose mounts the data dir root-owned (EACCES on mkdir).
+# trader-trainer checkpoints (ADR-0022), model-evaluator, risk-execution.
+RUN mkdir -p /data/checkpoints /data/evaluations /data/risk-execution && chown appuser:appgroup /data/checkpoints /data/evaluations /data/risk-execution
 ARG BUILD_VERSION=dev
 ARG GIT_SHA=unknown
-ENV BUILD_VERSION=$BUILD_VERSION GIT_SHA=$GIT_SHA
+ENV BUILD_VERSION=$BUILD_VERSION GIT_SHA=$GIT_SHA SERVICE=$SERVICE
 USER appuser
 
 EXPOSE 3000
-HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
-  CMD node /app/probe.js https://localhost:3000/health/ready
+HEALTHCHECK --interval=15s --timeout=5s --retries=3   CMD node /app/probe.js https://localhost:3000/health/ready
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "services/risk-execution/dist/application/index.js"]
+CMD ["sh", "-c", "exec node services/$SERVICE/dist/application/index.js"]

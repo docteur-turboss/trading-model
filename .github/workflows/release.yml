@@ -62,9 +62,9 @@ jobs:
             [ "$version" = "$highest" ] && latest=true
           fi
           registry="${IMAGE_REGISTRY:-ghcr.io/$OWNER}"
-          # Single source of the image list: deploy.yml IMAGES. Services have a Dockerfile; tools do not.
+          # Single source of the image list: deploy.yml IMAGES. Services have a services/<name> directory; tools do not.
           list=$(yq '.env.IMAGES' .github/workflows/deploy.yml)
-          services=$(for i in $list; do [ -f "services/$i/Dockerfile" ] && echo "$i"; done | jq -R . | jq -sc .)
+          services=$(for i in $list; do [ -d "services/$i" ] && echo "$i"; done | jq -R . | jq -sc .)
           images=$(for i in $list; do echo "$i"; done | jq -R . | jq -sc .)
           {
             echo "tag=$version"
@@ -154,8 +154,9 @@ jobs:
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
-          file: services/${{ matrix.service }}/Dockerfile
+          file: Dockerfile
           build-args: |
+            SERVICE=${{ matrix.service }}
             BUILD_VERSION=${{ needs.version.outputs.tag }}
             GIT_SHA=${{ github.sha }}
           push: true
