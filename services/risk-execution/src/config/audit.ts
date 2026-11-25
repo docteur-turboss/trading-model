@@ -13,6 +13,7 @@ import {
 import { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
 import type { StatePort } from "../domain/ports";
 import { ENV } from "../infrastructure/config/env";
+import { RISK_OUTBOX_DROPPED, RISK_OUTBOX_PENDING } from "./metrics";
 
 /** Domain events that go on the bus; the others (`broker.error`, ...) stay in the log. */
 const BUS_EVENTS: Record<string, RiskEvent> = {
@@ -78,6 +79,7 @@ async function _drain(): Promise<void> {
 			break;
 		}
 		pending.shift();
+		RISK_OUTBOX_PENDING.set(pending.length);
 	}
 	if (pending.length !== before) {
 		await store?.save(pending);
@@ -87,10 +89,12 @@ async function _drain(): Promise<void> {
 async function _enqueue(entry: Pending): Promise<void> {
 	pending.push(entry);
 	if (pending.length > MAX_PENDING) {
+		RISK_OUTBOX_DROPPED.inc();
 		getLogger().error("risk outbox full: oldest event dropped", {
 			dropped: pending.shift(),
 		});
 	}
+	RISK_OUTBOX_PENDING.set(pending.length);
 	getLogger().warn("risk event kept for replay", { pending: pending.length });
 	await store?.save(pending);
 }
@@ -104,6 +108,7 @@ export async function initRiskOutbox(
 ): Promise<void> {
 	store = file;
 	pending = (await file.load()) ?? [];
+	RISK_OUTBOX_PENDING.set(pending.length);
 	await _serial(_drain);
 }
 
