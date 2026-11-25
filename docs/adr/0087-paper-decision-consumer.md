@@ -21,5 +21,5 @@ ADR-0049 chose option B (offline `model-evaluator`) and left option C (paper tra
 ## Consequences
 
 - One more service (compose, K8s, release matrices, SPIRE entry). Out of the box `PROMOTED_MODELS` is empty: nothing decides, and `risk-execution` keeps seeing no traffic.
-- The trainer and scraper clients are shared with `model-evaluator` (`@trading-model/http/model-api/*`, each service passes its address lookup and manifest schema): one implementation of the sha256-checked artefact read.
+- The trainer and scraper clients are shared with `model-evaluator` (`@trading-model/model-runtime/model-api/*`, each service passes its address lookup and manifest schema): one implementation of the sha256-checked artefact read.
 - A model that reads signals (ADR-0081) as network inputs is not supported by this first version: only candle features.

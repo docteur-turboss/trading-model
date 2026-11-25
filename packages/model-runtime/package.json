@@ -39,8 +39,8 @@
     "@trading-model/primitives": "*",
     "@trading-model/contracts": "*",
     "@trading-model/common": "*",
-    "zod": "^4.6.7",
-    "@trading-model/http": "*"
+    "@trading-model/http": "*",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@jest/globals": "^30.5.2",
