@@ -16,11 +16,6 @@ function setBaseEnv(): void {
 	process.env.CA_CLIENT_TLS_KEY = "/tmp/ca-key.pem";
 	process.env.CA_CLIENT_TLS_CERT = "/tmp/ca-cert.pem";
 	process.env.CA_CLIENT_TLS_CA = "/tmp/ca.pem";
-	process.env.ADDRESS_MANAGER_URL = "https://localhost:8443";
-	process.env.CACHE_TTL_MS = "84000000";
-	process.env.SERVICE_PING_TIMEOUT_MS = "84000000";
-	process.env.TOKEN_REFRESH_INTERVAL_MS = "84000000";
-	process.env.TTL_REFRESH_INTERVAL_MS = "84000000";
 	process.env.MESSAGE_CALLBACK_PATH = "message";
 	process.env.MONGO_URI = "mongodb://localhost:27017/test";
 	process.env.MONGO_DB = "test";

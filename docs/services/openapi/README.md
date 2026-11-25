@@ -4,7 +4,7 @@
 route it proxies as `/v1/<service>/<route>`.
 
 `internal/<service>.yaml` describes the service-to-service routes of a service
-(discovery registration and leases, message-manager publish and subscriptions,
+(message-manager publish and subscriptions,
 the broker callback `POST /message` of each subscriber, the trainer's model
 weights download, ADR-0022). The gateway never
 exposes them; they are called in-cluster over mTLS.
@@ -22,7 +22,7 @@ bun run api:check   # CI + pre-push: fails when the committed spec is stale
 ```
 
 Infrastructure routes (`/metrics`, `/health`, `/health/ready`, `/ping`, `/status`)
-and service-to-service routes (discovery registration and heartbeats, broker
+and service-to-service routes (broker
 callbacks and subscriptions) are left out of the public spec; only the latter
 are published, per service, in `internal/`. The lists live at the top of the
 script (`INFRASTRUCTURE_PATHS`, `SERVICE_TO_SERVICE`).

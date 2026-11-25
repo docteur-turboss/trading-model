@@ -13,7 +13,7 @@ docker compose up -d
 
 Before the first `docker compose up`, replace the example secrets of `.env` with your own: the list is in [Quick Start, Step 0](docs/getting-started/quickstart.md#step-0-create-env).
 
-The Compose stack runs with `NODE_ENV=production` by default: without these values the gateway and discovery-server refuse to start.
+The Compose stack runs with `NODE_ENV=production` by default: without these values the gateway refuses to start.
 
 > **Development only.** The Docker Compose stack has no scheduled backup: do not store real data in it. See [SETUP.md](docs/deployment/SETUP.md#local-development-setup).
 
@@ -39,7 +39,6 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 
 | Service                 | Port | Purpose                                                        |
 | ----------------------- | ---- | -------------------------------------------------------------- |
-| `discovery-server`      | 8443 | Service registry with TTL-based lease management + HMAC tokens (retired in N+1, ADR-0072) |
 | `message-manager`       | 8444 | Topic-based pub/sub broker with DLQ routing                    |
 | `financial-scraper`     | 8445 | Market data (Binance) and public signal ingestion              |
 | `trader-trainer`        | 8446 | GA + DQN agent evolution engine                                |
@@ -63,7 +62,7 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 | `@trading-model/persistence` | Redis/Mongo connection managers, store adapters, key builders |
 | `@trading-model/http` | HTTP middleware (mTLS auth, response protocol), HTTP client, logging pipeline, secure HTTPS server factory, TLS watcher, bootstrap and shutdown, telemetry |
 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness |
-| `@trading-model/address-manager` | Service DNS names (ADR-0072); registration with discovery-server until release N+1 |
+| `@trading-model/address-manager` | DNS service resolution client |
 | `@trading-model/broker-message` | Inter-service messaging SDK with typed event subscriptions |
 
 ### Workload identity

@@ -56,7 +56,7 @@ const SINGLETONS = {
 const DATABASES = ["mysql", "redis", "redis-sentinel", "mongo-dlq", "mongo-audit"];
 const DATA_STATEFULSETS = [...DATABASES, "grafana", "loki"];
 // Bus ACL users (redis-ha.sh) a partitioned redis-0 learns only when restarted (issue #1931).
-const BUS_USERS = ["audit-logger", "trader-trainer", "model-evaluator", "risk-execution"];
+const BUS_USERS = ["audit-logger", "trader-trainer", "model-evaluator", "risk-execution", "decision-consumer"];
 // Bus users allowed on the sentinels in staging-local: those redis-0 knows after the
 // data tier switch of docs/deployment/STAGING_LOCAL.md (done 2026-11-23, issue #1982).
 const BUS_ON_PARTITIONED_REDIS = new Set(["audit-logger", "trader-trainer", "model-evaluator"]);

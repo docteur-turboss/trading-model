@@ -3,7 +3,6 @@ import { ServiceInstanceName } from "@trading-model/primitives/service-instance-
 
 /** Default caller allowlist per target service; `*` admits any platform service. */
 export const DEFAULT_ACL: Record<ServiceInstanceName, readonly ServiceId[]> = {
-	[ServiceInstanceName.DiscoveryService]: [ServiceId.of("*")],
 	// message-manager delivers audited topics; api-gateway relays the public reads.
 	[ServiceInstanceName.AuditLoggerService]: [
 		ServiceId.of("message-manager"),
@@ -13,7 +12,6 @@ export const DEFAULT_ACL: Record<ServiceInstanceName, readonly ServiceId[]> = {
 	// and dlq-service republishes replayed entries. Not api-gateway: it would
 	// lend its identity to API clients (it proxies with its own SVID).
 	[ServiceInstanceName.MessageManagerService]: [
-		ServiceId.of("discovery-server"),
 		ServiceId.of("financial-scraper"),
 		ServiceId.of("trader-trainer"),
 		ServiceId.of("audit-logger"),

@@ -1,6 +1,6 @@
 # System Overview (C4)
 
-Four views of the system, each node checkable in `docker-compose.yml`, `deploy/k8s/` or the code. Related: [ADR-0011](../adr/0011-spiffe-spire-workload-identity.md) (SPIRE), [ADR-0073](../adr/0073-message-bus-as-a-redis-streams-library.md) (bus), [ADR-0023](../adr/0023-discovery-registry-in-redis.md) (registry, being retired by [ADR-0072](../adr/0072-dns-routing-and-majors-served-by-services.md)), [Databases](databases.md), [Bounded Contexts](bounded-contexts.md).
+Four views of the system, each node checkable in `docker-compose.yml`, `deploy/k8s/` or the code. Related: [ADR-0011](../adr/0011-spiffe-spire-workload-identity.md) (SPIRE), [ADR-0073](../adr/0073-message-bus-as-a-redis-streams-library.md) (bus), [ADR-0072](../adr/0072-dns-routing-and-majors-served-by-services.md) (DNS routing), [Databases](databases.md), [Bounded Contexts](bounded-contexts.md).
 
 > **Paper only.** Trained models (`training.model.published`, weights route open to `model-evaluator` alone through `MODEL_DOWNLOAD_CALLERS`) are verified and replayed on stored candles by the offline `model-evaluator` ([ADR-0079](../adr/0079-replay-window-in-the-model-manifest.md)). Collected signals (`GET /financial-scraper/signals/assets/:assetId`) enter the network only when `FEATURE_SIGNAL_INPUTS` is on (default off, [ADR-0081](../adr/0081-signal-inputs-to-the-network.md), mask [ADR-0082](../adr/0082-input-mask-gene.md)). `risk-execution` owns every order, paper only (simulated broker, kill switch, [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md)): it takes intents over HTTP (`POST /intents`), only from `decision-consumer` ([ADR-0087](../adr/0087-paper-decision-consumer.md): promoted models, decision on each closed bar), and reads its prices from financial-scraper. See [ADR-0049](../adr/0049-downstream-context-for-models-and-signals.md).
 
@@ -30,7 +30,6 @@ flowchart TB
 
   subgraph services["Services (HTTPS :3000, SPIFFE mTLS)"]
     gw
-    disc["discovery-server"]
     mm["message-manager"]
     fs["financial-scraper"]
     tt["trader-trainer<br/>(npm name trader-trainer)"]
@@ -44,7 +43,6 @@ flowchart TB
   gw -->|"PUBLIC_ROUTES only"| al
   gw --> dlq
   gw --> fs
-  gw --> disc
   gw --> tt
   tt -->|"GET /candles (ADR-0078)"| fs
   tt -->|"training.model.published"| mm
@@ -59,7 +57,6 @@ flowchart TB
   re -->|"risk.* events"| mm
   re --> rpvc[("risk-execution volume<br/>state, paper ledger")]
   mm -->|"dead letter to Redis dead stream"| redis
-  services -.->|"register + heartbeat (address-manager)"| disc
 
   binance["Binance"] --> fs
   sig["Public signal sources<br/>(signal-registry.json)"] --> fs
@@ -67,7 +64,6 @@ flowchart TB
   al --> mongoA[("MongoDB audit<br/>mongo-audit in K8s")]
   dlq --> mongoD[("MongoDB dlq<br/>mongo-dlq in K8s")]
   dlq --> redis[("Redis HA<br/>sentinels in K8s")]
-  disc --> redis
   mm -->|"subscriptions"| redis
   tt --> ckpt[("checkpoints volume")]
 
@@ -94,7 +90,7 @@ The bus journal is Redis Streams in the shared Redis. [ADR-0073](../adr/0073-mes
 flowchart TB
   subgraph tm["namespace trading-model (Pod Security: restricted)"]
     ing["Ingress gateway / grafana"] --> edge["Deployment edge-proxy"]
-    edge --> svc["Deployments: api-gateway, discovery-server,<br/>message-manager, financial-scraper,<br/>audit-logger, dlq-service<br/>(HPA, PDB, topologySpreadConstraints);<br/>model-evaluator, risk-execution: 1 replica, own PVC;<br/>trader-trainer: 1 replica, training on the Lease holder only (ADR-0058);<br/>financial-scraper-collector: 1 replica, crons on the Lease holder only (ADR-0057)"]
+    edge --> svc["Deployments: api-gateway,<br/>message-manager, financial-scraper,<br/>audit-logger, dlq-service<br/>(HPA, PDB, topologySpreadConstraints);<br/>model-evaluator, risk-execution: 1 replica, own PVC;<br/>trader-trainer: 1 replica, training on the Lease holder only (ADR-0058);<br/>financial-scraper-collector: 1 replica, crons on the Lease holder only (ADR-0057)"]
     svc --> mysql["StatefulSet mysql"]
     svc --> mA["StatefulSet mongo-audit"]
     svc --> mD["StatefulSet mongo-dlq"]

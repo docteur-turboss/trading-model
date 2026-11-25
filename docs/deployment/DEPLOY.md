@@ -254,7 +254,7 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u <USERNAME> --password-stdin
 IMAGE_TAG=2.0.3 docker compose pull
 
 # Or pull a specific service
-docker pull ghcr.io/<owner>/discovery-server:2.0.3
+docker pull ghcr.io/<owner>/message-manager:2.0.3
 ```
 
 ## Production deployment
@@ -362,14 +362,14 @@ for the way back.
 
 ## Replicas and the HPA
 
-A Deployment driven by an HPA carries no `spec.replicas` in `deploy/k8s/services/` (`check-overlays.mjs` enforces it): an apply must not reset the pod count the HPA chose. `minReplicas` is the floor; staging pins every HPA to 1 pod. The singleton `trader-trainer` (ADR-0044: training state in memory) has no HPA, keeps `replicas: 1` and surges one pod during a rollout, which serves the read routes at once and only trains once it holds the Lease `trader-trainer` (ADR-0058: the old pod ends its session after the current generation, stores and publishes its model, then releases it); `financial-scraper-collector` has no HPA, keeps `replicas: 1` and surges one pod during a rollout, which only collects once it holds the Lease (ADR-0057); `check-overlays.mjs` enforces both. `deploy-release.sh release-replicas` deletes the retired `trader-trainer-hpa` and `audit-logger-hpa` of older releases (audit-logger keeps 2 fixed pods: one lease holder writes the chain). A release pauses training for the end of one generation plus up to 2 s; the read routes keep answering. Deploying a tag older than ADR-0044 applies its manifests, so it brings `trader-trainer-hpa` back; `rollout undo` does not. If that first release fails, its rollback puts the N-1 Deployment back (`RollingUpdate`, its pod count) but not the deleted HPA: the trainer keeps its pods without autoscaling until the next successful deploy.
+A Deployment driven by an HPA carries no `spec.replicas` in `deploy/k8s/services/` (`check-overlays.mjs` enforces it): an apply must not reset the pod count the HPA chose. `minReplicas` is the floor; staging pins every HPA to 1 pod. The singleton `trader-trainer` (ADR-0044: training state in memory) has no HPA, keeps `replicas: 1` and surges one pod during a rollout, which serves the read routes at once and only trains once it holds the Lease `trader-trainer` (ADR-0058: the old pod ends its session after the current generation, stores and publishes its model, then releases it); `financial-scraper-collector` has no HPA, keeps `replicas: 1` and surges one pod during a rollout, which only collects once it holds the Lease (ADR-0057); `check-overlays.mjs` enforces both. audit-logger keeps 2 fixed pods (one lease holder writes the chain). A release pauses training for the end of one generation plus up to 2 s; the read routes keep answering. Deploying a tag older than ADR-0044 applies its manifests, so it brings `trader-trainer-hpa` back, and nothing removes it any more (issue #2655); delete it by hand.
 
 Moving an existing cluster over: `deploy.yml` (step "Release replicas of autoscaled Deployments") removes `spec.replicas` from `kubectl.kubernetes.io/last-applied-configuration` before the apply, otherwise the apply would drop the Deployment to 1 pod. By hand: `kubectl apply edit-last-applied deployment/<name> -n <ns>` and delete the `replicas` line, before applying the new overlay.
 
 ## Rollback
 
 Rollback is automatic on failure in the `Deploy` workflow. Before applying the
-overlay it records the revision of each of the 9 Deployments; on failure it
+overlay it records the revision of each Deployment; on failure it
 runs `kubectl rollout undo --to-revision=<recorded>` for each of them. These
 steps (record, apply by digest, wait for rollout, rollback) live in
 `deploy/k8s/scripts/deploy-release.sh`, which the CI `k8s` job runs too: it
@@ -479,7 +479,7 @@ critical alerts firing before the deploy", before any cluster change, lists them
 their labels (`deploy-k8s.sh firing-critical`) into `VERIFY_BASELINE_FILE`, and
 `verify-release` only reports them, since a rollback cannot clear them (e.g. a backup alert
 waiting for a production-only fix). An alert that differs by any label (another instance,
-service, symbol...) still fails. In production that step refuses to start the deploy while a
+service, symbol...) still fails, except `run` (which backup job saw it), ignored on both sides. In production that step refuses to start the deploy while a
 critical alert fires; a hotfix meant to clear it runs with the `workflow_dispatch` input
 `allow_firing_alerts` (default `false`): the step then logs the alerts and `github.actor` as
 a warning and production uses the baseline as staging does. An alert of the baseline that resolves then fires again during the

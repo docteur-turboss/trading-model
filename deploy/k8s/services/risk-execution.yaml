@@ -103,6 +103,16 @@ spec:
           env:
             - name: NODE_OPTIONS
               value: --max-old-space-size=192
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_RISK_EXECUTION_PASSWORD
+            - name: REDIS_SENTINEL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_INTERNAL_PASSWORD
             - name: INSTANCE_ID
               valueFrom:
                 fieldRef:
@@ -119,6 +129,9 @@ spec:
               mountPath: /run/spire/svid
             - name: tmp
               mountPath: /tmp
+            - name: redis-tls
+              mountPath: /etc/redis-tls
+              readOnly: true
             - name: state
               mountPath: /data/risk-execution
             - name: trainer-models
@@ -177,6 +190,12 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
+        - name: redis-tls
+          secret:
+            secretName: redis-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
         - name: state
           persistentVolumeClaim:
             claimName: risk-execution-pvc
@@ -221,11 +240,15 @@ spec:
         - port: 3000
           protocol: TCP
   egress:
-    # discovery-server and trader-trainer (HTTPS on 3000).
+    # trader-trainer (HTTPS on 3000), Redis and its sentinels (bus, ADR-0073).
     - to:
         - podSelector: {}
       ports:
         - port: 3000
+          protocol: TCP
+        - port: 6379
+          protocol: TCP
+        - port: 26379
           protocol: TCP
 ---
 apiVersion: v1

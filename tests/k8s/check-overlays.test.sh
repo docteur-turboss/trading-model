@@ -8,11 +8,11 @@ mkdir -p "$TMP/services/api-gateway/src/shared" && cp "$ROOT/services/api-gatewa
 # The base kustomization builds the ConfigMap financial-scraper-signal-registry from this file (issue #1308).
 mkdir -p "$TMP/services/financial-scraper/src/config"
 cp "$ROOT/services/financial-scraper/src/config/signal-registry.json" "$TMP/services/financial-scraper/src/config/"
-sed -i 's/^\(    SIGNING_SECRET: \).*/\1AgCHANGE_ME_RUN_KUBESEAL_Ag==/' "$TMP/deploy/k8s/overlays/staging-local/sealed-secrets.yaml"
+sed -i 's/^\(    MYSQL_PASSWORD: \).*/\1AgCHANGE_ME_RUN_KUBESEAL_Ag==/' "$TMP/deploy/k8s/overlays/staging-local/sealed-secrets.yaml"
 if out="$(cd "$TMP" && node "$ROOT/tests/k8s/check-overlays.mjs" 2>&1)"; then
   echo "  ✗ staging-local placeholder accepted"; exit 1
 fi
-if grep -q '^staging-local: placeholder AgCHANGE_ME for SIGNING_SECRET:' <<<"$out"; then
+if grep -q '^staging-local: placeholder AgCHANGE_ME for MYSQL_PASSWORD:' <<<"$out"; then
   echo "  ✓ staging-local placeholder refused"
 else
   echo "  ✗ unexpected failure:"; echo "$out"; exit 1
@@ -53,8 +53,8 @@ else
 fi
 # Issue #1931: a bus user sent to the partitioned redis-0, which lacks its ACL user.
 rm -r "$TMP/deploy" && cp -r "$ROOT/deploy" "$TMP/deploy"
-# risk-execution: a bus user staging-local's redis-0 does not have (BUS_ON_PARTITIONED_REDIS).
-echo 'REDIS_USERNAME=risk-execution' >>"$TMP/deploy/k8s/config/risk-execution.properties"
+# risk-execution: a bus user staging-local's redis-0 does not have (BUS_ON_PARTITIONED_REDIS), sent through the library.
+sed -i 's/^        value: http$/        value: library/' "$TMP/deploy/k8s/overlays/staging-local/kustomization.yaml"
 if out="$(cd "$TMP" && node "$ROOT/tests/k8s/check-overlays.mjs" 2>&1)"; then
   echo "  ✗ bus user on partitioned redis accepted"; exit 1
 fi
