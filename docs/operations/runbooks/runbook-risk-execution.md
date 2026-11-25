@@ -59,7 +59,7 @@ Three or more intents of the decision consumer rejected in an hour with the same
 
 ## DecisionPassFailing
 
-A whole decision pass of decision-consumer threw (`decision pass failed` log line, `decision_skipped_total{reason="error"}`); no intent is decided while it repeats.
+A decision pass or a promoted model of decision-consumer failed (`decision pass failed` log line or a model error, `decision_skipped_total{reason="error"}`); no intent is decided while it repeats.
 
 1. Read the `decision pass failed` error in the `decision-consumer` logs.
 2. Fix the cause (feed, trainer or risk-execution unreachable, bad `PROMOTED_MODELS`); the next tick retries by itself.

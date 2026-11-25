@@ -334,7 +334,7 @@ groups:
           severity: warning
         annotations:
           summary: 'decision-consumer decision pass failed in the last hour'
-          description: 'A whole decision pass threw (decision_skipped_total{reason="error"}): no intent is decided while it keeps failing, so paper trading is stopped.'
+          description: 'A decision pass or a promoted model failed (decision_skipped_total{reason="error"}): no intent is decided while it keeps failing, so paper trading is stopped.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#decisionpassfailing'
 
       # -- Authentication failures and ACL denials -------------------
