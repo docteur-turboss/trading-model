@@ -4,9 +4,9 @@ import {
 	AssetSignalsResponse,
 	type Signal,
 } from "@trading-model/contracts/wire/signals";
+import { HttpClient } from "@trading-model/http/http-client";
 import { ServiceId, URLString } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
-import { HttpClient } from "../http-client";
 
 /** Stored signals of an asset, served by the scraper (ADR-0036). */
 export interface SignalHistoryPort {

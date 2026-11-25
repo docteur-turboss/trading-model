@@ -220,7 +220,7 @@ the Binance collection goes on.
 the source's own time when it gives a safe one (an EDGAR fact once its filing
 day is over, US Eastern), otherwise the first collection that saw the value
 (the ECB, NWS and Wikimedia give no release time; the store keeps that first
-row). The NWS measurement time, earlier than its publication, is in
+row; Twelve Data bars are dated 21:00 UTC of their session day). The NWS measurement time, earlier than its publication, is in
 `details.measuredAt`. The period a value refers to is in the payload
 (`period`). `confidenceScore` is the source's
 `reliabilityScore` when collected. Both are served with every signal, never

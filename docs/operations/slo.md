@@ -115,7 +115,7 @@ good (point-in-time sources, ADR-0036).
 | Data | Lost when the outage lasts longer than | Why |
 | ---- | -------------------------------------- | --- |
 | `nws-kansas-wheat-belt` | 1 hour (each missed hourly run) | latest observation only |
-| `twelvedata-daily-prices` | 1 missed run (01:30 UTC, Tuesday to Saturday) | `outputsize=1`: the previous close only |
+| `twelvedata-daily-prices` | 10 sessions of missed runs, about 2 weeks (01:30 UTC, Tuesday to Saturday) | `outputsize=10`: the last 10 sessions, each run re-reads them (same id, stored once) |
 | Binance trades, order books, tickers | any outage | snapshots of the moment, no history fetched |
 | `ecb-*` | 5 observations (about a week for daily series) | `lastNObservations=5` |
 | `nasa-power-crop-regions`, `wikipedia-pageviews`, `federal-register-documents` | 7 days | window `{date-8}` to `{date-1}` |
