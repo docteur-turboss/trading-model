@@ -21,8 +21,8 @@ interface AssetSignalsQuery {
 
 /** Signal persistence (MySQL `signals`, migration 006). */
 export interface SignalStorePort {
-	/** Stores the signals; one already stored (same id) is left as it was. */
-	save(signals: readonly Signal[]): Promise<void>;
+	/** Stores the signals; one already stored (same id) is left as it was, unless `restate`: then its payload, ingestion date and confidence are replaced. */
+	save(signals: readonly Signal[], restate?: boolean): Promise<void>;
 	/** Per source: epoch ms of its newest `ingested_at` and of its newest source-dated `observed_at` (null: none). */
 	newestBySource(): Promise<
 		Map<string, { ingestedAt: number; observedAt: number | null }>
