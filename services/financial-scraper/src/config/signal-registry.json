@@ -788,9 +788,9 @@
 				"pageDays": 700
 			},
 			"templates": [
-				{ "select": { "assetType": "equity" }, "dimension": "market", "url": "https://api.twelvedata.com/time_series?symbol={asset.alias.twelvedata}&interval=1day&outputsize=1" },
-				{ "select": { "assetType": "etf" }, "dimension": "market", "url": "https://api.twelvedata.com/time_series?symbol={asset.alias.twelvedata}&interval=1day&outputsize=1" },
-				{ "select": { "assetType": "commodity_proxy" }, "dimension": "market", "url": "https://api.twelvedata.com/time_series?symbol={asset.alias.twelvedata}&interval=1day&outputsize=1" }
+				{ "select": { "assetType": "equity" }, "dimension": "market", "url": "https://api.twelvedata.com/time_series?symbol={asset.alias.twelvedata}&interval=1day&outputsize=10" },
+				{ "select": { "assetType": "etf" }, "dimension": "market", "url": "https://api.twelvedata.com/time_series?symbol={asset.alias.twelvedata}&interval=1day&outputsize=10" },
+				{ "select": { "assetType": "commodity_proxy" }, "dimension": "market", "url": "https://api.twelvedata.com/time_series?symbol={asset.alias.twelvedata}&interval=1day&outputsize=10" }
 			]
 		},
 		{

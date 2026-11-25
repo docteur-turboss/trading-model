@@ -1057,21 +1057,22 @@ describe("twelvedata-daily-prices", () => {
 			start: "2026-11-13",
 			end: "2026-11-13",
 		});
-		// No release time: the collection time stands, never before the close.
-		expect(observations.every((o) => o.observedAt === undefined)).toBe(true);
-	});
-
-	it("dates a backfilled bar at 21:00 UTC of its session day", () => {
-		const observations = TWELVEDATA_DAILY_PRICES.normalize(
-			fixture("twelvedata-daily-prices"),
-			NO_PARAMS
-		);
-
+		// Live and backfill date a bar alike: 21:00 UTC of its session day.
 		expect(
 			observations.every(
 				(o) => o.observedAt === Date.parse("2026-11-13T21:00:00Z")
 			)
 		).toBe(true);
+	});
+
+	it("gives every session of an overlapping window, so a missed day is caught up", () => {
+		const [row] = fixture("twelvedata-daily-prices").values;
+		const keys = TWELVEDATA_DAILY_PRICES.normalize(
+			{ values: [row, { ...row, datetime: "2026-11-12" }] },
+			NO_PARAMS
+		).map((o) => o.key);
+
+		expect(new Set(keys)).toEqual(new Set(["2026-11-13", "2026-11-12"]));
 	});
 
 	it("throws a 429 HttpStatusError for a quota body sent with HTTP 200", () => {
