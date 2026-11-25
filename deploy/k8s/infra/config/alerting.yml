@@ -89,6 +89,17 @@ groups:
           description: '{{ $labels.job }} has had its outbound calls to {{ $labels.kind }} {{ $labels.target }} refused by the open HTTP circuit breaker for 10 minutes.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md#symptom'
 
+      - alert: ErrorLogBurst
+        # Catches errors that have no metric of their own (logger counts every written line).
+        expr: sum by (job) (increase(log_messages_total{level="error"}[15m])) > 20
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Burst of error logs on {{ $labels.job }}'
+          description: '{{ $labels.job }} wrote {{ $value | humanize }} error log lines in 15 minutes (threshold 20).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#errorlogburst'
+
       - alert: HighMemoryUsage
         expr: nodejs_heap_size_used_bytes / nodejs_heap_size_limit_bytes > 0.9
         for: 5m
