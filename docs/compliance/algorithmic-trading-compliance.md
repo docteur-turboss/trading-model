@@ -1,10 +1,10 @@
 # Algorithmic Trading Compliance — MiFID II & MAR
 
 > **Applies to:** trader-trainer service (GA + DQN agents), financial-scraper (market data inputs)  
-> **Regulatory framework:** MiFID II (Art. 17, RTS 6), MAR (Art. 12, 16), ESMA guidelines  
+> **Regulatory framework:** MiFID II (Art. 17, RTS 6), MAR (Art. 12, 16), MiCA title VI (Art. 86-92), ESMA guidelines  
 > **Last review:** 2026-11-19
 
-> **⚠️ No live execution.** The platform places no real order and must not do so until every prerequisite of §6 is met: kill switch, pre-trade limits (position, value, frequency), Binance terms of use for trading on `api.binance.com` (not established, see [third-party-dpas.md](third-party-dpas.md)), an annual review, a demonstrated edge (the MT4 walk-forward passes every criterion of [ADR-0030](../adr/0030-mt4-point-in-time-features-and-success-criteria.md), at least 30 days of paper trading included) and a model admission gate (§6 items 11-12). As of 2026-11-11, MT4 fails every criterion. An admission verdict is computed on the test segment and written to the manifest (ADR-0069), but it is enforced pre-trade (`model_not_admitted` in `risk-execution`, ADR-0064 §2), but no model passes it today. The controls marked "Not implemented" below do not exist in the code.
+> **⚠️ No live execution.** The platform places no real order and must not do so until every prerequisite of §6 is met: kill switch, pre-trade limits (position, value, frequency), Binance terms of use for trading on `api.binance.com` (not established, see [third-party-dpas.md](third-party-dpas.md)), an annual review, a demonstrated edge (the MT4 walk-forward passes every criterion of [ADR-0030](../adr/0030-mt4-point-in-time-features-and-success-criteria.md), at least 30 days of paper trading included) and a model admission gate (§6 items 11-12). As of 2026-11-11, MT4 fails every criterion. An admission verdict is computed on the test segment and written to the manifest (ADR-0069) and enforced pre-trade (`model_not_admitted` in `risk-execution`, ADR-0064 §2), but no model passes it today, so no real capital may be committed. The controls marked "Not implemented" below do not exist in the code.
 
 ## 1. Scope
 
