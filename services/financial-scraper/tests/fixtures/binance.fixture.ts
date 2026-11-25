@@ -3,11 +3,7 @@ import type {
 	BinanceCandlestickData,
 	BinanceDepthEntry,
 	BinanceDepthResponse,
-	BinanceTradeResponse,
 } from "../../src/adapters/outbound/binance/binance.api";
-
-// Wire shapes of endpoints the adapter no longer types (binance.api exports no type for them).
-type BinanceHistoricalTrade = BinanceTradeResponse[number];
 
 // Wire format of GET /api/v3/depth: levels are [price, quantity] string tuples.
 export const mockDepthResponse: BinanceDepthResponse = {
@@ -21,39 +17,6 @@ export const mockDepthResponse: BinanceDepthResponse = {
 		["0.0027", "3.0"],
 	] as unknown as BinanceDepthEntry[],
 };
-
-export const mockTradeResponse: BinanceTradeResponse = [
-	{
-		id: 28457,
-		price: "4.00000100" as any,
-		qty: "12.00000000" as any,
-		quoteQty: "0.00004800" as any,
-		time: 1499865549590 as any,
-		isBuyerMaker: true,
-		isBestMatch: true,
-	},
-	{
-		id: 28458,
-		price: "4.00000200" as any,
-		qty: "8.00000000" as any,
-		quoteQty: "0.00003200" as any,
-		time: 1499865549591 as any,
-		isBuyerMaker: false,
-		isBestMatch: true,
-	},
-];
-
-export const mockHistoricalTradeResponse: BinanceHistoricalTrade[] = [
-	{
-		id: 28457,
-		price: "4.00000100" as any,
-		qty: "12.00000000" as any,
-		quoteQty: "0.00004800" as any,
-		time: 1499865549590 as any,
-		isBuyerMaker: true,
-		isBestMatch: true,
-	},
-];
 
 export const mockCandlestickResponse: BinanceCandlestickData[] = [
 	{

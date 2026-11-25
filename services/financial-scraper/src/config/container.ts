@@ -15,7 +15,6 @@ import {
 } from "../adapters/outbound/persistence/schema/candles.schema";
 import { insertOrderBook } from "../adapters/outbound/persistence/schema/order-book.schema";
 import { insertTicker } from "../adapters/outbound/persistence/schema/ticker24h.schema";
-import { insertTrades } from "../adapters/outbound/persistence/schema/trades.schema";
 import { MySqlSignalStore } from "../adapters/outbound/persistence/signal-store";
 import { createProtocolWorkers } from "../adapters/outbound/signal-sources/protocol-workers";
 import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adapters";
@@ -40,7 +39,6 @@ const QUARANTINE_RESTORE_RETRY_MS = 2000;
 /** Market data persistence use case backed by the MySQL repository. */
 export const MarketDataPersister = createMarketDataPersister({
 	insertCandles,
-	insertTrades,
 	insertOrderBook: (data) => insertOrderBook([data]),
 	insertTicker,
 });

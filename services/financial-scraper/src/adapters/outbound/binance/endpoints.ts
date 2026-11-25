@@ -50,12 +50,6 @@ export const BINANCE_ENDPOINTS = {
 			limit: query?.limit,
 		}),
 
-	trades: (query?: BinanceEndpointQuery): string =>
-		buildUrl("/api/v3/trades", {
-			symbol: query?.symbol,
-			limit: query?.limit,
-		}),
-
 	candlesticks: (query?: BinanceEndpointQuery & SymbolInterval): string =>
 		buildUrl("/api/v3/klines", {
 			symbol: query?.symbol,

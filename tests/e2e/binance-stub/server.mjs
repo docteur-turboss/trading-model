@@ -26,19 +26,6 @@ function depth(symbol, limit) {
   return { lastUpdateId: Date.now(), bids: levels(-1), asks: levels(1) };
 }
 
-function trades(symbol, limit) {
-  const now = Date.now();
-  return Array.from({ length: Math.min(limit, 10) }, (_, i) => ({
-    id: now + i,
-    price: price(symbol),
-    qty: '0.01000000',
-    quoteQty: (Number(price(symbol)) * 0.01).toFixed(8),
-    time: now - i * 1000,
-    isBuyerMaker: i % 2 === 0,
-    isBestMatch: true,
-  }));
-}
-
 // Like Binance: ascending, the still-open candle last; from `startTime` when
 // given, else the latest 200 candles whatever `limit` says: the trainer needs
 // ~120 for its split plus embargo (issue #1648) within the E2E delay.
@@ -98,7 +85,6 @@ function ticker24h(symbol) {
 const ROUTES = {
   '/api/v3/ping': () => ({}),
   '/api/v3/depth': (url) => depth(url.searchParams.get('symbol'), Number(url.searchParams.get('limit') ?? 100)),
-  '/api/v3/trades': (url) => trades(url.searchParams.get('symbol'), Number(url.searchParams.get('limit') ?? 500)),
   '/api/v3/klines': (url) =>
     klines(
       url.searchParams.get('symbol'),

@@ -35,7 +35,7 @@ const ISO_DATE_MS = z
 	.union([z.iso.datetime({ offset: true }), z.iso.date()])
 	.transform((value) => Date.parse(value));
 
-/** Candles, tickers and trades: an ISO date or date-time. */
+/** Candles and tickers: an ISO date or date-time. */
 const AT_DATE = z.object({
 	timestamp: ISO_DATE_MS.transform(brand(UnixTimestamp.of)),
 });
@@ -78,7 +78,7 @@ const CURSOR = z.string().transform((cursor, ctx) => {
 	return key;
 });
 
-/** Trades, tickers, candles: keyset pages, optionally within [from, to). */
+/** Tickers, candles: keyset pages, optionally within [from, to). */
 const PAGE_QUERY = z
 	.object({
 		limit: LIMIT,
@@ -130,16 +130,6 @@ const Ticker = z.object({
 	closeTimestamp: DATE_TIME,
 });
 
-const Trade = z.object({
-	...MARKET,
-	side: z.string(),
-	price: z.number(),
-	quantity: z.number(),
-	/** BIGINT: a decimal string, exact past 2^53. */
-	tradeId: z.string().regex(/^\d+$/),
-	timestamp: DATE_TIME,
-});
-
 function query<
 	const Path extends string,
 	Params extends z.ZodType,
@@ -166,18 +156,6 @@ function query<
 }
 
 export const SCRAPER_API = {
-	tradesBySymbol: query(
-		"/v2/trade/symbols/:symbol",
-		"Trades of a symbol",
-		BY_SYMBOL,
-		Trade
-	),
-	tradesAt: query(
-		"/v2/trade/timestamp/:timestamp",
-		"Trades at exactly this instant",
-		AT_DATE,
-		Trade
-	),
 	tickersBySymbol: query(
 		"/v2/ticker/symbols/:symbol",
 		"24h tickers of a symbol",

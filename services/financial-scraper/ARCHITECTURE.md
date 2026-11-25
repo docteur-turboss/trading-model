@@ -23,7 +23,6 @@ WorkerOrchestrator ─── fetch → persist, per symbol (under ScrapeCronOrch
 MarketDataPersister.persist()
      │
      ├── insertCandles()   → MySQL (market_candles)
-     ├── insertTrades()    → MySQL (market_trades)
      ├── insertOrderBook() → MySQL (market_order_books)
      └── insertTicker()    → MySQL (market_tickers)
 ```
@@ -40,8 +39,8 @@ MarketDataPersister.persist()
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `endpoints.ts`      | Pure functions that construct Binance REST API URLs                                                                                                              |
 | `weights.ts`        | Pure functions that compute Binance API weight costs for each endpoint                                                                                           |
-| `binance.client.ts` | Async functions (`getOrderBook`, `getRecentTrades`, `getCandlestickData`, etc.) each calling the Axios instance with the correct weight                          |
-| `normalizer.ts`     | `BinanceNormalizer` (static methods) converting raw API shapes to internal entity types (`OrderBookEntity`, `TradeEntity`, `CandleEntity`, `TickerEntity`)       |
+| `binance.client.ts` | Async functions (`getOrderBook`, `getCandlestickData`, etc.) each calling the Axios instance with the correct weight                          |
+| `normalizer.ts`     | `BinanceNormalizer` (static methods) converting raw API shapes to internal entity types (`OrderBookEntity`, `CandleEntity`, `TickerEntity`)       |
 
 ### Scrape cycle (`src/adapters/inbound/cron/`, `src/application/worker-orchestrator.ts`, `src/domain/ports/`)
 
@@ -56,7 +55,7 @@ Adding a source means an adapter implementing `MarketDataSourcePort` and a value
 
 ### Persistence (`src/adapters/outbound/persistence/`)
 
-Schemas live in `schema/` (`trades`, `candles`, `ticker24h`, `order-book`); market data types in `src/domain/market-data.types.ts`. `createMarketDataPersister()` (`src/application/persist-market-data.ts`) depends on `MarketDataRepositoryPort` (`src/domain/ports/`); `src/config/container.ts` wires it to the schema insert functions and builds the scrape-cycle dependencies of `WorkerOrchestrator`. Columns: [databases.md](../../docs/architecture/databases.md#mysql--financial-scraper).
+Schemas live in `schema/` (`candles`, `ticker24h`, `order-book`); market data types in `src/domain/market-data.types.ts`. `createMarketDataPersister()` (`src/application/persist-market-data.ts`) depends on `MarketDataRepositoryPort` (`src/domain/ports/`); `src/config/container.ts` wires it to the schema insert functions and builds the scrape-cycle dependencies of `WorkerOrchestrator`. Columns: [databases.md](../../docs/architecture/databases.md#mysql--financial-scraper).
 
 ### Signals (ADR-0036)
 

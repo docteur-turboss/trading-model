@@ -5,7 +5,6 @@ import type {
 	Binance24hrTickerStatsResponse,
 	BinanceCandlestickDataResponse,
 	BinanceDepthResponse,
-	BinanceTradeResponse,
 } from "./binance.api";
 import { parseCandlestick, type RawBinanceCandlestick } from "./binance.api";
 import { BINANCE_ENDPOINTS, type BinanceQueryParams } from "./endpoints";
@@ -20,16 +19,6 @@ export async function getOrderBook(
 	const { symbol, limit = 100 } = query;
 	const weight = BINANCE_WEIGHTS.depth(limit);
 	const url = BINANCE_ENDPOINTS.depth({ symbol, limit });
-	return (await BINANCE.get(url, { weight, signal })).data;
-}
-
-export async function getRecentTrades(
-	query: BinanceQueryParams,
-	signal?: AbortSignal
-): Promise<BinanceTradeResponse> {
-	const { symbol, limit = 500 } = query;
-	const weight = BINANCE_WEIGHTS.trades();
-	const url = BINANCE_ENDPOINTS.trades({ symbol, limit });
 	return (await BINANCE.get(url, { weight, signal })).data;
 }
 

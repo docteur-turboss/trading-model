@@ -29,8 +29,6 @@ export const PUBLIC_ROUTES = [
 	"GET /v2/financial-scraper/signals/sources",
 	"GET /v2/financial-scraper/ticker/symbols/:symbol",
 	"GET /v2/financial-scraper/ticker/timestamp/:timestamp",
-	"GET /v2/financial-scraper/trade/symbols/:symbol",
-	"GET /v2/financial-scraper/trade/timestamp/:timestamp",
 	"GET /v1/trader-trainer/best-agent",
 	"GET /v1/trader-trainer/models/:symbol",
 	"GET /v1/trader-trainer/models/:symbol/:version",
