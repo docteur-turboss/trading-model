@@ -519,6 +519,23 @@ tests:
               description: 'trader-trainer has had its outbound calls to service financial-scraper refused by the open HTTP circuit breaker for 10 minutes.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md#symptom'
 
+  - name: sustained error logs fire ErrorLogBurst
+    interval: 1m
+    input_series:
+      - series: 'log_messages_total{job="risk-execution",instance="r",level="error"}'
+        values: '0+3x40'
+      - series: 'log_messages_total{job="api-gateway",instance="g",level="error"}'
+        values: '0+0x40'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: ErrorLogBurst
+        exp_alerts:
+          - exp_labels: {severity: warning, job: risk-execution}
+            exp_annotations:
+              summary: 'Burst of error logs on risk-execution'
+              description: 'risk-execution wrote 45 error log lines in 15 minutes (threshold 20).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#errorlogburst'
+
   # K8s: the HTTP-only replicas persist nothing, the collector does.
   - name: market data flows through the collector only
     interval: 1m
@@ -958,6 +975,23 @@ tests:
               summary: 'Dead letters wait on market.candlestick.series.fetch'
               description: '2 dead letter(s) wait in the dead stream of market.candlestick.series.fetch (a subscriber group gave up on them): list, replay or delete them with the audit-dlq CLI, see the runbook.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
+
+  - name: messages without subscriber are dropped
+    interval: 1m
+    input_series:
+      - series: 'mm_messages_unrouted_total{job="audit-logger",instance="m",topic="market.ticker"}'
+        values: '0+5x30'
+      - series: 'mm_messages_unrouted_total{job="audit-logger",instance="m",topic="market.trade"}'
+        values: '0 4 8 8x27'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: MessagesUnrouted
+        exp_alerts:
+          - exp_labels: {severity: warning, topic: market.ticker}
+            exp_annotations:
+              summary: 'Messages dropped on market.ticker: no subscriber'
+              description: 'The bus library drops the messages published on market.ticker: no service subscribed to it (no journal group). audit-logger subscribes to the audit and training topics: check that the subscribers are up and consuming, and that Redis answers.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-no-subscriber-on-a-topic'
 
   - name: journal entries trimmed before delivery
     interval: 1m
