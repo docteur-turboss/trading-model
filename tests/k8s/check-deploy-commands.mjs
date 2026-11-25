@@ -7,7 +7,7 @@
 // run with the deploy-app kubeconfig if it misses a case.
 import { readFileSync } from "node:fs";
 
-const ALIAS = { deployment: "deployments", deploy: "deployments", statefulset: "statefulsets", service: "services", svc: "services", secret: "secrets", configmap: "configmaps", pod: "pods", pods: "pods", hpa: "horizontalpodautoscalers", pdb: "poddisruptionbudgets", ingress: "ingresses", job: "jobs", cronjob: "cronjobs", endpointslice: "endpointslices" };
+const ALIAS = { deployment: "deployments", deploy: "deployments", statefulset: "statefulsets", service: "services", svc: "services", secret: "secrets", certificate: "certificates", configmap: "configmaps", pod: "pods", pods: "pods", hpa: "horizontalpodautoscalers", pdb: "poddisruptionbudgets", ingress: "ingresses", job: "jobs", cronjob: "cronjobs", endpointslice: "endpointslices" };
 const norm = (r) => ALIAS[r] ?? r;
 
 const rules = [...readFileSync("deploy/k8s/deploy-identity/app-role.yaml", "utf8").matchAll(/resources: \[([^\]]*)\]\n(?:\s+resourceNames: \[([^\]]*)\]\n)?\s+verbs: \[([^\]]*)\]/g)]
@@ -27,7 +27,8 @@ function needs(args) {
 			const name = pos[0].includes("/") ? pos[0].split("/")[1] : pos[1];
 			return type(pos[0]) === "secrets" && name ? [["secrets", "get", name.replace(/"/g, "")]] : [[type(pos[0]), "get"], [type(pos[0]), "list"]];
 		}
-		case "delete": return pos[0] && !rest.includes("-f") ? [[type(pos[0]), "delete"]] : [];
+		case "patch": return type(pos[0]) === "secrets" ? [["secrets", "patch", pos[1]]] : [[type(pos[0]), "patch"]];
+		case "delete": return pos[0] && !rest.includes("-f") ? [[type(pos[0]), "delete", type(pos[0]) === "secrets" ? pos[1] : undefined]] : [];
 		case "wait": return [[type(pos[0]), "get"], [type(pos[0]), "watch"]];
 		case "logs": return [["pods", "get"], ["pods/log", "get"]];
 		case "exec": return [["pods/exec", "create"]];

@@ -122,13 +122,12 @@ require_migrate_password
 # overlay (applied after the migrations) would otherwise create too late on an upgrade from a
 # release without them: the pod would wait on a missing Secret until the Job deadline.
 kubectl apply -n "$NS" -f "$JOBS/../infra/mysql-tls.yaml"
+# Waits on the Certificate (cert-manager object), not on its Secret: deploy-app does not read mysql-client-* (issue #2791).
 for s in mysql-client-root mysql-client-migrator mysql-client-retention; do
-  for _ in $(seq 60); do
-    kubectl get secret "$s" -n "$NS" >/dev/null 2>&1 && continue 2
-    sleep 2
-  done
-  echo "::error::cert-manager did not issue Secret $s (kubectl describe certificate $s -n $NS)"
-  exit 1
+  kubectl wait --for=condition=Ready "certificate/$s" -n "$NS" --timeout=120s || {
+    echo "::error::cert-manager did not issue Secret $s (kubectl describe certificate $s -n $NS)"
+    exit 1
+  }
 done
 
 run_job db-migrate-user "$JOBS/migration-user-job.yaml"
