@@ -167,7 +167,24 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 			expect(selectCandlesBy.timestamp.after).toHaveBeenCalledWith(
 				Date.parse("2026-10-28"),
-				{ limit: DEFAULT_PAGE_LIMIT + 1 }
+				{
+					limit: DEFAULT_PAGE_LIMIT + 1,
+					to: Date.parse("2026-11-04"),
+				}
+			);
+		});
+
+		it("keeps a narrower `to` of the client on the candles after a date", async () => {
+			selectCandlesBy.timestamp.after.mockResolvedValue([]);
+
+			await get(
+				SCRAPER_API.candlesSince,
+				"/candles/timestamp/2026-10-28?to=2026-10-29"
+			);
+
+			expect(selectCandlesBy.timestamp.after).toHaveBeenCalledWith(
+				Date.parse("2026-10-28"),
+				{ limit: DEFAULT_PAGE_LIMIT + 1, to: Date.parse("2026-10-29") }
 			);
 		});
 	});

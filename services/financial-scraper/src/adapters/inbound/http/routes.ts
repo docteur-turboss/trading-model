@@ -14,6 +14,7 @@ import { MySqlSignalStore } from "../../outbound/persistence/signal-store";
 import {
 	encodeCursor,
 	MAX_SIGNALS_PER_ANSWER,
+	MAX_SINCE_WINDOW_MS,
 	SCRAPER_API,
 } from "./api-routes";
 
@@ -66,7 +67,13 @@ function _registerCandleRoutes(router: Router): void {
 	mountRoute(router, SCRAPER_API.candlesSince, ({ params, query }) =>
 		page(
 			(window) => selectCandlesBy.timestamp.after(params.timestamp, window),
-			query
+			{
+				...query,
+				to: Math.min(
+					query.to ?? Number.POSITIVE_INFINITY,
+					params.timestamp + MAX_SINCE_WINDOW_MS
+				),
+			}
 		)
 	);
 }

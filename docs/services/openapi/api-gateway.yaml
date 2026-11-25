@@ -2006,7 +2006,7 @@ paths:
       operationId: "getV2FinancialScraperCandlesTimestampTimestamp"
       tags:
         - "financial-scraper"
-      summary: "Candles opened after a date"
+      summary: "Candles opened after a date, within 7 days of it at most (`to` is capped at date + 7 days)"
       x-registry-entry: "candlesSince"
       parameters:
         - name: "timestamp"
