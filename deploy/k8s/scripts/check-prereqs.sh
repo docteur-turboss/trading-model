@@ -42,6 +42,13 @@ while IFS= read -r n; do [ -z "$n" ] || check ingressclass "$n" IngressClass; do
 while IFS= read -r n; do [ -z "$n" ] || check clusterissuer "$n" ClusterIssuer; done < \
 	<(sed -nE 's#^[[:space:]]*cert-manager\.io/cluster-issuer:[[:space:]]*"?([^"[:space:]]+)"?.*#\1#p' <<<"$rendered" | sort -u)
 
+# HPAs read CPU through metrics-server; without it they stay inert, silently.
+# Only when HPAs are rendered (the kind CI render drops them, tests/k8s/ci-render.mjs).
+if grep -qx 'kind: HorizontalPodAutoscaler' <<<"$rendered" &&
+	[ "$(kubectl get apiservice v1beta1.metrics.k8s.io -o jsonpath='{.status.conditions[?(@.type=="Available")].status}' 2>/dev/null)" != True ]; then
+	missing+=("APIService v1beta1.metrics.k8s.io Available (metrics-server)")
+fi
+
 if [ ${#missing[@]} -gt 0 ]; then
 	echo "::error::The cluster lacks prerequisites of the manifests (docs/deployment/KUBERNETES.md, Prerequisites):"
 	printf '  - %s\n' "${missing[@]}"
