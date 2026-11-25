@@ -134,6 +134,18 @@ spec:
                   name: trading-model-secrets
                   key: REDIS_MODEL_EVALUATOR_PASSWORD
                   optional: true
+            - name: REDIS_RISK_EXECUTION_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_RISK_EXECUTION_PASSWORD
+                  optional: true
+            - name: REDIS_DECISION_CONSUMER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_DECISION_CONSUMER_PASSWORD
+                  optional: true
             # ACL user of the exporter sidecar (redis-ha.sh exporter_user).
             - name: REDIS_EXPORTER_PASSWORD
               valueFrom:
@@ -537,6 +549,8 @@ spec:
                   - audit-logger
                   - trader-trainer
                   - model-evaluator
+                  - risk-execution
+                  - decision-consumer
                   - redis
                   - redis-sentinel
       ports:
