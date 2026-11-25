@@ -52,7 +52,8 @@ jobs:
         shell: bash
         run: |
           list=$(yq '.env.IMAGES' .github/workflows/deploy.yml)
-          services=$(for i in $list; do [ -f "services/$i/Dockerfile" ] && echo "$i"; done | jq -R . | jq -sc .)
+          # if, not &&: a failed test on the last image (a tool) would fail the loop, so the pipe (pipefail).
+          services=$(for i in $list; do if [ -f "services/$i/Dockerfile" ]; then echo "$i"; fi; done | jq -R . | jq -sc .)
           tools=$(yq -o=json -I=0 '.jobs["scan-tools"].strategy.matrix.include' .github/workflows/release.yml)
           if [ "$services" = "[]" ] || [ "$tools" = "null" ] || [ "$tools" = "[]" ]; then
             echo "::error::image list not found in deploy.yml IMAGES or release.yml scan-tools"
