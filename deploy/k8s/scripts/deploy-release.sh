@@ -119,28 +119,38 @@ repl_offset() {
 }
 
 # Makes Redis pod $2 the master once it is a synced replica. The old master holds writes (CLIENT
-# PAUSE WRITE) until the replica has them all, the sentinel promotes it (SENTINEL FAILOVER, refused
-# until the sentinel lists it), the old master turns replica and resumes: a held write gets READONLY
-# and is published again, none is lost (ADR-0090). An old master whose `ha` user predates ADR-0090
-# cannot pause: a write it takes before the clients follow the switch (failoverDetector) is lost.
+# PAUSE WRITE) until the replica has them all, the sentinel promotes it (SENTINEL FAILOVER), the old
+# master turns replica and resumes: a held write gets READONLY and is published again, none is lost
+# (ADR-0090). Only an old master whose `ha` user predates ADR-0090 (NOPERM) fails over unpaused: a
+# write it takes before the clients follow the switch (failoverDetector) is lost.
 failover_to() {
-	local ns="$1" pod="$2" old="redis-$((1 - ${2#redis-}))" ip paused="" waited=0
+	local ns="$1" pod="$2" old="redis-$((1 - ${2#redis-}))" ip paused="" waited=0 offset
 	ip=$(kubectl get pod "$pod" -n "$ns" -o jsonpath='{.status.podIP}') || return 1
 	until [ "$(redis_cli "$ns" redis-sentinel-0 sentinel -p 26379 SENTINEL get-master-addr-by-name mymaster | head -n 1)" = "$ip" ]; do
-		[ "$waited" -lt $((300 * FACTOR)) ] || {
+		# Writes are held 30 passes at most.
+		if [ "$waited" -ge $((300 * FACTOR)) ] || { [ -n "$paused" ] && [ $((waited - paused)) -ge 30 ]; }; then
 			echo "::error::The sentinel did not make $pod the Redis master in $waited s"
+			[ -z "$paused" ] || redis_cli "$ns" "$old" redis --user ha CLIENT UNPAUSE >/dev/null
 			return 1
-		}
-		if redis_cli "$ns" "$pod" redis --user ha INFO replication | grep -q '^master_link_status:up'; then
-			# Re-armed each pass; expires by itself if this run dies.
-			paused=$(redis_cli "$ns" "$old" redis --user ha CLIENT PAUSE 30000 WRITE) || true
-			{ [ "$paused" != OK ] || [ "$(repl_offset "$ns" "$pod")" = "$(repl_offset "$ns" "$old")" ]; } &&
-				redis_cli "$ns" redis-sentinel-0 sentinel -p 26379 SENTINEL FAILOVER mymaster || true
+		fi
+		# Paused only once the sentinel can promote: replica linked and listed (else NOGOODSLAVE).
+		if redis_cli "$ns" "$pod" redis --user ha INFO replication | grep '^master_link_status:up' >/dev/null &&
+			redis_cli "$ns" redis-sentinel-0 sentinel -p 26379 SENTINEL replicas mymaster | grep -x "$ip" >/dev/null; then
+			# Re-armed each pass; expires by itself if this run dies. Any other answer: next pass.
+			case "$(redis_cli "$ns" "$old" redis --user ha CLIENT PAUSE 30000 WRITE 2>&1)" in
+			OK)
+				paused=${paused:-$waited}
+				offset=$(repl_offset "$ns" "$pod")
+				[ -n "$offset" ] && [ "$offset" = "$(repl_offset "$ns" "$old")" ] &&
+					redis_cli "$ns" redis-sentinel-0 sentinel -p 26379 SENTINEL FAILOVER mymaster
+				;;
+			*NOPERM*) redis_cli "$ns" redis-sentinel-0 sentinel -p 26379 SENTINEL FAILOVER mymaster ;;
+			esac
 		fi
 		sleep 1
 		waited=$((waited + 1))
 	done
-	[ "$paused" = OK ] || return 0
+	[ -n "$paused" ] || return 0
 	redis_cli "$ns" "$old" redis --user ha REPLICAOF "$ip" 6379 >/dev/null &&
 		redis_cli "$ns" "$old" redis --user ha CLIENT UNPAUSE >/dev/null
 }

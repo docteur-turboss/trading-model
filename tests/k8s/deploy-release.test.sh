@@ -57,13 +57,20 @@ if [ "$1" = get ] && [[ $2 == statefulset/* ]]; then [[ $* == *updateRevision* ]
 # Redis swap (issue #2882): "$STUB_REDIS" = partition replicas updateRevision; pods run revision `old`.
 if [ "$1" = get ] && [ "$2" = statefulset ] && [[ $* == *partition* ]]; then printf '%s' "${STUB_REDIS:-}"; exit 0; fi
 if [ "$1" = get ] && [ "$2" = pod ]; then [[ $* == *podIP* ]] && printf 'ip-%s' "$3" || printf old; exit 0; fi
-# Sentinel in $STUB_MASTER: FAILOVER promotes the other pod. CLIENT PAUSE answers $STUB_PAUSE.
+# Sentinel in $STUB_MASTER: FAILOVER promotes the other pod, unless $STUB_NO_PROMOTE. CLIENT PAUSE
+# answers $STUB_PAUSE, the first one $STUB_PAUSE_FIRST when set.
 if [ "$1" = exec ] && [ -n "${STUB_MASTER:-}" ]; then
 	case "$*" in
 	*get-master-addr-by-name*) cat "$STUB_MASTER" ;;
+	*"SENTINEL replicas"*) printf 'ip\nip-redis-0\nip\nip-redis-1\n' ;;
 	*"INFO replication"*) printf 'master_link_status:up\r\nmaster_repl_offset:7\r\n' ;;
-	*"CLIENT PAUSE"*) echo "${STUB_PAUSE:-OK}" ;;
-	*"SENTINEL FAILOVER"*) [ "$(cat "$STUB_MASTER")" = ip-redis-0 ] && echo ip-redis-1 >"$STUB_MASTER" || echo ip-redis-0 >"$STUB_MASTER" ;;
+	*"CLIENT PAUSE"*)
+		if [ -n "${STUB_PAUSE_FIRST:-}" ] && [ ! -e "$STUB_LOG.paused" ]; then
+			: >"$STUB_LOG.paused"
+			echo "$STUB_PAUSE_FIRST"
+		else echo "${STUB_PAUSE:-OK}"; fi
+		;;
+	*"SENTINEL FAILOVER"*) [ -n "${STUB_NO_PROMOTE:-}" ] || { [ "$(cat "$STUB_MASTER")" = ip-redis-0 ] && echo ip-redis-1 >"$STUB_MASTER" || echo ip-redis-0 >"$STUB_MASTER"; } ;;
 	esac
 	exit 0
 fi
@@ -223,6 +230,21 @@ STUB_PAUSE=NOPERM STUB_MASTER="$WORK/master" bash "$SCRIPT" rollback ns "$WORK/r
 	[ "$(cat "$WORK/master")" = ip-redis-0 ] && [ ! -s "$STUB_SWAP" ] && ! grep -qE 'REPLICAOF|UNPAUSE' "$WORK/log" &&
 	[ "$(log_line '"replicas":1')" -lt "$(log_line 'rollout undo statefulset/redis ')" ] &&
 	ok "rollback inside a swap: redis-0 master again (old master unable to pause: plain failover), back to 1 pod before the Redis undo" || ko "rollback swap: $(cat "$WORK/log")"
+# A pause failing for another reason than NOPERM: no unpaused failover, the next pass pauses.
+echo ip-redis-1 >"$WORK/master"
+echo 1 >"$STUB_SWAP"
+: >"$WORK/log"
+STUB_PAUSE_FIRST="error: Timeout occurred" STUB_MASTER="$WORK/master" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
+	[ "$(grep -oE 'SENTINEL FAILOVER|CLIENT [A-Z]+|REPLICAOF' "$WORK/log" | tr '
+' ' ')" = "CLIENT PAUSE CLIENT PAUSE SENTINEL FAILOVER REPLICAOF CLIENT UNPAUSE " ] &&
+	ok "pause refused by a transient error: retried, failover only once paused" || ko "pause error: $(cat "$WORK/log")"
+# The sentinel never promotes: the old master is unpaused and the failover fails.
+echo ip-redis-0 >"$WORK/master"
+: >"$STUB_SWAP"
+: >"$WORK/log"
+STUB_NO_PROMOTE=1 STUB_MASTER="$WORK/master" STUB_REDIS="1 1 new" bash "$SCRIPT" redis-last ns <"$WORK/app.yaml" >/dev/null 2>&1 && ko "failover without promotion succeeded" ||
+	{ [ "$(grep -oE 'CLIENT [A-Z]+|REPLICAOF' "$WORK/log" | tail -n 1)" = "CLIENT UNPAUSE" ] && ! grep -q REPLICAOF "$WORK/log" &&
+		ok "sentinel never promotes: old master unpaused, failover fails"; } || ko "no promotion: $(tail -n 5 "$WORK/log")"
 rm "$WORK/bin/sleep"
 STUB_NO_REDIS=1 bash "$SCRIPT" without-redis ns <"$WORK/app.yaml" | cmp -s - "$WORK/app.yaml" &&
 	ok "without-redis keeps the Redis StatefulSets on a first deploy" || ko "without-redis dropped documents on a first deploy"
