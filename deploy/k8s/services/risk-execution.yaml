@@ -102,7 +102,7 @@ spec:
                 name: risk-execution-config
           env:
             - name: NODE_OPTIONS
-              value: --max-old-space-size=192
+              value: --max-old-space-size=128
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
