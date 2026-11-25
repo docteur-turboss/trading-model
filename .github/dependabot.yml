@@ -81,18 +81,6 @@ updates:
         update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "docker"
-    directory: "/services/model-evaluator"
-    target-branch: "development"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/services/risk-execution"
-    target-branch: "development"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
     directory: "/deploy/k8s/services"
     target-branch: "development"
     schedule:
