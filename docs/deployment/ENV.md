@@ -56,15 +56,15 @@ Defined in `@trading-model/persistence/redis-env` (`RedisEnvSchema`) and turned 
 
 | Variable                     | Type   | Default    | Required | Description                                                               | Services                |
 | ---------------------------- | ------ | ---------- | -------- | ------------------------------------------------------------------------- | ----------------------- |
-| `REDIS_URL`                  | string | —          | no       | Redis URL (compose, dev): used when `REDIS_SENTINELS` is unset; the bus refuses to start without one of them | AL, FS, TT, ME, RX |
-| `REDIS_SENTINELS`            | string | —          | no       | Sentinels as `host:port,host:port` (IP or DNS name); takes precedence over `REDIS_URL` | AL, FS, TT, ME, RX |
-| `REDIS_SENTINEL_MASTER_NAME` | string | `mymaster` | no       | Master group name the sentinels monitor (only with `REDIS_SENTINELS`)     | AL, FS, TT, ME, RX |
-| `REDIS_USERNAME`             | string | —          | no       | ACL user of the service (K8s: one per service, ADR-0047; only with `REDIS_SENTINELS`) | AL, FS, TT, ME, RX |
-| `REDIS_PASSWORD`             | string | —          | no       | Password of that user (only with `REDIS_SENTINELS`; with `REDIS_URL` put it in the URL). K8s: key `REDIS_<SERVICE>_PASSWORD` of `trading-model-secrets` | AL, FS, TT, ME, RX |
-| `REDIS_SENTINEL_PASSWORD`    | string | —          | no       | Password the sentinels require (K8s: key `REDIS_INTERNAL_PASSWORD` of `trading-model-secrets`) | AL, FS, TT, ME, RX |
-| `REDIS_TLS_MODE` | `optional` | `required` | `optional` | no | `required`: TLS to Redis and the sentinels, needs `REDIS_TLS_CA` (release N+1, ADR-0047, `docs/deployment/REDIS_TLS.md`) | AL, FS, TT, ME, RX |
-| `REDIS_TLS_CA` | path | — | with `required` | PEM CA of the Redis server certificates (K8s: `ca.crt` of Secret `redis-tls`) | AL, FS, TT, ME, RX |
-| `REDIS_TLS_SERVERNAME` | string | `redis` | no | Name the Redis certificate must carry (nodes are reached by IP) | AL, FS, TT, ME, RX |
+| `REDIS_URL`                  | string | —          | no       | Redis URL (compose, dev): used when `REDIS_SENTINELS` is unset; the bus refuses to start without one of them | AL, FS, TT, ME, RX, DCN |
+| `REDIS_SENTINELS`            | string | —          | no       | Sentinels as `host:port,host:port` (IP or DNS name); takes precedence over `REDIS_URL` | AL, FS, TT, ME, RX, DCN |
+| `REDIS_SENTINEL_MASTER_NAME` | string | `mymaster` | no       | Master group name the sentinels monitor (only with `REDIS_SENTINELS`)     | AL, FS, TT, ME, RX, DCN |
+| `REDIS_USERNAME`             | string | —          | no       | ACL user of the service (K8s: one per service, ADR-0047; only with `REDIS_SENTINELS`) | AL, FS, TT, ME, RX, DCN |
+| `REDIS_PASSWORD`             | string | —          | no       | Password of that user (only with `REDIS_SENTINELS`; with `REDIS_URL` put it in the URL). K8s: key `REDIS_<SERVICE>_PASSWORD` of `trading-model-secrets` | AL, FS, TT, ME, RX, DCN |
+| `REDIS_SENTINEL_PASSWORD`    | string | —          | no       | Password the sentinels require (K8s: key `REDIS_INTERNAL_PASSWORD` of `trading-model-secrets`) | AL, FS, TT, ME, RX, DCN |
+| `REDIS_TLS_MODE` | `optional` | `required` | `optional` | no | `required`: TLS to Redis and the sentinels, needs `REDIS_TLS_CA` (release N+1, ADR-0047, `docs/deployment/REDIS_TLS.md`) | AL, FS, TT, ME, RX, DCN |
+| `REDIS_TLS_CA` | path | — | with `required` | PEM CA of the Redis server certificates (K8s: `ca.crt` of Secret `redis-tls`) | AL, FS, TT, ME, RX, DCN |
+| `REDIS_TLS_SERVERNAME` | string | `redis` | no | Name the Redis certificate must carry (nodes are reached by IP) | AL, FS, TT, ME, RX, DCN |
 
 ---
 

@@ -85,6 +85,8 @@ change it, in this order:
 3. Set `BACKUP_S3_REGION` and `AUDIT_ANCHOR_REGION` to `eu-west-3` in the GitHub environment `staging`, and `BACKUP_S3_REGION` in `backup-key-check` and `sealed-secrets-key-backup`.
 4. Redeploy staging. MinIO rejects signatures from another region, so the pods, `backup-key-check.yml` and `sealed-secrets-key-backup.yml` need the new value at the same time (until then `BackupOffsiteCopyFailed` fires and the audit anchors fail).
 
+The pre-migration backup of `deploy.yml` runs the `db-backup` template of the release in place, which may not sign for this region: outside production it is not copied off-site and stays on `backup-data` (issue #2724).
+
 ## Runner
 
 In a container, without the Docker socket. Registered once with a

@@ -172,9 +172,9 @@ old logs. Then grow the disk if the usage is real.
 
 ## MySQLSecureTransportOff
 
-`mysql_global_variables_require_secure_transport == 0` for 15 minutes: a deploy rollback
-(`deploy-release.sh rollback`) relaxed TLS so release N-1 can connect. Redeploy release N
-with `deploy.yml`: `db-migrate-user` binds the users to their certificate again and sets `ON`.
+`mysql_global_variables_require_secure_transport == 0` for 15 minutes: someone
+set it OFF by hand or `mysql.cnf` was not applied. Redeploy with `deploy.yml`:
+`db-migrate-user` sets `ON` on every member again.
 
 ## RedisDown
 

@@ -30,6 +30,8 @@ const PASSWORDS = {
 	"audit-logger": "audit-pw",
 	"trader-trainer": "trainer-pw",
 	"model-evaluator": "evaluator-pw",
+	"risk-execution": "risk-pw",
+	"decision-consumer": "decision-pw",
 	exporter: "exporter-pw",
 };
 const DISCOVERY_KEY = "trading-model:discovery:spec";
@@ -39,6 +41,8 @@ const HA_ENV = {
 	REDIS_AUDIT_LOGGER_PASSWORD: PASSWORDS["audit-logger"],
 	REDIS_TRADER_TRAINER_PASSWORD: PASSWORDS["trader-trainer"],
 	REDIS_MODEL_EVALUATOR_PASSWORD: PASSWORDS["model-evaluator"],
+	REDIS_RISK_EXECUTION_PASSWORD: PASSWORDS["risk-execution"],
+	REDIS_DECISION_CONSUMER_PASSWORD: PASSWORDS["decision-consumer"],
 	REDIS_EXPORTER_PASSWORD: PASSWORDS.exporter,
 	REDIS_HOSTS: ORDINALS.map((n) => `redis-${n}`).join(" "),
 	SENTINEL_HOSTS: ORDINALS.map((n) => `redis-sentinel-${n}`).join(" "),
@@ -327,6 +331,18 @@ describe("K8s Redis HA start script — real failovers", () => {
 				"0-1"
 			)
 		).resolves.toEqual(["0"]);
+		// Risk publishers (#2676): order events for risk-execution, promotion for decision-consumer, nothing else.
+		for (const [service, own, other] of [
+			["risk-execution", "risk.order.transitioned", "risk.promotion.loaded"],
+			["decision-consumer", "risk.promotion.loaded", "risk.order.transitioned"],
+		] as const) {
+			await expect(
+				asService(master, service, "XADD", `${bus}${own}`, "*", "m", "1")
+			).resolves.toEqual([expect.stringMatching(/^\d+-\d+$/)]);
+			await expect(
+				asService(master, service, "XADD", `${bus}${other}`, "*", "m", "1")
+			).resolves.toEqual([expect.stringMatching(/^NOPERM/)]);
+		}
 		await expect(
 			(
 				await asService(
