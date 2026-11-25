@@ -2,16 +2,16 @@ import { createHash } from "node:crypto";
 import https from "node:https";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
+import { HttpClient } from "@trading-model/http/http-client";
+import { buildHttpsAgentOptions } from "@trading-model/http/http-tls-loader";
+import { ServiceId, URLString } from "@trading-model/primitives/primitives";
+import { HostPort } from "@trading-model/primitives/service-identity";
+import { z } from "zod";
 import {
 	readModelFile,
 	readModelManifest,
 	WEIGHTS_FILE,
-} from "@trading-model/model-runtime/model-artifact-reader";
-import { ServiceId, URLString } from "@trading-model/primitives/primitives";
-import { HostPort } from "@trading-model/primitives/service-identity";
-import { z } from "zod";
-import { HttpClient } from "../http-client";
-import { buildHttpsAgentOptions } from "../http-tls-loader";
+} from "../model-artifact-reader";
 
 /** Total deadline of a weights download (an upstream that trickles bytes must not hold it open). */
 const WEIGHTS_TIMEOUT_MS = 60_000;

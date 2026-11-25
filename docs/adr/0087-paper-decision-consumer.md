@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0049](./0049-downstream-context-for-models-and-signals.md) (option C), [ADR-0064](./0064-risk-and-execution-context-before-order-flow.md) (Risk/Execution), [ADR-0069](./0069-model-admission-verdict-on-the-test-segment.md) (admissible), [ADR-0027](./0027-audit-chain-verification-and-anchoring.md) (audit), [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) (point-in-time), [ADR-0079](./0079-replay-window-in-the-model-manifest.md) (replay)
-**Verified by:** `services/decision-consumer/tests/unit/decide.spec.ts` (non-admissible or non-promoted model: no intent; same bar and model: same decision id; rejection counted by reason), `packages/model-runtime/tests/replay.spec.ts` (last-bar decision, frameSkip cadence in absolute time), `tests/contract/decision-consumer-routes.spec.ts` (real client against the real intents route, other identities 403), `services/risk-execution/tests/unit/handlers.spec.ts`, `packages/http/tests/unit/adapters/inbound/acl-config.spec.ts`, `tests/alerts/alerting.test.yml`, `packages/http/tests/unit/model-api/model-clients.spec.ts` (shared trainer and scraper clients), `bun run api:check`
+**Verified by:** `services/decision-consumer/tests/unit/decide.spec.ts` (non-admissible or non-promoted model: no intent; same bar and model: same decision id; rejection counted by reason), `packages/model-runtime/tests/replay.spec.ts` (last-bar decision, frameSkip cadence in absolute time), `tests/contract/decision-consumer-routes.spec.ts` (real client against the real intents route, other identities 403), `services/risk-execution/tests/unit/handlers.spec.ts`, `packages/http/tests/unit/adapters/inbound/acl-config.spec.ts`, `tests/alerts/alerting.test.yml`, `packages/model-runtime/tests/unit/model-api/model-clients.spec.ts` (shared trainer and scraper clients), `bun run api:check`
 
 ## Context
 
@@ -21,5 +21,5 @@ ADR-0049 chose option B (offline `model-evaluator`) and left option C (paper tra
 ## Consequences
 
 - One more service (compose, K8s, release matrices, SPIRE entry). Out of the box `PROMOTED_MODELS` is empty: nothing decides, and `risk-execution` keeps seeing no traffic.
-- The trainer and scraper clients are shared with `model-evaluator` (`@trading-model/http/model-api/*`, each service passes its address lookup and manifest schema): one implementation of the sha256-checked artefact read.
+- The trainer and scraper clients are shared with `model-evaluator` (`@trading-model/model-runtime/model-api/*`, each service passes its address lookup and manifest schema): one implementation of the sha256-checked artefact read.
 - A model that reads signals (ADR-0081) as network inputs is not supported by this first version: only candle features.
