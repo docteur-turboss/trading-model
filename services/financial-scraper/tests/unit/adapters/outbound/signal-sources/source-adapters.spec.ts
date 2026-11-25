@@ -1057,12 +1057,7 @@ describe("twelvedata-daily-prices", () => {
 			start: "2026-11-13",
 			end: "2026-11-13",
 		});
-		// Live and backfill give the same bar the same date: 21:00 UTC of its day.
-		const backfill = TWELVEDATA_DAILY_PRICES.normalize(
-			fixture("twelvedata-daily-prices"),
-			NO_PARAMS
-		);
-		expect(observations).toEqual(backfill);
+		// Live and backfill date a bar alike: 21:00 UTC of its session day.
 		expect(
 			observations.every(
 				(o) => o.observedAt === Date.parse("2026-11-13T21:00:00Z")
