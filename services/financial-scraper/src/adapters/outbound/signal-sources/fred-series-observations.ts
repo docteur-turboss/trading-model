@@ -29,8 +29,8 @@ function _periodEnd(start: string, span: keyof typeof MONTHS | "day") {
 /**
  * One FRED series of a US federal agency (FRED API, request with
  * `realtime_start=1776-07-04&realtime_end=9999-12-31` so every vintage comes):
- * a `macro` payload per (period, vintage). `observedAt` is the vintage date
- * (`realtime_start`), so a revision is a second signal and the first stays.
+ * a `macro` payload per (period, vintage). `observedAt` is the end of the
+ * vintage day (`realtime_start`, UTC: FRED gives no release time), so a revision is a second signal and the first stays.
  */
 export const FRED_SERIES_OBSERVATIONS: SourceAdapter = {
 	dimensions: ["macro"],
@@ -55,7 +55,7 @@ export const FRED_SERIES_OBSERVATIONS: SourceAdapter = {
 			return [
 				{
 					key: `${row.date}@${row.realtime_start}`,
-					observedAt: Date.parse(row.realtime_start),
+					observedAt: Date.parse(row.realtime_start) + DAY_MS,
 					payload: {
 						metric: params.metric,
 						value,
