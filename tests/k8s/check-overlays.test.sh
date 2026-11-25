@@ -53,8 +53,8 @@ else
 fi
 # Issue #1931: a bus user sent to the partitioned redis-0, which lacks its ACL user.
 rm -r "$TMP/deploy" && cp -r "$ROOT/deploy" "$TMP/deploy"
-# risk-execution: a bus user staging-local's redis-0 does not have (BUS_ON_PARTITIONED_REDIS).
-echo 'REDIS_USERNAME=risk-execution' >>"$TMP/deploy/k8s/config/risk-execution.properties"
+# risk-execution: a bus user staging-local's redis-0 does not have (BUS_ON_PARTITIONED_REDIS), sent through the library.
+sed -i 's/^        value: http$/        value: library/' "$TMP/deploy/k8s/overlays/staging-local/kustomization.yaml"
 if out="$(cd "$TMP" && node "$ROOT/tests/k8s/check-overlays.mjs" 2>&1)"; then
   echo "  ✗ bus user on partitioned redis accepted"; exit 1
 fi

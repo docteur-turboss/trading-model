@@ -56,7 +56,9 @@ if [ "$1" = get ] && [ "$2" = pods ]; then printf "%b" "${STUB_PODS:-}"; exit 0;
 if [ "$1" = get ] && [[ $2 == statefulset/* ]]; then [[ $* == *updateRevision* ]] && printf '%s-abc' "${2#*/}"; exit 0; fi
 if [ "$1" = get ] && [ "$2" = statefulset ]; then [ -z "${STUB_NO_REDIS:-}" ] || exit 1; [ "$3" = redis ] && printf 'redis-abc'; exit 0; fi
 [ "$1" = exec ] && exit 0
-if [ "$1" = wait ] || [ "$1" = delete ] || [ "$1" = create ] || [ "$2" = configmap ] || [ "$2" = deployments ]; then exit 0; fi
+if [ "$1" = create ] && [ "$2" = job ]; then cat "$STUB_JOB_JSON"; exit 0; fi
+if [ "$1" = get ] && [[ $2 == job/* ]]; then printf '%s ' "${STUB_JOB_STATE:-Complete}"; exit 0; fi
+if [ "$1" = wait ] || [ "$1" = delete ] || [ "$1" = create ] || [ "$2" = configmap ] || [ "$2" = secret ] || [ "$2" = deployments ]; then exit 0; fi
 if [ "$1" = get ] && [ "$2" = controllerrevision ]; then [ "$3" = redis-abc ] && printf '3'; exit 0; fi
 if [ "$1" = rollout ] && [ "$2" = status ]; then [ "$3" = "deployment/${STUB_STATUS_FAILS:-}" ] || [ "$3" = "statefulset/${STUB_STATUS_FAILS:-}" ] && exit 1; exit 0; fi
 if [ "$1" = get ] && [ "$2" = deployment ]; then
@@ -178,6 +180,29 @@ sts_names() { awk '/^---/ { k = "" } /^kind:/ { k = $2 } k == "StatefulSet" && /
 	ko "redis last: $(cat "$WORK/log")"
 STUB_NO_REDIS=1 bash "$SCRIPT" without-redis ns <"$WORK/app.yaml" | cmp -s - "$WORK/app.yaml" &&
 	ok "without-redis keeps the Redis StatefulSets on a first deploy" || ko "without-redis dropped documents on a first deploy"
+
+# pre-migrate-backup (issue #2724): the Job of the db-backup CronJob, off-site only in production.
+cat >"$WORK/job.json" <<'JSON'
+{"kind": "Job", "spec": {"template": {"spec": {"containers": [{"name": "backup",
+  "command": ["sh", "-c", "/scripts/backup-k8s.sh --components mongodb,mysql,checkpoints,spire,risk\n"],
+  "envFrom": [{"secretRef": {"name": "trading-model-backup-s3", "optional": true}}],
+  "env": [{"name": "METRICS_FILE", "value": "/backups/metrics/backup.prom"}, {"name": "BACKUP_REQUIRE_OFFSITE", "value": "true"},
+    {"name": "BACKUP_S3_BUCKET", "valueFrom": {"secretKeyRef": {"name": "trading-model-backup-s3", "key": "BACKUP_S3_BUCKET"}}}]}]}}}}
+JSON
+export STUB_JOB_JSON="$WORK/job.json"
+premigrate() { : >"$WORK/applied"; GITHUB_STEP_SUMMARY="$WORK/summary" bash "$SCRIPT" pre-migrate-backup ns job-1 "$1" >/dev/null 2>&1; }
+: >"$WORK/summary"
+premigrate staging && jq -e '.spec.template.spec.containers[0] | (.command[2] | test("--components mysql\n$"))
+	and ([.env[] | select(.name == "BACKUP_S3_BUCKET")] == [{name: "BACKUP_S3_BUCKET", value: ""}])
+	and ([.env[] | select(.name == "BACKUP_REQUIRE_OFFSITE")] == [{name: "BACKUP_REQUIRE_OFFSITE", value: "false"}])
+	and ([.env[] | select(.name == "METRICS_FILE")] == [{name: "METRICS_FILE", value: "/tmp/premigrate.prom"}])' "$WORK/applied" >/dev/null &&
+	grep -q "local only" "$WORK/summary" &&
+	ok "pre-migrate-backup outside production: MySQL only, no off-site copy, own metrics" || ko "pre-migrate staging: $(cat "$WORK/applied")"
+no_cmd='del(.spec.template.spec.containers[0].command)'
+premigrate production && [ "$(jq -S "$no_cmd" "$WORK/applied")" = "$(jq -S "$no_cmd" "$WORK/job.json")" ] &&
+	jq -e '.spec.template.spec.containers[0].command[2] | test("--components mysql\n$")' "$WORK/applied" >/dev/null &&
+	ok "pre-migrate-backup in production: the CronJob template, off-site required" || ko "pre-migrate production: $(cat "$WORK/applied")"
+STUB_JOB_STATE=Failed premigrate staging && ko "pre-migrate-backup passed on a failed dump" || ok "pre-migrate-backup fails on a failed Job"
 
 # Token expiry check of the "Configure kubeconfigs" step of deploy.yml (issue #1978): fake kubeconfigs holding only a JWT.
 jwt() { printf '{"exp":%s}' "$1" | base64 -w0 | tr '+/' '-_' | tr -d '='; }

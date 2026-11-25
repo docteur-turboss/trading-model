@@ -83,8 +83,8 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 | audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives |
 | dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability |
 | model-evaluator | address-manager, broker-message, common, contracts, http, model-runtime, persistence, primitives |
-| risk-execution | address-manager, broker-message, common, contracts, http, model-runtime, primitives |
-| decision-consumer | address-manager, broker-message, common, contracts, http, model-runtime, primitives |
+| risk-execution | address-manager, broker-message, common, contracts, http, model-runtime, persistence, primitives |
+| decision-consumer | address-manager, broker-message, common, contracts, http, model-runtime, persistence, primitives |
 | financial-scraper | address-manager, common, contracts, crypto, http, persistence, primitives, reliability |
 | message-manager | address-manager, broker-message, common, contracts, http, persistence, primitives, reliability |
 | trader-trainer | address-manager, broker-message, common, contracts, crypto, http, model-runtime, persistence, primitives, reliability |

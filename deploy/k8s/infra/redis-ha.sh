@@ -177,6 +177,7 @@ acl_args() {
 	bus_user trader-trainer "${REDIS_TRADER_TRAINER_PASSWORD:-}" "training.model.published" ""
 	bus_user risk-execution "${REDIS_RISK_EXECUTION_PASSWORD:-}" "risk.order.transitioned risk.kill-switch.engaged risk.kill-switch.rearmed" ""
 	bus_user model-evaluator "${REDIS_MODEL_EVALUATOR_PASSWORD:-}" "dlq.entry.added" "training.model.published"
+	bus_user decision-consumer "${REDIS_DECISION_CONSUMER_PASSWORD:-}" "risk.promotion.loaded" ""
 	service_user dlq-service "${REDIS_DLQ_PASSWORD:-}" "dlq:queue" +llen +lpush +lrange +ltrim +eval +evalsha "+script|load"
 	exporter_user
 }
