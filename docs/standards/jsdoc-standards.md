@@ -64,12 +64,12 @@ export async function fetchCandles(symbol: string, interval: string): Promise<Ca
 
 ```typescript
 /**
- * Subscribe a service to a topic of the message-manager.
- * Sends a POST to the message-manager.
+ * Subscribe a service to a topic of the message bus.
+ * Creates the service's consumer group on the topic stream in Redis.
  *
- * @param subscription - Topic and callback path to subscribe.
- * @returns The server response with the subscription state.
- * @throws If the message-manager is unreachable after 3 retries.
+ * @param subscription - Topic and service to subscribe.
+ * @returns The subscription state.
+ * @throws If Redis is unreachable after 3 retries.
  */
 export async function subscribe(subscription: Subscription): Promise<SubscriptionResponse> {
 ```

@@ -30,7 +30,6 @@ services/my-service/
 │   ├── fixtures/
 │   └── helpers/
 ├── docs/                  # Service-specific documentation
-├── Dockerfile             # Bun build stages, Node runtime pinned by digest, non-root, tini
 ├── package.json
 ├── tsconfig.json
 └── jest.config.js
@@ -88,7 +87,7 @@ export function createServer() {
 
 ## Dockerfile
 
-Copy `services/message-manager/Dockerfile` and replace `message-manager` with the service name. It builds with Bun but runs on Node (Bun exposes neither the peer certificate on HTTPS sockets nor `server.setSecureContext`, which SPIFFE caller identity and SVID rotation need), pins every base image by digest, runs as `appuser`, and probes `https://localhost:3000/health/ready` with the SVID as client certificate.
+The root `Dockerfile` builds every service (`docker build --build-arg SERVICE=<name> .`): add a `build.args.SERVICE` entry in `docker-compose.build.yml`. It builds with Bun but runs on Node (Bun exposes neither the peer certificate on HTTPS sockets nor `server.setSecureContext`, which SPIFFE caller identity and SVID rotation need), pins every base image by digest, runs as `appuser`, and probes `https://localhost:3000/health/ready` with the SVID as client certificate.
 
 ## Registering in the Monorepo
 

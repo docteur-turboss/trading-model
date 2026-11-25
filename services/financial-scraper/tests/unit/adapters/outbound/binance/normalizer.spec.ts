@@ -1,8 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import {
-	CandleInterval,
-	TradeSide,
-} from "@trading-model/contracts/market-data.types";
+import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import {
 	TradingSymbol,
 	UnixTimestamp,
@@ -10,13 +7,10 @@ import {
 import { normalizeCandles } from "../../../../../src/adapters/outbound/binance/normalizers/candles";
 import { normalizeOrderBook } from "../../../../../src/adapters/outbound/binance/normalizers/order-book";
 import { normalizeTicker24h } from "../../../../../src/adapters/outbound/binance/normalizers/ticker";
-import { normalizeTrades } from "../../../../../src/adapters/outbound/binance/normalizers/trades";
 import {
 	mock24hrTickerResponse,
 	mockCandlestickResponse,
 	mockDepthResponse,
-	mockHistoricalTradeResponse,
-	mockTradeResponse,
 } from "../../../../fixtures/binance.fixture";
 
 const SYMBOL = TradingSymbol.of("BTCUSDT");
@@ -40,27 +34,6 @@ describe("Binance normalizers", () => {
 			const firstBid = [...result.bids][0];
 			expect(typeof firstBid.price).toBe("number");
 			expect(typeof firstBid.quantity).toBe("number");
-		});
-	});
-
-	describe("trades", () => {
-		it("should normalize trade response to TradeData array", () => {
-			const result = normalizeTrades(SYMBOL_QUERY, mockTradeResponse);
-			expect(result).toHaveLength(2);
-			expect(result[0].symbol).toBe("BTCUSDT");
-			expect(result[0].side).toBe(TradeSide.Sell); // isBuyerMaker = true → sell
-			expect(result[1].side).toBe(TradeSide.Buy);
-		});
-
-		it("should handle historical trade response", () => {
-			const result = normalizeTrades(SYMBOL_QUERY, mockHistoricalTradeResponse);
-			expect(result).toHaveLength(1);
-		});
-
-		it("should convert string price and quantity to numbers", () => {
-			const result = normalizeTrades(SYMBOL_QUERY, mockTradeResponse);
-			expect(typeof result[0].price).toBe("number");
-			expect(typeof result[0].quantity).toBe("number");
 		});
 	});
 

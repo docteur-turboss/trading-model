@@ -13,7 +13,7 @@ FAILED=0
 ok() { echo "  ✓ $*"; }
 ko() { echo "  ✗ $*"; FAILED=1; }
 
-IMAGES="message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator risk-execution decision-consumer spire-tools backup-tools"
+IMAGES="financial-scraper trader-trainer api-gateway audit-logger model-evaluator risk-execution decision-consumer spire-tools backup-tools"
 for img in $IMAGES; do
 	echo "$img sha256:$(printf '%s' "$img" | sha256sum | cut -d' ' -f1)"
 done >"$WORK/digests"
@@ -58,6 +58,7 @@ if [ "$1" = get ] && [ "$2" = statefulset ]; then [ -z "${STUB_NO_REDIS:-}" ] ||
 [ "$1" = exec ] && exit 0
 if [ "$1" = create ] && [ "$2" = job ]; then cat "$STUB_JOB_JSON"; exit 0; fi
 if [ "$1" = get ] && [[ $2 == job/* ]]; then printf '%s ' "${STUB_JOB_STATE:-Complete}"; exit 0; fi
+[ "$1" = wait ] && [ -n "${STUB_WAIT_FAILS:-}" ] && exit 1
 if [ "$1" = wait ] || [ "$1" = delete ] || [ "$1" = create ] || [ "$2" = configmap ] || [ "$2" = secret ] || [ "$2" = deployments ]; then exit 0; fi
 if [ "$1" = get ] && [ "$2" = controllerrevision ]; then [ "$3" = redis-abc ] && printf '3'; exit 0; fi
 if [ "$1" = rollout ] && [ "$2" = status ]; then [ "$3" = "deployment/${STUB_STATUS_FAILS:-}" ] || [ "$3" = "statefulset/${STUB_STATUS_FAILS:-}" ] && exit 1; exit 0; fi
@@ -78,13 +79,13 @@ chmod +x "$WORK/bin/kubectl"
 export PATH="$WORK/bin:$PATH" STUB_LOG="$WORK/log" STUB_APPLIED="$WORK/applied"
 log_line() { grep -n "$1" "$WORK/log" | tail -1 | cut -d: -f1; }
 
-STUB_REVS="message-manager=4 api-gateway=7" bash "$SCRIPT" record ns "$WORK/revs" >/dev/null
-grep -qx "message-manager 4" "$WORK/revs" && grep -qx "api-gateway 7" "$WORK/revs" &&
+STUB_REVS="trader-trainer=4 api-gateway=7" bash "$SCRIPT" record ns "$WORK/revs" >/dev/null
+grep -qx "trader-trainer 4" "$WORK/revs" && grep -qx "api-gateway 7" "$WORK/revs" &&
 	grep -qx "edge-proxy none" "$WORK/revs" && grep -qx "statefulset/redis 3" "$WORK/revs" && grep -qx "statefulset/redis-sentinel none" "$WORK/revs" &&
-	[ "$(wc -l <"$WORK/revs")" -eq 13 ] &&
-	ok "record writes the Redis StatefulSets and the 11 Deployments, none when missing" || ko "record: $(cat "$WORK/revs")"
+	[ "$(wc -l <"$WORK/revs")" -eq 11 ] &&
+	ok "record writes the Redis StatefulSets and the 9 Deployments, none when missing" || ko "record: $(cat "$WORK/revs")"
 
-printf 'message-manager 4\napi-gateway 7\n' >"$WORK/revs"
+printf 'trader-trainer 4\napi-gateway 7\n' >"$WORK/revs"
 : >"$WORK/log"
 STUB_UNDO_FAILS="" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 	grep -q "rollout undo deployment/api-gateway -n ns --to-revision=7" "$WORK/log" &&
@@ -106,25 +107,25 @@ out="$(STUB_API_DOWN="$WORK/api-down" bash "$SCRIPT" rollback ns "$WORK/revs" 2>
 		ok "rollback gives up after 300 s of API server down, nothing undone, ConfigMap kept" || ko "rollback API down: $out"; }
 rm "$WORK/bin/sleep"
 
-printf 'message-manager 4\nedge-proxy none\napi-gateway 7\n' >"$WORK/revs"
+printf 'trader-trainer 4\nedge-proxy none\napi-gateway 7\n' >"$WORK/revs"
 : >"$WORK/log"
-out="$(STUB_UNDO_FAILS=message-manager bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
+out="$(STUB_UNDO_FAILS=trader-trainer bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
 	ko "rollback succeeded with a failed undo and a new Deployment" ||
 	{ grep -q "deployment/api-gateway" "$WORK/log" && grep -q "delete deployment/edge-proxy -n ns" "$WORK/log" &&
 		ok "rollback fails on a failed undo, deletes a new Deployment, still tries every Deployment" || ko "rollback: $out"; }
 
-printf 'message-manager 4
+printf 'trader-trainer 4
 api-gateway 7
 ' >"$WORK/revs"
 : >"$WORK/log"
-out="$(STUB_STATUS_FAILS=message-manager bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
+out="$(STUB_STATUS_FAILS=trader-trainer bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
 	ko "rollback succeeded though a rollout did not come back" ||
 	{ grep -q "rollout status deployment/api-gateway -n ns --timeout=180s" "$WORK/log" &&
-		[[ $out == *"message-manager did not finish rolling back"* ]] &&
-		grep -q "describe deployment/message-manager -n ns" "$WORK/log" &&
+		[[ $out == *"trader-trainer did not finish rolling back"* ]] &&
+		grep -q "describe deployment/trader-trainer -n ns" "$WORK/log" &&
 		ok "rollback waits for each rollout and fails if one does not come back" || ko "rollback status: $out"; }
 
-printf 'statefulset/redis 3\nstatefulset/redis-sentinel 2\nmessage-manager 4\n' >"$WORK/revs"
+printf 'statefulset/redis 3\nstatefulset/redis-sentinel 2\ntrader-trainer 4\n' >"$WORK/revs"
 : >"$WORK/log"
 bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 	[ "$(grep -n 'rollout undo statefulset/redis-sentinel' "$WORK/log" | cut -d: -f1)" -lt \
@@ -204,6 +205,17 @@ premigrate production && [ "$(jq -S "$no_cmd" "$WORK/applied")" = "$(jq -S "$no_
 	ok "pre-migrate-backup in production: the CronJob template, off-site required" || ko "pre-migrate production: $(cat "$WORK/applied")"
 STUB_JOB_STATE=Failed premigrate staging && ko "pre-migrate-backup passed on a failed dump" || ok "pre-migrate-backup fails on a failed Job"
 
+: >"$WORK/log"
+: >"$WORK/applied"
+STUB_PODS=node-1 bash "$SCRIPT" prepull ns <"$WORK/render.yaml" >/dev/null &&
+	[ "$(grep -c '^ *nodeName: node-1$' "$WORK/applied")" -eq 2 ] && grep -q "image: r/risk-execution@sha256:" "$WORK/applied" &&
+	[ "$(grep -c '^delete pod prepull-' "$WORK/log")" -eq 2 ] &&
+	ok "prepull pulls the image N on the node of each Recreate pod, then deletes the pods" || ko "prepull: $(cat "$WORK/log")"
+: >"$WORK/log"
+out="$(STUB_WAIT_FAILS=1 STUB_PODS=node-1 bash "$SCRIPT" prepull ns <"$WORK/render.yaml" 2>&1)" &&
+	[[ $out == *"::warning::Pre-pull"* ]] && grep -q '^delete pod prepull-risk-execution' "$WORK/log" &&
+	ok "a failed pre-pull only warns" || ko "prepull failure: $out"
+
 # Token expiry check of the "Configure kubeconfigs" step of deploy.yml (issue #1978): fake kubeconfigs holding only a JWT.
 jwt() { printf '{"exp":%s}' "$1" | base64 -w0 | tr '+/' '-_' | tr -d '='; }
 mkdir -p "$WORK/kube" "$WORK/bin"
@@ -220,6 +232,7 @@ out="$(expiry 1700000000)" && ko "expired token accepted" ||
 	{ [[ "$out" == *"::error::KUBECONFIG_STAGING_APP token expired on 2023-11-14 22:13 UTC"*"deploy-identity.sh app"* ]] && ok "expired token: error with date and regeneration command" || ko "expired: $out"; }
 out="$(expiry $(($(date +%s) + 3600)))" && [[ "$out" == *"::warning::KUBECONFIG_STAGING_APP token expires on"* ]] && ok "token expiring in 1 h: warning" || ko "soon: $out"
 out="$(expiry $(($(date +%s) + 999999)))" && [ -z "$out" ] && ok "valid token: silent" || ko "valid: $out"
+
 
 bash "$SCRIPT" bogus >/dev/null 2>&1 && ko "unknown command accepted" || ok "unknown command refused"
 

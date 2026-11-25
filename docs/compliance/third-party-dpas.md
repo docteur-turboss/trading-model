@@ -11,11 +11,10 @@ The financial-scraper service fetches **market data only** from Binance's public
 | Endpoint                        | Data Retrieved                                 |
 | ------------------------------- | ---------------------------------------------- |
 | `GET /api/v3/klines`            | OHLCV candles (open, high, low, close, volume) |
-| `GET /api/v3/trades`            | Recent trades (price, quantity, side)          |
 | `GET /api/v3/depth`             | Order book snapshots (bids, asks)              |
 | `GET /api/v3/ticker/24hr`       | 24-hour statistics                             |
 
-The four endpoints above are the only ones called, all public. No request is signed and no Binance account exists: `BINANCE_API_KEY` / `BINANCE_API_SECRET` are read by no code.
+The three endpoints above are the only ones called, all public. No request is signed and no Binance account exists: `BINANCE_API_KEY` / `BINANCE_API_SECRET` are read by no code.
 
 ### Regulatory Status (MiCA)
 

@@ -34,10 +34,7 @@
 //     kind of the application overlay is in deploy-identity/app-role.yaml (or,
 //     for the cluster-scope ones, cluster-role.yaml), every kind of the
 //     node-agents overlay in node-role.yaml or cluster-role.yaml
-//   - no bus user (BUS_USERS) of staging-local reaches the partitioned redis-0 (its ConfigMap
-//     sets BUS_TRANSPORT=http), unless in BUS_ON_PARTITIONED_REDIS (issue #1931)
-//   - mongo-dlq and mongo-audit run the same bootstrap script, which adds every
-//     pod to the replica set (issue #2197)
+//   - mongo-audit runs a bootstrap script that adds every pod to the replica set (issue #2197)
 // Usage: node tests/k8s/check-overlays.mjs   (needs kubectl)
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -53,13 +50,8 @@ const SINGLETONS = {
 };
 // Data and observability StatefulSets of staging-local held by a partition (issue #700).
 // Not prometheus nor alertmanager: a held pod keeps the rules and scrape jobs of an old release (issue #2323).
-const DATABASES = ["mysql", "redis", "redis-sentinel", "mongo-dlq", "mongo-audit"];
+const DATABASES = ["mysql", "redis", "redis-sentinel", "mongo-audit"];
 const DATA_STATEFULSETS = [...DATABASES, "grafana", "loki"];
-// Bus ACL users (redis-ha.sh) a partitioned redis-0 learns only when restarted (issue #1931).
-const BUS_USERS = ["audit-logger", "trader-trainer", "model-evaluator", "risk-execution", "decision-consumer"];
-// Bus users allowed on the sentinels in staging-local: those redis-0 knows after the
-// data tier switch of docs/deployment/STAGING_LOCAL.md (done 2026-11-23, issue #1982).
-const BUS_ON_PARTITIONED_REDIS = new Set(["audit-logger", "trader-trainer", "model-evaluator"]);
 // Bare names a database may mount: also applied by name outside kustomize (run-migrations.sh), read by the exporter sidecar only.
 const BARE_CONFIGMAPS = new Set(["mysql-client-tls"]);
 const IMAGE = /image: ghcr\.io\/trading-model\/([a-z0-9-]+)/g;
@@ -274,8 +266,8 @@ const deployed = deployImages();
 // release.yml derives services from IMAGES; tools stay hard-coded `include` entries.
 const releaseTools = new Set([...readFileSync(".github/workflows/release.yml", "utf8").matchAll(/^ {10}- image: (\S+)$/gm)].map((m) => m[1]));
 for (const image of deployed) {
-	if (!existsSync(`services/${image}/Dockerfile`) && !releaseTools.has(image)) {
-		errors.push(`deploy.yml IMAGES: ${image} is built by release.yml neither as a service (services/${image}/Dockerfile) nor as a tool (- image: ${image})`);
+	if (!existsSync(`services/${image}`) && !releaseTools.has(image)) {
+		errors.push(`deploy.yml IMAGES: ${image} is built by release.yml neither as a service (services/${image}/) nor as a tool (- image: ${image})`);
 	}
 }
 for (const env of OVERLAYS) {
@@ -388,23 +380,10 @@ for (const env of OVERLAYS) {
 		}
 	}
 
-	// Issue #2197: every Mongo pod adds itself to the replica set, with one script for both sets.
-	const [dlqBoot, auditBoot] = ["mongo-dlq", "mongo-audit"].map(
-		(name) => docs.find((doc) => doc.kind === "StatefulSet" && doc.name === name)?.text.match(/^ +M="mongosh [\s\S]*?exec sleep infinity$/m)?.[0],
-	);
-	if (!dlqBoot?.includes("rs.add(process.env.SELF)") || dlqBoot !== auditBoot) {
-		errors.push(`${env}: the mongodb-bootstrap scripts of mongo-dlq and mongo-audit must be identical and rs.add each member (issue #2197)`);
-	}
-
-	const redisSts = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === "redis")?.text ?? "";
-	if (/^ {6}partition: [1-9]/m.test(redisSts)) {
-		for (const cm of docs.filter((doc) => doc.kind === "ConfigMap")) {
-			const user = cm.text.match(/^ +REDIS_USERNAME: "?([^"\n]+)"?$/m)?.[1];
-			const transport = cm.text.match(/^ +BUS_TRANSPORT: "?([^"\n]*)"?$/m)?.[1]?.trim();
-			if (BUS_USERS.includes(user) && transport !== "http" && !BUS_ON_PARTITIONED_REDIS.has(user)) {
-				errors.push(`${env}: ${cm.name} sends bus user ${user} to the partitioned redis, which lacks it until restarted: set BUS_TRANSPORT=http (issue #1931)`);
-			}
-		}
+	// Issue #2197: every Mongo pod adds itself to the replica set.
+	const auditBoot = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === "mongo-audit")?.text.match(/^ +M="mongosh [\s\S]*?exec sleep infinity$/m)?.[0];
+	if (!auditBoot?.includes("rs.add(process.env.SELF)")) {
+		errors.push(`${env}: the mongodb-bootstrap script of mongo-audit must rs.add each member (issue #2197)`);
 	}
 
 	// Issue #917: a PDB demanding every pod of a fixed-replica workload blocks node drains.

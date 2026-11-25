@@ -8,7 +8,7 @@ import type { RedisMessageJournal } from "./redis-journal";
 
 /**
  * Publishes straight into the journal stream of the topic (ADR-0073): no
- * message-manager. Durable once it resolves; a refused `XADD` (Redis full under
+ * a broker service. Durable once it resolves; a refused `XADD` (Redis full under
  * `noeviction`, too few replicas) rejects, it is never reported as sent.
  */
 export async function publishToBus(
@@ -30,5 +30,19 @@ export async function publishToBus(
 		});
 		return;
 	}
-	await journal.append(message, []);
+	try {
+		await journal.append(message, [], undefined, true);
+	} catch (err) {
+		if (!(err as { waitRefused?: boolean }).waitRefused) {
+			throw err;
+		}
+		getLogger().warn(
+			"Journal write refused by WAIT: resending the same messageId",
+			{
+				context: { topic, messageId },
+			}
+		);
+		// shortcut: one resend; a second refusal rejects to the caller. Consumers deduplicate per process, not across replicas.
+		await journal.append(message, [], undefined, true);
+	}
 }

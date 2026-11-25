@@ -35,7 +35,7 @@ Common issues grouped by category. For per-service debugging, see the [runbooks]
 
 | Symptom                            | Likely cause                              | Fix                                                                           |
 | ---------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------- |
-| `Authentication failed` (audit-logger, dlq-service) | Volume created before authentication (ADR-0067) | `docker compose down -v`, or use the localhost exception (see the `mongo` service) |
+| `Authentication failed` (audit-logger) | Volume created before authentication (ADR-0067) | `docker compose down -v`, or use the localhost exception (see the `mongo` service) |
 | Connection refused                 | Mongo not healthy yet                     | Wait for health check to pass                                                 |
 | Data not persisted                 | Named volume removed                      | Use `docker compose down` (keeps volumes) instead of `docker compose down -v` |
 | `mongosh` not found in container   | Mongo 7 uses `mongosh` instead of `mongo` | The health check already uses `mongosh`; verify image is `mongo:7`            |

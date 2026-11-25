@@ -18,7 +18,7 @@ The trading-model platform trains autonomous trading agents using Genetic Algori
 |---|---|---|
 | **Art. 1(1)** — Clearly describe system design and operation | Architecture documented in `docs/architecture/`, ADRs in `docs/adr/`, agent topology defined in `services/trader-trainer/src/domain/neural-network/` | ✅ Documented |
 | **Art. 1(2)** — Identify trading algorithms, logic, constraints | GA population evolution + DQN policy network. Constraints: position sizing, market data window (500 candles default), train/validation split (80/20) | ✅ Implemented |
-| **Art. 1(3)** — Risk management controls pre-deployment | Circuit breakers on service-to-service calls (`packages/reliability/src/circuit-breaker.ts`), exposure cap `maxExposureFraction` (0.3 in training). No order frequency limit, no kill switch | 🟡 Partial |
+| **Art. 1(3)** — Risk management controls pre-deployment | Circuit breakers on service-to-service calls (`packages/reliability/src/circuit-breaker.ts`), exposure cap `maxExposureFraction` (0.1 in training). No order frequency limit, no kill switch | 🟡 Partial |
 | **Art. 1(4)** — Business continuity arrangements | Docker Compose health checks, K8s HPA + PDB, database failover runbooks (`docs/operations/runbooks/runbook-database-failover.md`) | ✅ Documented |
 
 ## 3. Governance & Testing Requirements (RTS 6 Art. 3-5)
@@ -30,7 +30,7 @@ The platform must demonstrate that algorithmic trading systems conform to specif
 | Test | Implementation | Evidence |
 |---|---|---|
 | **Market data integrity** — input validation and sanitisation | Zod schemas validate all incoming market data (`services/financial-scraper/src/adapters/outbound/binance/`) | Integration tests |
-| **Agent behaviour bounds** — max exposure only | `maxExposureFraction` (0.3, set explicitly by `rl-backend.ts`, recorded in the model manifest as `riskLimits`) reduces a buy to that fraction of the initial cash at the fill price (refused only when nothing is left) (`packages/model-runtime/src/env/trade-executor.ts`, validated in `wallet-validation.ts`). No order frequency limit exists | Unit tests |
+| **Agent behaviour bounds** — max exposure only | `maxExposureFraction` (0.1, set explicitly by `rl-backend.ts`, recorded in the model manifest as `riskLimits`) reduces a buy to that fraction of the initial cash at the fill price (refused only when nothing is left) (`packages/model-runtime/src/env/trade-executor.ts`, validated in `wallet-validation.ts`). No order frequency limit exists | Unit tests |
 | **Order generation validation** — no erroneous orders | Training operates in simulation mode only; no real order execution | N/A (simulation only) |
 | **Kill functionality** — ability to halt trading | Implemented in `risk-execution`, paper only, see [Loss Limits and Kill Switch Policy](risk-limits-policy.md) §8 (Status) | ⚠️ Paper only, no live adapter |
 
@@ -38,7 +38,7 @@ The platform must demonstrate that algorithmic trading systems conform to specif
 
 | Scenario | Platform Response |
 |---|---|
-| **Market data feed loss** — Binance API unavailable or geo-blocked ([ADR-0026](../adr/0026-binance-public-market-data-kept.md)) | No circuit breaker on the Binance client: 5xx, 429, 408 and network errors are retried with exponential backoff (5 attempts); 403 (WAF), 418 (IP ban) and 451 (restricted location) are not. A failed cycle persists and publishes nothing, so no message reaches `dlq-service`. Detected by `BinanceRestrictedLocation` (451), `ScrapeCyclesFailing` and `MarketDataStale`; fallbacks in [runbook-market-data-stale](../operations/runbooks/runbook-market-data-stale.md). The trainer stops training a symbol whose newest candle is older than `TRAINER_MAX_DATA_AGE_MS` (15 min) and resumes when fresh data arrives |
+| **Market data feed loss** — Binance API unavailable or geo-blocked ([ADR-0026](../adr/0026-binance-public-market-data-kept.md)) | No circuit breaker on the Binance client: 5xx, 429, 408 and network errors are retried with exponential backoff (5 attempts); 403 (WAF), 418 (IP ban) and 451 (restricted location) are not. A failed cycle persists and publishes nothing, so no message reaches a dead stream. Detected by `BinanceRestrictedLocation` (451), `ScrapeCyclesFailing` and `MarketDataStale`; fallbacks in [runbook-market-data-stale](../operations/runbooks/runbook-market-data-stale.md). The trainer stops training a symbol whose newest candle is older than `TRAINER_MAX_DATA_AGE_MS` (15 min) and resumes when fresh data arrives |
 | **Extreme volatility** — rapid price movements | Agent uses normalised feature vectors; outlier detection in `feature-builder.ts`. No live execution risk in simulation |
 | **High message volume** — HTTP broker with a durable Redis journal ([ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md)) | Per-subscriber circuit breaker, exponential backoff (10 attempts), dead letters counted and alerted (`BusDeadLetters`), audit-logger with back-pressure management via job queue. Accepted messages are journaled in Redis (AOF + replication): a broker restart loses none |
 
@@ -57,7 +57,7 @@ The platform should undergo an annual review covering:
 
 | Control | Implementation |
 |---|---|
-| **Max order volume/ value** | Partial: exposure cap `maxExposureFraction` only (`packages/model-runtime/src/env/trade-executor.ts`): position value ≤ 0.3 × initial cash in training, no leverage. No per-order value limit |
+| **Max order volume/ value** | Partial: exposure cap `maxExposureFraction` only (`packages/model-runtime/src/env/trade-executor.ts`): position value ≤ 0.1 × initial cash in training, no leverage. No per-order value limit |
 | **Max order frequency** | Implemented in `risk-execution` (orders per minute per symbol and global, ADR-0064 §2), paper only; the trainer simulation keeps no limit |
 | **Dual-channel price validation** | Not implemented — simulation only. For production: requires independent price feed comparison |
 | **Pre-trade risk checks** | Implemented in `risk-execution` (paper only, simulated broker), required before any order flow: [ADR-0064](../adr/0064-risk-and-execution-context-before-order-flow.md) (Accepted, option A) |

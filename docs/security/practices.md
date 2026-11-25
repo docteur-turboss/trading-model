@@ -19,10 +19,8 @@ Each SVID carries a SPIFFE URI SAN (`spiffe://trading-model.local/ns/<namespace>
 
 - `api-gateway`
 - `audit-logger`
-- `dlq-service`
 - `edge-proxy`
 - `financial-scraper`
-- `message-manager`
 - `model-evaluator`
 - `trader-trainer`
 
@@ -93,7 +91,7 @@ TLS_CERT_PATH=/run/spire/svid/svid.pem
 TLS_CA_PATH=/run/spire/svid/bundle.pem
 
 # Gateway auth (api-gateway)
-AUTH_TOKENS=ops:read+dlq:write:<secret>
+AUTH_TOKENS=ops:read:<secret>
 AUTH_TOKEN_HEADER=x-api-key
 ```
 

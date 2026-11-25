@@ -30,9 +30,7 @@
 					"api-gateway",
 					"audit-logger",
 					"decision-consumer",
-					"dlq-service",
 					"financial-scraper",
-					"message-manager",
 					"model-evaluator",
 					"risk-execution",
 					"trader-trainer"

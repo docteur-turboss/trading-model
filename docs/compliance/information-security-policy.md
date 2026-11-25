@@ -34,7 +34,7 @@ The trading-model platform processes machine-generated financial market data and
 ### 3.2 Segregation of Duties
 
 - SVID issuance (SPIRE Server) is separate from SVID consumption (spiffe-helper sidecars)
-- Audit logging (audit-logger) is separate from message routing (message-manager)
+- Audit logging (audit-logger) is separate from message routing (the bus library)
 - CI/CD pipeline secrets are managed via SealedSecrets, not exposed to developers
 
 ## 4. Asset Management

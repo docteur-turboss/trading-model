@@ -36,14 +36,12 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 }));
 
 describe("address-manager config", () => {
-	it("should export ADDRESS_MANAGER_ROUTES and AddressManager", () => {
+	it("should export ADDRESS_MANAGER_ROUTES", () => {
 		const addressManagerModule = require("../../../src/config/address-manager");
 
 		expect(addressManagerModule.ADDRESS_MANAGER_ROUTES).toBeDefined();
 		expect(addressManagerModule.ADDRESS_MANAGER_ROUTES).toBe(
 			MOCK_ADDRESS_MANAGER.listenExpress
 		);
-		expect(addressManagerModule.AddressManager).toBeDefined();
-		expect(addressManagerModule.AddressManager).toBe(MOCK_ADDRESS_MANAGER);
 	});
 });

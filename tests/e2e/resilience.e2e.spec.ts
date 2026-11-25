@@ -56,11 +56,11 @@ describe("Resilience E2E", () => {
 	// outage nor a scraper restart during it may stop the persistence. The stub
 	// closes one candle a minute.
 	it(
-		"keeps persisting candles during a message-manager outage, across a scraper restart",
+		"keeps persisting candles during a bus outage (Redis down), across a scraper restart",
 		async () => {
 			const before = persistedCandles("BTCUSDT");
 
-			execFileSync("docker", ["stop", "trading-message"], { stdio: "ignore" });
+			execFileSync("docker", ["stop", "trading-redis"], { stdio: "ignore" });
 			try {
 				await eventually("a candle persisted while the bus is down", () =>
 					persistedCandles("BTCUSDT") > before ? true : undefined
@@ -71,11 +71,11 @@ describe("Resilience E2E", () => {
 					persistedCandles("BTCUSDT") > afterRestart ? true : undefined
 				);
 			} finally {
-				execFileSync("docker", ["start", "trading-message"], {
+				execFileSync("docker", ["start", "trading-redis"], {
 					stdio: "ignore",
 				});
-				await eventually("trading-message healthy", () =>
-					containerHealth("trading-message") === "healthy" ? true : undefined
+				await eventually("trading-redis healthy", () =>
+					containerHealth("trading-redis") === "healthy" ? true : undefined
 				);
 			}
 		},

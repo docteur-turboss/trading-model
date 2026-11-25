@@ -23,7 +23,7 @@ const ENV: any = {
 	CACHE_TTL_MS: 30000,
 	AUTH_TOKEN_HEADER: "x-api-key",
 	AUTH_TOKENS:
-		"all:read+dlq:write:test-token,all2:read+dlq:write:secondary-token,reader:read:reader-secret,ops-alice:read+dlq:write:alice-secret",
+		"all:read:test-token,all2:read:secondary-token,reader:read:reader-secret,ops-alice:read:alice-secret",
 	PROXY_TIMEOUT_MS: 5000,
 	ALLOWED_PROXY_CIDRS: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8",
 };
@@ -270,80 +270,34 @@ describe("API Gateway — Routes Integration", () => {
 		expect(result.body).toEqual({ error: "Service unavailable" });
 	});
 
-	it("should proxy a POST request with a JSON body", async () => {
-		mockProxySuccess({ body: JSON.stringify({ saved: true }) });
-
-		const app = createApp();
-		await new Promise<void>((resolve) => {
-			server = app.listen(0, () => resolve());
-		});
-		const result = await request(server, "/v1/dlq-service/dlq/replay", {
-			method: "POST",
-			headers: AUTH_HEADERS,
-			body: { ids: ["a"] },
-		});
-		expect(result.status).toBe(200);
-		expect(result.body).toEqual({ saved: true });
-		expect(forwardRequest).toHaveBeenCalledTimes(1);
-	});
-
-	it.each([
-		["DELETE", "/v1/dlq-service/dlq"],
-		["POST", "/v1/dlq-service/dlq/replay"],
-	])("refuses %s %s with 403 to a read-only key", async (method, path) => {
-		const app = createApp();
-		await new Promise<void>((resolve) => {
-			server = app.listen(0, () => resolve());
-		});
-		const result = await request(server, path, {
-			method,
-			headers: { [HTTP_HEADERS.X_API_KEY]: "reader-secret" },
-			body: { ids: ["a"] },
-		});
-		expect(result.status).toBe(403);
-		expect(forwardRequest).not.toHaveBeenCalled();
-	});
-
-	it("does not expose POST /dlq-service/dlq: an API client cannot store a dead letter to replay (#845)", async () => {
-		const app = createApp();
-		await new Promise<void>((resolve) => {
-			server = app.listen(0, () => resolve());
-		});
-		const result = await request(server, "/v1/dlq-service/dlq", {
-			method: "POST",
-			headers: AUTH_HEADERS,
-			body: { service: "trader-service", message: { forged: true } },
-		});
-		expect(result.status).toBe(404);
-		expect(forwardRequest).not.toHaveBeenCalled();
-	});
-
-	it("lets a read-only key read the DLQ", async () => {
+	it("lets a read-only key read the audit events", async () => {
 		mockProxySuccess({ body: JSON.stringify({ entries: [] }) });
 		const app = createApp();
 		await new Promise<void>((resolve) => {
 			server = app.listen(0, () => resolve());
 		});
-		const result = await request(server, "/v1/dlq-service/dlq", {
+		const result = await request(server, "/v1/audit-logger/events", {
 			headers: { [HTTP_HEADERS.X_API_KEY]: "reader-secret" },
 		});
 		expect(result.status).toBe(200);
 	});
 
-	it("forwards a DLQ delete with the key name as x-actor, never the secret nor a client x-actor", async () => {
-		mockProxySuccess({ body: JSON.stringify({ deleted: 1 }) });
+	it("forwards a request with the key name as x-actor, never the secret nor a client x-actor", async () => {
+		mockProxySuccess({ body: JSON.stringify({ events: [] }) });
 		const app = createApp();
 		await new Promise<void>((resolve) => {
 			server = app.listen(0, () => resolve());
 		});
-		const result = await request(server, "/v1/dlq-service/dlq", {
-			method: "DELETE",
-			headers: {
-				[HTTP_HEADERS.X_API_KEY]: "alice-secret",
-				"x-actor": "forged",
-			},
-			body: { ids: ["a"] },
-		});
+		const result = await request(
+			server,
+			"/v1/audit-logger/events/actor-check",
+			{
+				headers: {
+					[HTTP_HEADERS.X_API_KEY]: "alice-secret",
+					"x-actor": "forged",
+				},
+			}
+		);
 		expect(result.status).toBe(200);
 		const { req } = jest.mocked(forwardRequest).mock.calls[0][0] as {
 			req: ForwardableRequest;
@@ -358,8 +312,7 @@ describe("API Gateway — Routes Integration", () => {
 		["POST", "/v1/discovery-server/register"],
 		["POST", "/v1/discovery-server/heartbeat"],
 		["POST", "/v1/discovery-server/unregister"],
-		["POST", "/v1/message-manager/message"],
-		["POST", "/v1/message-manager/subscribe"],
+		["POST", "/v1/dlq-service/dlq/replay"],
 		["GET", "/v1/financial-scraper/metrics"],
 		["GET", "/v1/nonexistent-service/ping"],
 		// URL normalization would forward these to POST /register.

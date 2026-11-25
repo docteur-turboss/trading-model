@@ -36,6 +36,55 @@ Deployment is separate: the manual `deploy.yml` (`workflow_dispatch`) takes an i
 
 A release that adds or changes a ClusterRole or ClusterRoleBinding of an overlay (3.1.0: `prometheus-nodes`, ADR-0056) needs an admin step before its deployment, in each environment: the deploy-cluster identity may only read them (ADR-0041). From a checkout of the release, run `bash scripts/deploy-identity.sh cluster --namespace <namespace> --environment <overlay>` as cluster admin (staging-local: `bash deploy/staging-local/bootstrap.sh identities`), then deploy. 3.1.0 also needs the application identity re-run (the Role `deploy-app` gained `leases` for the collector Lease, ADR-0057): `bash scripts/deploy-identity.sh app --namespace <namespace> | base64 -w0 | gh secret set KUBECONFIG_<ENV>_APP --env <env>` (staging-local: the same `bootstrap.sh identities` does both). Without it, the deploy step "Check deploy-app Role" (`deploy/k8s/scripts/check-app-rbac.sh`) stops before any apply with that command, and the step "Check overlay ClusterRoles" (`deploy/k8s/scripts/check-cluster-rbac.sh`) stops before any apply and prints that command with the missing or different objects.
 
+## One-off MongoDB DLQ import
+
+The release that retires message-manager and dlq-service (ADR-0073, issue #1241) ships the manifests without `mongo-dlq`, and `deploy.yml` never prunes: the running `mongo-dlq` StatefulSet, its Services, PVCs, Secret keys and Jobs survive the deploy. Entries still in MongoDB are copied once to the dead streams by the audit-logger CLI, **before** those objects are deleted.
+
+The same release moves risk-execution and decision-consumer onto the bus, with the new Redis users `risk-execution` and `decision-consumer` (`redis-ha.sh`). Redis only creates them when its pods restart: `deploy.yml` applies Redis last, and in staging-local `redis-0` is held by `partition: 1`, so restart Redis as [STAGING_LOCAL.md](../deployment/STAGING_LOCAL.md) describes right after the deploy. Until then Redis refuses both users: risk-execution keeps its `risk.*` events in its outbox file and replays them once Redis accepts it, and decision-consumer makes no decision (its `risk.promotion.loaded` publish fails, retried at each tick). Neither has a Redis readiness check, so the rollout itself is not blocked.
+
+1. Deploy the release ([DEPLOY.md](../deployment/DEPLOY.md)). Rollback to the previous release is still possible here.
+2. Import from an audit-logger pod, against the still-running `mongo-dlq` (values from the old Secret `trading-model-secrets`). The old `mongodb-network-policy` also survives the deploy, and its 27017 ingress only admits `dlq-service`, `mongodb` and `mongodb-init`: audit-logger would be refused and the import would time out. Open 27017 to audit-logger with a temporary NetworkPolicy for the duration of the import, then delete it. `app-role.yaml` grants create/delete on `networkpolicies`, so the namespace deploy identity (`KUBECONFIG_<ENV>_APP`) is enough. The URI lists `mongo-dlq-0..2`: on a 1-replica cluster (staging-local), check the members with `rs.conf()` first and keep only the existing ones.
+
+   ```bash
+   NS=trading-model   # or trading-model-staging
+   kubectl -n "$NS" apply -f - <<'EOF'
+   apiVersion: networking.k8s.io/v1
+   kind: NetworkPolicy
+   metadata:
+     name: mongo-dlq-import
+   spec:
+     podSelector:
+       matchLabels:
+         app.kubernetes.io/component: mongodb
+     policyTypes:
+       - Ingress
+     ingress:
+       - from:
+           - podSelector:
+               matchLabels:
+                 app.kubernetes.io/component: audit-logger
+         ports:
+           - port: 27017
+             protocol: TCP
+   EOF
+   kubectl -n "$NS" exec deploy/audit-logger -- env      MONGO_DLQ_URI='mongodb://mongo-dlq-0.mongo-dlq-headless:27017,mongo-dlq-1.mongo-dlq-headless:27017,mongo-dlq-2.mongo-dlq-headless:27017/dlq?replicaSet=rs0&authSource=admin&tls=true&tlsCAFile=/etc/mongo-tls/ca.crt'      MONGO_DLQ_USERNAME=dlq-service      MONGO_DLQ_PASSWORD="$(kubectl -n "$NS" get secret trading-model-secrets -o jsonpath='{.data.MONGO_DLQ_PASSWORD}' | base64 -d)"      node services/audit-logger/dist/application/dlq-cli.js <operator> import-mongo
+   kubectl -n "$NS" delete networkpolicy mongo-dlq-import   # after the import (and its verification, step 3)
+   ```
+
+   Compose: `docker compose exec -e MONGO_DLQ_URI='mongodb://mongo:27017/dlq?authSource=admin' -e MONGO_DLQ_USERNAME=dlq-service -e MONGO_DLQ_PASSWORD="$MONGO_DLQ_PASSWORD" audit-logger node services/audit-logger/dist/application/dlq-cli.js <operator> import-mongo`. `MONGO_DLQ_DB` defaults to `dlq`; the collection is `dlq_entries`.
+3. Verify. It copies the entries whose status is not `completed` to `trading-model:message-manager:dead:<topic>`, once per Mongo `_id` (Redis set `…:dead-imported`), and prints `{eligible, written, alreadyImported, unusable[]}`. The exit code is 0 only when `written + alreadyImported == eligible`, so a rerun after a failure is safe. Also compare `dlq-cli.js <operator> list <topic>` with what you expect; review `unusable`.
+4. Only then, in the release after this one (contract step, issue #2619), delete the orphaned objects by hand. This release keeps them, with the Secret keys `REDIS_MESSAGE_MANAGER_PASSWORD`, `REDIS_DLQ_PASSWORD`, `MONGO_DLQ_PASSWORD`, `MONGO_DLQ_KEYFILE` and `DLQ_AUTH_HMAC_SECRET` and the Redis users `message-manager` / `dlq-service`, so that an N-1 pod restart or a rollback still starts:
+
+   ```bash
+   kubectl -n "$NS" delete statefulset/mongo-dlq service/mongo-dlq service/mongo-dlq-headless      job/mongo-dlq-users pdb/mongo-dlq-pdb certificate/mongo-dlq-tls networkpolicy/mongodb-network-policy
+   kubectl -n "$NS" delete pvc -l app=mongo-dlq   # data-mongo-dlq-N claims; check the label with `kubectl get pvc` first
+   # The Secret keys above leave the sealed files with issue #2619, in the same release.
+   ```
+
+   Also delete the `mongodb-exporter` target of `mongo-dlq` if your environment added one by hand. Compose: `docker compose exec mongo mongosh -u root -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval 'db.getSiblingDB("dlq").dropDatabase()'`.
+
+**No return to the previous release after step 4**: it needs `mongo-dlq` and `dlq-service`. The `import-mongo` subcommand and `MONGO_DLQ_*` go from the CLI in the release after this one (issue #2619).
+
 ## Compatibility with the previous release (ADR-0061)
 
 CI fails a PR that breaks the public OpenAPI (`oasdiff breaking`) or a bus message schema against the last stable tag. Locally: `bun run contracts:write` after changing a message schema, then `bun run contracts:compat`. Allowed: optional fields, enum values, routes added. A forbidden change is split over two releases; an intentional break is declared in `docs/services/events/breaking-exceptions.json` (messages, the exact line printed) or `docs/services/openapi/oasdiff-ignore.txt` (OpenAPI), reviewed in the PR.

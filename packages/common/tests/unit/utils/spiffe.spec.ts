@@ -39,8 +39,8 @@ describe("extractCanonicalServiceName", () => {
 	});
 
 	it("should extract last segment from SPIFFE identities", () => {
-		expect(extractCanonicalServiceName(buildSpiffeId("dlq-service"))).toBe(
-			ServiceId.of("dlq-service")
+		expect(extractCanonicalServiceName(buildSpiffeId("api-gateway"))).toBe(
+			ServiceId.of("api-gateway")
 		);
 	});
 

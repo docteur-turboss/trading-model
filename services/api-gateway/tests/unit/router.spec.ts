@@ -63,7 +63,7 @@ jest.mock("../../src/adapters/inbound/auth", () => ({
 		require("../../src/adapters/inbound/auth").AUTH_MIDDLEWARE,
 	// Every scope unless the request sets its own.
 	authOf: (req: any) => ({
-		apiKeyScopes: req.apiKeyScopes ?? ["read", "dlq:write"],
+		apiKeyScopes: req.apiKeyScopes ?? ["read"],
 	}),
 }));
 
@@ -165,8 +165,7 @@ describe("router", () => {
 				["GET", "/v1/unknown-service/path"],
 				["POST", "/v1/discovery-server/register"],
 				["POST", "/v1/discovery-server/heartbeat"],
-				["POST", "/v1/message-manager/message"],
-				["DELETE", "/v1/message-manager/subscribe"],
+				["POST", "/v1/dlq-service/dlq/replay"],
 				["POST", "/v1/financial-scraper/candles/symbols/BTCUSDT"],
 			]) {
 				expect(await get(path, method)).toEqual({
@@ -231,7 +230,7 @@ describe("router", () => {
 
 		it("does not cache a signed answer for other callers", async () => {
 			mockForwardSuccess({ entries: ["signed"] });
-			const url = "/v1/dlq-service/dlq";
+			const url = "/v1/audit-logger/events";
 			await getHandler()(
 				createReq({
 					method: "GET",
@@ -295,72 +294,13 @@ describe("router", () => {
 			});
 		});
 
-		it("should handle POST requests (no cache)", async () => {
-			mockForwardSuccess({ saved: true });
-
-			const result = await getHandler()(
-				createReq({
-					method: "POST",
-					path: "/v1/dlq-service/dlq/replay",
-					url: "/v1/dlq-service/dlq/replay",
-					body: { name: "test" },
-				})
-			);
-			expect(result).toEqual({
-				status: 200,
-				data: JSON.stringify({ saved: true }),
-				contentType: "application/json",
-			});
-		});
-
-		it.each([
-			["DELETE", "/v1/dlq-service/dlq"],
-			["POST", "/v1/dlq-service/dlq/replay"],
-		])(
-			"refuses %s %s with 403 to a key without dlq:write",
-			async (method, path) => {
-				const {
-					forwardRequest,
-				} = require("../../src/adapters/outbound/proxy-handler");
-				forwardRequest.mockClear();
-
-				const result = await getHandler()(
-					createReq({ method, path, url: path, apiKeyScopes: ["read"] })
-				);
-
-				expect(result).toEqual({
-					status: 403,
-					data: {
-						error: "Forbidden",
-						reason: "API key lacks the dlq:write scope",
-					},
-				});
-				expect(forwardRequest).not.toHaveBeenCalled();
-			}
-		);
-
-		it("lets a read-only key GET the DLQ", async () => {
-			mockForwardSuccess({ entries: [] });
-
-			const result = await getHandler()(
-				createReq({
-					method: "GET",
-					path: "/v1/dlq-service/dlq",
-					url: "/v1/dlq-service/dlq",
-					apiKeyScopes: ["read"],
-				})
-			);
-
-			expect(result.status).toBe(200);
-		});
-
 		it("refuses a GET to a key without read", async () => {
 			const result = await getHandler()(
 				createReq({
 					method: "GET",
-					path: "/v1/dlq-service/dlq",
-					url: "/v1/dlq-service/dlq",
-					apiKeyScopes: ["dlq:write"],
+					path: "/v1/audit-logger/events",
+					url: "/v1/audit-logger/events",
+					apiKeyScopes: [],
 				})
 			);
 

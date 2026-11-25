@@ -28,16 +28,15 @@ Every answer is bounded (ADR-0054). Query parameters:
 
 | Parameter | Routes | Meaning |
 | --------- | ------ | ------- |
-| `limit` | trades, tickers, candles | rows per answer, 1 to 5000, default 500 |
-| `after` | trades, tickers, candles | `nextCursor` of the previous page (opaque) |
-| `from`, `to` | trades, tickers, candles | optional window on `timestamp`, ISO dates, `[from, to)` |
+| `limit` | tickers, candles | rows per answer, 1 to 5000, default 500 |
+| `after` | tickers, candles | `nextCursor` of the previous page (opaque) |
+| `from`, `to` | tickers, candles | optional window on `timestamp`, ISO dates, `[from, to)` |
 
-Trades, tickers and candles answer `{ "rows": [...], "nextCursor": "..." | null,
+Tickers and candles answer `{ "rows": [...], "nextCursor": "..." | null,
 "truncated": boolean }`, rows oldest first (ties in insertion order); follow
 `nextCursor` as `after` until it is `null`. The signals route is described in [Signals](#signals-adr-0036).
 
-Trades, tickers and candles come from MySQL: their instants are ISO date-times
-and `tradeId` (BIGINT) is a decimal string, exact past 2^53:
+Tickers and candles come from MySQL: their instants are ISO date-times:
 
 ```json
 {
@@ -46,11 +45,14 @@ and `tradeId` (BIGINT) is a decimal string, exact past 2^53:
     "symbol": "BTCUSDT",
     "market": "crypto",
     "source": "binance",
-    "side": "buy",
-    "price": 50000.0,
-    "quantity": 0.5,
-    "tradeId": "9007199254740993",
-    "timestamp": "2024-01-15T10:40:00.000Z"
+    "interval": "1m",
+    "open": 49990.0,
+    "high": 50010.0,
+    "low": 49985.0,
+    "close": 50000.0,
+    "volume": 12.5,
+    "timestamp": "2024-01-15T10:40:00.000Z",
+    "closeTimestamp": "2024-01-15T10:40:59.999Z"
   }
   ],
   "nextCursor": "MTcwNTMxNTIwMDAwMC40Mg",
@@ -76,7 +78,7 @@ prefix. A client of 2.x must change:
 - **Removed** (#577, ADR-0053), answer 404: `/orderbook/after/timestamp/{timestamp}`,
   `/orderbook/before/timestamp/{timestamp}`, `/orderbook/sources/{source}`,
   `/orderbook/symbols/{symbol}`.
-- **Paged** (#576, ADR-0054): the 9 trade, ticker and candle routes above
+- **Paged** (#576, ADR-0054): the ticker and candle routes above
   answered the whole result as a JSON array. They now answer
   `{ rows, nextCursor, truncated }` with at most `limit` rows (default 500):
   read `rows`, and follow `nextCursor` as `after` until it is `null` to get
@@ -91,7 +93,7 @@ Four tables store market data:
 | Table              | Content                   |
 | ------------------ | ------------------------- |
 | `market_candles`   | OHLCV candle data         |
-| `market_trades`    | Individual trade data     |
+| `market_trades`    | No longer collected or read (issue #2693; it only held a sample of 100 trades per minute); rows expire by retention, the table is dropped in the next release (ADR-0040) |
 | `market_tickers`   | 24-hour ticker statistics |
 | `market_order_books` | Order book depth snapshots (migration 008, ADR-0053): `bids` / `asks` as JSON `[price, quantity]` pairs, best first; no API route reads them |
 
@@ -101,18 +103,17 @@ See [`docs/architecture/databases.md`](../architecture/databases.md#mysql--finan
 
 ## Background Jobs (Scheduled Tasks)
 
-A `node-cron` cycle (`ScrapeCronOrchestrator`) asks the market data source (`MarketDataSourcePort`, Binance today: `BinanceMarketDataSource`, ADR-0026) for a snapshot of each symbol, persists it. Nothing is published on the bus (ADR-0078). A snapshot holds 6 data types:
+A `node-cron` cycle (`ScrapeCronOrchestrator`) asks the market data source (`MarketDataSourcePort`, Binance today: `BinanceMarketDataSource`, ADR-0026) for a snapshot of each symbol, persists it. Nothing is published on the bus (ADR-0078). A snapshot holds 5 data types:
 
 1. **Candlesticks** (OHLCV candles)
-2. **Recent Trades** (recent trades)
-3. **Order Book Snapshot** (order book depth)
-4. **Order Book Ticker** (best bid/ask)
-5. **24hr Ticker Stats** (24h statistics)
-6. **Price Ticker** (current price)
+2. **Order Book Snapshot** (order book depth)
+3. **Order Book Ticker** (best bid/ask)
+4. **24hr Ticker Stats** (24h statistics)
+5. **Price Ticker** (current price)
 
 - `node-cron` runs the cycle with concurrency control via `p-limit`
-- The Binance source fetches all 6 data types in parallel and normalizes them
-- Failures stay where they happen: a symbol that fails does not stop the others (`fs_symbols_failed_total{symbol}` and `fs_symbols_scraped_total{symbol}`, born at 0 for every tracked symbol), and an endpoint that fails only leaves its data type out of the snapshot (`fs_snapshot_parts_failed_total{part}`): an order book error does not cost the candles. A payload that cannot be normalized (a value outside its domain type) only loses its data type too, counted on the same metric. The symbol fails only when all 6 endpoints fail. So a symbol can count as scraped with no candle: alert `SymbolMarketDataStale` reads `fs_candles_persisted_total{symbol}` (born at 0 for every tracked symbol) and names a symbol with no candle persisted for 15 min, whatever the cause, even when the cycle counts `success`
+- The Binance source fetches all 3 data types in parallel and normalizes them
+- Failures stay where they happen: a symbol that fails does not stop the others (`fs_symbols_failed_total{symbol}` and `fs_symbols_scraped_total{symbol}`, born at 0 for every tracked symbol), and an endpoint that fails only leaves its data type out of the snapshot (`fs_snapshot_parts_failed_total{part}`): an order book error does not cost the candles. A payload that cannot be normalized (a value outside its domain type) only loses its data type too, counted on the same metric. The symbol fails only when all 3 endpoints fail. So a symbol can count as scraped with no candle: alert `SymbolMarketDataStale` reads `fs_candles_persisted_total{symbol}` (born at 0 for every tracked symbol) and names a symbol with no candle persisted for 15 min, whatever the cause, even when the cycle counts `success`
 - Candles are fetched from a per-symbol cursor (`startTime` = close of the last persisted candle + 1 ms), so each cycle persists only the candles closed since the previous one and catches up after an outage. The cursor lives in memory: the first cycle of a process starts it at the open time of the newest candle of the series in MySQL (read once; MySQL down: latest window, read again next cycle), so a stop of any length is caught up 100 candles per cycle; the candle read again is absorbed by the upserts and the trainer
 
 ### Rate Limiting
@@ -174,7 +175,7 @@ for the use made, or with no terms found, cannot be declared. The gauge
 | `ecb-hicp-annual-rate` | macro | area `EA` | daily 11:17 UTC (HICP is monthly) | `hicp_annual_rate` | attribution: "Source: ECB statistics" (1) |
 | `ecb-deposit-facility-rate` | macro | area `EA` | weekdays 15:35 UTC (changes are irregular) | `deposit_facility_rate` | attribution: "Source: ECB statistics" (1) |
 | `ecb-euro-reference-rates` | macro | area `EA` | weekdays 16:07 UTC (after the ECB release) | `eur_{usd,gbp,chf,jpy}_reference_rate` | attribution: "Source: ECB statistics" (1) |
-| `fred-us-macro` | macro | area `US` (AAPL, MSFT, JPM, XOM, JNJ, WHEAT, GLD) | daily 13:47 UTC; key `SIGNAL_KEY_FRED`, 1000 requests a day declared (FRED sets none) | `DFF` fed funds rate (Board of Governors, daily), `CPIAUCSL` CPI (BLS, monthly), `UNRATE` unemployment (BLS, monthly), `GDPC1` real GDP (BEA, quarterly); `observedAt` = vintage `realtime_start`, a revision is a second signal. Left out: ICE BofA credit spreads (third-party copyright) | attribution: FRED notice (read 2026-11-16, terms_of_use.html: third-party series need the owner's permission, agency series are public domain by origin) (1) |
+| `fred-us-macro` | macro | area `US` (AAPL, MSFT, JPM, XOM, JNJ, WHEAT, GLD) | daily 13:47 UTC; key `SIGNAL_KEY_FRED`, 1000 requests a day declared (FRED sets none) | `DFF` fed funds rate (Board of Governors, daily), `CPIAUCSL` CPI (BLS, monthly), `UNRATE` unemployment (BLS, monthly), `GDPC1` real GDP (BEA, quarterly); `observedAt` = end of the vintage day (`realtime_start`, UTC), a revision is a second signal. Left out: ICE BofA credit spreads (third-party copyright) | attribution: FRED notice (read 2026-11-16, terms_of_use.html: third-party series need the owner's permission, agency series are public domain by origin) (1) |
 | `sec-edgar-eps-diluted` | fundamental | `AAPL`, `MSFT`, `JPM`, `XOM`, `JNJ` | daily | `us-gaap:EarningsPerShareDiluted` | attribution: SEC (1) |
 | `sec-edgar-revenue` | fundamental | equities with a `cik` alias | daily | `us-gaap:Revenues` (tags `Revenues`, `RevenueFromContractWithCustomerExcludingAssessedTax`, `SalesRevenueNet`) | attribution: SEC (1) |
 | `sec-edgar-core-facts` | fundamental | equities with a `cik` alias | daily | `us-gaap:{OperatingIncomeLoss,NetIncomeLoss,Assets,Liabilities,StockholdersEquity,CashAndCashEquivalentsAtCarryingValue}`, `dei:EntityCommonStockSharesOutstanding` | attribution: SEC (1) |
@@ -288,7 +289,7 @@ dimensions and metrics: nothing changes here (ADR-0036, decision 14).
 
 ```
 HTTP Server
-  ├── Financial routes (/trade/*, /ticker/*, /candles/*, /signals/assets/*)
+  ├── Financial routes (/ticker/*, /candles/*, /signals/assets/*)
   ├── AddressManager routes (ping)
 
 Background

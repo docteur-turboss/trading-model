@@ -10,11 +10,11 @@ import { TradeCostParams } from "./wallet-costs";
 import { validateConfig } from "./wallet-validation";
 
 /**
- * Default exposure cap (ADR-0025): the position is worth at most 30 % of the
+ * Default exposure cap (ADR-0025): the position is worth at most 10 % of the
  * initial cash, the global cap of risk-limits-policy.md §3.1. Written in the
  * model manifest.
  */
-export const DEFAULT_MAX_EXPOSURE_FRACTION = 0.3;
+export const DEFAULT_MAX_EXPOSURE_FRACTION = 0.1;
 
 export interface WalletConfigParams {
 	initialCash: Cash;

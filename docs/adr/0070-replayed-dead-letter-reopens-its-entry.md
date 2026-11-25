@@ -1,10 +1,10 @@
 # ADR-0070: A Replayed Dead Letter That Fails Again Reopens Its Entry
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0073](./0073-message-bus-as-a-redis-streams-library.md)
 **Date:** 2026-11
 **Amends:** [ADR-0043](./0043-message-delivery-once-per-subscribed-service.md) (§7: deduplication on `<messageId>:<service>`)
 **Related:** issue #1005, issue #531
-**Verified by:** `services/dlq-service/tests/db/claims.db.spec.ts`, `tests/contract/dead-letter.spec.ts`
+**Verified by:** `services/audit-logger/tests/unit/dlq-cli.spec.ts`
 
 ## Context
 

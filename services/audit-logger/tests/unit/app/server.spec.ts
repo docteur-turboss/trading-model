@@ -10,7 +10,6 @@ const MOCK_SERVER = {
 	raw: MOCK_APP,
 };
 
-const MOCK_MESSAGE_HANDLER = jest.fn<(...args: any[]) => any>();
 const MOCK_EVENTS_ROUTES = jest.fn<(...args: any[]) => any>();
 jest.mock("@trading-model/http/service-server-factory", () => ({
 	createServiceServer: jest.fn((..._args: any[]) =>
@@ -39,13 +38,6 @@ jest.mock("../../../src/config/address-manager", () => ({
 	ADDRESS_MANAGER_ROUTES: jest.fn<(...args: any[]) => any>(),
 }));
 
-jest.mock(
-	"../../../src/adapters/inbound/subscription/audit-subscriber",
-	() => ({
-		createMessageHandler: jest.fn((..._args: any[]) => MOCK_MESSAGE_HANDLER),
-	})
-);
-
 import { createServiceServer } from "@trading-model/http/service-server-factory";
 import { eventsRoutes } from "../../../src/adapters/inbound/http/events.routes";
 import { createServer } from "../../../src/application/server";
@@ -65,12 +57,7 @@ describe("createServer", () => {
 			})),
 		} as any;
 
-		const server = await createServer(
-			auditRepo,
-			mongoManager,
-			MOCK_MESSAGE_HANDLER as never,
-			() => ready
-		);
+		const server = await createServer(auditRepo, mongoManager, () => ready);
 
 		expect(server).toBe(MOCK_SERVER);
 		expect(createServiceServer).toHaveBeenCalledWith(
@@ -95,12 +82,5 @@ describe("createServer", () => {
 		expect(eventsRoutes).toHaveBeenCalledWith(auditRepo);
 
 		expect(MOCK_APP.use).toHaveBeenCalledWith("/", MOCK_EVENTS_ROUTES);
-		// POST /message is mounted from AUDIT_API.receive on its own router.
-		const brokerRouter = MOCK_APP.use.mock.calls
-			.map((call) => call[0] as { stack?: Array<{ route?: { path: string } }> })
-			.find(
-				(arg) => typeof arg === "function" && (arg as { stack?: unknown }).stack
-			);
-		expect(brokerRouter?.stack?.[0]?.route?.path).toBe("/message");
 	});
 });

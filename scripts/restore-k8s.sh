@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 #  Trading Model — Database Restore Script (Kubernetes)
-#  Usage:  bash scripts/restore-k8s.sh [--dry-run] [--components mongodb,mongodb-audit,mysql,mysql-core,checkpoints,spire,risk]
+#  Usage:  bash scripts/restore-k8s.sh [--dry-run] [--components mongodb-audit,mysql,mysql-core,checkpoints,spire,risk]
 #          [--timestamp 2025-01-01_120000 | --until 2025-01-01T13:45:00Z]
 #          [--no-retention]
 #          [--allow-mixed-runs] [--ns <db.coll|db.*>]... [--into-scratch]
@@ -28,16 +28,15 @@
 #  sha256 of the plaintext; MySQL: ends with `-- Dump completed`) before
 #  anything is written, --dry-run included. A run without manifest is refused.
 #
-#  Component `mongodb` restores both replica sets (operational, then audit);
-#  `mongodb-audit` the audit trail alone, e.g. from a weekly or monthly
-#  off-site tier, which holds no operational dump (ADR-0032).
+#  Component `mongodb-audit` restores the audit trail, from the daily dump or
+#  from a weekly or monthly off-site tier (ADR-0032).
 #  `mysql-core` restores the MySQL dump of those tiers: it holds every table
 #  but the rows of MYSQL_CORE_EXCLUDED_TABLES (backup-lib.sh): created empty
 #  when missing, rows left as they are otherwise (logged);
 #  no --until from it (only the full daily `mysql` dump has coordinates).
 #
-#  --ns <pattern> (repeatable, issue #335; --components mongodb or
-#  mongodb-audit only): restores only the matching namespaces of each replica
+#  --ns <pattern> (repeatable, issue #335; --components mongodb-audit
+#  only): restores only the matching namespaces of each replica
 #  set (mongorestore --nsInclude); --drop then only drops the collections
 #  restored, everything else stays as it is. --oplogReplay is NOT passed then:
 #  mongorestore refuses it with --nsInclude, so the restore stops at the
@@ -61,7 +60,7 @@ set -euo pipefail
 BACKUP_DIR="${BACKUP_DIR:-/backups}"
 RESTORE_TIMESTAMP="${RESTORE_TIMESTAMP:-latest}"
 DRY_RUN=false
-COMPONENTS="mongodb,mysql,checkpoints,spire,risk"
+COMPONENTS="mongodb-audit,mysql,checkpoints,spire,risk"
 K8S_NAMESPACE="${K8S_NAMESPACE:-trading-model}"
 # Writes the SPIRE datastore and CA keys into the server volume while the
 # server is stopped (the spire-server image has neither a shell nor tar).
@@ -101,8 +100,8 @@ if [ "${#NS_INCLUDE[@]}" -gt 0 ] || $INTO_SCRATCH; then
   IFS=',' read -ra _NS_COMPONENTS <<< "$COMPONENTS"
   for _c in "${_NS_COMPONENTS[@]}"; do
     case "$_c" in
-      mongodb|mongodb-audit) ;;
-      *) echo "--ns / --into-scratch only apply to --components mongodb (or mongodb-audit), not ${_c}"; exit 1 ;;
+      mongodb-audit) ;;
+      *) echo "--ns / --into-scratch only apply to --components mongodb-audit, not ${_c}"; exit 1 ;;
     esac
   done
   if [ -n "${RESTORE_UNTIL:-}" ]; then
@@ -154,6 +153,7 @@ fail() { log "✗ $*"; RESTORE_FAILURES=$((RESTORE_FAILURES + 1)); }
 
 # shellcheck source=backup-lib.sh
 source "$(dirname "$0")/backup-lib.sh"
+COMPONENTS="$(normalize_components "$COMPONENTS")"
 
 # Field `$2` of PITR metadata file `$1` (decrypted).
 pitr_value() {
@@ -617,7 +617,6 @@ RUN_KEYS=()
 IFS=',' read -ra REQUESTED <<< "$COMPONENTS"
 for part in "${REQUESTED[@]}"; do
   case "$part" in
-    mongodb)       RUN_KEYS+=(mongodb mongodb-audit) ;;
     mongodb-audit|mysql|mysql-core|checkpoints|spire|risk) RUN_KEYS+=("$part") ;;
   esac
 done
@@ -640,12 +639,6 @@ echo "════════════════════════�
 echo ""
 
 IFS=',' read -ra PARTS <<< "$COMPONENTS"
-# mongodb already restores the audit replica set: never restore it twice.
-if [[ " ${PARTS[*]} " == *" mongodb "* ]]; then
-  KEPT=()
-  for part in "${PARTS[@]}"; do [ "$part" = mongodb-audit ] || KEPT+=("$part"); done
-  PARTS=("${KEPT[@]}")
-fi
 # Logs `restore-timing component=<c> seconds=<n>` after each component really
 # restored (not in the checking pass): tests/backup/drill-timings.sh reads these
 # lines, and an operator sees what each component costs of the RTO.
@@ -654,7 +647,6 @@ run_components() {
   for part in "${PARTS[@]}"; do
     started=$SECONDS
     case "$part" in
-      mongodb)     restore_mongodb mongodb mongodb-audit ;;
       mongodb-audit) restore_mongodb mongodb-audit ;;
       mysql)       restore_mysql ;;
       mysql-core)  restore_mysql mysql-core ;;

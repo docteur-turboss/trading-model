@@ -53,24 +53,18 @@ kubectl create secret generic trading-model-secrets \
   --from-literal=MYSQL_MIGRATE_PASSWORD='your-migration-user-password' \
   --from-literal=MYSQL_RETENTION_PASSWORD='your-retention-user-password' \
   --from-literal=MYSQL_EXPORTER_PASSWORD='your-mysql-exporter-password' \
-  --from-literal=DLQ_AUTH_HMAC_SECRET='your-dlq-hmac-secret' \
   --from-literal=GRAFANA_PASSWORD='your-grafana-password' \
   --from-literal=REDIS_INTERNAL_PASSWORD='your-redis-ha-password' \
-  --from-literal=REDIS_MESSAGE_MANAGER_PASSWORD='your-message-manager-redis-password' \
-  --from-literal=REDIS_DLQ_PASSWORD='your-dlq-redis-password' \
   --from-literal=REDIS_AUDIT_LOGGER_PASSWORD='your-audit-logger-redis-password' \
   --from-literal=REDIS_TRADER_TRAINER_PASSWORD='your-trader-trainer-redis-password' \
-  --from-literal=REDIS_MODEL_EVALUATOR_PASSWORD='your-model-evaluator-redis-password' \
   --from-literal=REDIS_RISK_EXECUTION_PASSWORD='your-risk-execution-redis-password' \
-  --from-literal=REDIS_DECISION_CONSUMER_PASSWORD='your-decision-consumer-redis-password' \
+  --from-literal=REDIS_DECISION_CONSUMER_PASSWORD='your-decision-consumer-redis-password' \n  --from-literal=REDIS_MODEL_EVALUATOR_PASSWORD='your-model-evaluator-redis-password' \
   --from-literal=REDIS_EXPORTER_PASSWORD='your-exporter-redis-password' \
   --from-literal=MONGO_ROOT_PASSWORD='your-mongo-root-password' \
   --from-literal=MONGO_EXPORTER_PASSWORD='your-mongo-exporter-password' \
   --from-literal=MONGO_BACKUP_PASSWORD='your-mongo-backup-password' \
   --from-literal=MONGO_AUDIT_PASSWORD='your-mongo-audit-password' \
-  --from-literal=MONGO_DLQ_PASSWORD='your-mongo-dlq-password' \
   --from-literal=MONGO_AUDIT_KEYFILE="$(openssl rand -hex 64)" \
-  --from-literal=MONGO_DLQ_KEYFILE="$(openssl rand -hex 64)" \
   --dry-run=client -o yaml > /tmp/plaintext-secret.yaml
 
 # Seal it (requires kubeseal CLI)
@@ -104,21 +98,20 @@ The final file must list ALL keys. `run-migrations.sh` refuses to apply a file t
 A quarterly reminder issue (workflow `Secret Rotation Reminder`) points here.
 
 ```bash
-bash scripts/rotate-secrets.sh --component tokens|dlq|mysql|all
-DRY_RUN=true bash scripts/rotate-secrets.sh --component dlq   # no merge, apply or restart
+bash scripts/rotate-secrets.sh --component tokens|mysql|all
+DRY_RUN=true bash scripts/rotate-secrets.sh --component tokens   # no merge, apply or restart
 ```
 Before `kubectl apply` the script compares the live Secret keys with the file: a live key missing from `SEALED_SECRETS_FILE` stops it (the controller would erase that key). The merged file stays on disk; add the key with `kubeseal --merge-into`, then rerun.
 
 | Component | Key | Restarted |
 |-----------|-----|-----------|
 | `tokens` | `AUTH_TOKENS` (`name:scopes:secret`, ADR-0059): only the entry named `API_KEY_NAME` (default `ops`, scopes `API_KEY_SCOPES`) is replaced, the other keys are kept | api-gateway |
-| `dlq` | `DLQ_AUTH_HMAC_SECRET` | dlq-service |
 
 The script merges the new key into `SEALED_SECRETS_FILE` (default `deploy/k8s/secrets/trading-model-sealed-secrets.yaml`, commit the result), applies it, waits until the live Secret holds the value, then restarts the consumers. It never prints a value and never puts one on a command line. `SEALED_SECRETS_FILE` must be the real sealed file of the overlay: a file with `CHANGE_ME` placeholders is refused before any `kubeseal` or `apply`.
 
 For `tokens`, the new key is written to a `0600` temporary file whose path is logged: give the key to the client, then delete the file. Without that file, read it with `kubectl get secret trading-model-secrets -n trading-model -o jsonpath='{.data.AUTH_TOKENS}' | base64 -d`.
 
-`--component all` has no rollback: if `dlq` fails after `tokens`, the local file and the live Secret keep the keys already rotated. Fix the cause and rerun the failed component.
+`--component all` rotates `tokens` only; a failed rotation has no rollback: the local file and the live Secret keep the keys already rotated. Fix the cause and rerun the failed component.
 
 ### Rotate a database password
 

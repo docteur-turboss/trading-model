@@ -32,7 +32,7 @@ export function svidReadinessCheck(env: TlsEnvVars): ReadinessCheck {
 
 /**
  * Default per-check bound, under the 3 s `timeoutSeconds` of most K8s readiness
- * probes. A check needing longer sets its own `timeoutMs` (message-manager: 5 s probe).
+ * probes. A check needing longer sets its own `timeoutMs`.
  */
 const CHECK_TIMEOUT_MS = DurationMs.of(2000);
 

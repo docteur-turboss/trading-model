@@ -4,13 +4,11 @@ Service abbreviation legend:
 
 | Abbr. | Service                                                                                             |
 | ----- | --------------------------------------------------------------------------------------------------- |
-| All   | All services (message-manager, financial-scraper, trader-trainer, etc.)           |
-| MM    | message-manager                                                                                     |
+| All   | All services (financial-scraper, trader-trainer, etc.)           |
 | FS    | financial-scraper                                                                                   |
 | TT    | trader-trainer                                                                                      |
 | GW    | api-gateway                                                                                         |
 | AL    | audit-logger                                                                                        |
-| DLQ   | dlq-service                                                                                         |
 | ME    | model-evaluator                                                                                     |
 | RX    | risk-execution                                                                                      |
 | DCN   | decision-consumer                                                                                   |
@@ -44,12 +42,11 @@ Defined in `@trading-model/address-manager` (`config/address-manager-env` — `A
 
 | Variable                          | Type   | Default                         | Required | Description                                      | Services       |
 | --------------------------------- | ------ | ------------------------------- | -------- | ------------------------------------------------ | -------------- |
-| `APP_NAME`                        | string | _varies_                        | **yes**  | Logical application name                         | MM, FS, TT, AL, DLQ |
-| `APP_VERSION`                     | string | `1.0.0`                         | no       | Application version: its major is the gateway prefix `/v<major>` (FS: `2.0.0`, the others 1.x) | MM, FS, TT, AL, DLQ |
-| `SERVICE_NAME`                    | string | _varies_                        | **yes**  | Service identity (`build_info` label)  | MM, FS, TT, AL, DLQ, GW |
-| `INSTANCE_ID`                     | string | _varies_                        | **yes**  | Unique instance identifier                       | MM, FS, TT, AL, DLQ |
-| `DNS_NAME_MAP`                    | string | `'{}'`                          | no       | Custom DNS name to address mapping (JSON object); not read by the gateway | MM, FS, TT, AL, DLQ |
-| `MESSAGE_CALLBACK_PATH`           | string | `message`                       | no       | Callback path for incoming messages              | MM, FS, TT, AL, DLQ |
+| `APP_NAME`                        | string | _varies_                        | **yes**  | Logical application name                         | FS, TT, AL |
+| `APP_VERSION`                     | string | `1.0.0`                         | no       | Application version: its major is the gateway prefix `/v<major>` (FS: `2.0.0`, the others 1.x) | FS, TT, AL |
+| `SERVICE_NAME`                    | string | _varies_                        | **yes**  | Service identity (`build_info` label)  | FS, TT, AL, GW |
+| `INSTANCE_ID`                     | string | _varies_                        | **yes**  | Unique instance identifier                       | FS, TT, AL |
+| `DNS_NAME_MAP`                    | string | `'{}'`                          | no       | Custom DNS name to address mapping (JSON object); not read by the gateway | FS, TT, AL |
 
 ---
 
@@ -59,15 +56,15 @@ Defined in `@trading-model/persistence/redis-env` (`RedisEnvSchema`) and turned 
 
 | Variable                     | Type   | Default    | Required | Description                                                               | Services                |
 | ---------------------------- | ------ | ---------- | -------- | ------------------------------------------------------------------------- | ----------------------- |
-| `REDIS_SENTINELS`            | string | —          | no       | Sentinels as `host:port,host:port` (IP or DNS name); takes precedence over `REDIS_URL` | MM, DLQ, AL, TT, ME, RX, DCN |
-| `REDIS_SENTINEL_MASTER_NAME` | string | `mymaster` | no       | Master group name the sentinels monitor (only with `REDIS_SENTINELS`)     | MM, DLQ, AL, TT, ME, RX, DCN |
-| `REDIS_USERNAME`             | string | —          | no       | ACL user of the service (K8s: `message-manager`, `dlq-service`, ADR-0047; bus users `audit-logger`, `trader-trainer`, `model-evaluator`, `risk-execution`, `decision-consumer`, ADR-0073; only with `REDIS_SENTINELS`) | MM, DLQ, AL, TT, ME, RX, DCN |
-| `REDIS_PASSWORD`             | string | —          | no       | Password of that user (only with `REDIS_SENTINELS`; with `REDIS_URL` put it in the URL). K8s: key `REDIS_<SERVICE>_PASSWORD` of `trading-model-secrets` | MM, DLQ, AL, TT, ME, RX, DCN |
-| `REDIS_SENTINEL_PASSWORD`    | string | —          | no       | Password the sentinels require (K8s: key `REDIS_INTERNAL_PASSWORD` of `trading-model-secrets`) | MM, DLQ, AL, TT, ME, RX, DCN |
-| `REDIS_TLS_MODE` | `optional` | `required` | `optional` | no | `required`: TLS to Redis and the sentinels, needs `REDIS_TLS_CA` (release N+1, ADR-0047, `docs/deployment/REDIS_TLS.md`) | MM, DLQ, AL, TT, ME, RX, DCN |
-| `REDIS_TLS_CA` | path | — | with `required` | PEM CA of the Redis server certificates (K8s: `ca.crt` of Secret `redis-tls`) | MM, DLQ, AL, TT, ME, RX, DCN |
-| `REDIS_TLS_SERVERNAME` | string | `redis` | no | Name the Redis certificate must carry (nodes are reached by IP) | MM, DLQ, AL, TT, ME, RX, DCN |
-| `BUS_TRANSPORT` | `library` \| `http` | — | no | Bus transport (ADR-0073, `BusEnvSchema`): `library` = Redis Streams in process, refuses to start without `REDIS_URL` / `REDIS_SENTINELS`; `http` = message-manager, Redis settings ignored; unset = `library` when Redis is set (N-1 rule). Set by every deployment | AL, TT, ME, RX, DCN |
+| `REDIS_URL`                  | string | —          | no       | Redis URL (compose, dev): used when `REDIS_SENTINELS` is unset; the bus refuses to start without one of them | AL, FS, TT, ME, RX, DCN |
+| `REDIS_SENTINELS`            | string | —          | no       | Sentinels as `host:port,host:port` (IP or DNS name); takes precedence over `REDIS_URL` | AL, FS, TT, ME, RX, DCN |
+| `REDIS_SENTINEL_MASTER_NAME` | string | `mymaster` | no       | Master group name the sentinels monitor (only with `REDIS_SENTINELS`)     | AL, FS, TT, ME, RX, DCN |
+| `REDIS_USERNAME`             | string | —          | no       | ACL user of the service (K8s: one per service, ADR-0047; only with `REDIS_SENTINELS`) | AL, FS, TT, ME, RX, DCN |
+| `REDIS_PASSWORD`             | string | —          | no       | Password of that user (only with `REDIS_SENTINELS`; with `REDIS_URL` put it in the URL). K8s: key `REDIS_<SERVICE>_PASSWORD` of `trading-model-secrets` | AL, FS, TT, ME, RX, DCN |
+| `REDIS_SENTINEL_PASSWORD`    | string | —          | no       | Password the sentinels require (K8s: key `REDIS_INTERNAL_PASSWORD` of `trading-model-secrets`) | AL, FS, TT, ME, RX, DCN |
+| `REDIS_TLS_MODE` | `optional` | `required` | `optional` | no | `required`: TLS to Redis and the sentinels, needs `REDIS_TLS_CA` (release N+1, ADR-0047, `docs/deployment/REDIS_TLS.md`) | AL, FS, TT, ME, RX, DCN |
+| `REDIS_TLS_CA` | path | — | with `required` | PEM CA of the Redis server certificates (K8s: `ca.crt` of Secret `redis-tls`) | AL, FS, TT, ME, RX, DCN |
+| `REDIS_TLS_SERVERNAME` | string | `redis` | no | Name the Redis certificate must carry (nodes are reached by IP) | AL, FS, TT, ME, RX, DCN |
 
 ---
 
@@ -91,7 +88,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `RATE_LIMIT_MAX`      | number | `100`                            | no       | Max requests per window, per pod: effective limit per client = value x replicas (HPA 2-8), i.e. 200 to 800 per 60 s by default (ADR-0047) | GW       |
 | `CACHE_TTL_MS`        | number | `30000`                          | no       | Cache TTL for proxied responses | GW       |
 | `AUTH_TOKEN_HEADER`   | string | `x-api-key`                      | no       | Header name for auth token      | GW       |
-| `AUTH_TOKENS`         | string | —                                | **yes**  | Comma-separated API keys `name:scope1+scope2:secret` (in production each secret: at least 32 characters, no `change-me`; start refused otherwise) (scopes `read`, `dlq:write`, `risk:admin`; secret without `:`). A bare secret (old format) is refused at startup (ADR-0059) | GW |
+| `AUTH_TOKENS`         | string | —                                | **yes**  | Comma-separated API keys `name:scope1+scope2:secret` (in production each secret: at least 32 characters, no `change-me`; start refused otherwise) (scopes `read`, `risk:admin`; secret without `:`). A bare secret (old format) is refused at startup (ADR-0059) | GW |
 | `PROXY_TIMEOUT_MS`    | number | `10000`                          | no       | Proxy total deadline (ms)       | GW       |
 | `PROXY_MAX_RESPONSE_BYTES` | number | `8388608` (8 MiB)    | no       | Largest upstream answer the gateway buffers; past it the upstream request is cut and the client gets 502 `Upstream response too large` (ADR-0054) | GW |
 | `ALLOWED_PROXY_CIDRS` | string | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8` | no (must not be empty in production) | Comma-separated CIDRs the resolved proxy target IP must be in. Empty: target IP check off; in production the gateway refuses to start | GW |
@@ -201,13 +198,13 @@ ADR-0087. Paper only: no broker key, no kill switch, no mode choice (ADR-0064 §
 
 ---
 
-## Message Manager
+## Message bus (library, ADR-0073)
 
-No database: subscriptions in Redis (`REDIS_SENTINELS` / `REDIS_URL`), accepted messages in a Redis Streams journal (`REDIS_URL` / `REDIS_SENTINELS` required in production, AOF on), dead letters in dlq-service ([ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md)).
+No broker service: every service that publishes or consumes links the library and talks to Redis (`REDIS_SENTINELS` / `REDIS_URL`, required: the service refuses to start without them), accepted messages in a Redis Streams journal (AOF on), dead letters in dead streams ([ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md)).
 
 | Variable                  | Type   | Default                     | Required             | Description                                                                 | Services |
 | ------------------------- | ------ | --------------------------- | -------------------- | --------------------------------------------------------------------------- | -------- |
-| `JOURNAL_MIN_REPLICAS`    | number | `0`                         | no                   | Redis replicas that must hold an accepted message before the publisher gets its 202 (`WAIT`); 0 on a single node (compose, K8s staging), 1 in K8s production (Sentinel) | MM, AL, TT, ME |
+| `JOURNAL_MIN_REPLICAS`    | number | `0`                         | no                   | Redis replicas that must hold an accepted message before the publish resolves (`WAIT`); 0 on a single node (compose, K8s staging), 1 in K8s production (Sentinel) | AL, TT, ME, RX |
 
 ---
 
@@ -247,18 +244,16 @@ Passwords of the read-only users of the exporter sidecars (`docs/architecture/da
 
 ## MongoDB users (ADR-0067)
 
-One user per client, created by `deploy/mongo/users.js` (K8s Jobs `mongo-dlq-users` / `mongo-audit-users`, compose `mongo-users`). K8s: keys of Secret `trading-model-secrets`, all checked by `deploy.yml`. Compose: `.env` (characters `[A-Za-z0-9_.-]`, all required).
+One user per client, created by `deploy/mongo/users.js` (K8s Job `mongo-audit-users`, compose `mongo-users`). K8s: keys of Secret `trading-model-secrets`, all checked by `deploy.yml`. Compose: `.env` (characters `[A-Za-z0-9_.-]`, all required).
 
 | Variable | Type | Default | Required | Description | Services |
 | -------- | ---- | ------- | -------- | ----------- | -------- |
-| `MONGO_USERNAME` | string | — | no | MongoDB user of the service (`audit-logger`, `dlq-service`); unset: no authentication (dev). Set together with `MONGO_PASSWORD` | AL, DLQ |
-| `MONGO_PASSWORD` | string | — | no | Its password (Secret key `MONGO_AUDIT_PASSWORD` / `MONGO_DLQ_PASSWORD`); the URI then carries `authSource=admin` and no credentials | AL, DLQ |
+| `MONGO_USERNAME` | string | — | no | MongoDB user of the service (`audit-logger`); unset: no authentication (dev). Set together with `MONGO_PASSWORD` | AL |
+| `MONGO_PASSWORD` | string | — | no | Its password (Secret key `MONGO_AUDIT_PASSWORD`); the URI then carries `authSource=admin` and no credentials | AL |
 | `MONGO_ROOT_PASSWORD` | string | — | **yes** | User `root`: restore, user administration | mongo pods, `mongo-users` |
 | `MONGO_BACKUP_PASSWORD` | string | — | **yes** | User `backup`: dumps and oplog archives | mongo pods, `mongo-users` |
 | `MONGO_AUDIT_PASSWORD` | string | — | **yes** | User `audit-logger` | audit-logger, `mongo-users` |
-| `MONGO_DLQ_PASSWORD` | string | — | **yes** | User `dlq-service` | dlq-service, `mongo-users` |
 | `MONGO_AUDIT_KEYFILE` | string (6 to 1024 base64 characters) | — | **yes** in K8s | Internal authentication key of `mongo-audit` | mongo-audit pods |
-| `MONGO_DLQ_KEYFILE` | string (same) | — | **yes** in K8s | Internal authentication key of `mongo-dlq` | mongo-dlq pods |
 
 ---
 
@@ -278,7 +273,7 @@ One user per client, created by `deploy/mongo/users.js` (K8s Jobs `mongo-dlq-use
 
 ## MongoDB pool — audit-logger
 
-Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no pool size. Only audit-logger depends on it: dlq-service fixes its pool at 10 and ignores the variable.
+Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no pool size. Only audit-logger depends on it.
 
 | Variable          | Type   | Default | Required | Description                  | Services |
 | ----------------- | ------ | ------- | -------- | ---------------------------- | -------- |
@@ -286,23 +281,16 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 
 ---
 
-## DLQ Service — MongoDB + Redis
+## DLQ import (release N+1 of ADR-0073, one-off)
 
-| Variable                     | Type    | Default                              | Required | Description                          | Services |
-| ---------------------------- | ------- | ------------------------------------ | -------- | ------------------------------------ | -------- |
-| `MONGO_URI`                  | string  | `mongodb://localhost:27017`          | no       | MongoDB connection URI               | DLQ      |
-| `MONGO_DB`                   | string  | `dlq`                                | no       | MongoDB database name                | DLQ      |
-| `MONGO_COLLECTION`           | string  | `dlq_entries`                        | no       | MongoDB collection name              | DLQ      |
-| `MAX_ENTRIES`                | number  | `100000`                             | no       | Maximum stored DLQ entries           | DLQ      |
-| `DLQ_RETRY_MAX_ATTEMPTS`     | number  | `5`                                  | no       | Max retry attempts for replay        | DLQ      |
-| `MESSAGE_MANAGER_URL`        | URL     | —                                    | no       | Message manager URL for replay       | DLQ      |
-| `DLQ_AUTH_HMAC_SECRET`       | string  | —                                    | no       | HMAC secret for auth (min 32 chars in production) | DLQ      |
-| `DLQ_ALLOWED_SERVICES`       | string  | `message-manager,admin`              | no       | Callers allowed to sign requests (`admin`: operator scripts such as `examples/manage-dlq.sh`) | DLQ      |
-| `DLQ_PRUNE_INTERVAL_MS`      | number  | `60000`                              | no       | Interval for pruning expired entries | DLQ      |
-| `DLQ_AUTO_RETRY_ENABLED`     | boolean | `false` (no profile enables it, ADR-0073)| no       | Replay eligible entries automatically| DLQ      |
-| `DLQ_AUTO_RETRY_INTERVAL_MS` | number  | `30000`                              | no       | Interval between auto-retry attempts | DLQ      |
-| `DLQ_AUTO_RETRY_LIMIT`       | number  | `50`                                 | no       | Max auto-retry attempts per entry    | DLQ      |
-| `REDIS_URL`                  | string  | —                                    | no       | Redis URL of the `dlq:queue` list (the rate limiter is in memory, ADR-0047) | DLQ      |
+Read only by `dlq-cli import-mongo` of audit-logger, run once against the old `mongo-dlq` ([release runbook](../contributing/release.md#one-off-mongodb-dlq-import)); the CLI subcommand goes in the release after.
+
+| Variable | Type | Default | Required | Description | Services |
+| -------- | ---- | ------- | -------- | ----------- | -------- |
+| `MONGO_DLQ_URI` | string | — | for `import-mongo` | MongoDB URI of the old `mongo-dlq` replica set | AL (CLI) |
+| `MONGO_DLQ_USERNAME` | string | — | no | User `dlq-service` of that replica set | AL (CLI) |
+| `MONGO_DLQ_PASSWORD` | string | — | no | Its password (old Secret key `MONGO_DLQ_PASSWORD`) | AL (CLI) |
+| `MONGO_DLQ_DB` | string | `dlq` | no | Database holding `dlq_entries` | AL (CLI) |
 
 ---
 
@@ -310,12 +298,10 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 
 | Variable              | Type   | Default                 | Description                        | Services |
 | --------------------- | ------ | ----------------------- | ---------------------------------- | -------- |
-| `MESSAGE_PORT`        | number | `8444`                  | Host port for message-manager      | DC       |
 | `SCRAPER_PORT`        | number | `8445`                  | Host port for financial-scraper    | DC       |
 | `TRAINER_PORT`        | number | `8446`                  | Host port for trader-trainer       | DC       |
 | `GATEWAY_PORT`        | number | `8448`                  | Host port for api-gateway          | DC       |
 | `AUDIT_PORT`          | number | `8450`                  | Host port for audit-logger         | DC       |
-| `DLQ_PORT`            | number | `8452`                  | Host port for dlq-service          | DC       |
 | `EDGE_PORT`           | number | `8449`                  | Host port for edge-proxy (HTTP)    | DC       |
 | `EDGE_LIMIT_KEY_INC`  | path   | `./deploy/edge-proxy/edge-limit-key.inc` | Edge rate-limit key file; `edge-limit-key.off.inc` disables the limit for k6 load runs | DC |
 | `MYSQL_ROOT_PASSWORD` | string | (required)              | MySQL root password                | DC       |
@@ -333,7 +319,7 @@ Read by `@trading-model/persistence` (`mongo-utils`) when the caller passes no p
 | `GRAFANA_OIDC_ALLOWED_DOMAINS` | string | (unset) | E-mail domains allowed to log in; required in production K8s (ADR-0063) | DC, K8s |
 | `GRAFANA_ROOT_URL` | string | `http://localhost:3000/` (compose) | Public Grafana URL, base of the OIDC `redirect_uri`; K8s: `https://grafana.<host>/` of the ingress (ADR-0063) | DC, K8s |
 | `MYSQL_EXPORTER_PASSWORD` | string | (required)          | Password of the read-only MySQL user `exporter` of mysqld-exporter (ADR-0056) | DC |
-| `MONGO_ROOT_PASSWORD`, `MONGO_EXPORTER_PASSWORD`, `MONGO_BACKUP_PASSWORD`, `MONGO_AUDIT_PASSWORD`, `MONGO_DLQ_PASSWORD` | string | (required) | MongoDB users (ADR-0067), see "MongoDB users" above | DC |
+| `MONGO_ROOT_PASSWORD`, `MONGO_EXPORTER_PASSWORD`, `MONGO_BACKUP_PASSWORD`, `MONGO_AUDIT_PASSWORD` | string | (required) | MongoDB users (ADR-0067), see "MongoDB users" above | DC |
 | `MYSQL_DATABASE`      | string | `financial_scraper`     | MySQL database name                | DC       |
 | `IMAGE_REGISTRY`      | string | `ghcr.io/trading-model` | Container registry prefix          | DC       |
 | `IMAGE_TAG`           | string | `latest`                | Image tag to pull                  | DC       |
@@ -394,7 +380,6 @@ MONGO_ROOT_PASSWORD=change-me-mongo-root-password
 MONGO_EXPORTER_PASSWORD=change-me-mongo-exporter-password
 MONGO_BACKUP_PASSWORD=change-me-mongo-backup-password
 MONGO_AUDIT_PASSWORD=change-me-mongo-audit-password
-MONGO_DLQ_PASSWORD=change-me-mongo-dlq-password
 MYSQL_DATABASE=financial_scraper
 
 # Trader-Trainer
@@ -420,7 +405,7 @@ TRAINER_FITNESS_TYPE=total_pnl
 TRAINER_OBSERVE_POSITION=true
 
 # API Gateway auth
-AUTH_TOKENS=ops-alice:read+dlq:write:token1,grafana:read:token2
+AUTH_TOKENS=ops-alice:read:token1,grafana:read:token2
 ```
 
 > **Never commit the `.env` file.** It is in `.gitignore`. Use `.env.example` as a template.

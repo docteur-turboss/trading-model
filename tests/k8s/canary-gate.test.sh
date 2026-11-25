@@ -24,7 +24,7 @@ cat >"$WORK/bin/kubectl" <<'STUB'
 #!/usr/bin/env bash
 # Stub kubectl: logs "<verb> <resource>" lines; /metrics come from $STUB_DIR/metrics/<service>.
 echo "$*" >>"$STUB_DIR/kubectl.log"
-svc_of() { sed -E 's/.*(api-gateway|dlq-service|audit-logger).*/\1/' <<<"$*"; }
+svc_of() { sed -E 's/.*(api-gateway|model-evaluator|audit-logger).*/\1/' <<<"$*"; }
 case "$*" in
 *"cluster-info"*) ;;
 *"get deployment"*"-o jsonpath"*) echo 2 ;;
@@ -54,19 +54,19 @@ printf '#!/usr/bin/env bash
 echo "$*" >>"$STUB_DIR/sleep.log"
 ' >"$WORK/bin/sleep"
 chmod +x "$WORK/bin/sleep" "$WORK/bin/kubectl" "$WORK/bin/jq"
-export PATH="$WORK/bin:$PATH" STUB_DIR="$WORK" CANARY_GATE_SECONDS=0 CANARY_MIN_REQUESTS=20 CANARY_READINESS_ONLY=dlq-service
+export PATH="$WORK/bin:$PATH" STUB_DIR="$WORK" CANARY_GATE_SECONDS=0 CANARY_MIN_REQUESTS=20 CANARY_READINESS_ONLY=model-evaluator
 
 metrics() { # <service> <ok requests> <5xx requests>
 	printf 'http_requests_total{path="/v1/x",status="200"} %s\nhttp_requests_total{path="/v1/x",status="500"} %s\nhttp_requests_total{path="/health/ready",status="200"} 999\n' "$2" "$3" >"$WORK/metrics/$1"
 }
-run() { : >"$WORK/kubectl.log"; : >"$WORK/sleep.log"; bash "$DEPLOY" canary-all "" 10 api-gateway dlq-service audit-logger >"$WORK/out" 2>&1; }
+run() { : >"$WORK/kubectl.log"; : >"$WORK/sleep.log"; bash "$DEPLOY" canary-all "" 10 api-gateway model-evaluator audit-logger >"$WORK/out" 2>&1; }
 # The pre-start clean-up in canary_start uses --wait=true: only the abort / cleanup deletes (without it) prove removal.
-deleted_all() { for s in api-gateway dlq-service audit-logger; do grep "delete deployment.* $s-canary" "$WORK/kubectl.log" | grep -qv -- "--wait=true" || return 1; done; }
+deleted_all() { for s in api-gateway model-evaluator audit-logger; do grep "delete deployment.* $s-canary" "$WORK/kubectl.log" | grep -qv -- "--wait=true" || return 1; done; }
 
-echo "healthy services + readiness-only dlq-service without traffic"
-metrics api-gateway 100 1; metrics audit-logger 50 0; rm -f "$WORK/metrics/dlq-service"
+echo "healthy services + readiness-only model-evaluator without traffic"
+metrics api-gateway 100 1; metrics audit-logger 50 0; rm -f "$WORK/metrics/model-evaluator"
 if run; then pass "gate passes"; else failed "gate should pass"; cat "$WORK/out"; fi
-grep -q "readiness-only" "$WORK/out" && pass "dlq-service logged as readiness-only" || failed "no readiness-only log"
+grep -q "readiness-only" "$WORK/out" && pass "model-evaluator logged as readiness-only" || failed "no readiness-only log"
 [ "$(grep -cx 0 "$WORK/sleep.log")" -eq 1 ] && pass "one observation window for all canaries" || failed "not a single window"
 [ "$(grep -c "scale deployment" "$WORK/kubectl.log")" -eq 3 ] && pass "3 canaries scaled to 0" || failed "canaries not scaled down"
 
@@ -84,9 +84,9 @@ grep -q "api-gateway-canary error rate 90%" "$WORK/out" && pass "reports the err
 deleted_all && pass "every canary removed" || failed "canary left behind"
 
 echo "verified digests file"
-metrics api-gateway 100 0; metrics audit-logger 50 0; rm -f "$WORK/metrics/dlq-service"
+metrics api-gateway 100 0; metrics audit-logger 50 0; rm -f "$WORK/metrics/model-evaluator"
 printf 'api-gateway sha256:aaa
-dlq-service sha256:bbb
+model-evaluator sha256:bbb
 ' >"$WORK/digests"
 export CANARY_DIGESTS_FILE="$WORK/digests"
 if run; then failed "service missing from the digests file should fail"; else pass "gate fails"; fi

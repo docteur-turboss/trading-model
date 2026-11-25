@@ -18,7 +18,7 @@ Subpath imports (`@trading-model/contracts/<file>`; `exports` maps `./*` to `dis
 | `@trading-model/contracts/message-types` | `Message`, `MessageMetadata`, `RoutingType`, `DeliveryType` | Message envelope on the bus |
 | `@trading-model/contracts/service-registry-types` | `Protocol`, `ServiceInstance` | Service instance types |
 
-Also: `signed-request`, `http-headers`, `event-map`, `audit-events`, `training-events`, `dlq-events`, `dlq-types`, `error-response`.
+Also: `signed-request`, `http-headers`, `event-map`, `audit-events`, `training-events`, `dlq-events`, `error-response`.
 
 ## Example
 

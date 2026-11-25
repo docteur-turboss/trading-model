@@ -137,15 +137,15 @@ describe("decision tick", () => {
 	});
 
 	it("bounds a buy by the room left under the exposure cap", async () => {
-		// cap = 1_000_000 x 0.3 / 60_000 = 5 coin; 4.99 already held
+		// cap = 1_000_000 x 0.1 / 60_000 = 1.667 coin; 1.66 already held
 		const { tick, risk } = build();
-		risk.position.mockResolvedValue(4.99);
+		risk.position.mockResolvedValue(1.66);
 		await tick();
 		expect(risk.send).toHaveBeenCalledWith(
-			expect.objectContaining({ side: "buy", quantity: 0.00999999 })
+			expect.objectContaining({ side: "buy", quantity: 0.00666666 })
 		);
 		const full = build();
-		full.risk.position.mockResolvedValue(5);
+		full.risk.position.mockResolvedValue(2);
 		await full.tick();
 		expect(full.risk.send).not.toHaveBeenCalled();
 	});

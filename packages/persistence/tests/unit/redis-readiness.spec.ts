@@ -34,12 +34,6 @@ describe("redisReadinessCheck", () => {
 		expect(MOCK_CREATE_REDIS_CLIENT).not.toHaveBeenCalled();
 	});
 
-	it("should be ready on the HTTP bus, which does not use Redis", async () => {
-		const env = { REDIS_URL, BUS_TRANSPORT: "http" as const };
-		await expect(redisReadinessCheck(env).check()).resolves.toBe(true);
-		expect(MOCK_CREATE_REDIS_CLIENT).not.toHaveBeenCalled();
-	});
-
 	it("should ping the master the sentinels designate", async () => {
 		const env = {
 			REDIS_SENTINELS:

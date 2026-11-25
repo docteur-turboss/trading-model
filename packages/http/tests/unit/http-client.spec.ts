@@ -717,7 +717,7 @@ describe("HttpClient", () => {
 					URLString.of("https://cb-svc-3.example.com/api"),
 					{
 						retryCount: 0 as PositiveInt,
-						serviceName: "dlq-service" as unknown as ServiceId,
+						serviceName: "audit-logger" as unknown as ServiceId,
 					}
 				);
 				errorHandler!(new Error("ECONNRESET"));
@@ -730,7 +730,7 @@ describe("HttpClient", () => {
 				URLString.of("https://cb-svc-3.example.com/api"),
 				{
 					retryCount: 0 as PositiveInt,
-					serviceName: "dlq-service" as unknown as ServiceId,
+					serviceName: "audit-logger" as unknown as ServiceId,
 				}
 			);
 			simulateResponse(200, JSON.stringify({ ok: true }), "application/json");
@@ -822,6 +822,61 @@ describe("HttpClient", () => {
 				retryCount: 1 as PositiveInt,
 			});
 			await expect(promise).rejects.toMatchObject({ name: "HttpClientError" });
+		});
+	});
+
+	describe("retry budget", () => {
+		const answer = (statusCode: number) => {
+			let calls = 0;
+			(https.request as jest.Mock<(...args: any[]) => any>).mockImplementation(
+				(_opts: any, cb: any) => {
+					calls++;
+					cb({
+						setEncoding: jest.fn(),
+						on: jest.fn((e: string, cb2: any) => {
+							if (e === "data") {
+								cb2("");
+							}
+							if (e === "end") {
+								cb2();
+							}
+						}),
+						statusCode,
+						headers: { "content-type": "text/plain", "retry-after": "30" },
+					});
+					return {
+						write: jest.fn<(...args: any[]) => any>(),
+						end: jest.fn<(...args: any[]) => any>(),
+						on: jest.fn<(...args: any[]) => any>(),
+						setTimeout: jest.fn<(...args: any[]) => any>(),
+						destroy: jest.fn<(...args: any[]) => any>(),
+					};
+				}
+			);
+			return () => calls;
+		};
+		const url = URLString.of("https://budget.example.com/api");
+
+		beforeEach(() => {
+			(https.request as jest.Mock<(...args: any[]) => any>).mockClear();
+		});
+
+		it("should open the circuit after 5 failed attempts, not 5 calls x 4 attempts", async () => {
+			const calls = answer(503);
+			for (let i = 0; i < 10; i++) {
+				await client.get(url).catch(() => undefined);
+			}
+			expect(calls()).toBe(5);
+		});
+
+		it("should not retry a 429", async () => {
+			const calls = answer(429);
+			await expect(
+				client.get(URLString.of("https://throttled.example.com/api"))
+			).rejects.toMatchObject({
+				statusCode: 429,
+			});
+			expect(calls()).toBe(1);
 		});
 	});
 

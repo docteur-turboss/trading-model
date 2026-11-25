@@ -21,18 +21,18 @@ networks:
     driver: bridge
 ```
 
-Services on `backend-net` can reach each other by Docker service name (e.g. `message-manager`, `mysql`).
+Services on `backend-net` can reach each other by Docker service name (e.g. `api-gateway`, `mysql`).
 
 ---
 
 ## Multi-stage Dockerfile
 
-Every TypeScript service uses the same 3-stage pattern, for example [`services/message-manager/Dockerfile`](../../services/message-manager/Dockerfile). Base images are pinned by digest (Dependabot bumps them): read the digests in the Dockerfile.
+Every TypeScript service uses the same 3-stage pattern, in the root [`Dockerfile`](../../Dockerfile) (`--build-arg SERVICE=<name>`). Base images are pinned by digest (Dependabot bumps them): read the digests in the Dockerfile.
 
 | Stage     | Base image | Operations |
 | --------- | ---------- | ---------- |
-| `deps`    | `oven/bun:1.4.4`, pinned by digest | Copy manifests, `bun install --frozen-lockfile --production` (prod dependencies only) |
-| `build`   | `oven/bun:1.4.4`, pinned by digest | Full `bun install --frozen-lockfile`, `bun run build` (shared packages) + `bun run build` (service) |
+| `deps`    | `oven/bun:1.4.5`, pinned by digest | Copy manifests, `bun install --frozen-lockfile --production` (prod dependencies only) |
+| `build`   | `oven/bun:1.4.5`, pinned by digest | Full `bun install --frozen-lockfile`, `bun run build` (shared packages) + `bun run build` (service) |
 | `runtime` | `node:26.13.1-alpine`, pinned by digest | Add `tini` (init process), remove npm/npx, copy artifacts from previous stages, run as `appuser`; `HEALTHCHECK` runs `node -e` (no curl in the image): GET `/health/ready` over mTLS with the SVID; `CMD ["node", ...]` |
 
 Bun builds, Node runs: Bun exposes neither the peer certificate on HTTPS request sockets nor `server.setSecureContext`, which caller identity and SVID rotation need ([ADR-0011](../adr/0011-spiffe-spire-workload-identity.md)).
@@ -88,14 +88,14 @@ Containers wait for their dependencies to be **healthy** (`depends_on` with `con
 | -------------------- | -------------------------------------------------------------------------------------------------- |
 | `mongo`              | `echo 'db.runCommand("ping").ok' \| mongosh --quiet`                                               |
 | `mysql`              | `mysqladmin ping -h localhost -u root`                                                              |
-| All TS services      | `node -e <https GET with the SVID> https://localhost:3000/health/ready` (one line, see the service Dockerfiles) |
+| All TS services      | `node -e <https GET with the SVID> https://localhost:3000/health/ready` (one line, see the root Dockerfile) |
 | `edge-proxy`         | `wget -q -O /dev/null http://127.0.0.1:8080/health/ready`                                          |
 
 ---
 
 ## Load balancing
 
-Inbound load balancing is handled by the platform's own entry points (api-gateway, message-manager) rather than external nginx LBs. Each workload serves TLS directly with its SPIRE SVID (ADR-0011); no `proxy_ssl_verify off` passthrough is needed.
+Inbound load balancing is handled by the platform's own entry points (api-gateway) rather than external nginx LBs. Each workload serves TLS directly with its SPIRE SVID (ADR-0011); no `proxy_ssl_verify off` passthrough is needed.
 
 ---
 

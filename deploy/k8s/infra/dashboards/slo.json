@@ -132,10 +132,6 @@
         "gridPos": { "h": 6, "w": 6, "x": 0, "y": 18 },
         "targets": [
           {
-            "expr": "avg(up{job=\"message-manager\"}) * 100",
-            "legendFormat": "message-manager"
-          },
-          {
             "expr": "avg(up{job=\"api-gateway\"}) * 100",
             "legendFormat": "api-gateway"
           }
@@ -173,43 +169,6 @@
               "properties": [{ "id": "unit", "value": "s" }]
             }
           ]
-        }
-      },
-      {
-        "title": "Messages In Flight",
-        "type": "timeseries",
-        "gridPos": { "h": 6, "w": 12, "x": 0, "y": 24 },
-        "targets": [
-          {
-            "expr": "sum(mm_in_flight_messages)",
-            "legendFormat": "in-flight"
-          }
-        ]
-      },
-      {
-        "title": "Message Delivery Success Rate",
-        "type": "bargauge",
-        "gridPos": { "h": 6, "w": 8, "x": 0, "y": 30 },
-        "targets": [
-          {
-            "expr": "sum(rate(mm_messages_delivered_total{status=\"success\"}[5m])) / (sum(rate(mm_messages_delivered_total{status=\"success\"}[5m])) + sum(rate(mm_messages_dlq_total[5m]))) * 100",
-            "legendFormat": "Delivery Rate"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "percent",
-            "min": 95,
-            "max": 100,
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                { "color": "red", "value": null },
-                { "color": "orange", "value": 99.5 },
-                { "color": "green", "value": 99.95 }
-              ]
-            }
-          }
         }
       },
       {

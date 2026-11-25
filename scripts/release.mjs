@@ -73,8 +73,6 @@ const SCOPE_TO_PACKAGE = {
   'audit-logger': 'services/audit-logger',
   'decision-consumer': 'services/decision-consumer',
   'model-evaluator': 'services/model-evaluator',
-  'dlq-service': 'services/dlq-service',
-  'message-manager': 'services/message-manager',
   'financial-scraper': 'services/financial-scraper',
   scraper: 'services/financial-scraper',
   'trader-trainer': 'services/trader-trainer',

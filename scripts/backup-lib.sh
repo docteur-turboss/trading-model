@@ -1014,6 +1014,14 @@ component_pods() {
 		-o jsonpath='{.items[*].metadata.name}' 2>/dev/null || true
 }
 
+# The audit replica set is the only MongoDB store: component `mongodb` stays an
+# alias of `mongodb-audit` (older CronJobs and runbooks name it). Prints the
+# comma list `$1` with the alias replaced and duplicates dropped.
+normalize_components() {
+	printf '%s' "$1" | tr ',' '
+' | sed 's/^mongodb$/mongodb-audit/' | awk '!seen[$0]++' | paste -sd, -
+}
+
 # The writable primary of the MongoDB replica set labelled `$1`: dumps read
 # a consistent oplog from it and restores can only write there.
 mongo_primary() {
@@ -1308,7 +1316,7 @@ oplog_break() {
 	echo "$at"
 }
 
-# Stamp of the newest daily dump of store `$1` (mysql, mongodb, mongodb-audit)
+# Stamp of the newest daily dump of store `$1` (mysql, mongodb-audit)
 # that carries a PITR starting point, read from the file names.
 newest_pitr_dump() {
 	local path

@@ -10,8 +10,8 @@ restore verification for the trading-model platform.
 >
 > - Kubernetes: the CI `k8s` job (pull requests touching databases, backups or their services, and releases) backs up with the `db-backup`
 >   CronJob, writes more data, stops the writers, archives binlogs and oplogs
->   with `db-backup-incremental`, destroys data (the real `audit` and
->   `dlq` databases, drill markers, the `market_candles` table, the SPIRE
+>   with `db-backup-incremental`, destroys data (the real `audit`
+>   database, drill markers, the `market_candles` table, the SPIRE
 >   server volume) and restores it as after the loss of the cluster: the run
 >   and its archives are fetched from the off-site bucket with
 >   `scripts/fetch-offsite.sh --pitr` into a pod that never mounts
@@ -29,14 +29,13 @@ restore verification for the trading-model platform.
 | Data Store                    | Service                                       | Criticality | RPO (actual)           | RTO Target |
 | ----------------------------- | --------------------------------------------- | ----------- | ---------------------- | ---------- |
 | MongoDB `mongo-audit`         | audit-logger                                  | Critical    | 1 h (hourly oplog archive; point in time over the last 72 h) | 4 hours    |
-| MongoDB `mongo-dlq`           | dlq-service                                   | High        | 1 h (hourly oplog archive; point in time over the last 72 h) | 4 hours    |
 | MySQL `financial_scraper`     | financial-scraper                             | High        | 1 h (hourly binlog archive; point in time over the last 72 h) | 4 hours    |
 | SPIRE `datastore.sqlite3` + `keys-sqlite.json` | SPIRE Server (datastore and CA private keys, SQLite on its own volume, ADR-0065) | Critical | 24 h (daily backup: one tar, no journal) | 2 hours (SVIDs stay valid about 2 h after the server stops: TTL 4 h) |
 | Trained agents                | trader-trainer (checkpoint files)             | Medium      | 24 h (daily tar)       | 1 hour     |
 | `risk-execution-pvc` (`state.json`, `paper-ledger.json`) | risk-execution (kill switch, orders, positions; paper ledger, ADR-0064) | High | 24 h (daily tar, K8s only; `--until` restores the daily run at or before the instant) | 1 hour (a missing state starts with the kill switch on until an operator re-arms) |
 | `model-evaluations-pvc`       | model-evaluator (evaluation results)          | Low         | Not backed up: recomputed by replay (ADR-0079) | Rebuilt |
 | SealedSecrets controller keys | Sealed Secrets controller (namespace `sealed-secrets`, ADR-0035): decrypts every SealedSecret of `deploy/k8s/secrets/` | Critical | Daily run of `scripts/backup-sealed-secrets-key.sh` by `sealed-secrets-key-backup.yml` (ADR-0035), plus a manual run after a manual key change ([sealed-secrets.md](sealed-secrets.md#back-up-the-controller-keys)): a renewed key is off-site within 24 h | 1 hour |
-| Redis                         | message-manager journal (ADR-0048), dlq-service, readiness | High (journal), Low (rest) | Not backed up: journal protected by AOF and replication only | Journal not rebuildable; rest rebuilt |
+| Redis                         | bus journal and dead streams (ADR-0048, ADR-0073), readiness | High (journal), Low (rest) | Not backed up: journal protected by AOF and replication only | Journal not rebuildable; rest rebuilt |
 | Loki (access and operational logs) | edge-proxy, Promtail-collected services (K8s `deploy/k8s/infra/loki.yaml`, 10Gi; Compose `loki-data`) | Low (security evidence kept 31 days) | Not backed up | Rebuilt |
 | Prometheus TSDB               | Prometheus (K8s `deploy/k8s/infra/prometheus.yaml`, 50Gi; Compose `prometheus-data`) | Low | Not backed up | Rebuilt |
 | Grafana (dashboards, datasources, local DB) | Grafana (K8s `deploy/k8s/infra/grafana.yaml`, 10Gi; Compose `grafana-data`) | Low | Not backed up | Rebuilt |
@@ -49,10 +48,10 @@ is intact; the policy explains the two side by side. Exercises and drill
 timings are recorded in the [DR Exercise Log](../compliance/dr-exercise-log.md).
 
 Redis holds two kinds of state. Derived state: instance registrations and
-tokens (services register again), the DLQ retry queue (rebuilt from MongoDB by
-dlq-service) and readiness keys; a day-old snapshot would restore stale
-entries, so Redis is not backed up in Kubernetes. The message-manager journal
-(ADR-0048) is not derived: it holds accepted (202) messages not yet delivered,
+tokens (services register again) and readiness keys; a day-old snapshot would restore stale
+entries, so Redis is not backed up in Kubernetes. The bus journal
+(ADR-0048, ADR-0073) is not derived: it holds accepted messages not yet delivered,
+and the dead streams hold the dead letters,
 up to 24 h per stopped subscriber. **Journal RPO:** AOF plus replication
 (`JOURNAL_MIN_REPLICAS=1` in production); losing the master and all replicas
 loses those messages. No alert fires on a total loss (`JournalEntriesTrimmed`
@@ -153,7 +152,7 @@ Compose: no backup, disposable stack, no reference data ([ADR-0086](../adr/0086-
 
 | Component                                  | Method                                                         | Consistency                       |
 | ------------------------------------------ | -------------------------------------------------------------- | --------------------------------- |
-| MongoDB dlq and audit (one dump per replica set, from its primary) | `mongodump --gzip --oplog --archive`   | Point-in-time (end of the dump)   |
+| MongoDB audit (one dump per replica set, from its primary) | `mongodump --gzip --oplog --archive`   | Point-in-time (end of the dump)   |
 | MySQL, every non-system database (`financial_scraper`; `spire` of the releases before ADR-0065) | `mysqldump --databases … --single-transaction --set-gtid-purged=OFF` | Transaction-consistent snapshot |
 | Trainer checkpoints                        | `tar czf` of `/data/checkpoints/`                              | Filesystem snapshot               |
 | risk-execution state (K8s)                 | `tar czf` of `/data/risk-execution/*.json`; restored with the pod stopped | Per file (each written by rename): the two files can differ by one fill |
@@ -265,7 +264,7 @@ off-site copies. So (ADR-0033, issue #326):
    not even the account owner, can delete or overwrite that version before
    the date. The default retention must be at least `RETENTION_DAYS` (30, the
    daily backups a restore relies on) and at most the 31 days of the
-   `daily/` lifecycle rule: longer, the daily copies of the DLQ, checkpoints
+   `daily/` lifecycle rule: longer, the daily copies of checkpoints
    and SPIRE CA keys would outlive their retention (ADR-0032, data
    minimisation), and the lifecycle rules could not expire them on time.
    Weekly and monthly copies are locked their first 30 days, then expire by
@@ -398,7 +397,7 @@ off-site layout (`scripts/backup-lib.sh`):
   guard. With `RETENTION_WEEKLY_WEEKS=12 RETENTION_MONTHLY_MONTHS=60` the same
   tiers are also kept on the volume (a Docker host with room for them; the
   100Gi `backup-data` PVC is sized for dailies only).
-- `checkpoints`, the operational `mongodb` (DLQ, 30 days) and `spire/`
+- `checkpoints` and `spire/`
   (CA private keys, `keys_*` / `data_*`) are never promoted: data minimisation, see the
   [data retention policy](../compliance/data-retention-policy.md#backups-and-data-minimisation).
 
@@ -560,7 +559,7 @@ backups from the off-site copy first).
 
 `restore-k8s.sh` runs the `db-retention` CronJob once (`kubectl create job db-retention-post-restore-<stamp> --from=cronjob/db-retention`) after a successful MySQL restore, full or `--until`, and waits for it (`RETENTION_WAIT`, default `4h`, like the CronJob's deadline). If the Job fails, the restore exits 1 and prints the Job's last log lines: run the purge again. `--no-retention` skips it (forensic analysis of a past state): the expired rows then stay until the next daily run. The CI `k8s` drill restores a ticker 2000 days old and checks it is gone.
 
-MongoDB: `mongorestore` runs without `--noIndexRestore`, so the TTL indexes of `audit_events` and the DLQ come back with the data and the TTL monitor purges expired documents on its own (it wakes every 60 s). The CI `k8s` drill asserts both indexes after the restore and that an expired DLQ document (31 days old, inserted after the restore) is purged within 2 minutes.
+MongoDB: `mongorestore` runs without `--noIndexRestore`, so the TTL index of `audit_events` comes back with the data and the TTL monitor purges expired documents on its own (it wakes every 60 s). The CI `k8s` drill asserts the index after the restore.
 
 ## Restore Procedures
 
@@ -574,7 +573,7 @@ up successfully according to its manifest, after a checksum check
 
 Both restore scripts exit 1 if any step fails. Stop the writers first
 (`kubectl scale deployment --replicas=0` for financial-scraper,
-financial-scraper-collector, dlq-service, audit-logger, message-manager) when
+financial-scraper-collector, audit-logger) when
 restoring after data corruption: a restore running next to live writers can
 collide with their inserts.
 
@@ -759,10 +758,10 @@ After a targeted deletion (one collection, a few documents), do not restore the
 whole replica set: that overwrites every healthy write made since the dump.
 
 ```bash
-# One collection, in place: only dlq.dlq_entries is dropped and restored
-bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dlq_entries'
-# Same collection into a scratch database restore_<TS>_dlq, original untouched
-bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.dlq_entries' --into-scratch
+# One collection, in place: only audit-logger.audit_events is dropped and restored
+bash scripts/restore-k8s.sh --components mongodb --ns 'audit-logger.audit_events'
+# Same collection into a scratch database restore_<TS>_audit-logger, original untouched
+bash scripts/restore-k8s.sh --components mongodb --ns 'audit-logger.audit_events' --into-scratch
 ```
 
 - `--ns <db.coll|db.*>` is repeatable (`--nsInclude`); `--drop` only touches the
@@ -867,7 +866,7 @@ fails on an altered audit event. Then the service checks:
 curl -s http://localhost:8449/v1/trader-trainer/training-status -H "x-api-key: <AUTH_TOKENS value>"
 
 # Check core service health (mTLS via SPIRE SVIDs, run inside a service container)
-for svc in message-manager api-gateway; do
+for svc in api-gateway; do
   docker compose exec -T "$svc" node -e "$SVID_GET" https://localhost:3000/ping
 done
 ```
@@ -981,7 +980,7 @@ credentials of the cloud account (not the ones stored in the cluster);
 5. **Deploy the platform.** Actions → **Deploy** → environment and
    `image_tag` (the last released tag, resolved to digests); see
    [DEPLOY.md](DEPLOY.md). The databases come up empty. Before restoring,
-   stop the writers (namespace `trading-model`, or `trading-model-staging`; audit-logger, dlq-service, financial-scraper,
+   stop the writers (namespace `trading-model`, or `trading-model-staging`; audit-logger, financial-scraper,
    financial-scraper-collector) with `kubectl -n <namespace> scale
    deployment/<name> --replicas=0`, and scale them back after step 7.
 
