@@ -131,18 +131,6 @@ spec:
                   name: trading-model-secrets
                   key: REDIS_TRADER_TRAINER_PASSWORD
                   optional: true
-            - name: REDIS_RISK_EXECUTION_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: trading-model-secrets
-                  key: REDIS_RISK_EXECUTION_PASSWORD
-                  optional: true
-            - name: REDIS_DECISION_CONSUMER_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: trading-model-secrets
-                  key: REDIS_DECISION_CONSUMER_PASSWORD
-                  optional: true
             - name: REDIS_MODEL_EVALUATOR_PASSWORD
               valueFrom:
                 secretKeyRef:
