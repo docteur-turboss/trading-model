@@ -35,6 +35,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/packages ./packages
 COPY --from=build /app/services/dlq-service/package.json ./services/dlq-service/
 COPY --from=build /app/services/dlq-service/dist ./services/dlq-service/dist
+COPY deploy/probe.js ./probe.js
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 ARG BUILD_VERSION=dev
