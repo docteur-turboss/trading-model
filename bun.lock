@@ -132,7 +132,6 @@
         "@opentelemetry/semantic-conventions": "^1.45.0",
         "@trading-model/common": "*",
         "@trading-model/contracts": "*",
-        "@trading-model/model-runtime": "*",
         "@trading-model/primitives": "*",
         "@trading-model/reliability": "*",
         "express": "^5.3.0",
@@ -158,6 +157,7 @@
       "dependencies": {
         "@trading-model/common": "*",
         "@trading-model/contracts": "*",
+        "@trading-model/http": "*",
         "@trading-model/primitives": "*",
         "zod": "^4.6.7",
       },

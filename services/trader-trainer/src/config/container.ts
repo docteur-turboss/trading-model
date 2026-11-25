@@ -1,8 +1,8 @@
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { AssetId, type AssetType } from "@trading-model/contracts/wire/signals";
-import { SignalBarHistory } from "@trading-model/http/signals/signal-bar-history";
 import { inputGroupNames } from "@trading-model/model-runtime/agent/input-mask";
+import { SignalBarHistory } from "@trading-model/model-runtime/signals/signal-bar-history";
 import { TradingSymbol } from "@trading-model/primitives/primitives";
 import {
 	KubernetesLease,
