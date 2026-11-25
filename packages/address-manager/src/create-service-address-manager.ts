@@ -5,12 +5,11 @@ import {
 	createAddressManager,
 } from "./create-address-manager";
 
-/** Creates the address manager of a service with its bootstrap, routes and lookup functions. */
+/** Creates the address manager of a service with its routes and lookup function. */
 export function createServiceAddressManager(env: AddressManagerEnv) {
 	const am = createAddressManager(env);
 	return {
 		AddressManager: am,
-		BOOTSTRAP_ADDRESS_MANAGER: () => am.lifecycleManager.start(),
 		ADDRESS_MANAGER_ROUTES: (app: Application) =>
 			am.metricsCollector.listenExpress(app),
 		FIND_A_SERVICE: (serviceName: ServiceInstanceName) =>

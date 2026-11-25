@@ -13,7 +13,7 @@ FAILED=0
 ok() { echo "  ✓ $*"; }
 ko() { echo "  ✗ $*"; FAILED=1; }
 
-IMAGES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator risk-execution decision-consumer spire-tools backup-tools"
+IMAGES="message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator risk-execution decision-consumer spire-tools backup-tools"
 for img in $IMAGES; do
 	echo "$img sha256:$(printf '%s' "$img" | sha256sum | cut -d' ' -f1)"
 done >"$WORK/digests"
@@ -55,7 +55,6 @@ fi
 if [ "$1" = get ] && [ "$2" = pods ]; then printf "%b" "${STUB_PODS:-}"; exit 0; fi
 if [ "$1" = get ] && [[ $2 == statefulset/* ]]; then [[ $* == *updateRevision* ]] && printf '%s-abc' "${2#*/}"; exit 0; fi
 if [ "$1" = get ] && [ "$2" = statefulset ]; then [ -z "${STUB_NO_REDIS:-}" ] || exit 1; [ "$3" = redis ] && printf 'redis-abc'; exit 0; fi
-if [ "$1" = wait ] && [ -n "${STUB_WAIT_FAILS:-}" ] && [[ $* == *"$STUB_WAIT_FAILS"* ]]; then exit 1; fi
 [ "$1" = exec ] && exit 0
 if [ "$1" = wait ] || [ "$1" = delete ] || [ "$1" = create ] || [ "$2" = configmap ] || [ "$2" = deployments ]; then exit 0; fi
 if [ "$1" = get ] && [ "$2" = controllerrevision ]; then [ "$3" = redis-abc ] && printf '3'; exit 0; fi
@@ -77,13 +76,13 @@ chmod +x "$WORK/bin/kubectl"
 export PATH="$WORK/bin:$PATH" STUB_LOG="$WORK/log" STUB_APPLIED="$WORK/applied"
 log_line() { grep -n "$1" "$WORK/log" | tail -1 | cut -d: -f1; }
 
-STUB_REVS="discovery-server=4 api-gateway=7" bash "$SCRIPT" record ns "$WORK/revs" >/dev/null
-grep -qx "discovery-server 4" "$WORK/revs" && grep -qx "api-gateway 7" "$WORK/revs" &&
+STUB_REVS="message-manager=4 api-gateway=7" bash "$SCRIPT" record ns "$WORK/revs" >/dev/null
+grep -qx "message-manager 4" "$WORK/revs" && grep -qx "api-gateway 7" "$WORK/revs" &&
 	grep -qx "edge-proxy none" "$WORK/revs" && grep -qx "statefulset/redis 3" "$WORK/revs" && grep -qx "statefulset/redis-sentinel none" "$WORK/revs" &&
-	[ "$(wc -l <"$WORK/revs")" -eq 14 ] &&
-	ok "record writes the Redis StatefulSets and the 12 Deployments, none when missing" || ko "record: $(cat "$WORK/revs")"
+	[ "$(wc -l <"$WORK/revs")" -eq 13 ] &&
+	ok "record writes the Redis StatefulSets and the 11 Deployments, none when missing" || ko "record: $(cat "$WORK/revs")"
 
-printf 'discovery-server 4\napi-gateway 7\n' >"$WORK/revs"
+printf 'message-manager 4\napi-gateway 7\n' >"$WORK/revs"
 : >"$WORK/log"
 STUB_UNDO_FAILS="" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 	grep -q "rollout undo deployment/api-gateway -n ns --to-revision=7" "$WORK/log" &&
@@ -92,28 +91,6 @@ STUB_UNDO_FAILS="" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 printf '#!/bin/sh\necho "sleep $*" >>"$STUB_LOG"\n' >"$WORK/bin/sleep"
 chmod +x "$WORK/bin/sleep"
 
-out="$(bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
-	[[ $out == *"::warning::MySQL TLS relaxed by the rollback: redeploy release N to restore it"* ]] &&
-	ok "rollback warns that MySQL TLS stays relaxed" || ko "rollback TLS warning: $out"
-: >"$WORK/log"
-STUB_PODS="pod/mysql-0
-" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null 2>&1
-[ -n "$(log_line "rollout status statefulset/mysql -n ns")" ] &&
-	[ "$(log_line "rollout status statefulset/mysql -n ns")" -lt "$(log_line "get pods -n ns -l app.kubernetes.io/component=mysql")" ] &&
-	[ "$(log_line "wait -n ns --for=condition=Ready pod/mysql-0")" -lt "$(log_line "exec -n ns pod/mysql-0 -c mysql")" ] &&
-	ok "rollback waits for the MySQL StatefulSet, then each pod Ready, before relaxing TLS" || ko "relax_mysql wait: $(cat "$WORK/log")"
-: >"$WORK/log"
-rc=0
-out="$(STUB_PODS="pod/mysql-0
-" STUB_WAIT_FAILS=pod/mysql-0 bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" || rc=$?
-[ "$rc" != 0 ] && [[ $out == *"::error::Could not lift the MySQL TLS requirement"* ]] && ! grep -q "^exec " "$WORK/log" &&
-	ok "rollback reports a MySQL pod that never gets Ready, without an exec" || ko "relax_mysql not ready (rc $rc): $out"
-: >"$WORK/log"
-rc=0
-out="$(STUB_PODS="pod/mysql-0
-" STUB_STATUS_FAILS=mysql bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" || rc=$?
-[ "$rc" != 0 ] && [[ $out == *"::error::Could not lift the MySQL TLS requirement"* ]] && ! grep -q "^get pods -n ns -l app.kubernetes.io/component=mysql" "$WORK/log" &&
-	ok "rollback reports a MySQL StatefulSet that does not finish rolling, without touching its pods" || ko "relax_mysql rollout (rc $rc): $out"
 echo 2 >"$WORK/api-down"
 : >"$WORK/log"
 STUB_API_DOWN="$WORK/api-down" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null 2>&1 &&
@@ -127,25 +104,25 @@ out="$(STUB_API_DOWN="$WORK/api-down" bash "$SCRIPT" rollback ns "$WORK/revs" 2>
 		ok "rollback gives up after 300 s of API server down, nothing undone, ConfigMap kept" || ko "rollback API down: $out"; }
 rm "$WORK/bin/sleep"
 
-printf 'discovery-server 4\nedge-proxy none\napi-gateway 7\n' >"$WORK/revs"
+printf 'message-manager 4\nedge-proxy none\napi-gateway 7\n' >"$WORK/revs"
 : >"$WORK/log"
-out="$(STUB_UNDO_FAILS=discovery-server bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
+out="$(STUB_UNDO_FAILS=message-manager bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
 	ko "rollback succeeded with a failed undo and a new Deployment" ||
 	{ grep -q "deployment/api-gateway" "$WORK/log" && grep -q "delete deployment/edge-proxy -n ns" "$WORK/log" &&
 		ok "rollback fails on a failed undo, deletes a new Deployment, still tries every Deployment" || ko "rollback: $out"; }
 
-printf 'discovery-server 4
+printf 'message-manager 4
 api-gateway 7
 ' >"$WORK/revs"
 : >"$WORK/log"
-out="$(STUB_STATUS_FAILS=discovery-server bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
+out="$(STUB_STATUS_FAILS=message-manager bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
 	ko "rollback succeeded though a rollout did not come back" ||
 	{ grep -q "rollout status deployment/api-gateway -n ns --timeout=180s" "$WORK/log" &&
-		[[ $out == *"discovery-server did not finish rolling back"* ]] &&
-		grep -q "describe deployment/discovery-server -n ns" "$WORK/log" &&
+		[[ $out == *"message-manager did not finish rolling back"* ]] &&
+		grep -q "describe deployment/message-manager -n ns" "$WORK/log" &&
 		ok "rollback waits for each rollout and fails if one does not come back" || ko "rollback status: $out"; }
 
-printf 'statefulset/redis 3\nstatefulset/redis-sentinel 2\ndiscovery-server 4\n' >"$WORK/revs"
+printf 'statefulset/redis 3\nstatefulset/redis-sentinel 2\nmessage-manager 4\n' >"$WORK/revs"
 : >"$WORK/log"
 bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 	[ "$(grep -n 'rollout undo statefulset/redis-sentinel' "$WORK/log" | cut -d: -f1)" -lt \

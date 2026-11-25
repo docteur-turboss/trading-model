@@ -18,7 +18,7 @@ Training service for trading agents using genetic algorithms and neural networks
 | Route                      | Method | Description                                         |
 | -------------------------- | ------ | --------------------------------------------------- |
 | `/ping`                    | GET    | Health check (built-in via `createServiceServer`)   |
-| `/health/ready`            | GET    | Readiness (SVID readable, Redis)                    |
+| `/health/ready`            | GET    | Readiness (SVID readable)        |
 | `/v1/training-status`         | GET    | Current training status                             |
 | `/v1/best-agent`              | GET    | Best trained agent                                  |
 | `/v1/training-agents`         | GET    | Trained agents of every symbol                      |
@@ -161,7 +161,7 @@ The trader-trainer implements a **self-adaptive multi-objective genetic algorith
 
 | Doc | Content |
 | --- | ------- |
-| [Service Architecture](../../services/trader-trainer/ARCHITECTURE.md) | Full module breakdown, design decisions, training loop, performance metrics |
+| [Service Architecture](../../services/trader-trainer/ARCHITECTURE.md) | Module layout, design decisions |
 | [GA Reference](../reference/genetic-algorithm.md) | Genome structure, genetic operators, NSGA-II, adaptive control |
 | [NN Reference](../reference/neural-network.md) | Network architecture, activation functions, optimizers, loss functions |
 

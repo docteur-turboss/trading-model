@@ -132,10 +132,6 @@
         "gridPos": { "h": 6, "w": 6, "x": 0, "y": 18 },
         "targets": [
           {
-            "expr": "avg(up{job=\"discovery-server\"}) * 100",
-            "legendFormat": "discovery-server"
-          },
-          {
             "expr": "avg(up{job=\"message-manager\"}) * 100",
             "legendFormat": "message-manager"
           },

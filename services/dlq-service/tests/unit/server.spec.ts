@@ -13,7 +13,7 @@ jest.mock("../../src/adapters/inbound/routes", () => ({
 import { createServer } from "../../src/application/server";
 
 describe("createServer readiness", () => {
-	it("gates readiness on mongo only, not on the discovery registration", () => {
+	it("passes the mongo check", () => {
 		const mongo = { name: "mongo", check: () => false };
 
 		void createServer({} as any, mongo);

@@ -82,9 +82,8 @@ run --component MYSQL_MIGRATE_PASSWORD
 DRY_RUN=true run --component all
 [ "$RC" = 0 ] && [ -z "$(calls)" ] && pass "DRY_RUN calls nothing" || failed "DRY_RUN: rc=$RC calls=$(calls)"
 
-run --component signing
-[ "$RC" = 0 ] && [ "$(restarts)" = "discovery-server" ] && pass "signing restarts discovery-server" || failed "signing: rc=$RC restarts=$(restarts)"
-grep -q "MYSQL_ROOT_PASSWORD: b2xk" "$WORK/sealed.yaml" && ! grep -q "SIGNING_SECRET: b2xk" "$WORK/sealed.yaml" && pass "merge keeps other keys, replaces the rotated one" || failed "merge result: $(cat "$WORK/sealed.yaml")"
+run --component dlq
+grep -q "MYSQL_ROOT_PASSWORD: b2xk" "$WORK/sealed.yaml" && ! grep -q "DLQ_AUTH_HMAC_SECRET: b2xk" "$WORK/sealed.yaml" && pass "merge keeps other keys, replaces the rotated one" || failed "merge result: $(cat "$WORK/sealed.yaml")"
 ! grep -q SECRETVALUE <<<"$OUT" && pass "no value printed" || failed "value printed"
 
 run --component dlq
@@ -99,7 +98,7 @@ rm -f "$vf"
 ! grep -rq SECRETVALUE "$WORK/state/calls" && pass "no value in kubectl/kubeseal argv" || failed "value in argv"
 
 run
-[ "$(restarts)" = "api-gateway discovery-server dlq-service" ] && pass "default rotates all" || failed "all: restarts=$(restarts)"
+[ "$(restarts)" = "api-gateway dlq-service" ] && pass "default rotates all" || failed "all: restarts=$(restarts)"
 
 # Database passwords: add new (old stays valid) -> apply Secret -> restart -> drop old.
 steps() { calls | sed -n -e 's/.*\(RETAIN CURRENT\|DISCARD OLD\|resetpass\|ACL SETUSER\).*/\1/p' -e 's/^kubectl apply.*/apply/p' -e 's/^kubectl rollout restart.*/restart/p' | paste -sd ' ' -; }
@@ -115,7 +114,7 @@ run --component redis
 STUB_DECRYPT=0 run --component dlq
 [ "$RC" = 1 ] && [ -z "$(restarts)" ] && pass "no restart when the controller did not decrypt" || failed "undecrypted: rc=$RC restarts=$(restarts)"
 
-run --component signing
+run --component dlq
 rm -f "$WORK/state/calls"
 printf 'spec:
   encryptedData:

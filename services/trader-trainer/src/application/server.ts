@@ -23,7 +23,6 @@ export function createServer(trainer: Trainer, models: TrainerRoutesOptions) {
 
 			ADDRESS_MANAGER_ROUTES(app);
 		},
-		// No discovery lookup: resolution falls back to the last known address during a discovery outage.
 		readiness: [svidReadinessCheck(ENV), redisReadinessCheck(ENV)],
 	});
 }
