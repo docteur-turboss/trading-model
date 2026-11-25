@@ -1086,6 +1086,30 @@ describe("twelvedata-daily-prices", () => {
 		).toThrow(z.ZodError);
 	});
 
+	it.each([401, 403])(
+		"throws a %i HttpStatusError for a key error sent with HTTP 200, so the source is quarantined",
+		(code) => {
+			expect(() =>
+				TWELVEDATA_DAILY_PRICES.normalize(
+					{ code, message: "Invalid API key", status: "error" },
+					NO_PARAMS
+				)
+			).toThrow(
+				expect.objectContaining({ name: "HttpStatusError", status: code })
+			);
+		}
+	);
+
+	it("gives an empty page for a no-data answer", () => {
+		const body = {
+			code: 400,
+			message: "No data is available on the specified dates.",
+			status: "error",
+		};
+
+		expect(TWELVEDATA_DAILY_PRICES.normalize(body, NO_PARAMS)).toEqual([]);
+	});
+
 	it("gives nothing for a day without quotation (no value)", () => {
 		expect(
 			TWELVEDATA_DAILY_PRICES.normalize({ values: [] }, NO_PARAMS)

@@ -55,5 +55,5 @@ The 13.09 audit (Décision 6) relayed a draft mentioning the closure of Binance 
 ### Negative
 
 - The continuity risk remains: if Binance geo-blocks the EEA for public data too, collection stops until a fallback is applied. Fallback 1 is minutes of work but probably shares the same block; fallback 2 is an adapter to write (another exchange's payloads, symbols and rate limits), no longer a refactoring of the cycle.
-- The snapshot keeps Binance's shape (6 data types, Binance symbols such as `BTCUSDT`): another exchange's adapter has to map its symbols and may leave some data types empty.
+- The snapshot keeps Binance's shape (3 data types, Binance symbols such as `BTCUSDT`): another exchange's adapter has to map its symbols and may leave some data types empty.
 - During an outage the trainer stops training: no model is published until fresh candles arrive.
