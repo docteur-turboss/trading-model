@@ -9,7 +9,7 @@ const NumericString = z
 	.regex(/^\d+(\.\d+)?$/)
 	.transform(Number);
 
-/** `GET https://api.twelvedata.com/time_series?interval=1day&outputsize=1`: values are strings; an error answer has no `values`. */
+/** `GET https://api.twelvedata.com/time_series?interval=1day&outputsize=10&start_date=…`: values are strings; an error answer has no `values`. */
 const TimeSeries = z.object({
 	values: z.array(
 		z.object({
@@ -32,16 +32,15 @@ const ErrorBody = z.object({
 /**
  * Daily prices of one equity or ETF from Twelve Data (free key, internal use,
  * ADR-0078): sessions as `market` signals, `period` = the session day.
- * The API gives no release time: the collector stamps the first collection,
- * which the schedule runs after the US close. A backfill (no `ingestedAt`)
- * dates each bar at 21:00 UTC of its day, after the US close all year, so a
- * point-in-time read sees it no earlier than the session ended. `close` is
+ * The API gives no release time: live and backfill bars alike are dated 21:00
+ * UTC of their day, after the US close all year, so a point-in-time read sees
+ * a bar no earlier than the session ended and one bar has one id. `close` is
  * split-adjusted by the API; there is no separate adjusted close. A missing or
  * non-numeric field, or an error answer, throws.
  */
 export const TWELVEDATA_DAILY_PRICES: SourceAdapter = {
 	dimensions: ["market"],
-	normalize(payload, { ingestedAt }) {
+	normalize(payload) {
 		const error = ErrorBody.safeParse(payload);
 		if (error.success && error.data.code === 429) {
 			throw new HttpStatusError(error.data.message ?? "rate limited", 429);
@@ -55,8 +54,7 @@ export const TWELVEDATA_DAILY_PRICES: SourceAdapter = {
 				close: [row.close, "USD"],
 				volume: [row.volume, "shares"],
 			} as const;
-			const observedAt =
-				ingestedAt === undefined ? Date.parse(`${day}T21:00:00Z`) : undefined;
+			const observedAt = Date.parse(`${day}T21:00:00Z`);
 			return Object.entries(measures).map(([metric, [value, unit]]) => ({
 				key: day,
 				observedAt,
