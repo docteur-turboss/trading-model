@@ -2049,6 +2049,37 @@ tests:
               description: 'The periodic risk tick (reconciliation, stale-data and loss checks, state write) threw for 5 min. Gauges are still republished from memory, but the state may not be persisted.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#risktickfailing'
 
+  - name: risk-execution audit outbox
+    interval: 1m
+    input_series:
+      - series: 'risk_outbox_dropped_total{job="risk-execution"}'
+        values: '0 0 1+0x70'
+      - series: 'risk_outbox_pending{job="risk-execution"}'
+        values: '0 0 3+0x70'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: RiskOutboxDropped
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: RiskOutboxDropped
+        exp_alerts:
+          - exp_labels: {severity: critical, job: risk-execution}
+            exp_annotations:
+              summary: 'risk-execution dropped audit events (outbox full)'
+              description: 'The bus kept refusing order or kill switch events until the outbox file hit its bound: the oldest events are lost from the audit chain (ADR-0027).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskoutboxdropped'
+      - eval_time: 20m
+        alertname: RiskOutboxPending
+        exp_alerts: []
+      - eval_time: 40m
+        alertname: RiskOutboxPending
+        exp_alerts:
+          - exp_labels: {severity: warning, job: risk-execution}
+            exp_annotations:
+              summary: 'risk-execution audit events stuck in the outbox'
+              description: 'Order or kill switch events refused by the bus have waited for 30 min; past 1000 the oldest are dropped.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskoutboxpending'
+
   - name: risk-execution reject ratio
     interval: 1m
     input_series:

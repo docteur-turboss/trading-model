@@ -50,4 +50,14 @@ export const RISK_TICK_FAILURES = new promClient.Counter({
 	labelNames: ["mode"] as const,
 });
 
+export const RISK_OUTBOX_PENDING = new promClient.Gauge({
+	name: "risk_outbox_pending",
+	help: "Audit events refused by the bus and waiting in the outbox file",
+});
+
+export const RISK_OUTBOX_DROPPED = new promClient.Counter({
+	name: "risk_outbox_dropped_total",
+	help: "Audit events dropped because the outbox was full (lost from the audit chain)",
+});
+
 export { metricsHandler };
