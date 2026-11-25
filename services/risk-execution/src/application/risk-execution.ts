@@ -209,12 +209,12 @@ export class RiskExecution {
 
 	async submitIntent(intent: Intent): Promise<IntentResult> {
 		// Network call outside the queue: a slow trainer never delays an engage, a cancel or a tick.
-		const admissible = await this._bounded(
-			this._d.admission.isAdmissible(intent.model.symbol, intent.model.version),
+		const { admissible, barMs } = await this._bounded(
+			this._d.admission.admission(intent.model.symbol, intent.model.version),
 			"admission"
 		).catch((error) => {
 			this._emit("admission.error", { error: String(error) });
-			return false; // fail closed
+			return { admissible: false, barMs: undefined }; // fail closed
 		});
 		return this._run(async () => {
 			const now = this._now();
@@ -238,7 +238,7 @@ export class RiskExecution {
 						return [intent.symbol]; // status unknown: fail closed
 					}
 				),
-				this._readPrices([intent.symbol]),
+				this._readPrices([intent.symbol], barMs),
 			]);
 			const price = read[intent.symbol];
 			const reason = preTradeReject({
@@ -247,6 +247,7 @@ export class RiskExecution {
 				state: this._state,
 				now,
 				admissible,
+				barMs,
 				reconciled: this._ready,
 				halted,
 				price,
@@ -620,11 +621,12 @@ export class RiskExecution {
 
 	/** Marks the symbols at the prices read (never older than the mark); none when the read failed. */
 	private async _readPrices(
-		symbols: string[]
+		symbols: string[],
+		barMs?: number
 	): Promise<Record<string, MarketPrice>> {
 		try {
 			const read = await this._bounded(
-				this._d.prices.latest(symbols),
+				this._d.prices.latest(symbols, barMs),
 				"price read"
 			);
 			for (const [symbol, mark] of Object.entries(read)) {

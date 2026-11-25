@@ -62,7 +62,9 @@ function _registerCandleRoutes(router: Router): void {
 		page((window) => selectCandlesBy.symbol(params.symbol, window), query)
 	);
 	mountRoute(router, SCRAPER_API.candlesLatest, async ({ query }) =>
-		json({ rows: await selectLatestClosedCandles(query.symbols, new Date()) })
+		json({
+			rows: await selectLatestClosedCandles(query.symbols, new Date(), query),
+		})
 	);
 	mountRoute(router, SCRAPER_API.candlesSince, ({ params, query }) => {
 		const { to } = query;

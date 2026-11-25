@@ -53,6 +53,7 @@ class MemoryStore<T> implements StatePort<T> {
 
 let clock = T0;
 let admissible = true;
+let barMs: number | undefined;
 /** The market the service reads: price per symbol, observed now unless `marketAt` freezes the feed. */
 let market: Record<string, number> = {};
 let marketAt: number | null = null;
@@ -83,7 +84,7 @@ function build(
 		limits: LIMITS,
 		broker,
 		store,
-		admission: { isAdmissible: async () => admissible },
+		admission: { admission: async () => ({ admissible, barMs }) },
 		prices: {
 			latest: async (symbols) => {
 				if (feedDown) {
@@ -108,6 +109,7 @@ function build(
 beforeEach(() => {
 	clock = T0;
 	admissible = true;
+	barMs = undefined;
 	seq = 0;
 	market = { BTCUSDT: 60_000, ETHUSDT: 3_000 };
 	marketAt = null;
@@ -254,6 +256,15 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		market.BTCUSDT = 60_000;
 		marketAt = clock - LIMITS.haltAgeMs - 1;
 		expect(await reject({})).toBe("stale_price");
+	});
+
+	it("ages the price by the model's bars: 2 bars of 1 min or of 1 day", async () => {
+		barMs = 60_000;
+		marketAt = clock - 10 * 60_000;
+		expect(await reject({})).toBe("stale_price");
+		barMs = 86_400_000;
+		marketAt = clock - 20 * 3_600_000;
+		expect(await reject({})).toBe("accepted");
 	});
 
 	it("values the order at the price read, not at the intent's, and fills there", async () => {
@@ -953,9 +964,9 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		let release: (ok: boolean) => void = () => undefined;
 		const ctx = build({
 			admission: {
-				isAdmissible: () =>
-					new Promise<boolean>((resolve) => {
-						release = resolve;
+				admission: () =>
+					new Promise<{ admissible: boolean }>((resolve) => {
+						release = (ok) => resolve({ admissible: ok });
 					}),
 			},
 		});

@@ -16,8 +16,11 @@ export interface MarketPrice {
 
 /** The market prices the service reads itself (ADR-0064 §7): the only source of its marks. */
 export interface PricePort {
-	/** The latest price of each symbol; a symbol with no recent price is absent. */
-	latest(symbols: readonly string[]): Promise<Record<string, MarketPrice>>;
+	/** The latest price of each symbol, of the `barMs` bars when given (any bar otherwise); a symbol with no recent price is absent. */
+	latest(
+		symbols: readonly string[],
+		barMs?: number
+	): Promise<Record<string, MarketPrice>>;
 }
 
 /** What the broker says about an order: cumulative fills, never the requested quantity. */
@@ -52,7 +55,10 @@ export interface StatePort<Doc> {
 	save(state: Doc): Promise<void>;
 }
 
-/** ADR-0069: does the manifest of this model say `admission.admissible: true`. */
+/** ADR-0069: does the manifest of this model say `admission.admissible: true`; `barMs` is its bar length (`replay.intervalMs`), absent on older manifests. */
 export interface AdmissionPort {
-	isAdmissible(symbol: string, version: string): Promise<boolean>;
+	admission(
+		symbol: string,
+		version: string
+	): Promise<{ admissible: boolean; barMs?: number }>;
 }

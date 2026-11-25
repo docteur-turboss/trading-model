@@ -14,7 +14,7 @@ import { FIND_A_SERVICE } from "../../config/address-manager";
 import type { AdmissionPort } from "../../domain/ports";
 
 const Manifest = z.object({
-	data: ModelManifestSchema.pick({ admission: true }),
+	data: ModelManifestSchema.pick({ admission: true, replay: true }),
 });
 
 /** One attempt, short deadline: a slow trainer fails the intent closed instead of holding it. */
@@ -31,10 +31,16 @@ export class TrainerAdmission implements AdmissionPort {
 		this._http = HttpClient.createWithTls(tls);
 	}
 
-	async isAdmissible(symbol: string, version: string): Promise<boolean> {
+	async admission(
+		symbol: string,
+		version: string
+	): Promise<{ admissible: boolean; barMs?: number }> {
 		const stored = await readModelManifest(this._modelDir, symbol, version);
 		if (stored) {
-			return stored.admission?.admissible === true;
+			return {
+				admissible: stored.admission?.admissible === true,
+				barMs: stored.replay?.intervalMs,
+			};
 		}
 		const target = await FIND_A_SERVICE(
 			ServiceInstanceName.TraderTrainerService
@@ -51,6 +57,9 @@ export class TrainerAdmission implements AdmissionPort {
 			},
 			Manifest
 		);
-		return body?.data.admission?.admissible === true;
+		return {
+			admissible: body?.data.admission?.admissible === true,
+			barMs: body?.data.replay?.intervalMs,
+		};
 	}
 }

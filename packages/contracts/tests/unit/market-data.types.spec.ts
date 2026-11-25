@@ -38,4 +38,9 @@ describe("CandleInterval", () => {
 		const values = CandleInterval.values();
 		expect(values).toContain(CandleInterval.Min1);
 	});
+
+	it("should give the length of a bar in ms", () => {
+		expect(CandleInterval.toMs(CandleInterval.Min1)).toBe(60_000);
+		expect(CandleInterval.toMs(CandleInterval.D1)).toBe(86_400_000);
+	});
 });
