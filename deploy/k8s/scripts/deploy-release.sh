@@ -42,6 +42,9 @@
 #       API server (300s); forgets the recorded revisions on success.
 #   deploy-release.sh forget <namespace>
 #       Deletes configmap/deploy-revisions: the release deployed.
+#   deploy-release.sh pre-migrate-backup <namespace> <job> <environment>
+#       MySQL dump from the db-backup CronJob before the migrations, waited for
+#       (fails on a failed dump). Outside production: no off-site copy, own metrics file.
 #
 # GRAFANA_ALLOWED_CIDRS: comma-separated CIDRs; `render` sets them as whitelist-source-range of grafana-ingress (issue #1630).
 # DEPLOY_TIMEOUT_FACTOR: integer the wait and rollback timeouts are multiplied
@@ -95,7 +98,7 @@ redis_last() {
 }
 
 usage() {
-	echo "usage: $0 without-redis <ns> | redis-last <ns> | record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | dry-run <ns> <node-agents-dir> | wait <ns> [timeout] | rollback <ns> <file> | forget <ns>" >&2
+	echo "usage: $0 without-redis <ns> | redis-last <ns> | record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | dry-run <ns> <node-agents-dir> | wait <ns> [timeout] | rollback <ns> <file> | forget <ns> | pre-migrate-backup <ns> <job> <env>" >&2
 	exit 64
 }
 
@@ -431,8 +434,39 @@ rollback() {
 	return "$failed"
 }
 
+# A destructive migration cannot be undone by migrate-down or the rollback: this dump is the restore point.
+# The Job runs the CronJob template of release N-1 (not applied yet): outside production its off-site
+# copy may not work with this cluster's store (region fix of #2336, issue #2724), so it stays local.
+pre_migrate_backup() {
+	local ns="$1" job="$2" env="$3" filter=.
+	if ! kubectl get statefulset mysql -n "$ns" >/dev/null 2>&1; then
+		echo "First deploy: MySQL not there yet, no backup"
+		return 0
+	fi
+	# The job needs the age recipients and the off-site Secret (BACKUP_REQUIRE_*): production
+	# was checked before; elsewhere a missing one skips the backup instead of blocking the deploy.
+	if [ "$env" != production ] && ! { kubectl get configmap backup-encryption -n "$ns" &&
+		kubectl get secret trading-model-backup-s3 -n "$ns"; } >/dev/null 2>&1; then
+		echo "::warning::$env has no backup-encryption ConfigMap or trading-model-backup-s3 Secret: pre-migration backup skipped"
+		return 0
+	fi
+	# An env entry wins over envFrom; METRICS_FILE keeps the daily job's metrics.
+	[ "$env" = production ] || filter='{BACKUP_S3_BUCKET: "", BACKUP_REQUIRE_OFFSITE: "false", METRICS_FILE: "/tmp/premigrate.prom"} as $o
+		| .spec.template.spec.containers |= map(if .name == "backup"
+			then .env = [(.env // [])[] | select($o[.name] == null)] + [$o | to_entries[] | {name: .key, value}] else . end)'
+	kubectl create job "$job" --from=cronjob/db-backup -n "$ns" --dry-run=client -o json |
+		sed 's/--components [a-z,]*/--components mysql/' | jq "$filter" |
+		kubectl apply -n "$ns" -f - || return 1
+	bash "$(dirname "$0")/wait-job.sh" "$ns" "$job" 1800 || return 1
+	{
+		echo "MySQL backup finished at $(date -u +%Y-%m-%dT%H:%M:%SZ) (job $job): restore point for restore-k8s.sh --until"
+		[ "$env" = production ] || echo "$env: this restore point is local only (volume backup-data), not copied off-site"
+	} >>"${GITHUB_STEP_SUMMARY:-/dev/null}"
+}
+
 case "${1:-}" in
 deployments) echo $DEPLOYMENTS ;;
+pre-migrate-backup) [ $# -eq 4 ] || usage; pre_migrate_backup "$2" "$3" "$4" ;;
 record) [ $# -eq 3 ] || usage; record "$2" "$3" ;;
 release-replicas) [ $# -eq 2 ] || usage; release_replicas "$2" ;;
 render) [ $# -ge 4 ] && [ $# -le 5 ] || usage; render "$2" "$3" "$4" "${5:-}" ;;
