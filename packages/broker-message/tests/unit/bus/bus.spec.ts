@@ -37,6 +37,10 @@ function bus() {
 	return { redis, journal, streams: new DeadStreams(journal) };
 }
 
+const pendingOf = (redis: StreamRedis) =>
+	redis.streams.get(`p:journal:${TOPIC}`)?.groups.get(GROUP.service)?.pending
+		.size;
+
 async function until(check: () => boolean): Promise<void> {
 	for (let i = 0; i < 100 && !check(); i++) {
 		await new Promise((resolve) => setTimeout(resolve, 10));
@@ -76,6 +80,51 @@ describe("publishToBus", () => {
 		redis.failures.set("XADD", new Error("OOM command not allowed"));
 
 		await expect(publishToBus(journal, "p", METADATA)).rejects.toThrow("OOM");
+		expect(redis.streams.get(`p:journal:${TOPIC}`)?.entries).toHaveLength(0);
+	});
+
+	it("should deliver a write refused by WAIT once: the resend keeps the messageId", async () => {
+		const { journal, redis } = bus();
+		const refusing = new RedisMessageJournal({
+			redis,
+			keyPrefix: "p",
+			minReplicas: 1,
+		});
+		await journal.register(GROUP);
+		redis.waitRefusals = 1;
+		const handled = new Set<string>();
+		let calls = 0;
+		const c = new BusConsumer({
+			journal,
+			deadStreams: new DeadStreams(journal),
+			service: GROUP.service,
+			handle: async (m) => {
+				calls++;
+				handled.add(m.metadata.messageId as string);
+			},
+			onDeadLetter: jest.fn(),
+		});
+		await c.start([TOPIC]);
+
+		await publishToBus(refusing, "p", METADATA);
+		await until(() => calls === 2 && pendingOf(redis) === 0);
+		await c.stop();
+
+		// Two deliveries of one messageId: the consumer's dedup (deliverToListeners) emits it once.
+		expect(redis.streams.get(`p:journal:${TOPIC}`)?.entries).toHaveLength(2);
+		expect(calls).toBe(2);
+		expect(handled.size).toBe(1);
+	});
+
+	it("should not resend a write that failed for another reason than WAIT", async () => {
+		const { journal, redis } = bus();
+		await journal.register(GROUP);
+		redis.failures.set("XADD", new Error("READONLY"));
+
+		await expect(publishToBus(journal, "p", METADATA)).rejects.toThrow(
+			"READONLY"
+		);
+		expect(redis.streams.get(`p:journal:${TOPIC}`)?.entries).toHaveLength(0);
 	});
 });
 
@@ -97,9 +146,6 @@ describe("BusConsumer", () => {
 			}),
 		};
 	}
-	const pendingOf = (redis: StreamRedis) =>
-		redis.streams.get(`p:journal:${TOPIC}`)?.groups.get(GROUP.service)?.pending
-			.size;
 
 	it("should acknowledge a handled message", async () => {
 		const handled: unknown[] = [];

@@ -162,7 +162,8 @@ export class RedisMessageJournal implements MessageJournalPort {
 	async append(
 		message: Message,
 		services: readonly string[],
-		onlyFor?: string
+		onlyFor?: string,
+		keepOnRefusal = false
 	): Promise<void> {
 		const { topic } = message.metadata;
 		// Re-register on every append: a replica may have retired a group since, and a stream Redis lost
@@ -192,10 +193,15 @@ export class RedisMessageJournal implements MessageJournalPort {
 				String(WAIT_REPLICAS_TIMEOUT_MS)
 			);
 			if (Number(replicated) < required) {
-				// The publisher will send again under a new messageId: drop this entry so it is not delivered twice.
-				await writer.call("XDEL", this.stream(topic), entryId);
-				throw messageManagerError(
-					`Message not accepted: journal write held by ${replicated} of ${required} replicas`
+				if (!keepOnRefusal) {
+					// The publisher sends again under a new messageId: drop this entry so it is not delivered twice.
+					await writer.call("XDEL", this.stream(topic), entryId);
+				}
+				throw Object.assign(
+					messageManagerError(
+						`Message not accepted: journal write held by ${replicated} of ${required} replicas`
+					),
+					{ waitRefused: true }
 				);
 			}
 		}
