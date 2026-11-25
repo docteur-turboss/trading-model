@@ -204,7 +204,11 @@ restart, the services do not.
   redis-last` adds `redis-1` on the new one, makes it master by `SENTINEL
   FAILOVER`, updates `redis-0` as its replica, fails back and returns to one
   pod and `partition: 1` (issue #2882), so the ACL of `redis-ha.sh` reaches it
-  at each deploy. The PVC `redis-data-redis-1` (a full copy of the data)
+  at each deploy. Writes are held on the old master over each failover, so no
+  bus entry is lost (ADR-0090), except over the first one from a `redis-0`
+  older than ADR-0090 (v3.1.0), whose `ha` user cannot pause: a write taken in
+  the second before clients follow the switch can be lost, once (accepted by
+  the owner, issue #2882). The PVC `redis-data-redis-1` (a full copy of the data)
   stays after it: delete it to free the disk. `redis-sentinel-0` keeps its
   template: it holds no service user, only the internal password and the
   `exporter` user;

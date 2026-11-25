@@ -57,7 +57,7 @@ Inventory (issue #506). Address-manager caches in memory per process, so only th
 
 Dead letters live in the dead streams of Redis, not in MongoDB.
 
-Isolation (ADR-0047, K8s): each row is an ACL user (`discovery`, `message-manager` and `dlq-service` kept one release for release N-1 pods (issue #2619), and the five bus services) limited to its key pattern and to these commands plus `PING INFO ROLE CLIENT SETNAME/SETINFO MULTI EXEC`; the default user is off and the sentinels require the password (2.x clients, which used neither, are refused); the `ha` user (replication, Sentinel, probes) reaches no key. Rules live in `deploy/k8s/infra/redis-ha.sh`; `packages/persistence/tests/db/k8s-redis-ha.db.spec.ts` proves a service is refused outside its prefix, and the `exporter` user outside its read-only commands. Compose runs one unauthenticated Redis (dev).
+Isolation (ADR-0047, K8s): each row is an ACL user (`discovery`, `message-manager` and `dlq-service` kept one release for release N-1 pods (issue #2619), and the five bus services) limited to its key pattern and to these commands plus `PING INFO ROLE CLIENT SETNAME/SETINFO MULTI EXEC`; the default user is off and the sentinels require the password (2.x clients, which used neither, are refused); the `ha` user (replication, Sentinel, probes, write pause over a planned failover: ADR-0090) reaches no key. Rules live in `deploy/k8s/infra/redis-ha.sh`; `packages/persistence/tests/db/k8s-redis-ha.db.spec.ts` proves a service is refused outside its prefix, and the `exporter` user outside its read-only commands. Compose runs one unauthenticated Redis (dev).
 
 ## Monitoring users (ADR-0056)
 

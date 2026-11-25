@@ -114,22 +114,35 @@ redis_cli() {
 	kubectl exec "$pod" -n "$ns" -c "$container" -- sh -c 'REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" exec redis-cli --raw "$@"' sh "$@"
 }
 
-# Makes Redis pod $2 the master: once it is a synced replica, the sentinel promotes it (SENTINEL
-# FAILOVER, refused until the sentinel lists it). Clients follow the switch (failoverDetector);
-# with JOURNAL_MIN_REPLICAS=0, a write the old master takes in the second before it is lost.
+repl_offset() {
+	redis_cli "$1" "$2" redis --user ha INFO replication | sed -n 's/^master_repl_offset:\([0-9]*\).*/\1/p'
+}
+
+# Makes Redis pod $2 the master once it is a synced replica. The old master holds writes (CLIENT
+# PAUSE WRITE) until the replica has them all, the sentinel promotes it (SENTINEL FAILOVER, refused
+# until the sentinel lists it), the old master turns replica and resumes: a held write gets READONLY
+# and is published again, none is lost (ADR-0090). An old master whose `ha` user predates ADR-0090
+# cannot pause: a write it takes before the clients follow the switch (failoverDetector) is lost.
 failover_to() {
-	local ns="$1" pod="$2" ip waited=0
+	local ns="$1" pod="$2" old="redis-$((1 - ${2#redis-}))" ip paused="" waited=0
 	ip=$(kubectl get pod "$pod" -n "$ns" -o jsonpath='{.status.podIP}') || return 1
 	until [ "$(redis_cli "$ns" redis-sentinel-0 sentinel -p 26379 SENTINEL get-master-addr-by-name mymaster | head -n 1)" = "$ip" ]; do
 		[ "$waited" -lt $((300 * FACTOR)) ] || {
 			echo "::error::The sentinel did not make $pod the Redis master in $waited s"
 			return 1
 		}
-		redis_cli "$ns" "$pod" redis --user ha INFO replication | grep -q '^master_link_status:up' &&
-			redis_cli "$ns" redis-sentinel-0 sentinel -p 26379 SENTINEL FAILOVER mymaster || true
-		sleep 5
-		waited=$((waited + 5))
+		if redis_cli "$ns" "$pod" redis --user ha INFO replication | grep -q '^master_link_status:up'; then
+			# Re-armed each pass; expires by itself if this run dies.
+			paused=$(redis_cli "$ns" "$old" redis --user ha CLIENT PAUSE 30000 WRITE) || true
+			{ [ "$paused" != OK ] || [ "$(repl_offset "$ns" "$pod")" = "$(repl_offset "$ns" "$old")" ]; } &&
+				redis_cli "$ns" redis-sentinel-0 sentinel -p 26379 SENTINEL FAILOVER mymaster || true
+		fi
+		sleep 1
+		waited=$((waited + 1))
 	done
+	[ "$paused" = OK ] || return 0
+	redis_cli "$ns" "$old" redis --user ha REPLICAOF "$ip" 6379 >/dev/null &&
+		redis_cli "$ns" "$old" redis --user ha CLIENT UNPAUSE >/dev/null
 }
 
 # staging-local holds its single redis-0 by `partition: 1`: it keeps the template, so the ACL users,

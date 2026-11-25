@@ -463,6 +463,33 @@ describe("K8s Redis HA start script — real failovers", () => {
 		);
 	});
 
+	// The planned failover of deploy-release.sh redis-last (ADR-0090): a write held on the old master is not lost.
+	it("should let ha hold writes over a planned failover, the held write landing on the new master", async () => {
+		const old = await masterNode();
+		const key = `${DISCOVERY_KEY}:held`;
+		await expect(
+			cli(old, "CLIENT", "PAUSE", "30000", "WRITE")
+		).resolves.toEqual(["OK"]);
+		const held = setDuringFailover(client, key);
+		await cli(
+			sentinels[0],
+			"-p",
+			String(SENTINEL_PORT),
+			"SENTINEL",
+			"FAILOVER",
+			"mymaster"
+		);
+		await eventually(async () => (await masterIp()) !== ipOf(old));
+		await cli(old, "REPLICAOF", await masterIp(), String(REDIS_PORT));
+		await expect(cli(old, "CLIENT", "UNPAUSE")).resolves.toEqual(["OK"]);
+
+		await expect(held).resolves.toBe("OK");
+		await expect(
+			asService(await masterNode(), "discovery", "GET", key)
+		).resolves.toEqual(["1"]);
+		await eventually(async () => (await role(old)) === "slave");
+	}, 120_000);
+
 	it("should not keep a ghost of a recreated sentinel, and still fail over", async () => {
 		const oldIp = ipOf(sentinels[1]);
 		await sentinels[1].stop();
