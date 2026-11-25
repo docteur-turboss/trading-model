@@ -70,7 +70,7 @@ export class SignalBarHistory {
 				continue;
 			}
 			const metrics = days.get(day) ?? new Map<string, number>();
-			// Newest observation of a metric wins (a restated price).
+			// One row per day and metric: the store replaces a restated price (source `restated`).
 			const observed = Date.parse(signal.observedAt);
 			const key = `${day}:${signal.payload.metric}`;
 			if (observed >= (seenAt.get(key) ?? 0)) {

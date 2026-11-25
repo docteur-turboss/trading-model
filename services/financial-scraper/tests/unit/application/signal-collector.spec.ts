@@ -88,7 +88,7 @@ const worker = Object.assign(
 	>(),
 	{ confirm }
 );
-const save = jest.fn<(signals: unknown) => Promise<void>>();
+const save = jest.fn<(signals: unknown, restate?: boolean) => Promise<void>>();
 const sleep = jest.fn<(ms: number) => Promise<void>>();
 
 let clock = NOW;
@@ -218,28 +218,38 @@ describe("SignalCollector", () => {
 			{ payload: true },
 			{ params: {}, ingestedAt: NOW }
 		);
-		expect(save).toHaveBeenNthCalledWith(1, [
-			{
-				id: signalId(
-					"test-source",
-					{ assetId: "BTC" },
-					"pageviews",
-					"2026-11-03"
-				),
-				schemaVersion: 1,
-				sourceId: "test-source",
-				dimension: "social",
-				assetId: "BTC",
-				sector: null,
-				area: null,
-				observedAt: "2026-11-04T12:00:00.000Z",
-				ingestedAt: "2026-11-04T12:03:00.000Z",
-				// The source reliability, kept for the consumers to weigh.
-				confidenceScore: 0.3,
-				payload: PAYLOAD,
-			},
-		]);
+		expect(save).toHaveBeenNthCalledWith(
+			1,
+			[
+				{
+					id: signalId(
+						"test-source",
+						{ assetId: "BTC" },
+						"pageviews",
+						"2026-11-03"
+					),
+					schemaVersion: 1,
+					sourceId: "test-source",
+					dimension: "social",
+					assetId: "BTC",
+					sector: null,
+					area: null,
+					observedAt: "2026-11-04T12:00:00.000Z",
+					ingestedAt: "2026-11-04T12:03:00.000Z",
+					// The source reliability, kept for the consumers to weigh.
+					confidenceScore: 0.3,
+					payload: PAYLOAD,
+				},
+			],
+			undefined
+		);
 		await expect(counted()).resolves.toEqual({ "test-source:success": 2 });
+	});
+
+	it("tells the store to restate the values of a restated source", async () => {
+		await collector().collect({ ...SOURCE, restated: true });
+
+		expect(save.mock.calls.map(([, restate]) => restate)).toEqual([true, true]);
 	});
 
 	it("spaces the requests of a source by its maxRequestsPerMinute", async () => {

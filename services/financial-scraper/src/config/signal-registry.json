@@ -767,6 +767,7 @@
 			"adapter": "twelvedata-daily-prices",
 			"schedule": "30 1 * * 2-6",
 			"reliabilityScore": 0.9,
+			"restated": true,
 			"covers": [
 				{ "assetType": "equity", "dimension": "market" },
 				{ "assetType": "etf", "dimension": "market" },
