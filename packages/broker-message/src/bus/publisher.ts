@@ -29,10 +29,18 @@ export async function publishToBus(
 		return;
 	}
 	try {
-		await journal.append(message, []);
-	} catch {
-		// A refused WAIT leaves the entry in the journal: resend the same messageId, never a new one (consumers deduplicate on it).
-		// shortcut: one resend, a second failure rejects to the caller, who then builds a new messageId.
-		await journal.append(message, []);
+		await journal.append(message, [], undefined, true);
+	} catch (err) {
+		if (!(err as { waitRefused?: boolean }).waitRefused) {
+			throw err;
+		}
+		getLogger().warn(
+			"Journal write refused by WAIT: resending the same messageId",
+			{
+				context: { topic, messageId },
+			}
+		);
+		// shortcut: one resend; a second refusal rejects to the caller. Consumers deduplicate per process, not across replicas.
+		await journal.append(message, [], undefined, true);
 	}
 }
