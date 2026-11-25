@@ -126,6 +126,38 @@ describe("rest_api worker", () => {
 		}
 	});
 
+	it("aborts the request in flight when the caller's signal is aborted", async () => {
+		const controller = new AbortController();
+		let sent: AbortSignal | undefined;
+		const spy = jest
+			.spyOn(globalThis, "fetch")
+			.mockImplementation((_url, init) => {
+				sent = init?.signal as AbortSignal;
+				return new Promise((_resolve, reject) => {
+					sent?.addEventListener("abort", () => reject(sent?.reason));
+				});
+			});
+		try {
+			const call = createRestApiWorker("ua")(
+				{
+					subject: { assetId: "BTC" },
+					dimension: "market",
+					url: `${base}/json`,
+					params: {},
+				},
+				"none",
+				undefined,
+				controller.signal
+			);
+			controller.abort();
+			await expect(call).rejects.toThrow();
+			expect(sent?.aborted).toBe(true);
+			expect(spy).toHaveBeenCalledTimes(1);
+		} finally {
+			spy.mockRestore();
+		}
+	});
+
 	it("rejects with an InvalidPayloadError on a body that is not JSON", async () => {
 		await expect(fetchPath("/html")).rejects.toBeInstanceOf(
 			InvalidPayloadError

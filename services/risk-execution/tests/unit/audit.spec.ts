@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import promClient from "prom-client";
 
 const POST = jest.fn<(...args: any[]) => Promise<void>>();
 const CREATE = jest.fn<(...args: any[]) => unknown>();
@@ -69,6 +70,29 @@ describe("publishRiskEvent", () => {
 		const [payload] = POST.mock.calls[0] ?? [];
 		expect(payload).toMatchObject({ mode: "paper" });
 		expect(payload.eventId).toEqual(expect.any(String));
+	});
+
+	it("counts the oldest event dropped when the outbox is full and tracks the depth", async () => {
+		CREATE.mockReturnValue({ messageManager: { post: { indirect: POST } } });
+		const full = Array.from({ length: 1000 }, () => ({
+			topic: "risk.order.transitioned",
+			fields: {},
+		}));
+		POST.mockReset();
+		POST.mockRejectedValue(new Error("down"));
+		await initRiskOutbox({
+			load: async () => full as any[],
+			save: async () => undefined,
+		});
+		const value = async (name: string) =>
+			(await promClient.register.getSingleMetric(name)?.get())?.values[0]
+				?.value;
+		expect(await value("risk_outbox_pending")).toBe(1000);
+		publishRiskEvent("order.transition", {});
+		await new Promise((resolve) => setImmediate(resolve));
+		await replayRiskEvents();
+		expect(await value("risk_outbox_dropped_total")).toBe(1);
+		expect(await value("risk_outbox_pending")).toBe(1000);
 	});
 
 	// Until Redis restarts with the new ACL user (#1241): the auth refusal must reach the outbox.

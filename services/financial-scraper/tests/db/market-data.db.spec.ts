@@ -546,6 +546,33 @@ describe("selectLatestClosedCandles — real MySQL", () => {
 			expect(step.type).not.toBe("ALL");
 		}
 	});
+	it("should read only the rows of the 7-day window of candles after a date (issue #2721)", async () => {
+		const db = DATABASE.promise();
+		// One candle every 10 minutes for 139 days: a 7-day window holds 5% of the table.
+		await db.query(
+			`INSERT /*+ SET_VAR(cte_max_recursion_depth = 20000) */ INTO market_candles (symbol, market, source, interval_value, open, high, low, close, volume, timestamp, close_timestamp)
+			 WITH RECURSIVE n (i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 20000)
+			 SELECT 'BTCUSDT', 'crypto', 'binance', '1m', 1, 1, 1, 1, 1, '2026-01-01' + INTERVAL i * 10 MINUTE, '2026-01-01' + INTERVAL i * 10 + 1 MINUTE FROM n`
+		);
+		await db.query("ANALYZE TABLE market_candles");
+		const from = UnixTimestamp.of(Date.UTC(2026, 0, 1));
+		const to = from + 7 * 24 * 3600 * 1000;
+
+		const rows = await selectCandlesBy.timestamp.after(from, {
+			limit: 100,
+			to,
+		});
+
+		expect(rows).toHaveLength(100);
+		// Same predicate and order as the query builder emits for that call.
+		const [plan] = (await db.query(
+			"EXPLAIN SELECT * FROM market_candles WHERE timestamp > ? AND timestamp < ? ORDER BY timestamp, id LIMIT 101",
+			[new Date(from), new Date(to)]
+		)) as unknown as [{ type: string; rows: number }[]];
+		await db.query("TRUNCATE TABLE market_candles");
+		expect(plan[0]?.type).toBe("range");
+		expect(plan[0]?.rows).toBeLessThan(2000);
+	});
 });
 
 describe("signals — real MySQL", () => {

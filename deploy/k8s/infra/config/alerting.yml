@@ -270,6 +270,25 @@ groups:
           description: 'The periodic risk tick (reconciliation, stale-data and loss checks, state write) threw for 5 min. Gauges are still republished from memory, but the state may not be persisted.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#risktickfailing'
 
+      - alert: RiskOutboxDropped
+        expr: 'sum by (job) (increase(risk_outbox_dropped_total[1h])) > 0'
+        labels:
+          severity: critical
+        annotations:
+          summary: 'risk-execution dropped audit events (outbox full)'
+          description: 'The bus kept refusing order or kill switch events until the outbox file hit its bound: the oldest events are lost from the audit chain (ADR-0027).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskoutboxdropped'
+
+      - alert: RiskOutboxPending
+        expr: 'max by (job) (risk_outbox_pending) > 0'
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'risk-execution audit events stuck in the outbox'
+          description: 'Order or kill switch events refused by the bus have waited for 30 min; past 1000 the oldest are dropped.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskoutboxpending'
+
       - alert: ReconciliationMismatch
         expr: 'max by (job, mode) (risk_reconciliation_mismatch) > 0'
         for: 1m

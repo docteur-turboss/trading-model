@@ -51,6 +51,9 @@ const LIMIT = z.coerce
 	.max(MAX_PAGE_LIMIT)
 	.default(DEFAULT_PAGE_LIMIT);
 
+/** Widest window `candlesSince` reads: the `(timestamp, id)` order has no index, so the range must stay small. */
+export const MAX_SINCE_WINDOW_MS = 7 * 24 * 3600 * 1000;
+
 /** Key of the row a page ends on: (`timestamp` in epoch ms, `id`). */
 export type PageKey = NonNullable<MarketDataPage["after"]>;
 
@@ -200,7 +203,7 @@ export const SCRAPER_API = {
 	}),
 	candlesSince: query(
 		"/v2/candles/timestamp/:timestamp",
-		"Candles opened after a date",
+		"Candles opened after a date; `to` is required, at most 7 days after the date (400 otherwise)",
 		AT_DATE,
 		Candle
 	),
