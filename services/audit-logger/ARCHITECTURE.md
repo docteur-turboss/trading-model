@@ -1,18 +1,6 @@
 # Architecture — Audit Logger
 
-## Overview
-
-The Audit Logger provides immutable traceability for all platform events. It subscribes to the audit, training and dlq topics of the message bus (market data is kept in MySQL, ADR-0027), persists each event to MongoDB, and exposes a queryable REST API with pagination, filtering, and aggregate statistics.
-
-## System Context
-
-```mermaid
-graph LR
-    MM["Message Manager"] -->|POST /message<br/>audit, training, dlq topics| AL["Audit Logger"]
-    AL -->|Write| MDB[("MongoDB<br/>audit_events")]
-    AL -->|Anchors| S3[("S3 Object Lock")]
-    API["Client"] -->|GET /events| AL
-```
+Routes, storage, environment and behaviour: [docs/services/audit-logger.md](../../docs/services/audit-logger.md). This file only holds the source layout.
 
 ## Project Structure
 
@@ -25,6 +13,7 @@ services/audit-logger/
 │   │   ├── index.ts              # Entry point: bootstrap, MongoDB connect, broker subscription
 │   │   ├── server.ts             # Express server factory
 │   │   ├── chain-cli.ts          # Operator CLI (package.json bin "audit-chain", ADR-0027)
+│   │   ├── dlq-cli.ts            # Operator CLI for the DLQ
 │   │   └── audit-chain/          # Chain verification + anchoring scheduler
 │   ├── adapters/
 │   │   ├── inbound/
@@ -39,6 +28,8 @@ services/audit-logger/
 │       ├── container.ts          # Composition root: Mongo repositories, chain audit, message handler,
 │       │                         # server — createAuditLoggerApp()
 │       ├── broker-setup.ts       # Message bus subscription wiring
+│       ├── audited-topics.ts     # Topics the audit trail subscribes to
+│       ├── dlq-cli.ts            # DLQ CLI wiring
 │       ├── metrics.ts            # Prometheus collectors
 │       └── address-manager.ts
 ├── tests/
@@ -46,25 +37,3 @@ services/audit-logger/
 ├── package.json
 └── tsconfig.json
 ```
-
-## Layer Architecture
-
-```
-Message Bus (audit, training, dlq topics)
-    │
-    ▼
-BrokerMessage SDK ──→ onMessage handler
-    │
-    ▼
-AuditRepository ──→ MongoDB (audit_events collection)
-    │
-    ▼
-REST API (GET /events, GET /events/stats, GET /events/:id)
-```
-
-## Key Design Decisions
-
-- **Subscribes to ALL bus topics** — ensures no event is missed for audit purposes
-- **MongoDB time-series friendly** — `audit_events` collection uses date-based indexing
-- **Retention** — configurable via `AUDIT_RETENTION_DAYS` (default 90 days)
-- **No job scheduler** — the job queue and WebSocket worker protocol had no producer and no worker; removed by ADR-0029
