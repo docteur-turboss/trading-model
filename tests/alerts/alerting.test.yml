@@ -470,6 +470,8 @@ tests:
         values: '1x10'
       - series: 'up{job="risk-execution",instance="i"}'
         values: '1x10'
+      - series: 'up{job="decision-consumer",instance="i"}'
+        values: '1x10'
     alert_rule_test:
       - eval_time: 10m
         alertname: ServiceTargetsMissing
@@ -488,6 +490,11 @@ tests:
       - eval_time: 10m
         alertname: ServiceTargetsMissing
         exp_alerts:
+          - exp_labels: {severity: critical, job: decision-consumer}
+            exp_annotations:
+              summary: 'decision-consumer has no scrape target'
+              description: 'Prometheus has had no up series for decision-consumer for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
           - exp_labels: {severity: critical, job: model-evaluator}
             exp_annotations:
               summary: 'model-evaluator has no scrape target'
@@ -2092,6 +2099,24 @@ tests:
               summary: 'risk-execution rejected 3 or more intents of the decision consumer in 1 hour (price_band)'
               description: 'The promoted models decide once per closed bar, so three rejections with the same reason code in an hour are not noise: the consumer sends a price or a size the limits refuse (ADR-0087).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#decisionintentsrejected'
+
+  - name: a failed decision pass fires DecisionPassFailing
+    interval: 1m
+    input_series:
+      - series: 'decision_skipped_total{job="decision-consumer",reason="error"}'
+        values: '0+0x5 1+0x20'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: DecisionPassFailing
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: DecisionPassFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, job: decision-consumer}
+            exp_annotations:
+              summary: 'decision-consumer decision pass failed in the last hour'
+              description: 'A whole decision pass threw (decision_skipped_total{reason="error"}): no intent is decided while it keeps failing, so paper trading is stopped.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#decisionpassfailing'
 
   # Deployed with no promoted model: no price ever received, the service publishes age 0 and no switch, so nothing pages.
   - name: risk-execution without a price flow

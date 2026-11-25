@@ -1,7 +1,7 @@
 # Runbook: Risk/Execution Kill Switch, Reconciliation, Stale Prices
 
 **Severity:** L1 (`KillSwitchEngaged`, `ReconciliationMismatch`), L2 (`RiskRejectRatioHigh`, `RiskMarketDataStale`, `RiskTickFailing`)
-**Alerts:** `KillSwitchEngaged`, `ReconciliationMismatch`, `RiskRejectRatioHigh`, `RiskMarketDataStale`, `RiskTickFailing`, `DecisionIntentsRejected`
+**Alerts:** `KillSwitchEngaged`, `ReconciliationMismatch`, `RiskRejectRatioHigh`, `RiskMarketDataStale`, `RiskTickFailing`, `DecisionIntentsRejected`, `DecisionPassFailing`
 **Decision:** [ADR-0064](../../adr/0064-risk-and-execution-context-before-order-flow.md) · **Policy:** [risk-limits-policy](../../compliance/risk-limits-policy.md) · **Drill log:** [risk-drill-log](../../compliance/risk-drill-log.md)
 
 `risk-execution` owns every order (paper only: simulated broker, no live adapter). The switch state is in `/data/risk-execution/state.json` on its PVC. Nothing re-arms the switch except an operator, by hand.
@@ -56,6 +56,13 @@ Three or more intents of the decision consumer rejected in an hour with the same
 2. `price_band`, `price_gap`, `stale_intent`: the bar read from financial-scraper is far from the price risk-execution reads, or old; check the feed ([runbook-market-data-stale](runbook-market-data-stale.md)).
 3. A rejected buy (`instrument_exposure`, `global_exposure`) is a finding: the consumer bounds buys and sales on the real position (`GET /positions/:symbol`, ADR-0087 §3), so risk-execution limits tighter than the model's cap are the usual cause.
 4. `instrument_exposure`, `global_exposure`, `max_quantity`: the size of the model exceeds a limit of risk-execution; the limit stays, lower `PROMOTED_MODELS` by a PR if the model is the cause.
+
+## DecisionPassFailing
+
+A whole decision pass of decision-consumer threw (`decision pass failed` log line, `decision_skipped_total{reason="error"}`); no intent is decided while it repeats.
+
+1. Read the `decision pass failed` error in the `decision-consumer` logs.
+2. Fix the cause (feed, trainer or risk-execution unreachable, bad `PROMOTED_MODELS`); the next tick retries by itself.
 
 ## RiskMarketDataStale
 
