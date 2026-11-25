@@ -83,6 +83,22 @@ describe("AuditRepository reads at scale — real MongoDB", () => {
 		});
 		expect(second.eventsByTopic).toEqual(first.eventsByTopic);
 		expect(page.total).toBe(EVENTS);
+
+		// Filtered page: index order (no SORT stage), documents read close to the limit.
+		for (const filter of [
+			{ "metadata.topic": "topic-3" },
+			{ "metadata.publisher": "svc-1" },
+		]) {
+			const plan = await events
+				.find(filter)
+				.sort({ chainSequence: -1 })
+				.limit(101)
+				.explain("executionStats");
+			expect(JSON.stringify(plan.queryPlanner.winningPlan)).not.toContain(
+				'"SORT"'
+			);
+			expect(plan.executionStats.totalDocsExamined).toBeLessThanOrEqual(101);
+		}
 		await db.dropDatabase();
 	}, 600_000);
 });

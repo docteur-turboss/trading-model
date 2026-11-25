@@ -89,9 +89,9 @@ describe("AuditRepository", () => {
 			await repository.ensureIndexes();
 
 			expect(MOCK_COLLECTION.createIndexes).toHaveBeenCalledWith([
-				{ key: { "metadata.correlationId": 1 } },
-				{ key: { "metadata.publisher": 1, receivedAt: -1 } },
-				{ key: { "metadata.topic": 1, receivedAt: -1 } },
+				{ key: { "metadata.correlationId": 1, chainSequence: -1 } },
+				{ key: { "metadata.publisher": 1, chainSequence: -1 } },
+				{ key: { "metadata.topic": 1, chainSequence: -1 } },
 				{ key: { receivedAt: -1 } },
 				{ key: { "metadata.messageId": 1 }, unique: true },
 				{ key: { ttl: 1 }, expireAfterSeconds: 0 },
@@ -389,7 +389,10 @@ describe("AuditRepository", () => {
 				limit: jest.fn<(...args: any[]) => any>().mockReturnThis(),
 				toArray: jest
 					.fn<(...args: any[]) => any>()
-					.mockResolvedValue([makeEvent({ chainSequence: 7 })]),
+					.mockResolvedValue([
+						makeEvent({ chainSequence: 7 }),
+						makeEvent({ chainSequence: 6 }),
+					]),
 			};
 			MOCK_COLLECTION.find.mockReturnValue(chain);
 
@@ -407,6 +410,7 @@ describe("AuditRepository", () => {
 			expect(chain.sort).toHaveBeenCalledWith({ chainSequence: -1 });
 			expect(chain.skip).not.toHaveBeenCalled();
 			expect(result).not.toHaveProperty("total");
+			expect(result.docs).toHaveLength(1);
 			expect(result.nextCursor).toBe(7);
 		});
 

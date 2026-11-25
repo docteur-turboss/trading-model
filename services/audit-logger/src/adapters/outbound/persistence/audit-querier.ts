@@ -30,11 +30,11 @@ export class AuditQuerier {
 				? filter
 				: { ...filter, chainSequence: { $lt: query.before } };
 
-		const [docs, total] = await Promise.all([
+		const [fetched, total] = await Promise.all([
 			this._collection
 				.find(pageFilter)
 				.sort({ chainSequence: -1 })
-				.limit(limit)
+				.limit(limit + 1) // one extra document tells whether another page exists
 				.toArray(),
 			// Opt-in: countDocuments is O(n) on a broad filter.
 			// No filter: the collection counter, not a scan (estimate, exact once TTL settles).
@@ -45,11 +45,12 @@ export class AuditQuerier {
 				: undefined,
 		]);
 
+		const hasMore = fetched.length > limit;
+		const docs = hasMore ? fetched.slice(0, limit) : fetched;
 		return {
 			docs,
 			...(total === undefined ? {} : { total }),
-			nextCursor:
-				docs.length === limit ? docs[docs.length - 1].chainSequence : null,
+			nextCursor: hasMore ? docs[limit - 1].chainSequence : null,
 			limit,
 		};
 	}
