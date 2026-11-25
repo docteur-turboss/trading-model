@@ -3,6 +3,12 @@
 # deploy/k8s/infra/blackbox-exporter.yaml. Services only accept SPIFFE mTLS
 # clients, and probe_ssl_earliest_cert_expiry feeds the CertificateExpiry alert.
 modules:
+  http_2xx_no_tls:
+    prober: http
+    timeout: 5s
+    http:
+      valid_status_codes: [200]
+      method: GET
   http_2xx:
     prober: http
     timeout: 10s
