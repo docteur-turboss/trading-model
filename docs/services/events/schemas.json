@@ -30,7 +30,6 @@
 					"api-gateway",
 					"audit-logger",
 					"decision-consumer",
-					"discovery-server",
 					"dlq-service",
 					"financial-scraper",
 					"message-manager",

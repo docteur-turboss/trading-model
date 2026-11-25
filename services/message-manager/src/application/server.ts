@@ -3,10 +3,7 @@ import { redisReadinessCheck } from "@trading-model/persistence/redis-readiness"
 import { ServiceId } from "@trading-model/primitives/primitives";
 import type { Application } from "express";
 
-import {
-	ADDRESS_MANAGER_ROUTES,
-	REGISTRATION_READINESS,
-} from "../config/address-manager";
+import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
 import { MESSAGE_MANAGER_ROUTES } from "../config/message-manager";
 import { ENV } from "../infrastructure/config/env";
 
@@ -22,6 +19,6 @@ export function createServer() {
 		serviceId: ServiceId.of("message-manager"),
 		trustProxy: true,
 		routes: mountRoutes,
-		readiness: [REGISTRATION_READINESS, redisReadinessCheck(ENV)],
+		readiness: [redisReadinessCheck(ENV)],
 	});
 }

@@ -68,7 +68,7 @@ Order books have no route (ADR-0053): the collector writes each snapshot to
 ### Breaking changes in 3.0.0 (gateway API v2)
 
 Release 3.0.0 moves the public routes of the service from the version prefix
-`v1` to `v2`: it registers in discovery with major version 2
+`v1` to `v2`: it serves major version 2
 (`APP_VERSION=2.0.0`), so the gateway serves it under `v2` only and the same
 route under `v1` answers 404. The signals route is unchanged apart from that
 prefix. A client of 2.x must change:
@@ -299,6 +299,5 @@ Background
         └── SignalCollector: rest_api worker → source adapter → schema check → MySQL signals
 
 Dependencies
-  ├── MySQL (persistence)
-  └── discovery-server (registration)
+  └── MySQL (persistence)
 ```

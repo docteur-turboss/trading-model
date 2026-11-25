@@ -29,7 +29,6 @@
         "@trading-model/http": "*",
         "@trading-model/primitives": "*",
         "express": "^5.3.0",
-        "node-cron": "^4.6.0",
         "prom-client": "^15.1.3",
         "zod": "^4.6.7",
       },
@@ -289,33 +288,6 @@
         "@trading-model/model-runtime": "*",
         "@trading-model/primitives": "*",
         "express": "^5.3.0",
-        "prom-client": "^15.1.3",
-        "zod": "^4.6.7",
-      },
-      "devDependencies": {
-        "@jest/globals": "^30.5.2",
-        "@types/express": "^5.0.6",
-        "@types/jest": "^30.0.0",
-        "@types/node": "^26.6.6",
-        "jest": "^30.5.2",
-        "ts-jest": "^29.4.15",
-        "ts-node": "^10.9.2",
-        "typescript": "^6.0.3",
-      },
-    },
-    "services/discovery-server": {
-      "name": "discovery-server",
-      "version": "3.1.0",
-      "dependencies": {
-        "@trading-model/common": "*",
-        "@trading-model/contracts": "*",
-        "@trading-model/crypto": "*",
-        "@trading-model/http": "*",
-        "@trading-model/persistence": "*",
-        "@trading-model/primitives": "*",
-        "express": "^5.3.0",
-        "express-rate-limit": "^8.7.5",
-        "ioredis": "^6.0.0",
         "prom-client": "^15.1.3",
         "zod": "^4.6.7",
       },
@@ -1425,8 +1397,6 @@
     "diff": ["diff@4.0.4", "", {}, "sha512-X07nttJQkwkfKfvTPG/KSnE2OMdcUCao6+eXF3wmnIQRn2aPAHH3VxDbDOdegkd6JbPsXqShpvEOHfAT+nCNwQ=="],
 
     "diff-match-patch": ["diff-match-patch@1.0.5", "", {}, "sha512-IayShXAgj/QMXgB0IWmKx+rOPuGMhqm5w6jvFxmVenXKIzRqTAAsbBPT3kWQeGANj3jGgvcvv4yK6SxqYmikgw=="],
-
-    "discovery-server": ["discovery-server@workspace:services/discovery-server"],
 
     "dlq-service": ["dlq-service@workspace:services/dlq-service"],
 
