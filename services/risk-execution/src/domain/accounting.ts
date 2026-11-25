@@ -63,6 +63,9 @@ export function limitBreaches(
 	if (state.hwm - eq >= limits.drawdownPct * cap) {
 		out.push({ symbol: null, reason: "drawdown" });
 	}
+	if (eq < (1 - limits.cumulativeLossPct) * cap) {
+		out.push({ symbol: null, reason: "cumulative_loss" });
+	}
 	for (const symbol of Object.keys(state.day.symbols)) {
 		if (symbolLoss(state, symbol) >= limits.symbolDailyLossPct * cap) {
 			out.push({ symbol, reason: "daily_loss_symbol" });

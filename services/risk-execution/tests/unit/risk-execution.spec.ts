@@ -6,6 +6,7 @@ import type {
 } from "@trading-model/contracts/order-intent";
 import { PaperBroker } from "../../src/adapters/outbound/paper-broker";
 import {
+	RearmRefusedError,
 	RiskExecution,
 	type RiskExecutionDeps,
 } from "../../src/application/risk-execution";
@@ -905,6 +906,25 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		expect(emitted[0].previousHwm).toBeGreaterThan(state.hwm);
 		await ctx.svc.tick();
 		expect(ctx.svc.status().killSwitch.global).toBeNull();
+	});
+
+	it("cumulative loss floor engages under (1 - pct) x capital and a re-arm is refused until the capital changes", async () => {
+		const ctx = build({
+			limits: RiskLimits.parse({
+				...LIMITS,
+				drawdownPct: 0.1,
+				cumulativeLossPct: 0.005,
+			}),
+		});
+		await ctx.svc.start();
+		await ctx.svc.submitIntent(intent());
+		market.BTCUSDT = 48_000; // -600: past the 0.5 % floor, under the 2 % daily limit
+		await ctx.svc.tick();
+		expect(ctx.svc.status().killSwitch.global).toBe("cumulative_loss");
+		await expect(
+			ctx.svc.rearm({ scope: "global" }, "reviewed", "owner")
+		).rejects.toThrow(RearmRefusedError);
+		expect(ctx.svc.status().killSwitch.global).toBe("cumulative_loss");
 	});
 
 	it("a re-arm that cannot be saved leaves the switch engaged and emits nothing", async () => {

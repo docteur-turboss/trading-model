@@ -336,6 +336,15 @@ export class RiskExecution {
 			}
 			const ks = this._state.killSwitch;
 			const current = symbol === undefined ? ks.global : ks.symbols[symbol];
+			const { allocatedCapital, cumulativeLossPct } = this._d.limits;
+			if (
+				symbol === undefined &&
+				equity(this._state) < (1 - cumulativeLossPct) * allocatedCapital
+			) {
+				throw new RearmRefusedError(
+					"Equity is under the cumulative loss floor: only a change of allocated capital lifts it"
+				);
+			}
 			if (current === "drawdown" && actor !== this._d.ownerActor) {
 				throw new RearmRefusedError(
 					"Only the owner re-arms after the drawdown stop"
@@ -557,11 +566,11 @@ export class RiskExecution {
 	private _flag(symbol: string | null, reason: string, actor: string): boolean {
 		const ks = this._state.killSwitch;
 		const current = symbol === null ? ks.global : ks.symbols[symbol];
-		// drawdown overrides any other reason: it keeps re-arm owner-only (policy §4.4)
+		// drawdown and cumulative_loss override other reasons: drawdown keeps re-arm owner-only (policy §4.4)
 		if (
 			current &&
-			(reason !== "drawdown" ||
-				current === "drawdown" ||
+			((reason !== "drawdown" && reason !== "cumulative_loss") ||
+				current === reason ||
 				current === "state_unreadable")
 		) {
 			return false;
