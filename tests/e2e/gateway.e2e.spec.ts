@@ -70,7 +70,13 @@ describe("API Gateway E2E", () => {
 		expect(JSON.parse(body).sources[0]).toHaveProperty("termsUrl");
 	});
 
-	it.each([])("does not lend its identity to %s (%s)", async (path, method) => {
+	// Service-to-service routes of scripts/api-contract.mjs SERVICE_TO_SERVICE, none in PUBLIC_ROUTES.
+	it.each([
+		["/v1/risk-execution/intents", "POST"],
+		["/v1/risk-execution/positions/BTCUSDT", "GET"],
+		["/v1/trader-trainer/models/BTCUSDT/1/weights", "GET"],
+		["/v2/financial-scraper/candles/latest", "GET"],
+	])("does not lend its identity to %s (%s)", async (path, method) => {
 		// The gateway calls services with its own SVID: service-to-service
 		// routes stay out of reach of API clients.
 		const { status } = await externalRequest(path, {

@@ -73,9 +73,7 @@ const SERVICE_TO_SERVICE = {
 
 /**
  * Who calls each service-to-service route, and the call that proves it: a
- * pattern searched in the caller's non-test sources. A broker callback
- * (`POST /message`) is called by message-manager for the services that
- * subscribe, so its proof is the owner's subscription (`intents(`).
+ * pattern searched in the caller's non-test sources.
  */
 const CALLERS = {
 	"trader-trainer GET /models/:symbol/:version/weights": { caller: "packages/http", call: /\/weights`/ },
