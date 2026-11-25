@@ -1,3 +1,111 @@
+## [3.2.1] - 2026-11-25
+
+### @trading-model/broker-message (1.3.1 → 1.3.2)
+
+#### Refactor
+
+- 5ceec41 **broker:** publier les événements de risk-execution et decision-consumer par le journal du bus (#2711)
+
+### @trading-model/http (1.3.0 → 1.3.1)
+
+#### Fix
+
+- 59b2178 **http:** borner onStop dans l'arrêt gracieux et sortir du processus une fois l'arrêt terminé (#2303)
+- e470a72 **http:** libeller une route montée sur plusieurs chemins par son premier chemin (#2595) (#2596)
+- 1a11192 **http:** remonter l'alias sans version de mountRoute tant que v3.1.0 est la N-1 (#2531) (#2589)
+
+#### Refactor
+
+- 78bd94c **http:** garder un disjoncteur par cible et retirer les paramètres morts (#2507)
+
+### Root
+
+#### Fix
+
+- 2f59a82 **github-actions:** garder local le backup pré-migration hors production (#2724) (#2736)
+- 2679390 **k8s:** ignorer le label run en comparant les alertes à la ligne de base de verify-release (#2654) (#2674)
+- a003a7d **k8s:** attendre que mysql-0 soit Ready avant de relâcher le TLS MySQL au rollback (#2613) (#2614)
+- 2ad6270 **k8s:** citer les codes HTTP reçus dans l'échec de la sonde de run-kind.sh (#2530) (#2533)
+- b07c28b **risk-execution:** relire les prix par symbole quand financial-scraper N-1 répond 404 sur /v2/candles/latest (#2607)
+- e5ac35f **observability:** recréer Loki et Jaeger au provisioning Grafana pour appliquer les uid sur une base existante (#2422)
+
+#### Perf
+
+- a588f27 **risk-execution:** borner l'appel de prix sous submitTimeoutMs (2 s × 2 tentatives) (#2299) (#2590)
+- df2cf62 **staging:** jaeger en store Badger éphémère, TTL 2h (#2583) (#2586)
+
+#### Refactor
+
+- cec617c **k8s:** retirer relax_mysql et les correctifs de transition antérieurs à N-1 (#2671)
+- 5bf8ddc **scripts:** retirer le cas redis mort de fetch-offsite.sh (#2617)
+- 658037e **scripts:** retirer le cas redis mort de backup-k8s.sh et restore-k8s.sh (#2636)
+- 6a0c146 **discovery-server:** release N+1 of retiring discovery-server, forward /v<major> and drop registration (#1208) (#1799)
+
+#### Docs
+
+- 9750dd1 **github-actions:** réduire docs/ci-cd/README.md à un tableau des workflows (#2627) (#2643)
+- 62b579b **docs:** garder une description par service en réduisant les ARCHITECTURE.md à ce que docs/services n'a pas (#2645)
+- d55a7f8 **docs:** remplacer les rôles et canaux fictifs par le mainteneur unique et aligner le libellé TLS (#2631) (#2650)
+- 1986c5b **docs:** retirer les comptages périmés de Deployments et d'images de service (#2667)
+- 0eb2036 **docs:** corriger la preuve de santé du quickstart, lister l'env staging et le prérequis de docs:generate (#2634) (#2642)
+- c866961 **docs:** ajouter les sources de signaux et decision-consumer aux diagrammes C4 et corriger les index (#2632) (#2640)
+- abacf62 **docs:** retirer ufw, le repli bun install et la liste de secrets de SETUP.md (#2629) (#2644)
+- 57cf701 **docs:** renvoyer ports, volumes et dépendances de DOCKER.md vers docker-compose.yml (#2628) (#2639)
+- 81b8275 **docs:** documenter decision-consumer et model-runtime, corriger les dépendances de paquets (#2626) (#2638)
+- 5e928c5 **docs:** lier l'OpenAPI interne du financial-scraper et corriger la page api-gateway (#2633) (#2641)
+- cce5fea **docs:** déclarer le stack compose jetable, sans donnée de référence (#2604) (#2608)
+- b5a41e9 **docs:** renvoyer la politique de continuité vers BACKUP_DR et corriger le RPO SPIRE (#2605) (#2609)
+- f7384da **discovery-server:** aligner les docs discovery-server, dlq-service, address-manager et api-gateway sur le statut ADR-0072/0073 (#2637) (#2646)
+
+#### Test
+
+- cdc97b7 **tests:** le drill kind supprime le volume MySQL au lieu d une table (#2610)
+- 446357d **scripts:** vérifier le composant risk dans le contrôle de la clé d'escrow (#2616)
+
+#### Chore
+
+- 476a3f9 Bump spiffe/spiffe-helper in /deploy/k8s/services (#2563)
+- 36beb14 Bump testcontainers from 12.2.1 to 12.2.2 (#2535)
+- e6c88eb Bump mongo from 7.0.45 to 7.0.48 in /deploy/k8s/infra (#2554)
+- 6dd1216 Bump spiffe/spire-agent in /deploy/k8s/node-agents (#2567)
+- d80a763 Bump prometheus/node-exporter in /deploy/k8s/node-agents (#2568)
+- 4a04808 Bump spiffe/spiffe-csi-driver in /deploy/k8s/node-agents (#2571)
+- 658799c Bump nginx in /deploy/k8s/services (#2564)
+- 8760c93 Bump knip from 6.46.1 to 6.47.0 (#2538)
+- 821e8eb Bump mongodb from 7.9.0 to 7.9.1 (#2536)
+- 267bbba Bump @aws-sdk/client-s3 from 3.1172.0 to 3.1175.0 (#2534)
+- c3bbde4 Bump sig-storage/csi-node-driver-registrar (#2569)
+- aed7f5b Bump grafana/promtail in /deploy/k8s/node-agents (#2570)
+- e0f2a48 Bump oliver006/redis_exporter in /deploy/k8s/infra (#2551)
+- 8725e6d Bump oven/bun from 1.4.4 to 1.4.5 in /services/risk-execution (#2556)
+- 2fc8d80 Bump spiffe/spiffe-helper in /deploy/k8s/infra (#2555)
+- a6fd157 Bump spiffe/spiffe-helper from 0.12.3 to 0.12.4 (#2541)
+- afc0a30 Bump oven/bun in /services/model-evaluator (#2557)
+- 637e664 Bump mongo from 7.0.45 to 7.0.48 (#2540)
+- d46bcb8 Bump @testcontainers/mongodb from 12.2.1 to 12.2.2 (#2537)
+- 0227307 **k8s:** sceller la clé Twelve Data dans l'overlay staging-local (#1483) (#2584)
+- 9a3190e **scripts:** refuser un déploiement de production sans second bucket hors site (#2615)
+- d8237a4 **deps:** bump nginx 1.31.8-alpine → 1.31.9-alpine (#2543)
+- fec9564 **deps:** Bump oliver006/redis_exporter from v1.97.0 to v1.98.0 (#2542)
+
+#### Ci
+
+- 40c533f **github-actions:** scanner tout l'historique avec gitleaks sur chaque push, merge vers development inclus (#2652) (#2668)
+- c6cfc40 **github-actions:** sauvegarder MySQL avant les migrations aussi en staging (#2670)
+- c1fbe80 **github-actions:** prendre comme release N-1 le dernier tag stable dont les images existent (#2598)
+- a5d6211 **github-actions:** lire le titre de PR au moment du run dans le contrôle commitlint (#2585) (#2588)
+- 944cd64 **github-actions:** diagnostiquer les 404 de la sonde d'upgrade N-1 → N (#2532)
+- 7695179 **github-actions:** passer gitleaks en 8.30.1 pour appliquer les [[allowlists]] du scan d'historique des tags (#2578) (#2580)
+- f08040e **github-actions:** épingler les runners sur ubuntu-24.04 (#2475)
+- 9cd52e0 **release:** scanner, promouvoir et signer le même digest d'image (#2666)
+
+#### Security
+
+- 7d2b730 **github-actions:** passer la clé du gateway à curl par stdin dans deploy-compose (#2661) (#2673)
+- 62b07a3 **docker:** installer sans scripts de cycle de vie et retirer curl des images d'exécution (#2454)
+- 1765fa1 **docker:** déchiffrer les secrets du stack compose (age) dans le workflow de déploiement (#2510)
+
+
 ## [3.2.0] - 2026-11-24
 
 ### @trading-model/broker-message (1.3.0 → 1.3.1)
