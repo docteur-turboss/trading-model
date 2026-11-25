@@ -93,6 +93,15 @@ spec:
           protocol: TCP
         - port: 3000
           protocol: TCP
+    # The deploy smoke test (deploy-k8s.sh smoke-test) runs from this pod and
+    # checks the edge-proxy readiness on its plain HTTP port.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: edge-proxy
+      ports:
+        - port: 8080
+          protocol: TCP
 ---
 apiVersion: v1
 kind: ServiceAccount

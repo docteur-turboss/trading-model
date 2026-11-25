@@ -21,13 +21,13 @@ networks:
     driver: bridge
 ```
 
-Services on `backend-net` can reach each other by Docker service name (e.g. `discovery-server`, `mysql`).
+Services on `backend-net` can reach each other by Docker service name (e.g. `message-manager`, `mysql`).
 
 ---
 
 ## Multi-stage Dockerfile
 
-Every TypeScript service uses the same 3-stage pattern, for example [`services/discovery-server/Dockerfile`](../../services/discovery-server/Dockerfile). Base images are pinned by digest (Dependabot bumps them): read the digests in the Dockerfile.
+Every TypeScript service uses the same 3-stage pattern, for example [`services/message-manager/Dockerfile`](../../services/message-manager/Dockerfile). Base images are pinned by digest (Dependabot bumps them): read the digests in the Dockerfile.
 
 | Stage     | Base image | Operations |
 | --------- | ---------- | ---------- |
@@ -95,7 +95,7 @@ Containers wait for their dependencies to be **healthy** (`depends_on` with `con
 
 ## Load balancing
 
-Inbound load balancing is handled by the platform's own entry points (api-gateway, discovery-server, message-manager) rather than external nginx LBs. Each workload serves TLS directly with its SPIRE SVID (ADR-0011); no `proxy_ssl_verify off` passthrough is needed.
+Inbound load balancing is handled by the platform's own entry points (api-gateway, message-manager) rather than external nginx LBs. Each workload serves TLS directly with its SPIRE SVID (ADR-0011); no `proxy_ssl_verify off` passthrough is needed.
 
 ---
 

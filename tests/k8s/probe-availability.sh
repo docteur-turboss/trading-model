@@ -3,8 +3,7 @@
 # Needs $K, $NS and $API_KEY.
 
 # Public routes probed, one per service whose rollout must not cut its reads:
-# discovery-server, trader-trainer (Lease handover, ADR-0058) and
-# financial-scraper. PROBE_ROUTES (space-separated paths) overrides them.
+# trader-trainer (Lease handover, ADR-0058) and financial-scraper. PROBE_ROUTES (space-separated paths) overrides them.
 PROBE_ROUTES="${PROBE_ROUTES:-/v1/trader-trainer/training-status /v2/financial-scraper/candles/symbols/BTCUSDT?limit=1}"
 
 # Availability probe (issue #703). Every 3 s, one request to each of

@@ -24,12 +24,6 @@ scrape_configs:
     static_configs:
       - targets: ['message-manager:3000']
 
-  - job_name: 'discovery-server'
-    scheme: https
-    tls_config: *svid
-    static_configs:
-      - targets: ['discovery-server:3000']
-
   - job_name: 'dlq-service'
     scheme: https
     tls_config: *svid
@@ -88,9 +82,6 @@ scrape_configs:
     params:
       module: [http_2xx]
     static_configs:
-      - targets: ['https://discovery-server:3000/ping']
-        labels:
-          service: discovery-server
       - targets: ['https://message-manager:3000/ping']
         labels:
           service: message-manager
