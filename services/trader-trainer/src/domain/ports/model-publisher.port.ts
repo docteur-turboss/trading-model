@@ -7,6 +7,8 @@ export interface StoredModelRef {
 	sha256: string;
 	/** ADR-0030 verdict of its manifest; false without one (ADR-0069). */
 	admissible: boolean;
+	/** Effective Sharpe threshold of the verdict, attempt penalty included. */
+	minSharpe?: number;
 }
 
 /** Publishes the best trained model (implemented over the message bus). */
