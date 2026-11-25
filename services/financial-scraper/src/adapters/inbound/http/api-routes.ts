@@ -1,3 +1,7 @@
+import {
+	CandleInterval,
+	SourceType,
+} from "@trading-model/contracts/market-data.types";
 import { brand } from "@trading-model/contracts/wire/brand";
 import {
 	Asset,
@@ -181,12 +185,14 @@ export const SCRAPER_API = {
 		method: "GET",
 		path: "/v2/candles/latest",
 		summary:
-			"Newest closed candle of each listed symbol, opened in the last hour (any source, interval)",
+			"Newest closed candle of each listed symbol, opened within the last hour or 3 bars of `interval`; any source or interval unless filtered",
 		query: z.object({
 			symbols: z
 				.string()
 				.transform((list) => list.split(",").filter(Boolean))
 				.pipe(z.array(z.string()).min(1).max(100)),
+			source: z.enum(SourceType.values()).optional(),
+			interval: z.enum(CandleInterval.values()).optional(),
 		}),
 		responses: {
 			200: z.object({
