@@ -246,6 +246,8 @@ services:
   spire-agent:
     logging: *default-logging
     image: trading-model/spire-agent:${IMAGE_TAG:-latest}
+    # No registry in the name: built locally only, never pulled from docker.io.
+    pull_policy: never
     container_name: trading-spire-agent
     restart: unless-stopped
     mem_limit: 256m
