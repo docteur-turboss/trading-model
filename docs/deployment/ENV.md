@@ -180,11 +180,11 @@ ADR-0064. Limits are validated at startup and refuse to start above their hard c
 
 ## Decision Consumer
 
-ADR-0089. Paper only: no broker key, no kill switch, no mode choice (ADR-0064 §1, §5, §6).
+ADR-0087. Paper only: no broker key, no kill switch, no mode choice (ADR-0064 §1, §5, §6).
 
 | Variable | Type | Default | Required | Description | Services |
 | --- | --- | --- | --- | --- | --- |
-| `PROMOTED_MODELS` | string | _(empty)_ | no | Models promoted by hand, `symbol@version` separated by commas, one version per symbol (ADR-0049 §1.4). Empty: nothing decides. A promoted model that is not `admissible` (ADR-0069) decides nothing | DCN |
+| `PROMOTED_MODELS` | string | _(empty)_ | no | Models promoted by hand, `symbol@version` separated by commas, one version per symbol (ADR-0087 §2). Empty: nothing decides. A promoted model that is not `admissible` (ADR-0069) decides nothing | DCN |
 | `DECISION_TICK_MS` | number | `10000` | no | Period of the pass over the promoted models; each decides once per closed bar of its manifest interval (1 min or 1 day) | DCN |
 | `DECISION_WINDOW_BARS` | number | `500` | no | Bars of the window a decision is computed on (at least 50): features normalise from its first bar | DCN |
 

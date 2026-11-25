@@ -200,7 +200,7 @@ export const SCRAPER_API = {
 		method: "GET",
 		path: "/v2/candles/latest",
 		summary:
-			"Newest closed candle of each listed symbol (any source, interval)",
+			"Newest closed candle of each listed symbol, opened in the last hour (any source, interval)",
 		query: z.object({
 			symbols: z
 				.string()
