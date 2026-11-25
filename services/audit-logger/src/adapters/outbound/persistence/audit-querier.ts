@@ -1,8 +1,4 @@
-import { findPaginated } from "@trading-model/persistence/mongo-utils";
-import {
-	PaginationQuery,
-	type PaginationResult,
-} from "@trading-model/primitives/pagination";
+import { Limit } from "@trading-model/primitives/primitives/page-number";
 import type { Collection } from "mongodb";
 
 import {
@@ -11,33 +7,49 @@ import {
 	buildAuditEventFilter,
 } from "./filter-builder";
 
-/** A page; `total` is absent when the caller asked for `withTotal=false`. */
-export type AuditPage = Omit<PaginationResult<AuditEventDocument>, "total"> & {
+/**
+ * A page, newest first. `nextCursor` is the `chainSequence` to send back as
+ * `before` for the next page (null on the last one); `total` only when asked for.
+ */
+export interface AuditPage {
+	docs: AuditEventDocument[];
 	total?: number;
-};
+	nextCursor: number | null;
+	limit: number;
+}
 
 export class AuditQuerier {
 	constructor(private readonly _collection: Collection<AuditEventDocument>) {}
 
 	async query(query: AuditEventQuery): Promise<AuditPage> {
-		const { page, limit, skip } = PaginationQuery.compute(query, 100);
+		const limit = Limit.of(query.limit ?? 100, 1000);
 		const filter = buildAuditEventFilter(query);
+		// Keyset on the unique `chainSequence` index: the cost of a page does not grow with the trail.
+		const pageFilter =
+			query.before === undefined
+				? filter
+				: { ...filter, chainSequence: { $lt: query.before } };
 
-		const [data, total] = await Promise.all([
-			findPaginated(this._collection, filter, { receivedAt: -1 }, skip, limit),
-			// withTotal=false: no count at all (O(n) on a broad filter).
+		const [docs, total] = await Promise.all([
+			this._collection
+				.find(pageFilter)
+				.sort({ chainSequence: -1 })
+				.limit(limit)
+				.toArray(),
+			// Opt-in: countDocuments is O(n) on a broad filter.
 			// No filter: the collection counter, not a scan (estimate, exact once TTL settles).
-			query.withTotal === false
-				? undefined
-				: Object.keys(filter).length === 0
+			query.withTotal === true
+				? Object.keys(filter).length === 0
 					? this._collection.estimatedDocumentCount()
-					: this._collection.countDocuments(filter),
+					: this._collection.countDocuments(filter)
+				: undefined,
 		]);
 
 		return {
-			docs: data,
+			docs,
 			...(total === undefined ? {} : { total }),
-			page,
+			nextCursor:
+				docs.length === limit ? docs[docs.length - 1].chainSequence : null,
 			limit,
 		};
 	}

@@ -134,7 +134,7 @@ paths:
             enum:
               - "true"
               - "false"
-        - name: "page"
+        - name: "before"
           in: "query"
           required: false
           schema:
@@ -208,13 +208,14 @@ paths:
                       additionalProperties: false
                   total:
                     type: "integer"
-                  page:
+                  nextCursor:
+                    nullable: true
                     type: "integer"
                   limit:
                     type: "integer"
                 required:
                   - "docs"
-                  - "page"
+                  - "nextCursor"
                   - "limit"
                 additionalProperties: false
         "400":
