@@ -139,11 +139,11 @@ Fixes #142
 :recycle:(common): centralize ServiceInstance type
 
 Extract ServiceInstance type to @trading-model/primitives
-to avoid duplication between discovery-server and message-manager.
+to avoid duplication between message-manager and audit-logger.
 ```
 
 ```
-:memo:(api): document discovery registration endpoints
+:memo:(api): document the subscription endpoints
 ```
 
 ```

@@ -38,6 +38,5 @@ export function serviceEnv(): Record<string, string> {
 		APP_NAME: "audit-logger",
 		SERVICE_NAME: "audit-logger",
 		INSTANCE_ID: "audit-logger-cli-test",
-		ADDRESS_MANAGER_URL: "http://127.0.0.1:1",
 	};
 }

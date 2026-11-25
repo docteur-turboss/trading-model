@@ -23,7 +23,6 @@ This directory documents every package and service in the **trading-model** mono
 
 | Service               | Path                              | Documentation                                      |
 | --------------------- | --------------------------------- | -------------------------------------------------- |
-| discovery-server      | `services/discovery-server/`      | [discovery-server.md](./discovery-server.md)       |
 | message-manager       | `services/message-manager/`       | [message-manager.md](./message-manager.md)         |
 | financial-scraper     | `services/financial-scraper/`     | [financial-scraper.md](./financial-scraper.md)     |
 | trader-trainer        | `services/trader-trainer/`        | [trader-trainer.md](./trader-trainer.md)           |

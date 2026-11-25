@@ -23,9 +23,6 @@ graph TD
     subgraph "Security Context"
         SP["spire-server / spiffe-helper"]
     end
-    subgraph "Discovery Context"
-        DS["discovery-server"]
-    end
     subgraph "Observability Context"
         AL["audit-logger"]
     end
@@ -46,10 +43,8 @@ graph TD
     MM -->|"dead letters"| DLQ
     DLQ -->|"replay"| MM
     DLQ -->|"dlq.* events"| MM
-    DS --> GW
     RE -->|"risk.* events"| MM
     RE -.->|"model admission"| TT
-    GW --> DS
 ```
 
 ## Contexts Defined
@@ -85,20 +80,14 @@ graph TD
 - **Core entities:** SVID, Registration Entry, Trust Bundle
 - **Responsibilities:** Workload attestation, X.509 SVID issuance/rotation, SPIFFE identity
 
-### 5. Discovery Context
-
-- **Owner:** `discovery-server`
-- **Core entities:** ServiceInstance, Lease
-- **Responsibilities:** Registration, heartbeat, token management
-
-### 6. Observability Context
+### 5. Observability Context
 
 - **Owner:** `audit-logger`
 - **Core entities:** AuditEvent
 - **Consumes:** audit, training, dlq and risk topics (market data is not chained)
 - **Internal events:** `audit.heartbeat`, `audit.gap.detected`
 
-### 7. Gateway Context
+### 6. Gateway Context
 
 - **Owner:** `api-gateway`
 - **Core entities:** Route, CacheEntry
@@ -118,7 +107,6 @@ graph TD
 | ---------------------- | -------------------- | ------------------------------------- |
 | Market Data → Training | Request/Reply (sync) | Candle read route of financial-scraper (ADR-0078) |
 | Any → Audit            | Pub/Sub (async)      | Audit-logger subscribes to audit, training, dlq and risk topics |
-| Services → Discovery   | Request/Reply (sync) | HTTPS mTLS                            |
 | Services → Security    | Request/Reply (sync) | SPIFFE/SPIRE workload attestation + Workload API |
 | External → Platform    | Proxy (sync)         | API Gateway                           |
 

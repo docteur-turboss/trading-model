@@ -13,8 +13,8 @@ import { AddressManager } from "../../config/address-manager";
 
 /**
  * Publishes `risk.promotion.loaded` for the audit chain (ADR-0027, ADR-0087 §2).
- * No journal: the Redis users of the platform are not extended for a publish
- * through message-manager. A refusal throws, and the caller does not decide.
+ * Through the bus journal when given (ADR-0073), else message-manager over HTTP.
+ * A refusal throws, and the caller does not decide.
  */
 export class PromotionAudit {
 	private readonly _messages: ReturnType<
@@ -24,9 +24,11 @@ export class PromotionAudit {
 	constructor(
 		tls: TlsPaths,
 		private readonly _instanceId: InstanceId,
-		callbackPath: string
+		callbackPath: string,
+		journal?: Parameters<typeof createMessageManager>[0]["journal"]
 	) {
 		this._messages = createMessageManager({
+			journal,
 			addressManagerClient: AddressManager,
 			tlsPaths: tls,
 			instanceId: _instanceId,

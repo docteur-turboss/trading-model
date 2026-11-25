@@ -1,236 +1,52 @@
 # Message Delivery Service — Architecture
 
-## Overview
-
-The Message Delivery Service is the **internal messaging backbone** of the trading platform. It provides topic-based publish/subscribe over HTTP, enabling asynchronous, decoupled communication between microservices.
-
-Services interact with the broker through the `@trading-model/broker-message` SDK, which handles subscription registration, message publishing, and inbound message handling via typed event emitters.
-
----
+Routes, delivery modes, retry, journal, DLQ and security: [docs/services/message-manager.md](../../docs/services/message-manager.md). This file holds the layering and the per-subscription delivery decision.
 
 ## Layer Architecture
 
 ```
 ┌────────────────────────────────────────────────────┐
 │                  HTTP Transport                     │
-│  POST /message  |  POST /subscribe  |  DELETE   │
-│              /subscribe                         │
-│  ┌──────────────────────────────────────────────┐  │
-│  │        Controllers (http.controller.ts)       │  │
-│  │  Request validation (Zod) → delegate to core │  │
-│  └──────────────────────────────────────────────┘  │
-│  ┌──────────────────────────────────────────────┐  │
-│  │        Routes (http.routes.ts)                │  │
-│  │  Express Router → endpoint mapping            │  │
-│  └──────────────────────────────────────────────┘  │
+│  Routes (http.routes.ts) → Controllers              │
+│  (http.controller.ts): Zod validation, delegate     │
 ├────────────────────────────────────────────────────┤
 │                    Validation                       │
-│  ┌──────────────────────────────────────────────┐  │
-│  │   Zod Schemas (broker.schema.ts)              │  │
-│  │   SubscribeSchema | UnsubscribeSchema         │  │
-│  │   PublishSchema | PublishMetadataSchema       │  │
-│  └──────────────────────────────────────────────┘  │
+│  broker.schema.ts: Subscribe | Unsubscribe |        │
+│  Publish | PublishMetadata schemas                  │
 ├────────────────────────────────────────────────────┤
 │                     Core                            │
-│  ┌──────────────────────────────────────────────┐  │
-│  │   Dispatcher (dispatcher.ts)                  │  │
-│  │   publish / subscribe / unsubscribe          │  │
-│  │   Enriches messageId + emittedAt              │  │
-│  │   Topic → subscriptions, read from the       │  │
-│  │   shared store (Redis, 60s lease)            │  │
-│  │   Counts messages with no subscriber         │  │
-│  │   One subscription per instanceId            │  │
-│  │   Parallel dispatch via Promise.allSettled   │  │
-│  └──────────────────────────────────────────────┘  │
-│  ┌──────────────────────────────────────────────┐  │
-│  │   Subscription (subscription.ts)              │  │
-│  │   Per-instance delivery logic                │  │
-│  │   Retry loop | TTL check | DLQ routing       │  │
-│  └──────────────────────────────────────────────┘  │
+│  Dispatcher (dispatcher.ts)                         │
+│    publish / subscribe / unsubscribe                │
+│    enriches messageId + emittedAt                   │
+│    topic → subscriptions from the shared store      │
+│    one subscription per instanceId                  │
+│    publishes into the journal                       │
+│  Subscription (subscription.ts)                     │
+│    per-instance delivery: retry, TTL, DLQ routing   │
+│    policy decided by classifyDeliveryError          │
+│    (packages/broker-message, bus/)                  │
 ├────────────────────────────────────────────────────┤
 │                   Contracts                         │
-│  ┌──────────────────────────────────────────────┐  │
-│  │   message.ts                                   │  │
-│  │   message<T> envelope | MessageMetadata       │  │
-│  └──────────────────────────────────────────────┘  │
+│  @trading-model/contracts message envelope          │
 └────────────────────────────────────────────────────┘
 ```
 
----
+## Delivery Decision Flow (per journal entry)
 
-## Components
-
-### Dispatcher (`application/services/dispatcher.ts`)
-
-Central message router exposing the messaging API. Responsibilities:
-
-- **`publish(payload, metadata)`** — Creates a `message` envelope with auto-generated `messageId` (UUID) and `emittedAt` timestamp, then dispatches to subscribers.
-- **`subscribe({ topic, callbackPath, consumerIdentity })`** — Registers a subscription for a service instance.
-- **`unsubscribe({ topic, instanceId })`** — Removes a subscription.
-- Maintains a `Map<string, ReadonlyArray<Subscription>>` mapping topic names to subscriber subscriptions.
-- Deduplicates subscriptions by `instanceId` (same topic + instanceId).
-- **`dispatch(message)`** — Looks up subscriptions by message topic, deduplicates by instanceId, and dispatches to all matching subscribers in parallel via `Promise.allSettled`. Individual failures are isolated.
-
-### Subscription (`application/services/subscription.ts`)
-
-Per-instance message delivery handler. Responsibilities:
-
-- Resolves the target service address via the Address Manager (service discovery).
-- Sends the message via HTTPS POST to the subscriber's callback endpoint.
-- Implements a **retry loop** with configurable delivery semantics:
-
-| Mode            | Behaviour                                                 |
-| --------------- | --------------------------------------------------------- |
-| `at-most-once`  | Single attempt; a failure is dropped (fire-and-forget).   |
-| `at-least-once` | Up to 10 attempts (backoff 1s → 20s cap), then dead letter. |
-| `exactly-once`  | Single attempt, no broker retry; a failure is dead-lettered (`SINGLE_ATTEMPT_FAILED`). No duplicate downstream depends on subscriber idempotency ([ADR-0019](../../docs/adr/0019-message-broker-as-built.md)). |
-
-- **TTL expiration**: If `emittedAt + ttl < now`, the message is routed to the Dead Letter Queue.
-- **DLQ**: dead letters go to dlq-service (signed `POST /dlq`); while it cannot take one, the journal entry stays pending and is retried (ADR-0019, ADR-0048).
-- The whole policy (DLQ, drop or retry) is decided in the domain by `DeliveryErrorClassifier` (`domain/delivery-error-classifier.ts`); the application layer only carries it out. A subscriber answer saying the message itself is wrong (400 — payload refused by its topic schema —, 413, 415, 422) is dead-lettered at once (`REJECTED_BY_SUBSCRIBER`) instead of after 10 attempts; auth, routing, throttling and server errors keep the retries.
-
-### Message Contracts (`@trading-model/contracts/message-types`)
-
-Canonical message envelope shared across producers, broker, and consumers:
-
-```typescript
-interface Message<T = unknown> {
-  metadata: MessageMetadata;
-  payload: T;
-}
-
-interface MessageMetadata {
-  messageId: string; // Auto-generated UUID
-  emittedAt: Date; // Auto-generated timestamp
-  schemaVersion: string; // Payload schema version
-  eventType: string; // Business event name
-  topic: string; // Routing channel
-  publisher: IdentifyType; // { serviceName, instanceId }
-  correlationId?: string; // Flow correlation
-  causationId?: string; // Causality chain
-  routing?: { partitionKey?; priority? };
-  delivery?: { mode; ttl? };
-  security?: { authContext?; signature? };
-}
-```
-
-### Validation (`adapters/inbound/validation/broker.schema.ts`)
-
-Zod schemas enforce payload correctness at the HTTP boundary:
-
-- **`SubscribeSchema`**: `{ topic, callbackPath, consumerIdentity: { serviceName, instanceId } }`
-- **`UnsubscribeSchema`**: `{ topic, instanceId }`
-- **`PublishSchema`**: `{ payload, metadata: PublishMetadataSchema }`
-- **`PublishMetadataSchema`**: Full metadata object with all optional fields.
-
----
-
-## Data Flow
-
-### Subscribe → Publish → Deliver
+The delivery worker (`delivery-worker.ts`) reads entries from the journal and calls `Subscription` for one attempt. Retry state (attempts, last attempt) lives in the journal pending list shared by the replicas, not in the process.
 
 ```
-Service A                    Dispatcher                    Service B
-   |                           |                              |
-   |— POST /subscribe ——→   |                              |
-   |  { topic, callbackPath,   |                              |
-   |    consumerIdentity }     |                              |
-   |                           |— registerSubscription() ——  |
-   |                           |                              |
-   |                           |     (time passes)            |
-   |                           |                              |
-   |— POST /message ———————→   |                              |
-   |  { payload, metadata }   |                              |
-   |                           |— enrich (messageId, time)    |
-   |                           |— XADD (journal, 1 per topic) |
-   |← 202 { messageId } ————— |                              |
-   |                           |                              |
-   |        (worker, any replica, outside the request)        |
-   |                           |— XREADGROUP / XCLAIM due     |
-   |                           |   └─ POST /callback ———————→ |
-   |                           |       { message, context }   |
-   |                           |      ← 200 → XACK            |
+ resolveTarget → POST callback ──success──→ delivered (ack)
+                       │ error
+                       ▼
+        classifyDeliveryError (packages/broker-message/src/bus/delivery-error-classifier.ts)
+                       │
+     ┌─────────────────┼──────────────────────┐
+     ▼                 ▼                      ▼
+ DLQ action         SWALLOW                 retry
+ markDeadLetter     settled (dropped,       left pending, next attempt
+ (rejected 400/413/ acked)                  due after backoff
+ 415/422 first,
+ then TTL, delivery
+ mode, max attempts)
 ```
-
-### Delivery Decision Flow (per Subscription)
-
-```
-             ┌──────────┐
-             │ dispatch │
-             └────┬─────┘
-                  │
-                  ▼
-         ┌────────────────┐
-         │ resolveTarget  │
-         │ (via discovery)│
-         └───────┬────────┘
-                 │
-                 ▼
-         ┌──────────────────┐     success     ┌──────┐
-         │ POST to callback │───────────────→ │ ack()│
-         └───────┬──────────┘                 └──────┘
-                 │ error
-                 ▼
-         ┌──────────────────┐
-         │ 400/413/415/422? │──yes──→ sendToDLQ("REJECTED_BY_SUBSCRIBER") ──→ return
-         └───────┬──────────┘
-                 │ no
-                 ▼
-         ┌──────────────────┐
-         │ is TTL expired?  │──yes──→ sendToDLQ("TTL_EXPIRED") ──→ return
-         └───────┬──────────┘
-                 │ no
-                 ▼
-         ┌──────────────────┐
-         │ AT_MOST_ONCE?    │──yes──→ drop ──→ return
-         └───────┬──────────┘
-                 │ no
-                 ▼
-         ┌──────────────────┐
-         │ EXACTLY_ONCE?    │──yes──→ sendToDLQ("SINGLE_ATTEMPT_FAILED") ──→ return
-         └───────┬──────────┘
-                 │ no (AT_LEAST_ONCE)
-                 ▼
-         ┌──────────────────┐
-         │ 10 attempts done?│──yes──→ sendToDLQ("MAX_RETRIES_EXCEEDED") ──→ return
-         └───────┬──────────┘
-                 │ no
-                 ▼
-          ┌──────────────┐
-          │ backoff+retry│─────────→ back to POST
-          └──────────────┘
-```
-
----
-
-## Dependencies
-
-| Dependency                       | Purpose                                                                                       |
-| -------------------------------- | --------------------------------------------------------------------------------------------- |
-| `@trading-model/common`          | HttpClient, middleware (catchSync, ResponseException), types, server factories, error classes |
-| `@trading-model/address-manager` | Service discovery client for resolving subscriber endpoint addresses                          |
-| `express`                        | HTTP server framework                                                                         |
-| `zod`                            | Runtime request body validation                                                               |
-| `helmet`                         | Security headers                                                                              |
-| `express-rate-limit`             | Request rate limiting                                                                         |
-
----
-
-## Security Model
-
-- All HTTP communication is over **HTTPS with mutual TLS** (mTLS).
-- The service validates client certificates on every request.
-- Subscriber callbacks are delivered over HTTPS using mTLS to the discovered service endpoint.
-- Zod schema validation prevents malformed or malicious payloads from entering the dispatcher.
-- Rate limiting (100 requests per 15-minute window by default) protects against abuse.
-
----
-
-## Known Design Decisions
-
-| Decision                                   | Rationale                                                                                                                                                                                                    |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Shared subscription registry (Redis)**   | Every replica reads the same subscriptions (`RedisSubscriptionStore`, one hash per topic): a subscription made on one replica routes the messages published on any other, and survives a restart. Subscribers renew theirs every 15s (`@trading-model/broker-message`); a subscription not renewed for 60s expires. Without Redis, `InMemorySubscriptionStore` (single replica only). A message whose topic has no subscriber is dropped and counted (`mm_messages_unrouted_total`, alert `MessagesUnrouted`). |
-| **Parallel dispatch (Promise.allSettled)** | Ensures one slow or failing subscriber does not block delivery to others.                                                                                                                                    |
-| **Bounded retry backoff**                  | Exponential backoff (1s base, 20s cap, ±20% jitter), 10 attempts of at most 10s, spaced by the pending list of the journal (`retryDueMs`, `backoff-calculator.spec.ts`); the budget no longer holds a publisher request. |
-| **Dead letters in dlq-service**            | `HttpDeadLetterStore` sends them to dlq-service; while it refuses, the journal entry stays pending; no database in message-manager itself.                                                    |
