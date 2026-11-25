@@ -12,6 +12,8 @@ export interface BrokerOrderRequest {
 export interface MarketPrice {
 	price: number;
 	at: number;
+	/** Age past which a mark is stale: 2 bars of the model it was read for (`haltAgeMs` when absent). */
+	maxAgeMs?: number;
 }
 
 /** The market prices the service reads itself (ADR-0064 §7): the only source of its marks. */

@@ -1,5 +1,6 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
+import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import { HttpClient } from "@trading-model/http/http-client";
 import { readModelManifest } from "@trading-model/model-runtime/model-artifact-reader";
 import { ModelManifestSchema } from "@trading-model/model-runtime/model-manifest";
@@ -16,6 +17,12 @@ import type { AdmissionPort } from "../../domain/ports";
 const Manifest = z.object({
 	data: ModelManifestSchema.pick({ admission: true, replay: true }),
 });
+
+/** A bar length the scraper serves; any other is unknown, so the reader and the age check both fall back to `haltAgeMs`. */
+const knownBar = (ms?: number): number | undefined =>
+	CandleInterval.values().some((value) => CandleInterval.toMs(value) === ms)
+		? ms
+		: undefined;
 
 /** One attempt, short deadline: a slow trainer fails the intent closed instead of holding it. */
 const ADMISSION_TIMEOUT_MS = DurationMs.of(2_000);
@@ -39,7 +46,7 @@ export class TrainerAdmission implements AdmissionPort {
 		if (stored) {
 			return {
 				admissible: stored.admission?.admissible === true,
-				barMs: stored.replay?.intervalMs,
+				barMs: knownBar(stored.replay?.intervalMs),
 			};
 		}
 		const target = await FIND_A_SERVICE(
@@ -59,7 +66,7 @@ export class TrainerAdmission implements AdmissionPort {
 		);
 		return {
 			admissible: body?.data.admission?.admissible === true,
-			barMs: body?.data.replay?.intervalMs,
+			barMs: knownBar(body?.data.replay?.intervalMs),
 		};
 	}
 }

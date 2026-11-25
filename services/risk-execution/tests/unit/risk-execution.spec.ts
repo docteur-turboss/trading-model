@@ -86,13 +86,17 @@ function build(
 		store,
 		admission: { admission: async () => ({ admissible, barMs }) },
 		prices: {
-			latest: async (symbols) => {
+			latest: async (symbols, readBarMs) => {
 				if (feedDown) {
 					throw new Error("ECONNREFUSED");
 				}
 				return Object.fromEntries(
 					symbols
 						.filter((sym) => market[sym])
+						// Like the scraper adapter: no bar, no candle older than `haltAgeMs`.
+						.filter(
+							() => readBarMs || clock - (marketAt ?? clock) <= LIMITS.haltAgeMs
+						)
 						.map((sym) => [sym, { price: market[sym], at: marketAt ?? clock }])
 				);
 			},
@@ -265,6 +269,19 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		barMs = 86_400_000;
 		marketAt = clock - 20 * 3_600_000;
 		expect(await reject({})).toBe("accepted");
+	});
+
+	it("does not mark a bar-aged price: the tick after a daily intent engages no stale_data", async () => {
+		barMs = 86_400_000;
+		marketAt = clock - 20 * 3_600_000;
+		const ctx = build();
+		await ctx.svc.start();
+		await ctx.svc.submitIntent(intent({}));
+		await ctx.svc.tick();
+		expect(ctx.svc.status().killSwitch).toMatchObject({
+			global: null,
+			symbols: {},
+		});
 	});
 
 	it("values the order at the price read, not at the intent's, and fills there", async () => {

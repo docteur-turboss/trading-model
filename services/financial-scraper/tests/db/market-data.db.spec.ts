@@ -516,6 +516,34 @@ describe("selectLatestClosedCandles — real MySQL", () => {
 		]);
 	});
 
+	it("should filter on the interval and the source, and widen the window to 3 bars of the interval (issue #2804)", async () => {
+		const now = new Date(at(0) + 20 * 3_600_000);
+		await insertCandles([
+			closed(1199, { close: Price.of(1) }),
+			closed(1195, { close: Price.of(2), interval: CandleInterval.Min5 }),
+			closed(1198, { close: Price.of(3), source: SourceType.Nyse }),
+			candle({
+				close: Price.of(9),
+				interval: CandleInterval.D1,
+				timestamp: UnixTimestamp.of(now.getTime() - 44 * 3_600_000),
+				closeTimestamp: UnixTimestamp.of(now.getTime() - 20 * 3_600_000),
+			}),
+		]);
+		const close = async (
+			filter: Parameters<typeof selectLatestClosedCandles>[2]
+		) =>
+			(await selectLatestClosedCandles([SYMBOL], now, filter)).map(
+				(r) => r.close
+			);
+
+		await expect(close({ interval: CandleInterval.Min5 })).resolves.toEqual([
+			2,
+		]);
+		await expect(close({ source: SourceType.Nyse })).resolves.toEqual([3]);
+		await expect(close({ interval: CandleInterval.D1 })).resolves.toEqual([9]);
+		await expect(close(undefined)).resolves.toEqual([1]);
+	});
+
 	it("should read an index range per symbol, without dependent subquery or table scan, before index-build (issue #2592)", async () => {
 		const db = DATABASE.promise();
 		// Enough history that the optimizer weighs a scan of the symbol against the bounded range.

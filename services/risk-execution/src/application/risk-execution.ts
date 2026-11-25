@@ -609,7 +609,9 @@ export class RiskExecution {
 	private async _checkStale(now: number): Promise<void> {
 		const priced = this._pricedSymbols();
 		const stale = priced.filter(
-			(sym) => now - this._state.marks[sym].at > this._d.limits.haltAgeMs
+			(sym) =>
+				now - this._state.marks[sym].at >
+				(this._state.marks[sym].maxAgeMs ?? this._d.limits.haltAgeMs)
 		);
 		for (const sym of stale) {
 			await this._engage(sym, "stale_data");
@@ -619,7 +621,7 @@ export class RiskExecution {
 		}
 	}
 
-	/** Marks the symbols at the prices read (never older than the mark); none when the read failed. */
+	/** Marks the symbols at the prices read (never older than the mark; aged by `barMs` when given); none when the read failed. */
 	private async _readPrices(
 		symbols: string[],
 		barMs?: number
@@ -631,7 +633,9 @@ export class RiskExecution {
 			);
 			for (const [symbol, mark] of Object.entries(read)) {
 				if (mark.at >= (this._state.marks[symbol]?.at ?? 0)) {
-					this._state.marks[symbol] = mark;
+					this._state.marks[symbol] = barMs
+						? { ...mark, maxAgeMs: 2 * barMs }
+						: mark;
 				}
 			}
 			return read;
