@@ -84,7 +84,12 @@ const normalize = jest.fn<SourceAdapter["normalize"]>();
 const confirm = jest.fn<(url: string) => void>();
 const worker = Object.assign(
 	jest.fn<
-		(request: unknown, auth: unknown, source: unknown) => Promise<unknown>
+		(
+			request: unknown,
+			auth: unknown,
+			source: unknown,
+			signal?: AbortSignal
+		) => Promise<unknown>
 	>(),
 	{ confirm }
 );
@@ -213,7 +218,12 @@ describe("SignalCollector", () => {
 	it("wraps each canonical payload in a signal of the request's dimension and stores it", async () => {
 		await collector().collect(SOURCE);
 
-		expect(worker).toHaveBeenCalledWith(SOURCE.requests[0], "none", SOURCE);
+		expect(worker).toHaveBeenCalledWith(
+			SOURCE.requests[0],
+			"none",
+			SOURCE,
+			undefined
+		);
 		expect(normalize).toHaveBeenCalledWith(
 			{ payload: true },
 			{ params: {}, ingestedAt: NOW }
@@ -246,6 +256,20 @@ describe("SignalCollector", () => {
 		await expect(counted()).resolves.toEqual({ "test-source:success": 2 });
 	});
 
+	it("stops at an aborted signal: no partial save, no further request, no quarantine step", async () => {
+		const controller = new AbortController();
+		worker.mockImplementationOnce(async () => {
+			controller.abort();
+			return { payload: true };
+		});
+
+		await collector().collect(SOURCE, controller.signal);
+
+		expect(worker).toHaveBeenCalledTimes(1);
+		expect(worker.mock.calls[0][3]).toBe(controller.signal);
+		expect(save).not.toHaveBeenCalled();
+	});
+
 	it("tells the store to restate the values of a restated source", async () => {
 		await collector().collect({ ...SOURCE, restated: true });
 
@@ -274,7 +298,8 @@ describe("SignalCollector", () => {
 				url: "https://a.test/pageviews/daily/20261027/20261103?today=20261104&y=2026",
 			},
 			"none",
-			expect.anything()
+			expect.anything(),
+			undefined
 		);
 	});
 
