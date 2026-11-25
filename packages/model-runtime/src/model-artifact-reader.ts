@@ -6,8 +6,8 @@ export const WEIGHTS_FILE = "weights.f32";
 export const MANIFEST_FILE = "manifest.json";
 /** `<UTC yyyymmddThhmmssZ>-<first 12 hex of the weights sha256>`. */
 export const MODEL_VERSION_PATTERN = /^\d{8}T\d{6}Z-[0-9a-f]{12}$/;
-/** Symbols are path segments: letters, digits, `.`, `_` and `-` only. */
-export const MODEL_SYMBOL_PATTERN = /^[A-Za-z0-9._-]+$/;
+/** Symbols are path segments: letters, digits, `.`, `_` and `-`, starting with a letter or digit (no `.`, `..`). */
+export const MODEL_SYMBOL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 /**
  * Bytes of one artifact file of the store the trainer writes (ADR-0022, ADR-0089).
