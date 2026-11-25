@@ -256,7 +256,7 @@ describe("SignalCollector", () => {
 		await expect(counted()).resolves.toEqual({ "test-source:success": 2 });
 	});
 
-	it("stops at an aborted signal: no partial save, no further request, no quarantine step", async () => {
+	it("stops at an aborted signal: no partial save, no further request", async () => {
 		const controller = new AbortController();
 		worker.mockImplementationOnce(async () => {
 			controller.abort();
@@ -268,6 +268,26 @@ describe("SignalCollector", () => {
 		expect(worker).toHaveBeenCalledTimes(1);
 		expect(worker.mock.calls[0][3]).toBe(controller.signal);
 		expect(save).not.toHaveBeenCalled();
+	});
+
+	it("does not count, log or quarantine a request cut in flight", async () => {
+		const instance = collector();
+		for (let i = 0; i < 10; i++) {
+			const controller = new AbortController();
+			worker.mockImplementationOnce(async () => {
+				controller.abort();
+				throw new Error("AbortError from host");
+			});
+			await instance.collect(ONE_REQUEST, controller.signal);
+		}
+
+		await expect(counted()).resolves.toEqual({});
+		expect(MOCK_LOGGER.error).not.toHaveBeenCalled();
+		expect(save).not.toHaveBeenCalled();
+		// Ten cut cycles opened no quarantine.
+		worker.mockResolvedValueOnce({ payload: true });
+		await instance.collect(ONE_REQUEST);
+		await expect(counted()).resolves.toEqual({ "test-source:success": 1 });
 	});
 
 	it("tells the store to restate the values of a restated source", async () => {

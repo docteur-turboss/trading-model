@@ -210,11 +210,11 @@ export class SignalCollector {
 		let fetchFailure: Error | undefined;
 		for (const [index, request] of source.requests.entries()) {
 			// One after the other, at most maxRequestsPerMinute: free sources are not to be burst.
-			if (index > 0) {
-				await this._deps.sleep(spacingMs);
-			}
 			if (signal?.aborted) {
 				return;
+			}
+			if (index > 0) {
+				await this._deps.sleep(spacingMs);
 			}
 			const failure = await this._collectRequest(source, request, signal);
 			fetchFailure ??= failure;
@@ -263,6 +263,7 @@ export class SignalCollector {
 	): Promise<Error | undefined> {
 		let result: CollectionResult = "fetch_error";
 		let fetchFailure: Error | undefined;
+		let cut = false;
 		const ingestedAt = this._deps.now();
 		try {
 			const worker = this._deps.workers[source.protocol];
@@ -299,6 +300,11 @@ export class SignalCollector {
 				context: { source: source.id, count: signals.length },
 			});
 		} catch (err) {
+			if (signal?.aborted) {
+				// Lease lost: not a source failure, no log, no metric.
+				cut = true;
+				return undefined;
+			}
 			if (err instanceof HttpStatusError) {
 				// `result` is already "invalid_payload" here: without this, an HTTP failure an adapter finds in a 200 body would skip `_track` and never quarantine.
 				result = "fetch_error";
@@ -327,7 +333,9 @@ export class SignalCollector {
 				error: err,
 			});
 		} finally {
-			SIGNAL_COLLECTIONS_TOTAL.inc({ source: source.id, result });
+			if (!cut) {
+				SIGNAL_COLLECTIONS_TOTAL.inc({ source: source.id, result });
+			}
 		}
 		return fetchFailure;
 	}
