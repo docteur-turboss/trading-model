@@ -93,7 +93,7 @@ describe("intent contract: decision-consumer → risk-execution", () => {
 			limits: LIMITS,
 			broker: new PaperBroker(new Memory<never>(), 100_000),
 			store,
-			admission: { isAdmissible: async () => true },
+			admission: { admission: async () => ({ admissible: true }) },
 			prices: {
 				latest: async () => ({ BTCUSDT: { price: 60_000, at: NOW } }),
 			},
