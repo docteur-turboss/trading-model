@@ -13,7 +13,6 @@ jest.mock("../../../../../src/config/http", () => ({
 jest.mock("../../../../../src/adapters/outbound/binance/endpoints", () => ({
 	BINANCE_ENDPOINTS: {
 		depth: jest.fn((..._args: any[]) => "/api/v3/depth"),
-		trades: jest.fn((..._args: any[]) => "/api/v3/trades"),
 		candlesticks: jest.fn((..._args: any[]) => "/api/v3/klines"),
 		change24hrStats: jest.fn((..._args: any[]) => "/api/v3/ticker/24hr"),
 	},
@@ -22,7 +21,6 @@ jest.mock("../../../../../src/adapters/outbound/binance/endpoints", () => ({
 jest.mock("../../../../../src/adapters/outbound/binance/weights", () => ({
 	BINANCE_WEIGHTS: {
 		depth: jest.fn((..._args: any[]) => 5),
-		trades: jest.fn((..._args: any[]) => 25),
 		candlesticks: jest.fn((..._args: any[]) => 2),
 		change24hrStats: jest.fn((..._args: any[]) => 2),
 	},
@@ -32,7 +30,6 @@ import {
 	get24hrTickerStats,
 	getCandlestickData,
 	getOrderBook,
-	getRecentTrades,
 } from "../../../../../src/adapters/outbound/binance/binance.client";
 import { httpClients } from "../../../../../src/config/http";
 
@@ -59,20 +56,6 @@ describe("BinanceClient", () => {
 		await getOrderBook({ symbol: BTC });
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/depth", {
 			weight: 5,
-		} as never);
-	});
-
-	it("getRecentTrades should call trades endpoint with weight", async () => {
-		await getRecentTrades({ symbol: BTC, limit: LIMIT_100 });
-		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/trades", {
-			weight: 25,
-		} as never);
-	});
-
-	it("getRecentTrades should use default limit", async () => {
-		await getRecentTrades({ symbol: BTC });
-		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/trades", {
-			weight: 25,
 		} as never);
 	});
 

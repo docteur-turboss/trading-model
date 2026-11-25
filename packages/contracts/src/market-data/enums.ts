@@ -52,8 +52,3 @@ export namespace CandleInterval {
 			(value): value is CandleInterval => typeof value === "string"
 		);
 }
-
-export enum TradeSide {
-	Buy = "buy",
-	Sell = "sell",
-}

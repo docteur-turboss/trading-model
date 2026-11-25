@@ -4,7 +4,6 @@ export {
 	CandleInterval,
 	MarketType,
 	SourceType,
-	TradeSide,
 } from "./market-data/enums";
 export type {
 	OhlcvData,
@@ -16,4 +15,3 @@ export type {
 	OrderBookLevel,
 } from "./market-data/orderbook.types";
 export type { TickerData } from "./market-data/ticker.types";
-export type { TradeData } from "./market-data/trade.types";

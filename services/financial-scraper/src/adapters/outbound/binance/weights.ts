@@ -5,7 +5,6 @@ const WEIGHT = {
 	DEPTH_MED: 25 as ApiWeight,
 	DEPTH_HIGH: 50 as ApiWeight,
 	DEPTH_MAX: 250 as ApiWeight,
-	TRADES: 25 as ApiWeight,
 	CANDLESTICKS: 2 as ApiWeight,
 	CHANGE_24HR_LOW: 2 as ApiWeight,
 	CHANGE_24HR_MED: 40 as ApiWeight,
@@ -28,7 +27,6 @@ export const BINANCE_WEIGHTS = {
 		}
 		return WEIGHT.DEPTH_MAX;
 	},
-	trades: (): ApiWeight => WEIGHT.TRADES,
 	candlesticks: (): ApiWeight => WEIGHT.CANDLESTICKS,
 	change24hrStats: (symbolLength: number): ApiWeight => {
 		if (symbolLength === 0) {

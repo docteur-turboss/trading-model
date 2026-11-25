@@ -9,3 +9,5 @@ GET /v1/discovery-server/services/{serviceName}/{instanceId} api path removed wi
 GET /v2/financial-scraper/candles/sources/{source} api path removed without deprecation
 GET /v2/financial-scraper/ticker/sources/{source} api path removed without deprecation
 GET /v2/financial-scraper/trade/sources/{source} api path removed without deprecation
+GET /v2/financial-scraper/trade/symbols/{symbol} api path removed without deprecation
+GET /v2/financial-scraper/trade/timestamp/{timestamp} api path removed without deprecation

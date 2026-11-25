@@ -10,7 +10,6 @@ import {
 	selectLatestClosedCandles,
 } from "../../outbound/persistence/schema/candles.schema";
 import { selectTickerBy } from "../../outbound/persistence/schema/ticker24h.schema";
-import { selectTradesBy } from "../../outbound/persistence/schema/trades.schema";
 import { MySqlSignalStore } from "../../outbound/persistence/signal-store";
 import {
 	encodeCursor,
@@ -18,10 +17,7 @@ import {
 	SCRAPER_API,
 } from "./api-routes";
 
-/**
- * 200 with the rows as JSON. `toJsonWire` sends BIGINT trade ids as decimal
- * strings (plain JSON.stringify throws on a bigint).
- */
+/** 200 with the rows as JSON. */
 function json(body: unknown) {
 	return sendResponse(JSON.stringify(body, toJsonWire), HTTP_STATUS.OK);
 }
@@ -49,15 +45,6 @@ async function page(select: PageQuery, { limit, ...window }: MarketDataPage) {
 		nextCursor,
 		truncated: nextCursor !== null,
 	});
-}
-
-function _registerTradeRoutes(router: Router): void {
-	mountRoute(router, SCRAPER_API.tradesBySymbol, ({ params, query }) =>
-		page((window) => selectTradesBy.symbol(params.symbol, window), query)
-	);
-	mountRoute(router, SCRAPER_API.tradesAt, ({ params, query }) =>
-		page((window) => selectTradesBy.timestamp(params.timestamp, window), query)
-	);
 }
 
 function _registerTickerRoutes(router: Router): void {
@@ -143,11 +130,10 @@ function _registerSignalRoutes(router: Router): void {
 	});
 }
 
-/** Create an Express Router with all financial-data query endpoints (trades, tickers, candles, signals). */
+/** Create an Express Router with all financial-data query endpoints (tickers, candles, signals). */
 export const FINANCIAL_ROUTES = (): Router => {
 	const router = Router();
 
-	_registerTradeRoutes(router);
 	_registerTickerRoutes(router);
 	_registerCandleRoutes(router);
 	_registerSignalRoutes(router);
