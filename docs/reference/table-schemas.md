@@ -99,16 +99,7 @@ CREATE TABLE `market_trades` (
 ) ENGINE=InnoDB;
 ```
 
-**TS entity interface** (`@trading-model/contracts` — `contracts/market-data.types`, re-exporting `contracts/market-data/trade.types`):
-
-```ts
-interface TradeData extends BaseMarketData {
-  price: number;
-  tradeId: bigint;
-  quantity: number;
-  side: 'buy' | 'sell';
-}
-```
+No TS entity: the `TradeData` contract type was removed with the collection (#2693).
 
 ### `market_tickers` — 24-hour ticker statistics
 
