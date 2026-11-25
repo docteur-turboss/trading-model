@@ -462,7 +462,7 @@ jobs:
           # Exporter users (ADR-0056): optional keys for the pods, but without
           # them MySQLDown / RedisDown fire and verify-release rolls back.
           missing=""
-          for key in REDIS_INTERNAL_PASSWORD REDIS_DISCOVERY_PASSWORD REDIS_MESSAGE_MANAGER_PASSWORD REDIS_DLQ_PASSWORD REDIS_AUDIT_LOGGER_PASSWORD REDIS_TRADER_TRAINER_PASSWORD REDIS_MODEL_EVALUATOR_PASSWORD MYSQL_EXPORTER_PASSWORD REDIS_EXPORTER_PASSWORD MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD MONGO_AUDIT_KEYFILE MONGO_DLQ_KEYFILE; do
+          for key in REDIS_INTERNAL_PASSWORD REDIS_DISCOVERY_PASSWORD REDIS_MESSAGE_MANAGER_PASSWORD REDIS_DLQ_PASSWORD REDIS_AUDIT_LOGGER_PASSWORD REDIS_TRADER_TRAINER_PASSWORD REDIS_MODEL_EVALUATOR_PASSWORD REDIS_RISK_EXECUTION_PASSWORD REDIS_DECISION_CONSUMER_PASSWORD MYSQL_EXPORTER_PASSWORD REDIS_EXPORTER_PASSWORD MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD MONGO_AUDIT_KEYFILE MONGO_DLQ_KEYFILE; do
             grep -qE "^ +$key: " <<<"$rendered" || missing="$missing $key"
           done
           if [ -n "$missing" ]; then
@@ -895,30 +895,13 @@ jobs:
           kubectl kustomize "deploy/k8s/overlays/$OVERLAY/node-agents" |
             KUBECONFIG="$CLUSTER_KUBECONFIG" kubectl apply -f -
 
-      # A destructive migration cannot be undone by migrate-down or the rollback:
-      # the dump taken here (MySQL only, from the db-backup CronJob) is the restore point.
+      # MySQL dump from the db-backup CronJob: the restore point of a destructive migration.
       - name: Back up MySQL before migrations
         if: ${{ !inputs.preflight_only }}
         shell: bash
         run: |
-          NS="$NAMESPACE"
-          if ! kubectl get statefulset mysql -n "$NS" >/dev/null 2>&1; then
-            echo "First deploy: MySQL not there yet, no backup"
-            exit 0
-          fi
-          # The job needs the age recipients and the off-site Secret (BACKUP_REQUIRE_*): production
-          # was checked above; elsewhere a missing one skips the backup instead of blocking the deploy.
-          if [ "$DEPLOY_ENVIRONMENT" != production ] && ! { kubectl get configmap backup-encryption -n "$NS" &&
-            kubectl get secret trading-model-backup-s3 -n "$NS"; } >/dev/null 2>&1; then
-            echo "::warning::$DEPLOY_ENVIRONMENT has no backup-encryption ConfigMap or trading-model-backup-s3 Secret: pre-migration backup skipped"
-            exit 0
-          fi
-          job="db-backup-pre-migrate-${{ github.run_id }}"
-          kubectl create job "$job" --from=cronjob/db-backup -n "$NS" --dry-run=client -o json |
-            sed 's/--components mongodb,mysql,checkpoints,spire/--components mysql/' |
-            kubectl apply -n "$NS" -f -
-          bash deploy/k8s/scripts/wait-job.sh "$NS" "$job" 1800
-          echo "MySQL backup finished at $(date -u +%Y-%m-%dT%H:%M:%SZ) (job $job): restore point for restore-k8s.sh --until" >> "$GITHUB_STEP_SUMMARY"
+          bash deploy/k8s/scripts/deploy-release.sh pre-migrate-backup "$NAMESPACE" \
+            "db-backup-pre-migrate-${{ github.run_id }}" "$DEPLOY_ENVIRONMENT"
 
       # Migrations must run before the new image rolls out. On a first deploy
       # MySQL does not exist yet: they run right after the overlay instead.

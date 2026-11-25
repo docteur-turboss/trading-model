@@ -564,6 +564,7 @@ services:
       APP_NAME: risk-execution
       APP_VERSION: ${APP_VERSION:-1.0.0}
       SERVICE_NAME: risk-execution
+      BUS_TRANSPORT: library
       INSTANCE_ID: risk-execution-1
       EXECUTION_MODE: paper
       DEPLOYMENT_ENV: development
@@ -599,6 +600,7 @@ services:
       APP_NAME: decision-consumer
       APP_VERSION: ${APP_VERSION:-1.0.0}
       SERVICE_NAME: decision-consumer
+      BUS_TRANSPORT: library
       INSTANCE_ID: decision-consumer-1
       PROMOTED_MODELS: ${PROMOTED_MODELS:-}
     volumes:

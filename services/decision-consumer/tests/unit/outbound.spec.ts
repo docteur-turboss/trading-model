@@ -9,12 +9,6 @@ jest.mock("../../src/config/address-manager", () => ({
 	FIND_A_SERVICE: async () => ({ host: "risk", port: 3000 }),
 	AddressManager: {},
 }));
-const postIndirect = jest.fn<(...args: any[]) => any>();
-jest.mock("@trading-model/broker-message/create-message-manager", () => ({
-	createMessageManager: () => ({
-		messageManager: { post: { indirect: postIndirect } },
-	}),
-}));
 
 import { PromotionAudit } from "../../src/adapters/outbound/promotion-audit";
 import { RiskClient } from "../../src/adapters/outbound/risk-client";
@@ -55,21 +49,29 @@ describe("RiskClient", () => {
 });
 
 describe("PromotionAudit", () => {
-	it("posts risk.promotion.loaded through message-manager", async () => {
+	it("appends risk.promotion.loaded to the bus journal, not over HTTP", async () => {
+		const journal = {
+			hasSubscribers: async () => true,
+			append: jest.fn<(...args: any[]) => any>(),
+		};
+		post.mockClear();
 		await new PromotionAudit(
 			{} as never,
 			"i" as never,
-			"message"
+			"message",
+			journal as never
 		).promotionLoaded({
 			symbol: "BTCUSDT",
 			version: "v1",
 			sha256: "a".repeat(64),
 		});
-		expect(postIndirect.mock.calls[0][0]).toEqual({
+		const [message] = journal.append.mock.calls[0] ?? [];
+		expect(message.metadata.topic).toBe("risk.promotion.loaded");
+		expect(message.payload).toEqual({
 			symbol: "BTCUSDT",
 			version: "v1",
 			sha256: "a".repeat(64),
 		});
-		expect(postIndirect.mock.calls[0][1].topic).toBe("risk.promotion.loaded");
+		expect(post).not.toHaveBeenCalled();
 	});
 });

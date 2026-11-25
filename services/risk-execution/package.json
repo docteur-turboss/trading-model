@@ -18,6 +18,7 @@
     "@trading-model/common": "*",
     "@trading-model/contracts": "*",
     "@trading-model/model-runtime": "*",
+    "@trading-model/persistence": "*",
     "@trading-model/http": "*",
     "@trading-model/primitives": "*",
     "express": "^5.3.0",
