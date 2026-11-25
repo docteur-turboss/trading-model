@@ -62,7 +62,7 @@ describe("publishToBus", () => {
 		const unrouted = jest.spyOn(MESSAGES_UNROUTED_TOTAL, "inc");
 
 		await publishToBus(journal, "p", METADATA);
-		expect(unrouted).toHaveBeenCalledWith({ topic: METADATA.topic });
+		expect(unrouted.mock.calls).toEqual([[{ topic: METADATA.topic }]]);
 		unrouted.mockClear();
 		await expect(
 			publishToBus(journal, "p", {
