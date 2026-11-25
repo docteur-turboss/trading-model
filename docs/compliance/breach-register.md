@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Register owner** | Compliance Officer (role, not a named person) |
+| **Register owner** | Maintainer (single role) |
 | **Purpose** | Document every personal data breach (facts, effects, remedial action), whether or not it is notified to the CNIL (Art. 33(5)) |
 | **Policy** | [Incident Response Policy](incident-response-policy.md) § 4 |
 | **Severity and roles** | Levels L1-L4 and roles of [Incident Response Policy](incident-response-policy.md) §§ 2 and 5 |
@@ -10,8 +10,8 @@
 ## 1. Where the real register is kept
 
 The real register is **not** in this repository. It is a restricted-access
-document held outside the public repository, readable only by the Compliance
-Officer, the Platform Security Lead and the controller. Its location is recorded
+document held outside the public repository, readable only by the maintainer
+and the controller. Its location is recorded
 in the internal security documentation, not here.
 
 **No real personal data, and no exploitable detail (vulnerability, key,
@@ -51,7 +51,7 @@ Never edit a closed entry: add a dated correction under it.
 |---|---|
 | **Entry ID** | `BR-2099-00` (example) |
 | **Incident references** | INC-0000 (example), L3 |
-| **Discovered** | 2099-01-01 09:00 UTC, on-call engineer, alert review |
+| **Discovered** | 2099-01-01 09:00 UTC, maintainer, alert review |
 | **Breach period** | 2098-12-31 22:00 to 2099-01-01 09:30 UTC, 11.5 h |
 | **Nature** | Confidentiality: edge-proxy access logs readable by an unauthorised internal account; cause: mis-set permission |
 | **Categories and volume of data** | Truncated caller IP addresses; about 1 000 log lines |
@@ -61,4 +61,4 @@ Never edit a closed entry: add a dated correction under it.
 | **Risk assessment** | Unlikely to result in a risk to individuals |
 | **CNIL notification decision** | Not notified; reasoning above; decided 2099-01-01 14:00 UTC, 5 h after awareness (< 72 h) |
 | **Information of data subjects** | Not required (no high risk) |
-| **Closure** | 2099-01-03, Compliance Officer, permission check added to review |
+| **Closure** | 2099-01-03, Maintainer, permission check added to review |

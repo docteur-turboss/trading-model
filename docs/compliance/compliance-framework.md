@@ -54,15 +54,15 @@ Map of the regulations that apply to the platform. Processing activities: [Data 
 
 | Frequency | Activity | Responsible |
 |---|---|---|
-| **Quarterly** | Review data processing register for accuracy | Platform Security Lead |
-| **Quarterly** | Review third-party assessments | Platform Security Lead |
-| **Annual** | Full DPIA review | Platform Security Lead |
-| **Annual** | Information security policy review | Platform Security Lead |
-| **Annual** | Algorithmic trading conformance self-assessment | Lead Developer |
-| **Annual** | Access control audit | Platform Security Lead |
-| **Annual** | Incident response tabletop exercise | Platform Security Lead |
-| **Annual** | Business continuity plan test | DevOps Lead |
-| **Ad-hoc** | Any significant change to architecture or data processing | Platform Security Lead |
+| **Quarterly** | Review data processing register for accuracy | Maintainer (single role) |
+| **Quarterly** | Review third-party assessments | Maintainer |
+| **Annual** | Full DPIA review | Maintainer |
+| **Annual** | Information security policy review | Maintainer |
+| **Annual** | Algorithmic trading conformance self-assessment | Maintainer |
+| **Annual** | Access control audit | Maintainer |
+| **Annual** | Incident response tabletop exercise | Maintainer |
+| **Annual** | Business continuity plan test | Maintainer |
+| **Ad-hoc** | Any significant change to architecture or data processing | Maintainer |
 
 ## 4. Regulatory Contact
 
