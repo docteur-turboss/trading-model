@@ -44,6 +44,7 @@ jest.mock("../../services/audit-logger/src/config/metrics", () => ({
 }));
 // dlq-service, risk-execution and decision-consumer publish their events through the real broker client.
 jest.mock("@trading-model/broker-message/create-message-manager", () => ({
+	busJournalFromEnv: () => undefined,
 	createMessageManager: () => ({
 		messageManager: {
 			post: {

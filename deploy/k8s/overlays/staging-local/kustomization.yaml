@@ -9,6 +9,15 @@ resources:
   - backup-minio-network-policy.yaml
 
 patches:
+  # The partitioned redis-0 lacks the bus ACL users of risk-execution and
+  # decision-consumer until restarted (issue #1931): publish through message-manager.
+  - target:
+      kind: ConfigMap
+      name: (risk-execution|decision-consumer)-config
+    patch: |-
+      - op: replace
+        path: /data/BUS_TRANSPORT
+        value: http
   # No public DNS name for Let's Encrypt: self-signed certificates
   # (ClusterIssuer created by deploy/staging-local/bootstrap.sh prereqs).
   # Only the host reaches the Ingress (kind port mapping 127.0.0.1:9443),

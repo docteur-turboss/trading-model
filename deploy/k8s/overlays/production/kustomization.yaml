@@ -18,7 +18,7 @@ patches:
   # where WAIT 1 can never succeed. The bus services publish with their own XADD (ADR-0073).
   - target:
       kind: ConfigMap
-      name: (message-manager|audit-logger|trader-trainer|model-evaluator)-config
+      name: (message-manager|audit-logger|trader-trainer|model-evaluator|risk-execution|decision-consumer)-config
     patch: |-
       - op: add
         path: /data/JOURNAL_MIN_REPLICAS

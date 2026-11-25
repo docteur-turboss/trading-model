@@ -2,9 +2,11 @@ import { describe, expect, it, jest } from "@jest/globals";
 
 const POST = jest.fn<(...args: any[]) => Promise<void>>();
 const CREATE = jest.fn<(...args: any[]) => unknown>();
+const JOURNAL = { bus: "redis" };
 
 jest.mock("@trading-model/broker-message/create-message-manager", () => ({
 	createMessageManager: (...args: any[]) => CREATE(...args),
+	busJournalFromEnv: () => JOURNAL,
 }));
 jest.mock("../../src/config/address-manager", () => ({ AddressManager: {} }));
 jest.mock("../../src/infrastructure/config/env", () => ({
@@ -40,6 +42,9 @@ describe("publishRiskEvent", () => {
 			POST.mock.calls[POST.mock.calls.length - 1] ?? [];
 		expect(payload).toMatchObject({ mode: "paper" });
 		expect(metadata.topic).toBe(topic);
+		expect(CREATE).toHaveBeenLastCalledWith(
+			expect.objectContaining({ journal: JOURNAL })
+		);
 	});
 
 	it("does not throw when the bus refuses", () => {
