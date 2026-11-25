@@ -38,6 +38,18 @@ export const RISK_DAILY_LOSS = new promClient.Gauge({
 	labelNames: ["mode"] as const,
 });
 
+export const RISK_EQUITY = new promClient.Gauge({
+	name: "risk_equity",
+	help: "Equity (cash plus positions at their marks), in quote currency",
+	labelNames: ["mode"] as const,
+});
+
+export const RISK_DRAWDOWN_RATIO = new promClient.Gauge({
+	name: "risk_drawdown_ratio",
+	help: "Drawdown from the high-water mark over its limit (drawdownPct x allocatedCapital): 1 = kill switch",
+	labelNames: ["mode"] as const,
+});
+
 export const RISK_OPEN_ORDERS = new promClient.Gauge({
 	name: "risk_open_orders",
 	help: "Orders not yet in a final state",

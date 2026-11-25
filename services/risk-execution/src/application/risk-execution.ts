@@ -82,6 +82,8 @@ export interface StatusReport {
 	mismatch: boolean;
 	killSwitch: RiskState["killSwitch"];
 	equity: number;
+	/** Drawdown from the high-water mark over its limit (drawdownPct × allocatedCapital): 1 = limit. */
+	drawdownRatio: number;
 	exposureRatio: number;
 	dailyLoss: number;
 	openOrders: number;
@@ -194,6 +196,9 @@ export class RiskExecution {
 			mismatch: this._mismatch,
 			killSwitch: state.killSwitch,
 			equity: equity(state),
+			drawdownRatio:
+				Math.max(0, state.hwm - equity(state)) /
+				(this._d.limits.drawdownPct * this._d.limits.allocatedCapital),
 			exposureRatio: exposure(state) / this._d.limits.allocatedCapital,
 			dailyLoss: dailyLoss(state),
 			openOrders: Object.values(state.orders).filter(isOpen).length,

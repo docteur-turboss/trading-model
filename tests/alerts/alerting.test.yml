@@ -2084,6 +2084,24 @@ tests:
               description: 'An allowed instrument has no price newer than 15 min: its orders halt (kill switch on that symbol, global when every symbol is stale).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskmarketdatastale'
 
+  - name: risk-execution drawdown approaching
+    interval: 1m
+    input_series:
+      - series: 'risk_drawdown_ratio{job="risk-execution",mode="paper"}'
+        values: '0.5 0.8+0x20'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: RiskDrawdownApproaching
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: RiskDrawdownApproaching
+        exp_alerts:
+          - exp_labels: {severity: warning, job: risk-execution, mode: paper}
+            exp_annotations:
+              summary: 'Drawdown above 70 % of its limit (paper)'
+              description: 'The drawdown from the high-water mark has been above 70 % of its limit for 5 min. At 100 % the kill switch engages by itself.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskdrawdownapproaching'
+
   - name: risk-execution tick failures
     interval: 1m
     input_series:

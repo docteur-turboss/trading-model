@@ -23,6 +23,8 @@ import { initRiskOutbox, publishRiskEvent, replayRiskEvents } from "./audit";
 import {
 	metricsHandler,
 	RISK_DAILY_LOSS,
+	RISK_DRAWDOWN_RATIO,
+	RISK_EQUITY,
 	RISK_EXPOSURE_RATIO,
 	RISK_KILL_SWITCH,
 	RISK_MARKET_DATA_AGE_SECONDS,
@@ -96,6 +98,8 @@ export async function createRiskExecutionApp() {
 		RISK_RECONCILIATION_MISMATCH.set({ mode }, snapshot.mismatch ? 1 : 0);
 		RISK_EXPOSURE_RATIO.set({ mode }, snapshot.exposureRatio);
 		RISK_DAILY_LOSS.set({ mode }, snapshot.dailyLoss);
+		RISK_EQUITY.set({ mode }, snapshot.equity);
+		RISK_DRAWDOWN_RATIO.set({ mode }, snapshot.drawdownRatio);
 		RISK_OPEN_ORDERS.set({ mode }, snapshot.openOrders);
 		RISK_MARKET_DATA_AGE_SECONDS.set({ mode }, snapshot.oldestPriceAgeSeconds);
 	};

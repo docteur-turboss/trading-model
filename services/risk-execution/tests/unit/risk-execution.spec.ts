@@ -895,6 +895,7 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		market.BTCUSDT = 48_000; // -600: past 0.5 %, under the 2 % daily and 1 % symbol limits
 		await ctx.svc.tick();
 		expect(ctx.svc.status().killSwitch.global).toBe("drawdown");
+		expect(ctx.svc.status().drawdownRatio).toBeGreaterThanOrEqual(1);
 		expect(
 			(ctx.store.value as RiskState).orders[resting.clientOrderId].status
 		).toBe("cancelled");
