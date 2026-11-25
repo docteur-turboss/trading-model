@@ -20,6 +20,9 @@
 #   deploy-release.sh without-redis <namespace> < app-scope.yaml
 #       Prints the render on stdin without the Redis StatefulSets once they
 #       exist (all of it on a first deploy); the caller pipes it to kubectl apply.
+#   deploy-release.sh prepull <namespace> < app-scope.yaml
+#       Before the apply: pulls image N of the Recreate Deployments (RECREATE_DEPLOYMENTS) onto
+#       the node of their current pod, through a throwaway pod. A failure only warns.
 #   deploy-release.sh redis-last <namespace> < app-scope.yaml
 #       After `wait`: waits for certificate/redis-tls, then applies the Redis
 #       StatefulSets of the render on stdin and waits for their rollout. Redis
@@ -67,6 +70,9 @@ STATEFULSETS="redis redis-sentinel"
 
 REVISIONS_CM=deploy-revisions
 
+# Single-replica Deployments with strategy Recreate (ADR-0064, ADR-0049).
+RECREATE_DEPLOYMENTS="risk-execution model-evaluator"
+
 # Finished init Jobs `release-replicas` deletes before the apply (immutable pod template).
 INIT_JOBS="mongo-audit-users mongo-dlq-users"
 
@@ -97,8 +103,41 @@ redis_last() {
 	done
 }
 
+# Image N is pulled on the node that runs the current pod (restricted profile), so the Recreate
+# pause (old pod stopped, new one not started) does not include the pull (issue #2849).
+prepull() {
+	local ns="$1" render dep image node pod manifest
+	render="$(cat)"
+	for dep in $RECREATE_DEPLOYMENTS; do
+		image=$(awk -v n="$dep" '/image:/ && $NF ~ ("/" n "[@:]") {print $NF; exit}' <<<"$render")
+		node=$(kubectl get pods -n "$ns" -l "app.kubernetes.io/component=$dep" -o jsonpath='{.items[0].spec.nodeName}' 2>/dev/null) || node=""
+		[ -n "$image" ] && [ -n "$node" ] || continue
+		pod="prepull-$dep"
+		manifest="apiVersion: v1
+kind: Pod
+metadata: {name: $pod}
+spec:
+  nodeName: $node
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext: {runAsNonRoot: true, runAsUser: 10001, seccompProfile: {type: RuntimeDefault}}
+  containers:
+    - name: pull
+      image: $image
+      imagePullPolicy: Always
+      command: [node, -e, \"0\"]
+      securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}"
+		echo "Pre-pulling $image on $node"
+		if ! { kubectl apply -n "$ns" -f - <<<"$manifest" &&
+			kubectl wait --for=jsonpath='{.status.phase}'=Succeeded "pod/$pod" -n "$ns" --timeout="$((600 * FACTOR))s"; }; then
+			echo "::warning::Pre-pull of $image for $dep failed: the pod of release N pulls it itself"
+		fi
+		kubectl delete pod "$pod" -n "$ns" --ignore-not-found --wait=false || true
+	done
+}
+
 usage() {
-	echo "usage: $0 without-redis <ns> | redis-last <ns> | record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | dry-run <ns> <node-agents-dir> | wait <ns> [timeout] | rollback <ns> <file> | forget <ns> | pre-migrate-backup <ns> <job> <env>" >&2
+	echo "usage: $0 without-redis <ns> | prepull <ns> | redis-last <ns> | record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | dry-run <ns> <node-agents-dir> | wait <ns> [timeout] | rollback <ns> <file> | forget <ns> | pre-migrate-backup <ns> <job> <env>" >&2
 	exit 64
 }
 
@@ -432,6 +471,7 @@ release-replicas) [ $# -eq 2 ] || usage; release_replicas "$2" ;;
 render) [ $# -ge 4 ] && [ $# -le 5 ] || usage; render "$2" "$3" "$4" "${5:-}" ;;
 without-redis) [ $# -eq 2 ] || usage; without_redis "$2" ;;
 redis-last) [ $# -eq 2 ] || usage; redis_last "$2" ;;
+prepull) [ $# -eq 2 ] || usage; prepull "$2" ;;
 dry-run) [ $# -eq 3 ] || usage; dry_run "$2" "$3" ;;
 wait) [ $# -ge 2 ] || usage; wait_rollout "$2" "${3:-180s}" ;;
 rollback) [ $# -eq 3 ] || usage; rollback "$2" "$3" ;;

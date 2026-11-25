@@ -283,6 +283,18 @@ Check that model-evaluator reads its topic in process:
 kubectl -n "$NS" exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli --user message-manager XINFO CONSUMERS trading-model:message-manager:journal:training.model.published model-evaluator' | grep '^model-evaluator-'
 ```
 
+## Recreate pause (risk-execution, model-evaluator)
+
+Both run one pod with `strategy: Recreate` (ADR-0064, ADR-0049): the old pod stops
+before the new one starts, and the new one pulls its image then (`imagePullPolicy:
+Always`; one pod waited 8.5 min on this node). Meanwhile the risk-execution API is
+down (decision-consumer skips its passes, the admin is cut) and model-evaluator
+leaves bus deliveries waiting. Before the apply, `deploy-release.sh prepull` pulls
+image N onto the node of each current pod through a throwaway pod
+`prepull-<deployment>` (deleted afterwards), so the pause no longer includes the pull.
+A failed pre-pull only warns. The kind job logs how long risk-execution had no
+ready pod during the N-1 to N upgrade (it loads images locally and skips the pre-pull).
+
 ## Between deploys
 
 The cluster may be stopped between two deploys. Nothing calls it except

@@ -987,6 +987,7 @@ jobs:
         run: |
           bash deploy/k8s/scripts/deploy-release.sh render "deploy/k8s/overlays/$OVERLAY" "${{ steps.tag.outputs.registry }}" "$RUNNER_TEMP/image-digests" "$RESOLVED_TAG" |
             bash scripts/split-cluster-scope.sh app >"$RUNNER_TEMP/app.yaml"
+          bash deploy/k8s/scripts/deploy-release.sh prepull "$NAMESPACE" <"$RUNNER_TEMP/app.yaml"
           # Redis last ("Wait for rollout"): it never restarts under the previous release (issue #1156).
           bash deploy/k8s/scripts/deploy-release.sh without-redis "$NAMESPACE" <"$RUNNER_TEMP/app.yaml" |
             kubectl apply -f -
