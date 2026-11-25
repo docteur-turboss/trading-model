@@ -1,4 +1,7 @@
-POST /v1/dlq-service/dlq api removed without deprecation
+POST /v1/dlq-service/dlq API path removed without deprecation
+DELETE /v1/dlq-service/dlq API path removed without deprecation
+GET /v1/dlq-service/dlq API path removed without deprecation
+POST /v1/dlq-service/dlq/replay API path removed without deprecation
 GET /v2/financial-scraper/signals/assets/{assetId} added `subschema #1, subschema #2, subschema #3, subschema #4, subschema #5, subschema #6` to the `signals/items` response property `oneOf` list for the response status `200`
 GET /v1/discovery-server/services api path removed without deprecation
 GET /v1/discovery-server/services/{serviceName} api path removed without deprecation

@@ -66,14 +66,14 @@ describe("redisConnectionFromEnv", () => {
 		expect(
 			redisConnectionFromEnv({
 				REDIS_SENTINELS: "10.0.0.7:26379",
-				REDIS_USERNAME: "message-manager",
+				REDIS_USERNAME: "audit-logger",
 				REDIS_PASSWORD: "service-pw",
 				REDIS_SENTINEL_PASSWORD: "sentinel-pw",
 			})
 		).toMatchObject({
 			mode: "sentinel",
 			config: {
-				username: "message-manager",
+				username: "audit-logger",
 				password: "service-pw",
 				sentinelPassword: "sentinel-pw",
 			},

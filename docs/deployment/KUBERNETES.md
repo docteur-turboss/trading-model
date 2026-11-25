@@ -227,11 +227,9 @@ HPAs are configured in `deploy/k8s/config/<service>-autoscaling.yaml` (`trader-t
 
 | Service               | Min | Max | Metric                           |
 | --------------------- | --- | --- | -------------------------------- |
-| message-manager       | 3   | 12  | CPU 65%, Memory 70%, Queue depth |
 | api-gateway           | 2   | 8   | CPU 70%, Memory 75%              |
 | financial-scraper     | 2   | 6   | CPU 70%, Memory 75%              |
 | audit-logger          | 2   | 5   | CPU 70%                          |
-| dlq-service           | 2   | 4   | CPU 70%                          |
 | edge-proxy            | 2   | 5   | CPU 70%                          |
 
 ### Manual scaling

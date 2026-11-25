@@ -74,6 +74,45 @@ export class DeadStreams {
 	}
 
 	/**
+	 * Writes a dead letter that did not come from the journal (the one-off
+	 * import of the MongoDB DLQ). Idempotent per `sourceId`: a second call with
+	 * the same one writes nothing.
+	 *
+	 * @returns false when `sourceId` was imported already.
+	 */
+	async restore(
+		letter: Omit<DeadLetter, "id">,
+		sourceId: string
+	): Promise<boolean> {
+		const imported = `${this._journal.keyPrefix}:dead-imported`;
+		if (await this._journal.redis.call("SISMEMBER", imported, sourceId)) {
+			return false;
+		}
+		const tx = this._journal.redis.multi();
+		tx.call(
+			"XADD",
+			this._dead(letter.topic),
+			"*",
+			"group",
+			letter.group,
+			"attempts",
+			String(letter.attempts),
+			"reason",
+			letter.reason,
+			"deadAt",
+			String(letter.deadAt),
+			"message",
+			JSON.stringify(letter.message)
+		);
+		tx.call("SADD", imported, sourceId);
+		const results = await tx.exec();
+		if (!results || results.some(([err]) => err)) {
+			throw messageManagerError(`Dead letter ${sourceId} not restored`);
+		}
+		return true;
+	}
+
+	/**
 	 * Up to 100 dead letters of a topic, oldest first. Pass the id of the last letter
 	 * received as `after` (exclusive) to read the next page.
 	 */

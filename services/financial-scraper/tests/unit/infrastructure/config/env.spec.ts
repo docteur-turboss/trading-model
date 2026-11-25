@@ -19,7 +19,6 @@ describe("env", () => {
 		process.env.APP_VERSION = "1.0.0";
 		process.env.SERVICE_NAME = "financial-scraper";
 		process.env.INSTANCE_ID = "instance-1";
-		process.env.MESSAGE_CALLBACK_PATH = "message";
 	};
 
 	it("should export env with default values when optional vars missing", () => {

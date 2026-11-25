@@ -59,7 +59,7 @@ Common causes:
 
 1. **A slow dependency**: MongoDB, MySQL or Redis (see
    [runbook-database-failover](runbook-database-failover.md)), Binance for the
-   scraper, message-manager for publishers (see
+   scraper, Redis for publishers (see
    [runbook-message-bus-outage](runbook-message-bus-outage.md)). The slow path
    of step 1 names it.
 2. **CPU throttling or GC pressure**: `kubectl top` near the limit, or

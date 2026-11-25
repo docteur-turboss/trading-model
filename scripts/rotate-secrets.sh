@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # Rotates application secrets of trading-model-secrets, by hand (no CronJob does it).
-# Usage: bash scripts/rotate-secrets.sh [--component tokens|dlq|mysql|all]
+# Usage: bash scripts/rotate-secrets.sh [--component tokens|mysql|all]
 #   tokens   AUTH_TOKENS           -> api-gateway (only the key API_KEY_NAME is replaced, the others kept;
 #            ADR-0059 `name:scopes:secret`). The new key is written to a 0600 file, path logged.
-#   dlq      DLQ_AUTH_HMAC_SECRET  -> dlq-service
-#   all      the two above
+#   all      tokens (mysql only when named)
 #   mysql    MYSQL_PASSWORD (user scraper) -> financial-scraper, no downtime: ALTER USER ... RETAIN CURRENT PASSWORD,
 #            Secret, restart, DISCARD OLD PASSWORD
 # Other database passwords (MYSQL_*, MONGO_ROOT_PASSWORD, redis, REDIS_*_PASSWORD) are refused: see
@@ -23,7 +22,7 @@ SEALED_SECRETS_FILE=${SEALED_SECRETS_FILE:-deploy/k8s/secrets/trading-model-seal
 WAIT_TRIES=${WAIT_TRIES:-30}
 # Gateway API key `name:scopes:secret` (ADR-0059); only the entry named API_KEY_NAME is replaced.
 API_KEY_NAME=${API_KEY_NAME:-ops}
-API_KEY_SCOPES=${API_KEY_SCOPES:-read+dlq:write}
+API_KEY_SCOPES=${API_KEY_SCOPES:-read}
 
 log() { echo "[rotate-secrets] $(date -u +%Y-%m-%dT%H:%M:%SZ) $*"; }
 die() { echo "[rotate-secrets] ERROR: $*" >&2; exit 1; }
@@ -138,22 +137,21 @@ rotate_secret() {
 rotate_component() {
   case "$1" in
     tokens) rotate_secret AUTH_TOKENS 24 "${API_KEY_NAME}:${API_KEY_SCOPES}:" api-gateway ;;
-    dlq) rotate_secret DLQ_AUTH_HMAC_SECRET 32 "" dlq-service ;;
     mysql) PRE_HOOK=mysql_add POST_HOOK=mysql_discard rotate_secret MYSQL_PASSWORD 24 "" financial-scraper financial-scraper-collector ;;
     *) die "unknown component '$1'" ;;
   esac
 }
 
 COMPONENT=all
-USAGE="Usage: $0 [--component tokens|dlq|mysql|all]"
+USAGE="Usage: $0 [--component tokens|mysql|all]"
 if [ $# -gt 0 ]; then
   [ $# -eq 2 ] && [ "$1" = --component ] || { echo "$USAGE" >&2; exit 1; }
   COMPONENT="$2"
 fi
 
 case "$COMPONENT" in
-  tokens | dlq | mysql) rotate_component "$COMPONENT" ;;
-  all) for c in tokens dlq; do rotate_component "$c"; done ;;
+  tokens | mysql) rotate_component "$COMPONENT" ;;
+  all) for c in tokens; do rotate_component "$c"; done ;;
   MYSQL_* | MONGO_ROOT_PASSWORD | REDIS_* | redis | mongo)
     die "this database password is not rotated by this script (Redis: ACL rights for a rotation identity are not granted, ADR-0047): follow 'Rotate a database password' in docs/deployment/sealed-secrets.md" ;;
   *) echo "$USAGE" >&2; exit 1 ;;

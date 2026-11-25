@@ -25,7 +25,6 @@ const REGISTER = 'docs/compliance/data-processing-register.md';
 const DPIA = 'docs/compliance/dpia.md';
 
 const auditDays = grab('services/audit-logger/src/infrastructure/config/env.ts', /AUDIT_RETENTION_DAYS: .*?\.default\((\d+)\)/)[1];
-const dlqDays = grab('services/dlq-service/src/config/index-manager.ts', /expireAfterSeconds: (\d+) \* 86400/)[1];
 const lokiHours = grab('observability/loki-config.yml', /retention_period: (\d+h)/)[1];
 const promDays = [
   grab('docker-compose.yml', /--storage\.tsdb\.retention\.time=(\d+)d/)[1],
@@ -45,12 +44,11 @@ const keyPatterns = grab('packages/http/src/sensitive-data-sanitizer.ts', /SENSI
 // [file, text it must contain]
 const CHECKS = [
   [REGISTER, `${auditDays} days (5 years): \`AUDIT_RETENTION_DAYS\``],
-  [REGISTER, `DLQ: ${dlqDays} days`],
   [REGISTER, `\`retention_period: ${lokiHours}\``],
   [REGISTER, `journaled ${journalH} h in Redis Streams`],
   ["docs/compliance/data-retention-policy.md", `Until delivered, ${journalH} h at most`],
   [REGISTER, `${mysqlDays} days (5 years`],
-  [DPIA, `${auditDays} days audit, ${dlqDays} days DLQ`],
+  [DPIA, `${auditDays} days audit`],
   [DPIA, `${keyPatterns} sensitive-key patterns`],
   [DPIA, `Loki ${lokiDays} days, Prometheus ${promDays} days`],
   [POLICY, `${lokiDays} days (\`${lokiHours}\`)`],

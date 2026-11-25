@@ -198,25 +198,6 @@ describe("BusConsumer", () => {
 		rejected.mockRestore();
 	});
 
-	it("should deliver a dlq.entry.added entry published by message-manager", async () => {
-		const handled: unknown[] = [];
-		const topic = "dlq.entry.added";
-		const parts = bus();
-		const { consumer: c, journal } = consumer(async (m) => {
-			handled.push(m.payload);
-		}, parts);
-		await c.start([topic]);
-		await publishToBus(journal, "dead", {
-			...METADATA,
-			topic,
-			publisher: { ...METADATA.publisher, serviceName: "message-manager" },
-		} as never);
-		await until(() => handled.length === 1);
-		await c.stop();
-
-		expect(handled).toEqual(["dead"]);
-	});
-
 	it("should run the handler in the publisher trace and count the delivery", async () => {
 		// Minimal synchronous context manager: the API default is a no-op one.
 		let active: Context = ROOT_CONTEXT;
@@ -513,6 +494,25 @@ describe("BusConsumer", () => {
 		expect(await parts.streams.list(TOPIC)).toEqual([
 			expect.objectContaining({ reason: "MAX_RETRIES_EXCEEDED" }),
 		]);
+		expect(pendingOf(parts.redis)).toBe(0);
+	});
+
+	it("should claim and handle an entry the retired message-manager read but never acknowledged (#1241)", async () => {
+		const parts = bus();
+		await parts.journal.register(GROUP);
+		await publishToBus(parts.journal, "in-flight", METADATA);
+		// Same stream and group as message-manager N-1, another consumer name.
+		await parts.journal.readNew(GROUP, "message-manager-n-1", 1);
+		const handled: unknown[] = [];
+		const { consumer: c } = consumer(async (m) => {
+			handled.push(m.payload);
+		}, parts);
+
+		await c.start([TOPIC]);
+		await until(() => handled.length === 1 && pendingOf(parts.redis) === 0);
+		await c.stop();
+
+		expect(handled).toEqual(["in-flight"]);
 		expect(pendingOf(parts.redis)).toBe(0);
 	});
 

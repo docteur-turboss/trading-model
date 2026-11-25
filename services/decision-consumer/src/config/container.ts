@@ -1,4 +1,3 @@
-import { busJournalFromEnv } from "@trading-model/broker-message/create-message-manager";
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
@@ -23,12 +22,7 @@ export async function createDecisionConsumerApp() {
 		trainer: new TrainerClient(tls, FIND_A_SERVICE, ModelManifest),
 		scraper: new ScraperClient(tls, FIND_A_SERVICE),
 		risk: new RiskClient(tls),
-		audit: new PromotionAudit(
-			tls,
-			InstanceId.of(ENV.INSTANCE_ID),
-			ENV.MESSAGE_CALLBACK_PATH,
-			busJournalFromEnv(ENV)
-		),
+		audit: new PromotionAudit(InstanceId.of(ENV.INSTANCE_ID)),
 		windowBars: ENV.DECISION_WINDOW_BARS,
 	});
 	let running = false;

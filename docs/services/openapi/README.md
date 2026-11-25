@@ -4,8 +4,7 @@
 route it proxies as `/v1/<service>/<route>`.
 
 `internal/<service>.yaml` describes the service-to-service routes of a service
-(message-manager publish and subscriptions,
-the broker callback `POST /message` of each subscriber, the trainer's model
+(the trainer's model
 weights download, ADR-0022). The gateway never
 exposes them; they are called in-cluster over mTLS.
 
@@ -27,8 +26,8 @@ callbacks and subscriptions) are left out of the public spec; only the latter
 are published, per service, in `internal/`. The lists live at the top of the
 script (`INFRASTRUCTURE_PATHS`, `SERVICE_TO_SERVICE`).
 
-`dlq-service` and `financial-scraper` have no `internal/` spec: they declare no
-service-to-service route (no entry in `SERVICE_TO_SERVICE`). Their business
+`financial-scraper` has no `internal/` spec: it declares no
+service-to-service route (no entry in `SERVICE_TO_SERVICE`). Its business
 routes are public and described in `api-gateway.yaml`; the rest is
 infrastructure.
 

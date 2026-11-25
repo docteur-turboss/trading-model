@@ -2,18 +2,12 @@ import { describe, expect, it, jest } from "@jest/globals";
 
 const POST = jest.fn<(...args: any[]) => Promise<void>>();
 const CREATE = jest.fn<(...args: any[]) => unknown>();
-const JOURNAL = { bus: "redis" };
 
 jest.mock("@trading-model/broker-message/create-message-manager", () => ({
-	createMessageManager: (...args: any[]) => CREATE(...args),
-	busJournalFromEnv: () => JOURNAL,
+	createServiceMessageManager: (...args: any[]) => CREATE(...args),
 }));
-jest.mock("../../src/config/address-manager", () => ({ AddressManager: {} }));
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: { INSTANCE_ID: "risk-execution-1", SERVICE_NAME: "risk-execution" },
-}));
-jest.mock("@trading-model/common/config/tls-paths", () => ({
-	buildTlsFromEnv: () => ({}),
 }));
 
 import {
@@ -25,7 +19,7 @@ import {
 describe("publishRiskEvent", () => {
 	it("does not throw when the bus client cannot be built", () => {
 		CREATE.mockImplementationOnce(() => {
-			throw new Error("no SVID");
+			throw new Error("REDIS_URL or REDIS_SENTINELS is required by the bus");
 		});
 		expect(() => publishRiskEvent("order.transition", {})).not.toThrow();
 	});
@@ -42,9 +36,6 @@ describe("publishRiskEvent", () => {
 			POST.mock.calls[POST.mock.calls.length - 1] ?? [];
 		expect(payload).toMatchObject({ mode: "paper" });
 		expect(metadata.topic).toBe(topic);
-		expect(CREATE).toHaveBeenLastCalledWith(
-			expect.objectContaining({ journal: JOURNAL })
-		);
 	});
 
 	it("does not throw when the bus refuses", () => {
@@ -78,5 +69,29 @@ describe("publishRiskEvent", () => {
 		const [payload] = POST.mock.calls[0] ?? [];
 		expect(payload).toMatchObject({ mode: "paper" });
 		expect(payload.eventId).toEqual(expect.any(String));
+	});
+
+	// Until Redis restarts with the new ACL user (#1241): the auth refusal must reach the outbox.
+	it.each([
+		"WRONGPASS invalid username-password pair or user is disabled.",
+		"NOPERM User risk-execution has no permissions to run the 'xadd' command",
+	])("keeps an event refused by Redis auth in the file: %s", async (reply) => {
+		CREATE.mockReturnValue({ messageManager: { post: { indirect: POST } } });
+		let saved: unknown[] = [];
+		await initRiskOutbox({
+			load: async () => [] as any[],
+			save: async (doc: any[]) => {
+				saved = structuredClone(doc);
+			},
+		});
+		POST.mockReset();
+		POST.mockRejectedValue(new Error(reply));
+		publishRiskEvent("kill_switch.engaged", { mode: "paper" });
+		await new Promise((resolve) => setImmediate(resolve));
+		await replayRiskEvents();
+
+		expect(saved).toEqual([
+			expect.objectContaining({ topic: "risk.kill-switch.engaged" }),
+		]);
 	});
 });

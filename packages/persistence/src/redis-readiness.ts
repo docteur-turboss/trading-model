@@ -6,19 +6,16 @@ import { type RedisEnv, redisConnectionFromEnv } from "./redis-env";
 /**
  * Readiness check `redis` of a service that reads the shared Redis (the bus,
  * ADR-0073): a ping on a fresh client, retried once. Ready when no Redis is
- * configured or the service uses the HTTP bus (`BUS_TRANSPORT=http`). Same
+ * configured. Same
  * shape as `ReadinessCheck` of `@trading-model/http/readiness`.
  */
-export function redisReadinessCheck(
-	env: RedisEnv & { BUS_TRANSPORT?: "library" | "http" }
-) {
+export function redisReadinessCheck(env: RedisEnv) {
 	return {
 		name: "redis",
 		// Two pings of connectTimeout 2 s, under the 5 s probe timeoutSeconds.
 		timeoutMs: DurationMs.of(4500),
 		check: async (): Promise<boolean> => {
-			const connection =
-				env.BUS_TRANSPORT === "http" ? undefined : redisConnectionFromEnv(env);
+			const connection = redisConnectionFromEnv(env);
 			if (!connection) {
 				return true;
 			}

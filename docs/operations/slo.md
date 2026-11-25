@@ -41,7 +41,7 @@ rate(http_request_duration_seconds_bucket{path!~"/ping|/health/ready|/metrics"}[
 - **Definition:** Proportion of delivery outcomes that succeed: a message accepted but not delivered (subscriber down, retries pending) no longer counts as success once it is dead-lettered.
 - **Measurement:** Prometheus `rate(mm_messages_delivered_total{status="success"}[5m]) /
 (rate(mm_messages_delivered_total{status="success"}[5m]) + rate(mm_messages_dlq_total[5m]))`.
-- **Source:** message-manager.
+- **Source:** the bus library of each subscriber service.
 
 ### 5. Training Completion Rate
 

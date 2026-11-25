@@ -37,19 +37,10 @@ services:
   # External E2E traffic authenticates with this key (tests/e2e/helpers.ts).
   api-gateway:
     environment:
-      AUTH_TOKENS: e2e:read+dlq:write+risk:admin:e2e-api-key-0123456789abcdef0123456789abcdef
+      AUTH_TOKENS: e2e:read+risk:admin:e2e-api-key-0123456789abcdef0123456789abcdef
       # The k6 smoke sends ~240 req/min from one IP; the default 100/min would answer 429.
       # Scenarios and stress need more: tests/load/README.md, "Rate limit".
       RATE_LIMIT_MAX: '2000'
-
-  # The DLQ suites sign their requests as e2e-test-runner.
-  dlq-service:
-    environment:
-      DLQ_AUTH_HMAC_SECRET: test-hmac-secret-for-e2e-0123456789
-      DLQ_ALLOWED_SERVICES: message-manager,admin,e2e-test-runner
-      # The suites replay dead letters by hand (dead-letter-flow, dlq): an
-      # automatic replay could claim the entry first and race their assertions.
-      DLQ_AUTO_RETRY_ENABLED: "false"
 
   # Short training run so model-training-flow.e2e.spec.ts sees a published model.
   # The loop checks every 60 s once a symbol has data; the run itself must stay

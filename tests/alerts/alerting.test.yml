@@ -10,7 +10,7 @@ rule_files:
 evaluation_interval: 30s
 
 tests:
-  # 1% errors on api-gateway: below every threshold. 10% on dlq-service:
+  # 1% errors on api-gateway: below every threshold. 10% on model-evaluator:
   # fires, per job, with the real ratio.
   # Recreate restart: a new pod down 3 m (startup) stays quiet, a pod down 10 m fires; other jobs keep the 1 m rule.
   - name: Recreate jobs tolerate a startup window, a durable outage still fires ServiceDown
@@ -54,15 +54,15 @@ tests:
         values: '0+39x40'
       - series: 'http_requests_total{job="api-gateway",instance="a",method="GET",path="/b",status="500"}'
         values: '0+1x40'
-      - series: 'http_requests_total{job="dlq-service",instance="d",method="GET",path="/c",status="200"}'
+      - series: 'http_requests_total{job="model-evaluator",instance="d",method="GET",path="/c",status="200"}'
         values: '0+90x40'
-      - series: 'http_requests_total{job="dlq-service",instance="d",method="GET",path="/c",status="503"}'
+      - series: 'http_requests_total{job="model-evaluator",instance="d",method="GET",path="/c",status="503"}'
         values: '0+10x40'
     alert_rule_test:
       - eval_time: 20m
         alertname: SLOAvailabilityFastBurn
         exp_alerts:
-          - exp_labels: {severity: critical, slo: availability, job: dlq-service}
+          - exp_labels: {severity: critical, slo: availability, job: model-evaluator}
             exp_annotations:
               summary: 'Availability SLO fast burn rate exceeded'
               description: '5xx ratio > 1.44% over both 1h and 5m (14.4x the 0.1% budget of the 99.9% SLO). Probes (/ping, /health/ready, /metrics) are not counted.'
@@ -329,24 +329,24 @@ tests:
   - name: no delivery succeeds, everything goes to the DLQ
     interval: 1m
     input_series:
-      - series: 'mm_messages_dlq_total{job="message-manager",instance="m",topic="market-data",reason="timeout"}'
+      - series: 'mm_messages_dlq_total{job="audit-logger",instance="m",topic="market-data",reason="timeout"}'
         values: '0+5x30'
     alert_rule_test:
       - eval_time: 15m
         alertname: MessageDeliveryLowSuccessRate
         exp_alerts:
-          - exp_labels: {severity: critical, slo: message_delivery, job: message-manager}
+          - exp_labels: {severity: critical, slo: message_delivery, job: audit-logger}
             exp_annotations:
               summary: 'Message delivery success rate below 99.5%'
-              description: 'Message-manager delivery rate is 0% over 5m.'
+              description: 'Bus delivery rate is 0% over 5m.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md'
 
-  - name: message-manager delivers 99.9%
+  - name: the bus delivers 99.9%
     interval: 1m
     input_series:
-      - series: 'mm_messages_delivered_total{job="message-manager",instance="m",topic="market-data",status="success"}'
+      - series: 'mm_messages_delivered_total{job="audit-logger",instance="m",topic="market-data",status="success"}'
         values: '0+999x30'
-      - series: 'mm_messages_dlq_total{job="message-manager",instance="m",topic="market-data",reason="timeout"}'
+      - series: 'mm_messages_dlq_total{job="audit-logger",instance="m",topic="market-data",reason="timeout"}'
         values: '0+1x30'
     alert_rule_test:
       - eval_time: 15m
@@ -454,13 +454,10 @@ tests:
               description: 'No pod has collected market data for 2 minutes: no collector pod holds the Lease financial-scraper-collector (API server unreachable, RBAC, collector down or collection disabled). Trades, tickers and order books of the window are lost.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-market-data-stale.md#collectornoleader'
 
-  # absent(): no series at all, which `up == 0` never sees. dlq-service has
-  # a target at 0 (ServiceDown's job), so only the series-less job fires.
+  # absent(): no series at all, which `up == 0` never sees.
   - name: a job with no up series fires ServiceTargetsMissing, a present one does not
     interval: 1m
     input_series:
-      - series: 'up{job="message-manager",instance="i"}'
-        values: '1x10'
       - series: 'up{job="api-gateway",instance="i"}'
         values: '1x10'
       - series: 'up{job="audit-logger",instance="i"}'
@@ -473,8 +470,6 @@ tests:
         values: '1x10'
       - series: 'up{job="risk-execution",instance="i"}'
         values: '1x10'
-      - series: 'up{job="dlq-service",instance="i"}'
-        values: '0x10'
     alert_rule_test:
       - eval_time: 10m
         alertname: ServiceTargetsMissing
@@ -483,15 +478,11 @@ tests:
   - name: a job whose up series vanished fires ServiceTargetsMissing
     interval: 1m
     input_series:
-      - series: 'up{job="message-manager",instance="i"}'
-        values: '1x10'
       - series: 'up{job="api-gateway",instance="i"}'
         values: '1x10'
       - series: 'up{job="audit-logger",instance="i"}'
         values: '1x10'
       - series: 'up{job="financial-scraper",instance="i"}'
-        values: '1x10'
-      - series: 'up{job="trader-trainer",instance="i"}'
         values: '1x10'
     alert_rule_test:
       - eval_time: 10m
@@ -507,25 +498,25 @@ tests:
               summary: 'risk-execution has no scrape target'
               description: 'Prometheus has had no up series for risk-execution for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
-          - exp_labels: {severity: critical, job: dlq-service}
+          - exp_labels: {severity: critical, job: trader-trainer}
             exp_annotations:
-              summary: 'dlq-service has no scrape target'
-              description: 'Prometheus has had no up series for dlq-service for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
+              summary: 'trader-trainer has no scrape target'
+              description: 'Prometheus has had no up series for trader-trainer for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
 
   - name: sustained HTTP breaker rejections fire HttpCircuitBreakerRejecting
     interval: 1m
     input_series:
-      - series: 'http_circuit_breaker_rejections_total{job="trader-trainer",instance="t",target="message-manager",kind="service"}'
+      - series: 'http_circuit_breaker_rejections_total{job="trader-trainer",instance="t",target="financial-scraper",kind="service"}'
         values: '0+5x30'
     alert_rule_test:
       - eval_time: 20m
         alertname: HttpCircuitBreakerRejecting
         exp_alerts:
-          - exp_labels: {severity: warning, job: trader-trainer, target: message-manager, kind: service}
+          - exp_labels: {severity: warning, job: trader-trainer, target: financial-scraper, kind: service}
             exp_annotations:
-              summary: 'trader-trainer refuses calls to message-manager'
-              description: 'trader-trainer has had its outbound calls to service message-manager refused by the open HTTP circuit breaker for 10 minutes.'
+              summary: 'trader-trainer refuses calls to financial-scraper'
+              description: 'trader-trainer has had its outbound calls to service financial-scraper refused by the open HTTP circuit breaker for 10 minutes.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md#symptom'
 
   # K8s: the HTTP-only replicas persist nothing, the collector does.
@@ -953,7 +944,7 @@ tests:
   - name: dead letters wait in a dead stream
     interval: 1m
     input_series:
-      - series: 'bus_dead_letters{job="message-manager",instance="m1",topic="market.candlestick.series.fetch"}'
+      - series: 'bus_dead_letters{job="audit-logger",instance="m1",topic="market.candlestick.series.fetch"}'
         values: '0 0 2x20'
     alert_rule_test:
       - eval_time: 3m
@@ -968,29 +959,10 @@ tests:
               description: '2 dead letter(s) wait in the dead stream of market.candlestick.series.fetch (a subscriber group gave up on them): list, replay or delete them with the audit-dlq CLI, see the runbook.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
-  # market.ticker: dropped for 30 minutes, fires. market.trade: a burst at
-  # a cold start (publisher up before its subscribers), no alert.
-  - name: messages without subscriber are dropped
-    interval: 1m
-    input_series:
-      - series: 'mm_messages_unrouted_total{job="message-manager",instance="m",topic="market.ticker"}'
-        values: '0+5x30'
-      - series: 'mm_messages_unrouted_total{job="message-manager",instance="m",topic="market.trade"}'
-        values: '0 4 8 8x27'
-    alert_rule_test:
-      - eval_time: 25m
-        alertname: MessagesUnrouted
-        exp_alerts:
-          - exp_labels: {severity: warning, topic: market.ticker}
-            exp_annotations:
-              summary: 'Messages dropped on market.ticker: no subscriber'
-              description: 'message-manager drops the messages published on market.ticker: the topic has no journal group (no service ever subscribed to it). audit-logger subscribes to the audit, training and dlq topics: check that the subscribers are up and renew their subscriptions, and that message-manager reaches Redis.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic'
-
   - name: journal entries trimmed before delivery
     interval: 1m
     input_series:
-      - series: 'mm_journal_trimmed_pending_total{job="message-manager",instance="m",topic="market.candle",service="trader-trainer"}'
+      - series: 'mm_journal_trimmed_pending_total{job="audit-logger",instance="m",topic="market.candle",service="trader-trainer"}'
         values: '0 0 3 3 3 3'
     alert_rule_test:
       - eval_time: 3m
@@ -999,7 +971,7 @@ tests:
           - exp_labels: {severity: critical, topic: market.candle, service: trader-trainer}
             exp_annotations:
               summary: 'Messages lost on market.candle for trader-trainer: journal trimmed before delivery'
-              description: 'trader-trainer stayed unreachable for more than 24 h: message-manager trimmed undelivered market.candle entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
+              description: 'trader-trainer stayed unreachable for more than 24 h: the bus trimmed undelivered market.candle entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-journal-entries-trimmed-before-delivery'
       - eval_time: 30m
         alertname: JournalEntriesTrimmed
@@ -1009,7 +981,7 @@ tests:
   - name: first journal trim of a topic and service fires
     interval: 1m
     input_series:
-      - series: 'mm_journal_trimmed_pending_total{job="message-manager",instance="m",topic="market.candle",service="trader-trainer"}'
+      - series: 'mm_journal_trimmed_pending_total{job="audit-logger",instance="m",topic="market.candle",service="trader-trainer"}'
         values: '_ _ 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1'
     alert_rule_test:
       - eval_time: 3m
@@ -1018,7 +990,7 @@ tests:
           - exp_labels: {severity: critical, topic: market.candle, service: trader-trainer}
             exp_annotations:
               summary: 'Messages lost on market.candle for trader-trainer: journal trimmed before delivery'
-              description: 'trader-trainer stayed unreachable for more than 24 h: message-manager trimmed undelivered market.candle entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
+              description: 'trader-trainer stayed unreachable for more than 24 h: the bus trimmed undelivered market.candle entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-journal-entries-trimmed-before-delivery'
       - eval_time: 19m
         alertname: JournalEntriesTrimmed
@@ -1030,11 +1002,11 @@ tests:
   - name: journal backlog of a subscriber
     interval: 1m
     input_series:
-      - series: 'mm_journal_oldest_pending_age_seconds{job="message-manager",instance="m1",topic="market.candle",service="trader-trainer"}'
+      - series: 'mm_journal_oldest_pending_age_seconds{job="audit-logger",instance="m1",topic="market.candle",service="trader-trainer"}'
         values: '0+60x40'
-      - series: 'mm_journal_oldest_pending_age_seconds{job="message-manager",instance="m2",topic="market.candle",service="trader-trainer"}'
+      - series: 'mm_journal_oldest_pending_age_seconds{job="audit-logger",instance="m2",topic="market.candle",service="trader-trainer"}'
         values: '0+60x40'
-      - series: 'mm_journal_oldest_pending_age_seconds{job="message-manager",instance="m1",topic="market.candle",service="audit-logger"}'
+      - series: 'mm_journal_oldest_pending_age_seconds{job="audit-logger",instance="m1",topic="market.candle",service="audit-logger"}'
         values: '0 0 1000 1000 0x37'
     alert_rule_test:
       - eval_time: 20m
@@ -1046,8 +1018,8 @@ tests:
           - exp_labels: {severity: warning, topic: market.candle, service: trader-trainer}
             exp_annotations:
               summary: 'Journal backlog on market.candle for trader-trainer: oldest entry waiting for more than 15 min'
-              description: 'trader-trainer has not acknowledged a market.candle entry for more than 15 min (messages are lost after 24 h, JournalEntriesTrimmed). Check that the service is up and answers its callback, and the message-manager delivery logs.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-backlog-of-a-subscriber'
+              description: 'trader-trainer has not acknowledged a market.candle entry for more than 15 min (messages are lost after 24 h, JournalEntriesTrimmed). Check that the service is up and consuming, and its bus logs.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#3-backlog-of-a-subscriber'
 
   # V8 keeps the allocated heap close to the used one (95% here): no alert.
   # 92% of the heap limit: out of memory is close.
@@ -1453,12 +1425,12 @@ tests:
     input_series:
       - series: 'http_requests_total{job="api-gateway",instance="a",path="/a",status="200"}'
         values: '0+1000x300'
-      - series: 'http_requests_total{job="dlq-service",instance="d",path="/c",status="200"}'
+      - series: 'http_requests_total{job="model-evaluator",instance="d",path="/c",status="200"}'
         values: '0+1000x300'
       # 5xx on a probe path must not move the SLI.
       - series: 'http_requests_total{job="api-gateway",instance="a",path="/ping",status="500"}'
         values: '0+500x300'
-      - series: 'http_requests_total{job="dlq-service",instance="d",path="/c",status="500"}'
+      - series: 'http_requests_total{job="model-evaluator",instance="d",path="/c",status="500"}'
         values: '0+0.9x300'
     promql_expr_test:
       - expr: round((1 - slo:sli_error:ratio_rate30d / 0.001) * 100)
@@ -1466,15 +1438,15 @@ tests:
         exp_samples:
           - labels: '{job="api-gateway"}'
             value: 100
-          - labels: '{job="dlq-service"}'
+          - labels: '{job="model-evaluator"}'
             value: 10.0
     alert_rule_test:
       - eval_time: 200m
         alertname: SLOErrorBudgetLow
         exp_alerts:
-          - exp_labels: {severity: warning, slo: availability, job: dlq-service}
+          - exp_labels: {severity: warning, slo: availability, job: model-evaluator}
             exp_annotations:
-              summary: 'Error budget of dlq-service below 20%'
+              summary: 'Error budget of model-evaluator below 20%'
               description: 'Less than 20% of the 30d availability error budget (99.9%) remains: full change freeze except critical fixes and rollbacks (slo.md, Error Budget Policy).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slo-error-budget-low'
 
@@ -1533,15 +1505,15 @@ tests:
     input_series:
       - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://api-gateway:3000/ping",service="api-gateway"}'
         values: '7200+0x20'
-      - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://dlq-service:3000/ping",service="dlq-service"}'
+      - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://model-evaluator:3000/ping",service="model-evaluator"}'
         values: '3600+0x20'
     alert_rule_test:
       - eval_time: 10m
         alertname: CertificateExpiry
         exp_alerts:
-          - exp_labels: {severity: critical, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}
+          - exp_labels: {severity: critical, job: blackbox-exporter, instance: 'https://model-evaluator:3000/ping', service: model-evaluator}
             exp_annotations:
-              summary: 'SVID close to expiry on dlq-service'
+              summary: 'SVID close to expiry on model-evaluator'
               description: 'The served X.509-SVID expires in less than 90 minutes (TTL 4h, renewed at half-life, 2 h left): SPIRE rotation has been stalled for over 30 minutes; mTLS calls fail when it expires.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
 
@@ -1554,7 +1526,7 @@ tests:
     input_series:
       - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://api-gateway:3000/ping",service="api-gateway"}'
         values: '14400x119 21600x119 28800x119'
-      - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://dlq-service:3000/ping",service="dlq-service"}'
+      - series: 'probe_ssl_earliest_cert_expiry{job="blackbox-exporter",instance="https://model-evaluator:3000/ping",service="model-evaluator"}'
         values: '14400x359'
     alert_rule_test:
       - eval_time: 150m
@@ -1566,17 +1538,17 @@ tests:
       - eval_time: 156m
         alertname: CertificateExpiry
         exp_alerts:
-          - exp_labels: {severity: critical, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}
+          - exp_labels: {severity: critical, job: blackbox-exporter, instance: 'https://model-evaluator:3000/ping', service: model-evaluator}
             exp_annotations:
-              summary: 'SVID close to expiry on dlq-service'
+              summary: 'SVID close to expiry on model-evaluator'
               description: 'The served X.509-SVID expires in less than 90 minutes (TTL 4h, renewed at half-life, 2 h left): SPIRE rotation has been stalled for over 30 minutes; mTLS calls fail when it expires.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
       - eval_time: 350m
         alertname: CertificateExpiry
         exp_alerts:
-          - exp_labels: {severity: critical, job: blackbox-exporter, instance: 'https://dlq-service:3000/ping', service: dlq-service}
+          - exp_labels: {severity: critical, job: blackbox-exporter, instance: 'https://model-evaluator:3000/ping', service: model-evaluator}
             exp_annotations:
-              summary: 'SVID close to expiry on dlq-service'
+              summary: 'SVID close to expiry on model-evaluator'
               description: 'The served X.509-SVID expires in less than 90 minutes (TTL 4h, renewed at half-life, 2 h left): SPIRE rotation has been stalled for over 30 minutes; mTLS calls fail when it expires.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-certificate-expiry.md'
 
@@ -1899,7 +1871,7 @@ tests:
           - exp_labels: {severity: critical, master_name: mymaster}
             exp_annotations:
               summary: 'Redis Sentinel cannot fail over mymaster'
-              description: 'No sentinel can reach a quorum for mymaster (SENTINEL CKQUORUM): if the master fails now, no replica is promoted and message-manager and dlq-service lose Redis.'
+              description: 'No sentinel can reach a quorum for mymaster (SENTINEL CKQUORUM): if the master fails now, no replica is promoted and the bus loses Redis.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redissentinelquorumlost'
 
   # Two exporters report the same members (deduplicated): member 1 is down,
@@ -1907,43 +1879,43 @@ tests:
   - name: unhealthy replica set members are reported once each
     interval: 1m
     input_series:
-      - series: 'mongodb_members_health{job="mongo-dlq",instance="a",pod="mongo-dlq-0",member_idx="mongo-dlq-0:27017",member_state="PRIMARY",rs_nm="rs0"}'
+      - series: 'mongodb_members_health{job="mongo-audit",instance="a",pod="mongo-audit-0",member_idx="mongo-audit-0:27017",member_state="PRIMARY",rs_nm="rs0"}'
         values: '1x10'
-      - series: 'mongodb_members_state{job="mongo-dlq",instance="a",pod="mongo-dlq-0",member_idx="mongo-dlq-0:27017",member_state="PRIMARY",rs_nm="rs0"}'
+      - series: 'mongodb_members_state{job="mongo-audit",instance="a",pod="mongo-audit-0",member_idx="mongo-audit-0:27017",member_state="PRIMARY",rs_nm="rs0"}'
         values: '1x10'
-      - series: 'mongodb_members_health{job="mongo-dlq",instance="a",pod="mongo-dlq-0",member_idx="mongo-dlq-1:27017",member_state="(not reachable/healthy)",rs_nm="rs0"}'
+      - series: 'mongodb_members_health{job="mongo-audit",instance="a",pod="mongo-audit-0",member_idx="mongo-audit-1:27017",member_state="(not reachable/healthy)",rs_nm="rs0"}'
         values: '0x10'
-      - series: 'mongodb_members_state{job="mongo-dlq",instance="a",pod="mongo-dlq-0",member_idx="mongo-dlq-1:27017",member_state="(not reachable/healthy)",rs_nm="rs0"}'
+      - series: 'mongodb_members_state{job="mongo-audit",instance="a",pod="mongo-audit-0",member_idx="mongo-audit-1:27017",member_state="(not reachable/healthy)",rs_nm="rs0"}'
         values: '8x10'
-      - series: 'mongodb_members_health{job="mongo-dlq",instance="c",pod="mongo-dlq-2",member_idx="mongo-dlq-1:27017",member_state="(not reachable/healthy)",rs_nm="rs0"}'
+      - series: 'mongodb_members_health{job="mongo-audit",instance="c",pod="mongo-audit-2",member_idx="mongo-audit-1:27017",member_state="(not reachable/healthy)",rs_nm="rs0"}'
         values: '0x10'
-      - series: 'mongodb_members_health{job="mongo-dlq",instance="a",pod="mongo-dlq-0",member_idx="mongo-dlq-2:27017",member_state="RECOVERING",rs_nm="rs0"}'
+      - series: 'mongodb_members_health{job="mongo-audit",instance="a",pod="mongo-audit-0",member_idx="mongo-audit-2:27017",member_state="RECOVERING",rs_nm="rs0"}'
         values: '1x10'
-      - series: 'mongodb_members_state{job="mongo-dlq",instance="a",pod="mongo-dlq-0",member_idx="mongo-dlq-2:27017",member_state="RECOVERING",rs_nm="rs0"}'
+      - series: 'mongodb_members_state{job="mongo-audit",instance="a",pod="mongo-audit-0",member_idx="mongo-audit-2:27017",member_state="RECOVERING",rs_nm="rs0"}'
         values: '3x10'
     alert_rule_test:
       - eval_time: 6m
         alertname: MongoDBReplicaSetMemberUnhealthy
         exp_alerts:
-          - exp_labels: {severity: warning, job: mongo-dlq, member_idx: 'mongo-dlq-1:27017'}
+          - exp_labels: {severity: warning, job: mongo-audit, member_idx: 'mongo-audit-1:27017'}
             exp_annotations:
-              summary: 'MongoDB mongo-dlq member mongo-dlq-1:27017 is not healthy'
-              description: 'Replica set member mongo-dlq-1:27017 of mongo-dlq is unreachable, or neither primary nor secondary, for 5 minutes: one more failure and the replica set loses its majority.'
+              summary: 'MongoDB mongo-audit member mongo-audit-1:27017 is not healthy'
+              description: 'Replica set member mongo-audit-1:27017 of mongo-audit is unreachable, or neither primary nor secondary, for 5 minutes: one more failure and the replica set loses its majority.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mongodbreplicasetmemberunhealthy'
-          - exp_labels: {severity: warning, job: mongo-dlq, member_idx: 'mongo-dlq-2:27017'}
+          - exp_labels: {severity: warning, job: mongo-audit, member_idx: 'mongo-audit-2:27017'}
             exp_annotations:
-              summary: 'MongoDB mongo-dlq member mongo-dlq-2:27017 is not healthy'
-              description: 'Replica set member mongo-dlq-2:27017 of mongo-dlq is unreachable, or neither primary nor secondary, for 5 minutes: one more failure and the replica set loses its majority.'
+              summary: 'MongoDB mongo-audit member mongo-audit-2:27017 is not healthy'
+              description: 'Replica set member mongo-audit-2:27017 of mongo-audit is unreachable, or neither primary nor secondary, for 5 minutes: one more failure and the replica set loses its majority.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mongodbreplicasetmemberunhealthy'
 
-  # mongo-dlq: only secondaries. mongo-audit: a primary. The standalone
+  # mongo-test: only secondaries. mongo-audit: a primary. The standalone
   # compose mongod has no replica set metric at all: silent.
   - name: a replica set without primary is reported, a standalone mongod is not
     interval: 1m
     input_series:
-      - series: 'mongodb_myState{job="mongo-dlq",instance="a",pod="mongo-dlq-0",rs_nm="rs0"}'
+      - series: 'mongodb_myState{job="mongo-test",instance="a",pod="mongo-test-0",rs_nm="rs0"}'
         values: '2x10'
-      - series: 'mongodb_members_state{job="mongo-dlq",instance="a",pod="mongo-dlq-0",member_idx="mongo-dlq-0:27017",member_state="SECONDARY",rs_nm="rs0"}'
+      - series: 'mongodb_members_state{job="mongo-test",instance="a",pod="mongo-test-0",member_idx="mongo-test-0:27017",member_state="SECONDARY",rs_nm="rs0"}'
         values: '2x10'
       - series: 'mongodb_myState{job="mongo-audit",instance="b",pod="mongo-audit-0",rs_nm="rs0-audit"}'
         values: '1x10'
@@ -1955,10 +1927,10 @@ tests:
       - eval_time: 3m
         alertname: MongoDBReplicaSetNoPrimary
         exp_alerts:
-          - exp_labels: {severity: critical, job: mongo-dlq}
+          - exp_labels: {severity: critical, job: mongo-test}
             exp_annotations:
-              summary: 'MongoDB mongo-dlq has no primary'
-              description: 'No member of the mongo-dlq replica set is primary for 2 minutes: writes fail (audit events for mongo-audit, dead letters for mongo-dlq).'
+              summary: 'MongoDB mongo-test has no primary'
+              description: 'No member of the mongo-test replica set is primary for 2 minutes: writes fail (audit events).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mongodbreplicasetnoprimary'
 
   # The collector cannot export spans to Jaeger.
@@ -1976,27 +1948,6 @@ tests:
               summary: 'The OTel collector fails to export spans'
               description: 'The collector dropped 10 span(s) in 10 minutes: traces are lost between the collector and Jaeger. Check the jaeger Service and the collector logs.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#otelspanexportfailing'
-
-  # A delete whose audit event message-manager refused fires (ADR-0059); a
-  # refused dlq.entry.added (bus down while dead letters arrive) does not.
-  # The series start at 0: dlq-service exposes every event at 0 from startup
-  # (metrics.ts), so increase() sees the first loss.
-  - name: DLQ action missing from the audit trail
-    interval: 1m
-    input_series:
-      - series: 'dlq_audit_publish_failures_total{job="dlq-service",instance="d1",event="dlq.entries.deleted"}'
-        values: '0 0 1x20'
-      - series: 'dlq_audit_publish_failures_total{job="dlq-service",instance="d1",event="dlq.entry.added"}'
-        values: '0 0 5x20'
-    alert_rule_test:
-      - eval_time: 20m
-        alertname: DlqAuditEventLost
-        exp_alerts:
-          - exp_labels: {severity: critical, event: dlq.entries.deleted}
-            exp_annotations:
-              summary: 'DLQ action missing from the audit trail: dlq.entries.deleted'
-              description: 'message-manager refused 1 dlq.entries.deleted event(s) in the last hour: the deletion or replay was done but is not in the audit chain. The dlq-service error log "DLQ event not published" holds the actor and the ids.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md#dlqauditeventlost'
 
   # 1 failure per second from minute 0: past 0.1/s, fires after the 5 min `for`.
   - name: api key authentication failures alert
@@ -2021,7 +1972,7 @@ tests:
   - name: mtls acl denials alert
     interval: 1m
     input_series:
-      - series: 'http_mtls_denials_total{job="message-manager",instance="a",reason="caller_not_allowed"}'
+      - series: 'http_mtls_denials_total{job="audit-logger",instance="a",reason="caller_not_allowed"}'
         values: '0x5 1+0x25'
     alert_rule_test:
       - eval_time: 3m
@@ -2030,7 +1981,7 @@ tests:
       - eval_time: 7m
         alertname: MtlsAclDenials
         exp_alerts:
-          - exp_labels: {severity: warning, job: message-manager}
+          - exp_labels: {severity: warning, job: audit-logger}
             exp_annotations:
               summary: 'A service denied an mTLS or ACL request'
               description: 'A service refused a caller (no client certificate, unresolved identity, or caller missing from the ACL). Service-to-service traffic should never be denied: probe from inside the network, or an ACL out of step with a new route (runbook-auth-failures).'

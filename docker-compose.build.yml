@@ -14,12 +14,6 @@ services:
     build:
       context: deploy/spire
       target: agent
-  message-manager:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE: message-manager
   financial-scraper:
     build:
       context: .
@@ -62,9 +56,3 @@ services:
       dockerfile: Dockerfile
       args:
         SERVICE: decision-consumer
-  dlq-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE: dlq-service

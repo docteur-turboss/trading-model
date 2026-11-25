@@ -6,41 +6,16 @@ describe("DEFAULT_ACL", () => {
 	it("should contain entries for all known services", () => {
 		expect(DEFAULT_ACL[ServiceInstanceName.AuditLoggerService]).toBeDefined();
 		expect(
-			DEFAULT_ACL[ServiceInstanceName.MessageManagerService]
-		).toBeDefined();
-		expect(
 			DEFAULT_ACL[ServiceInstanceName.FinancialScraperService]
 		).toBeDefined();
 		expect(DEFAULT_ACL[ServiceInstanceName.TraderTrainerService]).toBeDefined();
 		expect(DEFAULT_ACL[ServiceInstanceName.ApiGatewayService]).toBeDefined();
-		expect(DEFAULT_ACL[ServiceInstanceName.DlqService]).toBeDefined();
 	});
 
-	it("should not let message-manager call the scraper or trainer (no subscription)", () => {
-		for (const target of [
-			ServiceInstanceName.FinancialScraperService,
-			ServiceInstanceName.TraderTrainerService,
-		]) {
-			expect(DEFAULT_ACL[target]).not.toContain("message-manager");
-		}
-	});
-
-	it("should let the message-manager clients reach it", () => {
-		// audit-logger subscribes to the audited topics; dlq-service republishes replays.
-		for (const client of ["audit-logger", "dlq-service", "model-evaluator"]) {
-			expect(DEFAULT_ACL[ServiceInstanceName.MessageManagerService]).toContain(
-				client
-			);
-		}
-	});
-
-	it("should let the model evaluator read the trainer models, and only message-manager call it", () => {
+	it("should let the model evaluator read the trainer models", () => {
 		expect(DEFAULT_ACL[ServiceInstanceName.TraderTrainerService]).toContain(
 			"model-evaluator"
 		);
-		expect(DEFAULT_ACL[ServiceInstanceName.ModelEvaluatorService]).toEqual([
-			"message-manager",
-		]);
 	});
 
 	it("should let only the decision consumer (and the operator) send intents to risk-execution", () => {
@@ -64,18 +39,8 @@ describe("DEFAULT_ACL", () => {
 		);
 	});
 
-	it("should not let the gateway publish or subscribe on clients' behalf", () => {
-		expect(
-			DEFAULT_ACL[ServiceInstanceName.MessageManagerService]
-		).not.toContain("api-gateway");
-	});
-
-	it("should refuse other workloads on audit-logger and dlq-service", () => {
+	it("should refuse other workloads on audit-logger", () => {
 		expect(DEFAULT_ACL[ServiceInstanceName.AuditLoggerService]).toEqual([
-			"message-manager",
-			"api-gateway",
-		]);
-		expect(DEFAULT_ACL[ServiceInstanceName.DlqService]).toEqual([
 			"api-gateway",
 		]);
 	});
@@ -86,9 +51,12 @@ describe("DEFAULT_ACL", () => {
 		]);
 	});
 
-	it("should have at least one ServiceId per service", () => {
-		for (const entry of Object.values(DEFAULT_ACL)) {
-			expect(entry.length).toBeGreaterThan(0);
+	it("should have at least one ServiceId per service but model-evaluator, which nobody calls", () => {
+		expect(DEFAULT_ACL[ServiceInstanceName.ModelEvaluatorService]).toEqual([]);
+		for (const [service, entry] of Object.entries(DEFAULT_ACL)) {
+			if (service !== ServiceInstanceName.ModelEvaluatorService) {
+				expect(entry.length).toBeGreaterThan(0);
+			}
 		}
 	});
 });

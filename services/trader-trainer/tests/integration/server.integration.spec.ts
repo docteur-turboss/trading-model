@@ -22,7 +22,6 @@ jest.mock<{
 		TLS_CA_PATH: string;
 		INSTANCE_ID: string;
 		SERVICE_NAME: string;
-		MESSAGE_CALLBACK_PATH: string;
 		TRAINER_SYMBOLS: string;
 		TRAINER_DATA_WINDOW: number;
 		TRAINER_VALIDATION_SPLIT: number;
@@ -41,7 +40,6 @@ jest.mock<{
 		TLS_CA_PATH: "",
 		INSTANCE_ID: "test-instance",
 		SERVICE_NAME: "trader-trainer",
-		MESSAGE_CALLBACK_PATH: "/callback",
 		TRAINER_SYMBOLS: "BTCUSDT",
 		TRAINER_DATA_WINDOW: 500,
 		TRAINER_VALIDATION_SPLIT: 0.2,

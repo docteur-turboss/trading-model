@@ -1,6 +1,4 @@
-import type addressManagerClient from "@trading-model/address-manager";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import {
@@ -8,14 +6,9 @@ import {
 	type DlqEventMap,
 	isDlqEventTopic,
 } from "@trading-model/contracts/dlq-events";
-import type {
-	EventEnumMap,
-	EventMap,
-	EventMessagesArgs,
-} from "@trading-model/contracts/event-map";
+import type { EventEnumMap } from "@trading-model/contracts/event-map";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { MessageMetadata } from "@trading-model/contracts/message-types";
-import { HttpClient } from "@trading-model/http/http-client";
 import {
 	type InstanceId,
 	ServiceId,
@@ -25,107 +18,52 @@ import { BusConsumer } from "./bus/consumer";
 import { DeadStreams } from "./bus/dead-streams";
 import { publishToBus } from "./bus/publisher";
 import type { RedisMessageJournal } from "./bus/redis-journal";
-import type { Listener } from "./event-manager-client";
-import { EVENT_MANAGER } from "./event-manager-client";
-import { MessageManagerClient } from "./message-manager-client";
 import { MessageMetadataBuilder } from "./messages/message-metadata-builder";
-import { deliverToListeners } from "./messages.controller";
+import { type DeliveredMessage, deliverToHandler } from "./messages.controller";
 import { deadLetterError } from "./shared/errors";
 
-/** Renewal period of topic subscriptions (also the retry delay after a failure). */
-export const SUBSCRIPTION_REFRESH_MS = 15_000;
-
-/** Callback path a subscriber mounts when it names none (audit-logger). */
-export const DEFAULT_CALLBACK_PATH = "message";
-
-/** Publishes and subscribes to messages through the message manager. */
+/** Publishes and subscribes to messages through the bus in Redis (ADR-0073). */
 export default class BrokerMessage {
-	private _messageManagerClient: MessageManagerClient;
-
-	private _callbackPath = DEFAULT_CALLBACK_PATH;
-	private _httpClient: HttpClient;
-
 	private _topics: EventEnumMap[] = [];
-	private _refreshTimer?: ReturnType<typeof setInterval>;
-	private _eventCleanups: (() => void)[] = [];
-	private readonly _journal?: RedisMessageJournal;
+	private readonly _journal: RedisMessageJournal;
 	private _consumer?: BusConsumer;
 	private readonly _serviceName: ServiceInstanceName;
 	private readonly _instanceId: InstanceId;
 
 	constructor({
 		journal,
-		addressManagerClient,
-		tlsPaths,
-		callbackPath: userCallbackPath,
 		instanceId,
 		serviceName,
 	}: {
-		/**
-		 * The bus in Redis (ADR-0073): when set, publishing is an `XADD` and the
-		 * subscribed topics are consumed in this process. Absent: HTTP through
-		 * message-manager.
-		 */
-		journal?: RedisMessageJournal;
+		journal: RedisMessageJournal;
 		instanceId: InstanceId;
-		callbackPath?: string;
-		tlsPaths: TlsPaths;
-		addressManagerClient: addressManagerClient;
 		serviceName: ServiceInstanceName;
 	}) {
 		this._journal = journal;
 		this._serviceName = serviceName;
 		this._instanceId = instanceId;
-		if (userCallbackPath) {
-			this._callbackPath = userCallbackPath;
-		}
-		this._httpClient = HttpClient.createWithTls(tlsPaths);
-		this._messageManagerClient = new MessageManagerClient(
-			this._httpClient,
-			{ callbackPath: this._callbackPath, instanceId, serviceName },
-			addressManagerClient
-		);
 	}
 
-	/**
-	 * Subscribes to the specified event topics and keeps the subscriptions alive.
-	 *
-	 * Never rejects: a failed attempt is logged and retried. Subscriptions are
-	 * then renewed every `SUBSCRIPTION_REFRESH_MS` (idempotent on the
-	 * message-manager side): message-manager expires a subscription not renewed
-	 * for 60s, and the renewal restores the ones its store lost.
-	 */
+	/** Consumes the specified event topics in this process, each message through `handle`. */
 	async intents(
-		topics: Parameters<MessageManagerClient["subscribe"]>[0]
+		topics: readonly EventEnumMap[],
+		handle: (message: DeliveredMessage, signal?: AbortSignal) => Promise<void>
 	): Promise<void> {
-		this._topics = topics as EventEnumMap[];
-		this._stopRefresh();
-		await this._consume();
-		await this._subscribeOnce();
-		this._refreshTimer = setInterval(
-			() => void this._subscribeOnce(),
-			SUBSCRIPTION_REFRESH_MS
-		);
-		this._refreshTimer.unref();
+		this._topics = [...topics];
+		await this._consume(handle);
 	}
 
-	private async _consume(): Promise<void> {
-		await this._consumer?.stop();
-		this._consumer = undefined;
+	private async _consume(
+		handle: (message: DeliveredMessage, signal?: AbortSignal) => Promise<void>
+	): Promise<void> {
 		const journal = this._journal;
-		// No listener = the service reads only the callback route: consuming here would ack and drop entries owed to message-manager's workers.
-		const topics = this._topics.filter(
-			(topic) => EVENT_MANAGER.listenerCount(topic as keyof EventMap) > 0
-		);
-		if (!journal || topics.length === 0) {
-			return;
-		}
+		await this._consumer?.stop();
 		this._consumer = new BusConsumer({
 			journal,
 			deadStreams: new DeadStreams(journal),
 			service: this._serviceName,
 			handle: async ({ metadata, payload }, signal) => {
-				if (!(await deliverToListeners(metadata, payload, signal))) {
+				if (!(await deliverToHandler({ metadata, payload }, handle, signal))) {
 					throw deadLetterError("Invalid payload format", {
 						reason: "REJECTED_BY_SUBSCRIBER",
 					});
@@ -134,7 +72,7 @@ export default class BrokerMessage {
 			onDeadLetter: (group, _message, reason, deadId) =>
 				this._publishDeadLetterEvent(group.topic, reason, deadId),
 		});
-		void this._startConsumer(this._consumer, topics);
+		void this._startConsumer(this._consumer, this._topics);
 	}
 
 	/**
@@ -194,57 +132,19 @@ export default class BrokerMessage {
 		);
 	}
 
-	private async _subscribeOnce(): Promise<void> {
-		try {
-			await this._messageManagerClient.subscribe(this._topics);
-		} catch (error) {
-			getLogger().warn("Topic subscription failed, retrying", {
-				context: {
-					topics: this._topics,
-					retryInMs: SUBSCRIPTION_REFRESH_MS,
-					error: normalizeError(error).message,
-				},
-			});
-		}
-	}
-
-	private _stopRefresh(): void {
-		if (this._refreshTimer) {
-			clearInterval(this._refreshTimer);
-			this._refreshTimer = undefined;
-		}
-	}
-
-	/** Unsubscribes from all topics and cleans up event listeners. */
+	/** Stops the consumer. */
 	async stopMessageManager(): Promise<void> {
-		this._stopRefresh();
 		await this._consumer?.stop();
 		this._consumer = undefined;
-		await this._messageManagerClient.unsubscribe(this._topics);
 		this._topics = [];
-		for (const fn of this._eventCleanups) {
-			fn();
-		}
-		this._eventCleanups = [];
 	}
 
-	/** Registers a listener for a broker message event; call it before `intents`, which consumes on the bus only the topics with a listener. */
-	on<TEvent extends keyof EventMap>(
-		eventName: TEvent,
-		listener: Listener<EventMessagesArgs<TEvent>>
-	) {
-		this._eventCleanups.push(EVENT_MANAGER.on(eventName, listener));
-	}
-
-	/** Publishes messages through the Message Manager. */
+	/** Publishes messages to the bus. */
 	get post() {
-		const client = this._messageManagerClient;
 		const journal = this._journal;
 		return {
-			indirect: journal
-				? (payload: unknown, metadata: MessageMetadata) =>
-						publishToBus(journal, payload, metadata)
-				: client.publish.bind(client),
+			indirect: (payload: unknown, metadata: MessageMetadata) =>
+				publishToBus(journal, payload, metadata),
 		};
 	}
 }

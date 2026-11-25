@@ -1,11 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { HELPER } from "@trading-model/broker-message";
-import {
-	busJournalFromEnv,
-	createMessageManager,
-} from "@trading-model/broker-message/create-message-manager";
-import { parseServiceName } from "@trading-model/common/config/services.types";
-import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
+import { createServiceMessageManager } from "@trading-model/broker-message/create-message-manager";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import { getLogger } from "@trading-model/contracts/logger-registry";
@@ -18,7 +13,6 @@ import {
 import { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
 import type { StatePort } from "../domain/ports";
 import { ENV } from "../infrastructure/config/env";
-import { AddressManager } from "./address-manager";
 
 /** Domain events that go on the bus; the others (`broker.error`, ...) stay in the log. */
 const BUS_EVENTS: Record<string, RiskEvent> = {
@@ -27,20 +21,15 @@ const BUS_EVENTS: Record<string, RiskEvent> = {
 	"kill_switch.rearmed": RiskEvent.KillSwitchRearmed,
 };
 
-type MessageManager = ReturnType<typeof createMessageManager>["messageManager"];
+type MessageManager = ReturnType<
+	typeof createServiceMessageManager
+>["messageManager"];
 
 let messageManager: MessageManager | undefined;
 
-/** Built on first use: the broker client loads the SVID. */
+/** Built on first use: the bus journal in Redis (ADR-0073), with the service's ACL user. */
 function _messageManager(): MessageManager {
-	messageManager ??= createMessageManager({
-		journal: busJournalFromEnv(ENV),
-		addressManagerClient: AddressManager,
-		tlsPaths: buildTlsFromEnv(ENV),
-		instanceId: InstanceId.of(ENV.INSTANCE_ID),
-		serviceName: parseServiceName(ENV.SERVICE_NAME),
-		callbackPath: ENV.MESSAGE_CALLBACK_PATH,
-	}).messageManager;
+	messageManager ??= createServiceMessageManager(ENV).messageManager;
 	return messageManager;
 }
 

@@ -15,7 +15,7 @@ spec:
 ---
 # One replica, no HPA: the evaluation records live on a ReadWriteOnce volume
 # (ADR-0049), so a rollout stops the old pod first (Recreate). A bus delivery
-# missed meanwhile is retried by message-manager.
+# missed meanwhile stays in the bus journal.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -238,7 +238,7 @@ spec:
         - port: 3000
           protocol: TCP
   egress:
-    # message-manager and trader-trainer (HTTPS on 3000), Redis and its sentinels (bus, ADR-0073).
+    # trader-trainer (HTTPS on 3000), Redis and its sentinels.
     - to:
         - podSelector: {}
       ports:
@@ -247,6 +247,11 @@ spec:
         - port: 6379
           protocol: TCP
         - port: 26379
+          protocol: TCP
+        # TLS listeners (REDIS_TLS_MODE, ADR-0047).
+        - port: 6380
+          protocol: TCP
+        - port: 26380
           protocol: TCP
 ---
 apiVersion: v1

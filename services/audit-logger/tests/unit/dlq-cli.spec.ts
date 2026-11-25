@@ -13,15 +13,23 @@ function cli(found: Record<string, boolean> = {}) {
 		replay: jest.fn(async (_topic: string, id: string) => found[id] ?? true),
 		delete: jest.fn(async (_topic: string, id: string) => found[id] ?? true),
 	};
+	const importMongo = jest.fn(async (..._args: any[]) => ({
+		eligible: 2,
+		written: 1,
+		alreadyImported: 1,
+		unusable: [] as string[],
+	}));
 	return {
 		out,
 		err,
 		publish,
+		importMongo,
 		streams,
 		run: (args: string[]) =>
 			runDlqCli(args, {
 				streams,
 				publish: publish as never,
+				importMongo,
 				out: (text) => out.push(text),
 				err: (text) => err.push(text),
 			}),
@@ -29,6 +37,21 @@ function cli(found: Record<string, boolean> = {}) {
 }
 
 describe("dlq-cli", () => {
+	it("imports the MongoDB DLQ and exits 0 only when every eligible entry is accounted for", async () => {
+		const { run, importMongo, out } = cli();
+
+		await expect(run(["alice", "import-mongo"])).resolves.toBe(0);
+		importMongo.mockResolvedValueOnce({
+			eligible: 3,
+			written: 1,
+			alreadyImported: 1,
+			unusable: ["x"],
+		});
+		await expect(run(["alice", "import-mongo"])).resolves.toBe(1);
+
+		expect(out).toHaveLength(2);
+	});
+
 	it("lists the dead letters of a topic", async () => {
 		const { run, out, streams } = cli();
 

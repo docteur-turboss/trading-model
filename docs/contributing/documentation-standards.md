@@ -35,12 +35,10 @@ docs/
 │   ├── common.md                        # @trading-model/common
 │   ├── address-manager.md               # @trading-model/address-manager
 │   ├── broker-message.md                # @trading-model/broker-message
-│   ├── message-manager.md               # Message broker
 │   ├── financial-scraper.md             # Market data ingestion
 │   ├── trader-trainer.md                # GA/DQN training engine
 │   ├── api-gateway.md                   # External API gateway
 │   ├── audit-logger.md                  # Audit trail
-│   ├── dlq-service.md                   # Dead letter queue
 │   └── openapi/                         # OpenAPI specs
 ├── standards/                           # Development standards
 │   ├── README.md                        # Index

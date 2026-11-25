@@ -7,7 +7,7 @@ import type { RedisMessageJournal } from "./redis-journal";
 
 /**
  * Publishes straight into the journal stream of the topic (ADR-0073): no
- * message-manager. Durable once it resolves; a refused `XADD` (Redis full under
+ * a broker service. Durable once it resolves; a refused `XADD` (Redis full under
  * `noeviction`, too few replicas) rejects, it is never reported as sent.
  */
 export async function publishToBus(

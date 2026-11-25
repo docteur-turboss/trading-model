@@ -2,7 +2,7 @@
 # =============================================================================
 #  Trading Model — Prove that an age private key decrypts the real backups
 #  Usage:  bash scripts/verify-backup-key.sh --identity KEY_FILE [--dir DIR | --offsite]
-#            [--timestamp TS] [--tier T] [--components mongodb,mongodb-audit,mysql,mysql-core,checkpoints,spire,risk]
+#            [--timestamp TS] [--tier T] [--components mongodb-audit,mysql,mysql-core,checkpoints,spire,risk]
 #          --offsite: BACKUP_S3_BUCKET + AWS_* (+ RCLONE_S3_*), as scripts/fetch-offsite.sh
 #
 #  An age file does not name the keys it is encrypted for: only decrypting it
@@ -39,7 +39,7 @@ DIR=""
 OFFSITE=false
 TIMESTAMP=""
 TIER=""
-COMPONENTS="mongodb,mongodb-audit,mysql,checkpoints,spire,risk"
+COMPONENTS="mongodb-audit,mysql,checkpoints,spire,risk"
 
 usage() {
 	sed -n 4,6p "$0" | sed 's/^#  //'
@@ -60,6 +60,7 @@ done
 
 # shellcheck source=backup-lib.sh
 source "$(dirname "$0")/backup-lib.sh"
+COMPONENTS="$(normalize_components "$COMPONENTS")"
 
 if [ -z "$IDENTITY" ]; then
 	fail "--identity is required: the age private key file to verify"
@@ -86,7 +87,7 @@ PARTS=()
 IFS=',' read -ra REQUESTED <<<"$COMPONENTS"
 for part in "${REQUESTED[@]}"; do
 	case "$part" in
-	mongodb | mongodb-audit | mysql | mysql-core | checkpoints | spire | risk) PARTS+=("$part") ;;
+	mongodb-audit | mysql | mysql-core | checkpoints | spire | risk) PARTS+=("$part") ;;
 	*) fail "Unknown component: ${part}"; exit 1 ;;
 	esac
 done
@@ -109,7 +110,6 @@ export BACKUP_AGE_IDENTITY="$IDENTITY"
 if $OFFSITE; then
 	DIR="$(mktemp -d)"
 	trap 'rm -rf "$DIR"' EXIT
-	# fetch-offsite.sh component `mongodb` already holds `mongodb-audit`.
 	fetch_args=(--dest "$DIR" --components "$(IFS=,; echo "${PARTS[*]}")")
 	[ -z "$TIMESTAMP" ] || fetch_args+=(--timestamp "$TIMESTAMP")
 	[ -z "$TIER" ] || fetch_args+=(--tier "$TIER")

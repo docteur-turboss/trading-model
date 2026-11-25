@@ -9,7 +9,6 @@
     "./candlestick-query": "./dist/candlestick-query.js",
     "./delivery-mode": "./dist/delivery-mode.js",
     "./dlq-events": "./dist/dlq-events.js",
-    "./dlq-types": "./dist/dlq-types.js",
     "./event-map": "./dist/event-map.js",
     "./event-routes": "./dist/event-routes.js",
     "./http-headers": "./dist/http-headers.js",
