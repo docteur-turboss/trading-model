@@ -92,25 +92,25 @@ const admission = (content: unknown) =>
 describe("TrainerAdmission reads the artifact store", () => {
 	it("admits from the manifest with the trainer unreachable", async () => {
 		await expect(
-			admission(manifest(true)).isAdmissible("BTCUSDT", VERSION)
-		).resolves.toBe(true);
+			admission(manifest(true)).admission("BTCUSDT", VERSION)
+		).resolves.toMatchObject({ admissible: true });
 		await expect(
-			admission(manifest(false)).isAdmissible("BTCUSDT", VERSION)
-		).resolves.toBe(false);
+			admission(manifest(false)).admission("BTCUSDT", VERSION)
+		).resolves.toMatchObject({ admissible: false });
 		await expect(
-			admission(manifest()).isAdmissible("BTCUSDT", VERSION)
-		).resolves.toBe(false);
+			admission(manifest()).admission("BTCUSDT", VERSION)
+		).resolves.toMatchObject({ admissible: false });
 	});
 
 	it("rejects an unreadable manifest, so the caller fails closed", async () => {
 		await expect(
-			admission("{").isAdmissible("BTCUSDT", VERSION)
+			admission("{").admission("BTCUSDT", VERSION)
 		).rejects.toThrow();
 	});
 
 	it("falls back to the trainer API when the store has no copy", async () => {
 		await expect(
-			admission(manifest(true)).isAdmissible(
+			admission(manifest(true)).admission(
 				"BTCUSDT",
 				"20261102T000000Z-bbbbbbbbbbbb"
 			)

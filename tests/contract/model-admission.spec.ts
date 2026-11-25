@@ -68,7 +68,7 @@ describe("admission contract: trader-trainer → risk-execution", () => {
 			} as never,
 			admission: verdict,
 		});
-		return reader.isAdmissible("BTCUSDT", version);
+		return (await reader.admission("BTCUSDT", version)).admissible;
 	};
 
 	it.each([

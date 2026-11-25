@@ -64,6 +64,13 @@ A price older than 15 min on an allowed instrument that already had one: that sy
 1. The service reads the last closed candle of each instrument from financial-scraper at every tick: check the `prices.error` log lines, then [runbook-market-data-stale](runbook-market-data-stale.md) for the feed.
 2. When fresh prices flow, re-arm the symbol (and the global switch if engaged).
 
+## RiskDrawdownApproaching
+
+`risk_drawdown_ratio` (drawdown from the high-water mark over `drawdownPct` × allocated capital) stayed above 0.7 for 5 min. At 1 the kill switch engages by itself and only the owner re-arms it.
+
+1. Read `GET /admin/status` (`equity`, positions) and the `risk_equity` gauge: which positions lose.
+2. Decide before the limit: engage a symbol switch by hand, or let the stop act.
+
 ## RiskTickFailing
 
 The periodic tick threw for 5 min (`risk tick failed` log line, counter `risk_tick_failures_total`). Gauges are still republished from memory, so a switch engaged during the failure shows in `KillSwitchEngaged`; what is lost is persistence.

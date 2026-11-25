@@ -1,4 +1,8 @@
 import {
+	CandleInterval,
+	type SourceType,
+} from "@trading-model/contracts/market-data.types";
+import {
 	type TradingSymbol,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
@@ -128,15 +132,20 @@ const LATEST_WINDOW_MS = 3_600_000;
 /** A slow read fails fast instead of holding one of the 10 pool connections. */
 const LATEST_MAX_EXECUTION_MS = 2_000;
 const LATEST_BRANCH = `(SELECT symbol, CAST(close AS DOUBLE) AS close, close_timestamp AS closeTimestamp FROM market_candles
- WHERE symbol = ? AND timestamp >= ? AND close_timestamp <= ? ORDER BY close_timestamp DESC, id DESC LIMIT 1)`;
+ WHERE symbol = ? AND timestamp >= ? AND close_timestamp <= ? AND (? IS NULL OR source = ?) AND (? IS NULL OR interval_value = ?) ORDER BY close_timestamp DESC, id DESC LIMIT 1)`;
 
-/** Newest candle closed by `now` and opened within the last hour, of each symbol, whatever its source and interval (one row per symbol, highest id on a tie). */
+/** Newest candle closed by `now` and opened within the last hour (3 bars of `interval` when given), of each symbol, of the `source` and `interval` when given (one row per symbol, highest id on a tie). */
 export async function selectLatestClosedCandles(
 	symbols: readonly string[],
-	now: Date
+	now: Date,
+	{ source, interval }: { source?: SourceType; interval?: CandleInterval } = {}
 ): Promise<LatestRow[]> {
 	const unique = [...new Set(symbols)];
-	const from = new Date(now.getTime() - LATEST_WINDOW_MS);
+	const window = Math.max(
+		LATEST_WINDOW_MS,
+		interval ? 3 * CandleInterval.toMs(interval) : 0
+	);
+	const from = new Date(now.getTime() - window);
 	const [rows] = await DATABASE.promise().query<LatestRow[]>(
 		unique
 			.map(() => LATEST_BRANCH)
@@ -145,7 +154,15 @@ export async function selectLatestClosedCandles(
 				"SELECT",
 				`SELECT /*+ MAX_EXECUTION_TIME(${LATEST_MAX_EXECUTION_MS}) */`
 			),
-		unique.flatMap((symbol) => [symbol, from, now])
+		unique.flatMap((symbol) => [
+			symbol,
+			from,
+			now,
+			source ?? null,
+			source ?? null,
+			interval ?? null,
+			interval ?? null,
+		])
 	);
 	return rows;
 }

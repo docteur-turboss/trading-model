@@ -21,6 +21,8 @@ export interface PreTradeContext {
 	halted: readonly string[];
 	/** The service's own price of the intent symbol, read for this intent; absent when the read failed or found none. */
 	price?: MarketPrice;
+	/** Bar length of the intent's model: its price is stale after 2 bars (`haltAgeMs` when absent). */
+	barMs?: number;
 }
 
 /** A context whose own price passed its age check: every amount below is valued at `market`. */
@@ -33,7 +35,10 @@ export function preTradeReject(ctx: PreTradeContext): string | null {
 		return gate;
 	}
 	const { price } = ctx;
-	if (!price || ctx.now - price.at > ctx.limits.haltAgeMs) {
+	if (
+		!price ||
+		ctx.now - price.at > (ctx.barMs ? 2 * ctx.barMs : ctx.limits.haltAgeMs)
+	) {
 		return "stale_price";
 	}
 	const priced = { ...ctx, market: price.price };

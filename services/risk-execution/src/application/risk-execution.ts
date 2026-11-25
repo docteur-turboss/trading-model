@@ -82,6 +82,8 @@ export interface StatusReport {
 	mismatch: boolean;
 	killSwitch: RiskState["killSwitch"];
 	equity: number;
+	/** Drawdown from the high-water mark over its limit (drawdownPct × allocatedCapital): 1 = limit. */
+	drawdownRatio: number;
 	exposureRatio: number;
 	dailyLoss: number;
 	openOrders: number;
@@ -194,6 +196,9 @@ export class RiskExecution {
 			mismatch: this._mismatch,
 			killSwitch: state.killSwitch,
 			equity: equity(state),
+			drawdownRatio:
+				Math.max(0, state.hwm - equity(state)) /
+				(this._d.limits.drawdownPct * this._d.limits.allocatedCapital),
 			exposureRatio: exposure(state) / this._d.limits.allocatedCapital,
 			dailyLoss: dailyLoss(state),
 			openOrders: Object.values(state.orders).filter(isOpen).length,
@@ -209,12 +214,12 @@ export class RiskExecution {
 
 	async submitIntent(intent: Intent): Promise<IntentResult> {
 		// Network call outside the queue: a slow trainer never delays an engage, a cancel or a tick.
-		const admissible = await this._bounded(
-			this._d.admission.isAdmissible(intent.model.symbol, intent.model.version),
+		const { admissible, barMs } = await this._bounded(
+			this._d.admission.admission(intent.model.symbol, intent.model.version),
 			"admission"
 		).catch((error) => {
 			this._emit("admission.error", { error: String(error) });
-			return false; // fail closed
+			return { admissible: false, barMs: undefined }; // fail closed
 		});
 		return this._run(async () => {
 			const now = this._now();
@@ -238,7 +243,7 @@ export class RiskExecution {
 						return [intent.symbol]; // status unknown: fail closed
 					}
 				),
-				this._readPrices([intent.symbol]),
+				this._readPrices([intent.symbol], barMs),
 			]);
 			const price = read[intent.symbol];
 			const reason = preTradeReject({
@@ -247,6 +252,7 @@ export class RiskExecution {
 				state: this._state,
 				now,
 				admissible,
+				barMs,
 				reconciled: this._ready,
 				halted,
 				price,
@@ -618,7 +624,9 @@ export class RiskExecution {
 	private async _checkStale(now: number): Promise<void> {
 		const priced = this._pricedSymbols();
 		const stale = priced.filter(
-			(sym) => now - this._state.marks[sym].at > this._d.limits.haltAgeMs
+			(sym) =>
+				now - this._state.marks[sym].at >
+				(this._state.marks[sym].maxAgeMs ?? this._d.limits.haltAgeMs)
 		);
 		for (const sym of stale) {
 			await this._engage(sym, "stale_data");
@@ -628,18 +636,21 @@ export class RiskExecution {
 		}
 	}
 
-	/** Marks the symbols at the prices read (never older than the mark); none when the read failed. */
+	/** Marks the symbols at the prices read (never older than the mark; aged by `barMs` when given); none when the read failed. */
 	private async _readPrices(
-		symbols: string[]
+		symbols: string[],
+		barMs?: number
 	): Promise<Record<string, MarketPrice>> {
 		try {
 			const read = await this._bounded(
-				this._d.prices.latest(symbols),
+				this._d.prices.latest(symbols, barMs),
 				"price read"
 			);
 			for (const [symbol, mark] of Object.entries(read)) {
 				if (mark.at >= (this._state.marks[symbol]?.at ?? 0)) {
-					this._state.marks[symbol] = mark;
+					this._state.marks[symbol] = barMs
+						? { ...mark, maxAgeMs: 2 * barMs }
+						: mark;
 				}
 			}
 			return read;
