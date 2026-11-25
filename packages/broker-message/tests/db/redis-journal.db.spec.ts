@@ -131,8 +131,8 @@ describe("RedisMessageJournal — real Redis", () => {
 		await expect(
 			journalOn(replica(), 1).append(createMockMessage("m1"), [GROUP.service])
 		).rejects.toThrow("held by 0 of 1 replicas");
-		// The refused entry is removed: the publisher's retry must not be delivered twice.
-		expect(await replica().xlen(stream())).toBe(0);
+		// The refused entry stays: a group may have read it, the resend carries the same messageId.
+		expect(await replica().xlen(stream())).toBe(1);
 	});
 
 	it("should drop a pending entry trimmed from the stream, whatever the Redis version", async () => {

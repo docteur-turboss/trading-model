@@ -263,11 +263,11 @@ describe("RedisMessageJournal", () => {
 		await expect(
 			journal.append(createMockMessage("payload"), ["trader-trainer"])
 		).rejects.toThrow("held by 0 of 1 replicas");
-		// The entry is removed so the publisher's retry cannot be delivered twice.
-		expect(redis.call).toHaveBeenCalledWith(
+		// The entry stays: a group may have read it, the same messageId is resent.
+		expect(redis.call).not.toHaveBeenCalledWith(
 			"XDEL",
-			"p:journal:test.topic",
-			"9-0"
+			expect.anything(),
+			expect.anything()
 		);
 	});
 

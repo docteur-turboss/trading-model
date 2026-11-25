@@ -173,7 +173,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 		await Promise.all(
 			services.map((service) => this._register(writer, { topic, service }))
 		);
-		const entryId = (await writer.call(
+		await writer.call(
 			"XADD",
 			this.stream(topic),
 			"MINID",
@@ -183,7 +183,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 			FIELD,
 			JSON.stringify(message),
 			...(onlyFor ? [ONLY_FIELD, onlyFor] : [])
-		)) as string;
+		);
 		const required = this._deps.minReplicas ?? 0;
 		if (required > 0) {
 			const replicated = await writer.call(
@@ -192,8 +192,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 				String(WAIT_REPLICAS_TIMEOUT_MS)
 			);
 			if (Number(replicated) < required) {
-				// The publisher will send again under a new messageId: drop this entry so it is not delivered twice.
-				await writer.call("XDEL", this.stream(topic), entryId);
+				// The entry stays (a group may have read it already): the publisher resends the same messageId and the consumer deduplicates.
 				throw messageManagerError(
 					`Message not accepted: journal write held by ${replicated} of ${required} replicas`
 				);

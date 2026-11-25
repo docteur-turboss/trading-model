@@ -71,11 +71,29 @@ describe("publishToBus", () => {
 	});
 
 	it("should reject, never succeed, when Redis refuses the write", async () => {
-		const { journal, redis } = bus();
+		const { journal } = bus();
 		await journal.register(GROUP);
-		redis.failures.set("XADD", new Error("OOM command not allowed"));
+		jest
+			.spyOn(journal, "append")
+			.mockRejectedValue(new Error("OOM command not allowed"));
 
 		await expect(publishToBus(journal, "p", METADATA)).rejects.toThrow("OOM");
+	});
+
+	it("should resend a refused write under the same messageId", async () => {
+		const { journal } = bus();
+		await journal.register(GROUP);
+		const append = jest
+			.spyOn(journal, "append")
+			.mockRejectedValueOnce(new Error("held by 0 of 1 replicas"));
+
+		await publishToBus(journal, "p", METADATA);
+
+		const [first, second] = append.mock.calls.map(
+			([m]) => m.metadata.messageId
+		);
+		expect(append).toHaveBeenCalledTimes(2);
+		expect(second).toBe(first);
 	});
 });
 

@@ -28,5 +28,11 @@ export async function publishToBus(
 		});
 		return;
 	}
-	await journal.append(message, []);
+	try {
+		await journal.append(message, []);
+	} catch {
+		// A refused WAIT leaves the entry in the journal: resend the same messageId, never a new one (consumers deduplicate on it).
+		// shortcut: one resend, a second failure rejects to the caller, who then builds a new messageId.
+		await journal.append(message, []);
+	}
 }
