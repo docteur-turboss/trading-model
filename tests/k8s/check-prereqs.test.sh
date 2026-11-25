@@ -16,12 +16,14 @@ mkdir -p "$WORK/bin"
 cat >"$WORK/bin/kubectl" <<'STUB'
 #!/usr/bin/env bash
 # $STUB_CRDS: CRDs "group/Kind" served; $STUB_HAVE: "resource/name" objects present.
+if [ "$2" = apiservice ]; then [ -z "$STUB_ERR" ] || { echo "Error from server (Forbidden): apiservices" >&2; exit 1; }; [ -n "$STUB_METRICS" ] && printf True; exit 0; fi
 if [ "$1" = get ] && [ "$2" = crd ]; then printf '%b' "$STUB_CRDS"; exit 0; fi
 if [ "$1" = -n ]; then [ -n "${STUB_ACCESS_LOG:-}" ] && printf '%s' "$STUB_ACCESS_LOG"; exit 0; fi
 if [ "$1" = get ]; then case " $STUB_HAVE " in *" $2/$3 "*) exit 0 ;; esac; exit 1; fi
 exit 2
 STUB
 chmod +x "$WORK/bin/kubectl"
+export STUB_METRICS=1
 export PATH="$WORK/bin:$PATH"
 
 ALL_CRDS='autoscaling.k8s.io/VerticalPodAutoscaler
@@ -69,6 +71,17 @@ done
 
 out=$(run 'bitnami.com/SealedSecret\ncert-manager.io/ClusterIssuer\n' "$ALL_HAVE" "$RENDER")
 [[ $out == *"VerticalPodAutoscaler"* && $out != *"SealedSecret"* ]] && ok "only the VPA CRD missing" || ko "VPA only: $out"
+
+hpa='apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler'
+out=$(run "$ALL_CRDS" "$ALL_HAVE" "$hpa")
+[[ $out == *"present"* ]] && ok "HPA with metrics-server passes" || ko "HPA with metrics-server: $out"
+out=$(STUB_METRICS= run "$ALL_CRDS" "$ALL_HAVE" "$hpa")
+[[ $out == *"metrics.k8s.io"* ]] && ok "HPA without metrics-server refused" || ko "HPA without metrics-server: $out"
+out=$(STUB_ERR=1 run "$ALL_CRDS" "$ALL_HAVE" "$hpa")
+[[ $out == *"Forbidden"* && $out != *"lacks prerequisites"* ]] && ok "apiservice query error shown, not 'absent'" || ko "apiservice error: $out"
+out=$(STUB_METRICS= run "$ALL_CRDS" "$ALL_HAVE" "$RENDER")
+[[ $out == *"present"* ]] && ok "no HPA, no metrics-server needed" || ko "no HPA: $out"
 
 # ingress controller access log: required in production, a warning elsewhere
 export STUB_ACCESS_LOG=

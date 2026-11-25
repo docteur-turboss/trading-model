@@ -19,6 +19,7 @@ This guide covers deploying the Trading Model platform on Kubernetes. The K8s ma
   `verticalpodautoscalers.autoscaling.k8s.io` (VPA, recommendations only: `updateMode: "Off"`,
   the HPAs own scaling, on CPU), `sealedsecrets.bitnami.com` (production), cert-manager
   (`ClusterIssuer` `letsencrypt-prod`) and an `IngressClass` named `nginx`
+- metrics-server (APIService `v1beta1.metrics.k8s.io` `Available`), which the CPU HPAs read; checked when the render has an HPA
 - `deploy.yml` derives these from the rendered overlay (`deploy/k8s/scripts/check-prereqs.sh`) and
   refuses, listing what is missing, before the first apply
 - A CNI that enforces NetworkPolicies
