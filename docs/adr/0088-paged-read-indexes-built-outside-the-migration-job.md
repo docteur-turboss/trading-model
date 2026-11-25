@@ -4,7 +4,7 @@
 **Date:** 2026-11
 **Amends:** [ADR-0040](./0040-locked-resumable-migrations-and-expand-contract.md) (long index builds leave the migration Job), [ADR-0054](./0054-public-read-pagination-and-proxy-response-cap.md) (the 3 `sources/:source` routes are removed)
 **Related:** [ADR-0061](./0061-n-1-compatibility-of-public-api-and-bus-messages.md) (public contract change)
-**Verified by:** `services/financial-scraper/tests/db/market-data.db.spec.ts` (no filesort in the plan, idempotent build), `tests/k8s/run-migrations.test.sh` (the build Job is applied, not waited for), `bun run api:check`
+**Verified by:** `services/financial-scraper/tests/db/market-data.db.spec.ts` (no filesort in the plan, idempotent build, plan of the latest-candle read), `tests/k8s/run-migrations.test.sh` (the build Job is applied, not waited for), `bun run api:check`
 
 ## Context
 
@@ -23,4 +23,5 @@ The paged reads (`pagedSelect`) run `WHERE symbol = ? ORDER BY timestamp, id LIM
 - A failed build is visible as a failed Job `db-index-build` (kept 10 min by `ttlSecondsAfterFinished`); no alert covers it yet.
 - The ALTER takes a metadata lock at its start and end; behind a long transaction (the nightly `mysqldump --single-transaction`) it would queue every INSERT and SELECT on the table for the server's `lock_wait_timeout` (1 year). `index-build` sets 5 s on its session and, on error 1205, logs, pauses 10 s and retries (60 attempts at most): writers wait 5 s at worst (issue #2497).
 - Future long builds add a row to `PAGED_READ_INDEXES` or a sibling list, not a migration.
+- The latest-candle read of risk-execution (`selectLatestClosedCandles`) has no index of its own (migration 014 `(symbol, close_timestamp)` removed before any release, issue #2592): one `LIMIT 1` per symbol bounded to candles opened in the last hour, a range on `idx_candles_symbol_ts` or, before the build, `idx_candles_timestamp` (19 ms on 1.8 M rows in both cases), capped by `MAX_EXECUTION_TIME`.
 - The build duration on 10 M rows is not measured in CI (kind has a few rows): measure on staging-local before the release.

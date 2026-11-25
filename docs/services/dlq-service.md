@@ -1,5 +1,7 @@
 # DLQ Service
 
+> **Status:** release N: active, removed in release N+1 ([ADR-0073](../adr/0073-message-bus-as-a-redis-streams-library.md)).
+
 **Package:** `dlq-service`
 **Path:** `services/dlq-service/`
 
@@ -53,13 +55,13 @@ node -e "$SVID_GET" https://localhost:3000/health
 
 # Signed routes: SIGNED_HEADERS is a JSON object with the x-service-name, x-timestamp,
 # x-signature and content-type headers computed for this method and path (query included).
-node -e "$SVID_GET" https://localhost:3000/dlq GET "$SIGNED_HEADERS"
+node -e "$SVID_GET" https://localhost:3000/v1/dlq GET "$SIGNED_HEADERS"
 
 # Replay up to 50 entries of one topic
-node -e "$SVID_GET" 'https://localhost:3000/dlq/replay?topic=dlq.entry.added&limit=50' POST "$SIGNED_HEADERS"
+node -e "$SVID_GET" 'https://localhost:3000/v1/dlq/replay?topic=dlq.entry.added&limit=50' POST "$SIGNED_HEADERS"
 
 # Delete entries by id
-node -e "$SVID_GET" https://localhost:3000/dlq DELETE "$SIGNED_HEADERS" '{"ids":["entry-uuid-123"]}'
+node -e "$SVID_GET" https://localhost:3000/v1/dlq DELETE "$SIGNED_HEADERS" '{"ids":["entry-uuid-123"]}'
 ```
 
 ## Environment Variables
@@ -75,5 +77,5 @@ Until 2026-10-30 these notifications were a `POST` to an `/audit` route audit-lo
 ## Limitations
 
 - Maximum stored entries is configurable via `MAX_ENTRIES` (default: 100,000)
-- Replay delivers back to message-manager with original payload headers intact. an entry that names its `service` (every entry since ADR-0043) is replayed through the `/message/replay` route of message-manager to that service only, under its original `messageId`; an older entry without `service` is not replayed (message-manager refuses the plain publication from dlq-service, 403): logged, claim released without counting, entry kept. Dead letters are deduplicated per message and per failed service (key `<messageId>:<service>`, `service` also in the content hash that counts ping-pong passes): two subscribers failing on one message keep two replayable entries. A replay is never re-sent once it left: it waits for the answer of message-manager, now a 202 once the message is journaled (`PUBLISH_ACCEPT_TIMEOUT_MS` + 5 s), and a claim is released as stale only after `STALE_CLAIM_MS` (about 3 min, see ADR-0048). At shutdown, claims of replays still in flight stay until then
-- A `POST /v1/dlq/replay` lasts as long as message-manager takes to journal the batch: ten entries in parallel, each waiting up to `PUBLISH_ACCEPT_TIMEOUT_MS` + 5 s (`REPLAY_DELIVERY_TIMEOUT_MS`) for its 202. No new entry starts after `REPLAY_BATCH_TIMEOUT_MS` (120 s), in-flight ones finish, so the call ends within about 2 min 20 s. A caller with a shorter timeout gets an error while the replay goes on
+- Replay delivers back to message-manager with original payload headers intact. an entry that names its `service` (every entry since ADR-0043) is replayed through the `/message/replay` route of message-manager to that service only, under its original `messageId`; an older entry without `service` is not replayed (message-manager refuses the plain publication from dlq-service, 403): logged, claim released without counting, entry kept. Dead letters are deduplicated per message and per failed service (key `<messageId>:<service>`, `service` also in the content hash that counts ping-pong passes): two subscribers failing on one message keep two replayable entries. A replay is never re-sent once it left: it waits for the answer of message-manager, a 204 once the message is journaled (`PUBLISH_ACCEPT_TIMEOUT_MS` + 5 s), and a claim is released as stale only after `STALE_CLAIM_MS` (about 3 min, see ADR-0048). At shutdown, claims of replays still in flight stay until then
+- A `POST /v1/dlq/replay` lasts as long as message-manager takes to journal the batch: ten entries in parallel, each waiting up to `PUBLISH_ACCEPT_TIMEOUT_MS` + 5 s (`REPLAY_DELIVERY_TIMEOUT_MS`) for its 204. No new entry starts after `REPLAY_BATCH_TIMEOUT_MS` (120 s), in-flight ones finish, so the call ends within about 2 min 20 s. A caller with a shorter timeout gets an error while the replay goes on
