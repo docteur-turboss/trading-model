@@ -90,6 +90,9 @@ export interface StatusReport {
 }
 
 /** The Risk/Execution context of ADR-0064: the only owner of the order flow. */
+/** A business refusal of `rearm` (answered 403), as opposed to a failure (5xx). */
+export class RearmRefusedError extends Error {}
+
 export class RiskExecution {
 	private _state!: RiskState;
 	private _ready = false;
@@ -327,14 +330,16 @@ export class RiskExecution {
 		const symbol = target.scope === "symbol" ? target.symbol : undefined;
 		return this._run(async () => {
 			if (this._broken) {
-				throw new Error(
+				throw new RearmRefusedError(
 					"Kill switch state is unreadable: restore the state file, then restart"
 				);
 			}
 			const ks = this._state.killSwitch;
 			const current = symbol === undefined ? ks.global : ks.symbols[symbol];
 			if (current === "drawdown" && actor !== this._d.ownerActor) {
-				throw new Error("Only the owner re-arms after the drawdown stop");
+				throw new RearmRefusedError(
+					"Only the owner re-arms after the drawdown stop"
+				);
 			}
 			// Without this the drawdown (hwm - equity) is still over the limit and the switch re-engages at the next tick.
 			const previousHwm = this._state.hwm;
@@ -346,6 +351,18 @@ export class RiskExecution {
 			} else {
 				delete ks.symbols[symbol];
 			}
+			try {
+				await this._save();
+			} catch (error) {
+				// Not durable: stay engaged in memory, as after a restart, and emit nothing.
+				this._state.hwm = previousHwm;
+				if (symbol === undefined) {
+					ks.global = current ?? null;
+				} else if (current) {
+					ks.symbols[symbol] = current;
+				}
+				throw error;
+			}
 			this._emit("kill_switch.rearmed", {
 				scope: target.scope,
 				symbol,
@@ -356,7 +373,6 @@ export class RiskExecution {
 					hwm: this._state.hwm,
 				}),
 			});
-			await this._save();
 		});
 	}
 
