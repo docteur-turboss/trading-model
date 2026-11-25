@@ -19,7 +19,11 @@ import type {
 	PricePort,
 	StatePort,
 } from "../domain/ports";
-import { dailyLoss, preTradeReject } from "../domain/pre-trade";
+import {
+	dailyLoss,
+	marketableLimit,
+	preTradeReject,
+} from "../domain/pre-trade";
 import {
 	equity,
 	exposure,
@@ -250,7 +254,9 @@ export class RiskExecution {
 				symbol: intent.symbol,
 				side: intent.side,
 				quantity: intent.quantity,
-				limitPrice: intent.limitPrice,
+				limitPrice:
+					intent.limitPrice ??
+					(price && marketableLimit(intent.side, price.price, this._d.limits)),
 				// The price read by the service: the paper broker fills at it, never at the intent's.
 				referencePrice: price?.price ?? 0,
 				status: "received",
