@@ -912,6 +912,10 @@ verify_ha() {
 		$K -n "$NS" get pod,pvc -o wide || true
 		$K -n "$NS" get events --field-selector type=Warning --sort-by=.lastTimestamp | tail -20 || true
 		$K -n "$NS" logs redis-0 -c redis --tail=30 || true
+		$K -n "$NS" logs redis-0 -c redis --previous --tail=30 || true
+		for s in 0 1 2; do $K -n "$NS" logs "redis-sentinel-$s" -c sentinel --tail=25 || true; done
+		sentinel masters || true
+		sentinel replicas mymaster || true
 		return 1
 	}
 	[ "$($K -n "$NS" get pod -l app.kubernetes.io/component=redis -o jsonpath='{range .items[*]}{.spec.nodeName}{"
