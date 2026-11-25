@@ -29,9 +29,9 @@ An outage affects:
 ```bash
 # 1. Redis. Any pod of the HA group can be master: find it
 REDIS_MASTER=$(for p in redis-0 redis-1 redis-2; do
-  [ "$(kubectl exec -n trading-model "$p" -- redis-cli --raw ROLE | head -n 1)" = master ] && echo "$p"
+  [ "$(kubectl exec -n trading-model "$p" -c redis -- sh -c 'REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli --user ha --raw ROLE' | head -n 1)" = master ] && echo "$p"
 done)
-kubectl exec -n trading-model "$REDIS_MASTER" -- redis-cli ping
+kubectl exec -n trading-model "$REDIS_MASTER" -c redis -- sh -c 'REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli --user ha ping'
 
 # 2. Logs of the publisher or subscriber
 kubectl logs -n trading-model deployment/<service> --tail=50
@@ -46,7 +46,7 @@ kubectl logs -n trading-model deployment/<service> --tail=50
 
 ```bash
 # Sentinel status: is a master elected?
-kubectl exec -n trading-model redis-sentinel-0 -- redis-cli -p 26379 sentinel master mymaster
+kubectl exec -n trading-model redis-sentinel-0 -c sentinel -- sh -c 'REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli -p 26379 sentinel master mymaster'
 # If the master is stuck, delete it: sentinel promotes a replica
 kubectl delete pod -n trading-model "$REDIS_MASTER"
 ```

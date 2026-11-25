@@ -243,20 +243,21 @@ Exit 1 on any KO
 
 ## Redis Failover
 
-**Alert:** Multiple services showing degraded performance  
+**Alerts:** `RedisDown`, `RedisSentinelQuorumLost` (critical), or several services degraded  
 **Severity:** L1-L2
 
 ### Symptom Check
 
 ```bash
+# The default user is off: authenticate as ACL user `ha` (REDIS_INTERNAL_PASSWORD is in the pod env)
 # Any pod of the Redis HA group can be master: find the current one
 REDIS_MASTER=$(for p in redis-0 redis-1 redis-2; do
-  [ "$(kubectl exec -n trading-model "$p" -- redis-cli --raw ROLE | head -n 1)" = master ] && echo "$p"
+  [ "$(kubectl exec -n trading-model "$p" -c redis -- sh -c 'REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli --user ha --raw ROLE' | head -n 1)" = master ] && echo "$p"
 done)
-kubectl exec -n trading-model "$REDIS_MASTER" -- redis-cli ping
+kubectl exec -n trading-model "$REDIS_MASTER" -c redis -- sh -c 'REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli --user ha ping'
 
-# Check sentinel status
-kubectl exec -n trading-model redis-sentinel-0 -- redis-cli -p 26379 sentinel masters
+# Check sentinel status (a sentinel takes the password only, no --user)
+kubectl exec -n trading-model redis-sentinel-0 -c sentinel -- sh -c 'REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli -p 26379 sentinel masters'
 ```
 
 ### Recovery
@@ -265,7 +266,7 @@ Redis Sentinel should auto-failover. If not:
 
 ```bash
 # Force sentinel failover
-kubectl exec -n trading-model redis-sentinel-0 -- redis-cli -p 26379 sentinel failover mymaster
+kubectl exec -n trading-model redis-sentinel-0 -c sentinel -- sh -c 'REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli -p 26379 sentinel failover mymaster'
 ```
 
 ### Full Redis data loss
