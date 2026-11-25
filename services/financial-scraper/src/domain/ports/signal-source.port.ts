@@ -61,7 +61,8 @@ export interface ProtocolWorker {
 	(
 		request: SourceRequest,
 		auth: Source["accessPolicy"]["auth"],
-		body?: Pick<Source, "format" | "delimiter">
+		body?: Pick<Source, "format" | "delimiter">,
+		signal?: AbortSignal
 	): Promise<unknown>;
 	/** Called with the request URL once its body is stored: only then may a 304 stand for it. */
 	confirm?: (url: string) => void;
