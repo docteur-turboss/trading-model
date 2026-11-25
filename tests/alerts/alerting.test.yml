@@ -385,6 +385,25 @@ tests:
         alertname: ServiceDown
         exp_alerts: []
 
+  # No `up` series for the edge-proxy: only its blackbox probe sees it down.
+  - name: edge-proxy probe failing for 2 minutes
+    interval: 1m
+    input_series:
+      - series: 'probe_success{job="blackbox-edge-proxy",service="edge-proxy",instance="http://edge-proxy:8080/ping"}'
+        values: '1x3 0x10'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: EdgeProxyProbeFailing
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: EdgeProxyProbeFailing
+        exp_alerts:
+          - exp_labels: {severity: critical, job: blackbox-edge-proxy, service: edge-proxy, instance: 'http://edge-proxy:8080/ping'}
+            exp_annotations:
+              summary: 'edge-proxy /ping probe fails'
+              description: 'The blackbox-exporter has not got a 200 from the edge-proxy /ping for 2 minutes: the API is unreachable from outside while the server-side SLO can stay green.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#edge-proxy-probe-failing'
+
   # ADR-0057: the HTTP replica reports 0, the collector 1 until it loses the
   # Lease at 10m and nobody takes it. A rollout handover (one minute without
   # leader, at 4m) stays below the 2 min of CollectorNoLeader.
@@ -2173,3 +2192,51 @@ tests:
       - eval_time: 30m
         alertname: RiskMarketDataStale
         exp_alerts: []
+
+  # Loss counters: a series that never incremented stays silent; "retried" collisions do not fire, "exhausted" does.
+  - name: loss counters fire on any increase in an hour
+    interval: 1m
+    input_series:
+      - series: 'bus_publisher_rejected_total{job="decision-consumer",topic="risk",publisher="x"}'
+        values: '0 0 1x80'
+      - series: 'mm_journal_unreadable_total{job="audit-logger",topic="audit"}'
+        values: '0x80'
+      - series: 'tt_model_publish_failures_total{job="trader-trainer",symbol="BTCUSDT"}'
+        values: '0 0 1x80'
+      - series: 'tt_signal_read_errors_total{job="trader-trainer",symbol="BTCUSDT"}'
+        values: '0x80'
+      - series: 'audit_chain_sequence_collisions_total{job="audit-logger",outcome="retried"}'
+        values: '0 0 5x80'
+      - series: 'audit_chain_sequence_collisions_total{job="audit-logger",outcome="exhausted"}'
+        values: '0 0 1x80'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: BusPublisherRejected
+        exp_alerts:
+          - exp_labels: {severity: critical, job: decision-consumer, topic: risk, publisher: x}
+            exp_annotations:
+              summary: 'Bus entries rejected: x may not publish on risk'
+              description: 'A subscriber dropped entries whose publisher is not allowed on the topic (EVENT_PUBLISHERS): a misconfigured service, or a service that spoofs another publisher.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#7-entries-dropped-unreadable-or-publisher-rejected'
+      - eval_time: 10m
+        alertname: BusJournalUnreadable
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: ModelPublishFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, job: trader-trainer}
+            exp_annotations:
+              summary: 'trader-trainer stored a model but could not publish it'
+              description: 'decision-consumer and model-evaluator never learn about the stored model until the next one is published.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelpublishfailing'
+      - eval_time: 10m
+        alertname: TrainerSignalReadErrors
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: AuditChainCollisionsExhausted
+        exp_alerts:
+          - exp_labels: {severity: warning, job: audit-logger}
+            exp_annotations:
+              summary: 'audit-logger gave up appending an event after repeated chain collisions'
+              description: 'Retries on the chain sequence ran out (writers contend for the head, ADR-0050): the event was not appended.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-audit-chain-broken.md#auditchaincollisionsexhausted'

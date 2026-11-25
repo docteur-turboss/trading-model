@@ -99,6 +99,24 @@ scrape_configs:
       - target_label: __address__
         replacement: blackbox-exporter:9115
 
+  # edge-proxy: external entry point, plain HTTP on 8080 (no SVID, no `up`
+  # series): only this probe sees it down (EdgeProxyProbeFailing).
+  - job_name: 'blackbox-edge-proxy'
+    metrics_path: /probe
+    params:
+      module: [http_2xx_no_tls]
+    static_configs:
+      - targets: ['http://edge-proxy:8080/ping']
+        labels:
+          service: edge-proxy
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
   # Self-monitoring of the alerting path (AlertmanagerNotificationsFailing,
   # PrometheusRuleEvaluationFailures).
   - job_name: 'prometheus'

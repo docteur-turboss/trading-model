@@ -302,6 +302,14 @@ treat their metrics with care until the score falls back. A data problem: fix
 the source (scraper, [runbook-market-data-stale](runbook-market-data-stale.md)).
 The alert resolves once a session measures a score at or below 3.
 
+## ModelPublishFailing
+
+A model was stored but its bus publication failed (`tt_model_publish_failures_total`, by `symbol`): decision-consumer and model-evaluator do not see it. Look for `Failed to publish model` in the trader-trainer logs (Redis down: [runbook-message-bus-outage](runbook-message-bus-outage.md)). The next stored model of the symbol is published again.
+
+## TrainerSignalReadErrors
+
+Signal windows could not be read (`tt_signal_read_errors_total`, by `symbol`): the session trains without them. Check the signals API of financial-scraper and the trainer ACL, see [runbook-market-data-stale](runbook-market-data-stale.md).
+
 ## model-evaluator
 
 [model-evaluator](../../services/model-evaluator.md) records one evaluation per

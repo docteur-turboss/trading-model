@@ -44,6 +44,7 @@ Slack is down: configure that external check to notify someone directly
 | `AlertmanagerNotificationsFailing` | a receiver that rejects notifications (wrong webhook, missing Pushover key): at least 50 % of an integration's attempts failed over 15 min. One transient failure (DNS timeout) retried by the next send does not fire; an integration with no traffic does not fire |
 | `PrometheusRuleEvaluationFailures` | a rule that cannot be evaluated |
 | `ServiceDown` | a scrape target that is down, Alertmanager and Prometheus included |
+| `EdgeProxyProbeFailing` | the edge-proxy `/ping` probe fails (it has no `up` series, so `ServiceDown` cannot see it) |
 | `ServiceTargetsMissing` | an application service with no `up` series at all (0 replicas, Pending pods, broken scrape config), which `up == 0` cannot see |
 
 Dead man's switch margin: `Watchdog` is re-sent every minute (`repeat_interval: 1m`), so an isolated failed send is made up the next minute. Configure the heartbeat service with a 1 min period and a grace period of at least 10 min, or one transient failure pages as a false positive.
@@ -98,6 +99,11 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `TrainerMarketDataStale` | newest stored candle read by the trainer older than 15 min for every symbol (`tt_last_candle_age_seconds`) | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `ModelBelowBuyAndHold` | the last 3 stored models of a symbol have an out-of-sample Sharpe below buy and hold on the same bars (`tt_model_below_buy_and_hold_streak`, Lease holder only; `segment="test"`, ADR-0068) | [runbook-trainer#modelbelowbuyandhold](runbooks/runbook-trainer.md#modelbelowbuyandhold) |
 | `TrainerFeatureDrift` | for 1 h, a normalized field of a symbol received since its newest stored model has a mean more than 3 standard deviations from the statistics stored with that model (`tt_feature_drift_score`) | [runbook-trainer#trainerfeaturedrift](runbooks/runbook-trainer.md#trainerfeaturedrift) |
+| `BusPublisherRejected` | `critical`: a bus entry whose publisher is not authorized on its topic was rejected (possible publisher spoofing), `bus_publisher_rejected_total` increased over 1 h | [runbook-message-bus-outage#7](runbooks/runbook-message-bus-outage.md#7-entries-dropped-unreadable-or-publisher-rejected) |
+| `BusJournalUnreadable` | `warning`: a journal entry could not be read and was skipped, `mm_journal_unreadable_total` increased over 1 h | [runbook-message-bus-outage#7](runbooks/runbook-message-bus-outage.md#7-entries-dropped-unreadable-or-publisher-rejected) |
+| `ModelPublishFailing` | `warning`: a model was stored but not published to decision-consumer and model-evaluator, `tt_model_publish_failures_total` increased over 1 h | [runbook-trainer#modelpublishfailing](runbooks/runbook-trainer.md#modelpublishfailing) |
+| `TrainerSignalReadErrors` | `warning`: the trainer failed to read signals, `tt_signal_read_errors_total` increased over 1 h | [runbook-trainer#trainersignalreaderrors](runbooks/runbook-trainer.md#trainersignalreaderrors) |
+| `AuditChainCollisionsExhausted` | `warning`: the audit chain gave up after exhausting its sequence retries, `audit_chain_sequence_collisions_total{outcome="exhausted"}` increased over 1 h | [runbook-audit-chain-broken#auditchaincollisionsexhausted](runbooks/runbook-audit-chain-broken.md#auditchaincollisionsexhausted) |
 | `ScrapeCyclesFailing` | more than half of the scrape cycles fail | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `SymbolMarketDataStale` | no candle of one symbol persisted for 15 min while the others may still flow (`fs_candles_persisted_total{symbol}`): symbol rejected, klines failing or candles refused by the normalizer, by symbol | [runbook-market-data-stale#symbolmarketdatastale](runbooks/runbook-market-data-stale.md#symbolmarketdatastale) |
 | `SignalCollectionFailing` | a signal source (ADR-0036) failed a collection in the last 24 h, by source: fetch error (403 from SEC EDGAR without contact e-mail), changed format or MySQL | [runbook-market-data-stale#signalcollectionfailing](runbooks/runbook-market-data-stale.md#signalcollectionfailing) |
@@ -138,6 +144,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `SLOLatencySlowBurn` | warning | [runbook-latency-and-errors#slolatencyfastburn](runbooks/runbook-latency-and-errors.md#slolatencyfastburn) |
 | `SLOErrorBudgetLow` | warning | [runbook-latency-and-errors#slo-error-budget-low](runbooks/runbook-latency-and-errors.md#slo-error-budget-low) |
 | `ServiceDown` | critical | [runbook-service-down](runbooks/runbook-service-down.md) |
+| `EdgeProxyProbeFailing` | critical | [runbook-service-down#edge-proxy-probe-failing](runbooks/runbook-service-down.md#edge-proxy-probe-failing) |
 | `ServiceTargetsMissing` | critical | [runbook-service-down#no-scrape-target](runbooks/runbook-service-down.md#no-scrape-target) |
 | `CertificateExpiry` | critical | [runbook-certificate-expiry](runbooks/runbook-certificate-expiry.md) |
 | `HttpCircuitBreakerRejecting` | warning | [runbook-circuit-breaker-open#symptom](runbooks/runbook-circuit-breaker-open.md#symptom) |
