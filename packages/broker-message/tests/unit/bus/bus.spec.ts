@@ -599,6 +599,20 @@ describe("DeadStreams", () => {
 		expect(await journal.readNew(GROUP, "c", 10)).toHaveLength(1);
 	});
 
+	it("should page the list with an exclusive cursor", async () => {
+		const { streams } = bus();
+		for (let i = 1; i <= 150; i++) {
+			await streams.deadLetter(GROUP, `${i}-0`, createMockMessage("x"), "R", 1);
+		}
+
+		const first = await streams.list(TOPIC);
+		const second = await streams.list(TOPIC, first[99]?.id);
+
+		expect(first).toHaveLength(100);
+		expect(second).toHaveLength(50);
+		expect(new Set([...first, ...second].map((l) => l.id)).size).toBe(150);
+	});
+
 	it("should delete an entry, and say when it does not exist", async () => {
 		const { streams } = await dead();
 		const [letter] = await streams.list(TOPIC);
