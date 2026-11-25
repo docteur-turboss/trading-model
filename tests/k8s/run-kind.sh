@@ -514,7 +514,7 @@ probe_failure_report() {
 }
 
 _release_under_probe() {
-	local stop="$WORK/probe.stop" out="$WORK/probe.count" max="${PROBE_MAX_FAILURES:-0}" pid start rc=0 began svc pod
+	local stop="$WORK/probe.stop" out="$WORK/probe.count" max="${PROBE_MAX_FAILURES:-0}" pid gap_pid start rc=0 began svc pod
 	local requests failures row candles gap need
 	rm -f "$stop" "$out" "$out.err"
 	echo "0 0" >"$out"
@@ -537,9 +537,21 @@ _release_under_probe() {
 		log "could not read the window start from MySQL"
 		return 1
 	}
+	# Recreate pause (issue #2849): seconds (2 s steps) risk-execution has no ready pod.
+	(
+		down=0
+		while [ ! -e "$stop" ]; do
+			[ "$($K -n "$NS" get deployment risk-execution -o jsonpath='{.status.readyReplicas}' 2>/dev/null)" -ge 1 ] 2>/dev/null || down=$((down + 2))
+			sleep 2
+		done
+		echo "$down" >"$WORK/risk-down"
+	) &
+	gap_pid=$!
 	release "$WORK/digests-current" || rc=$?
 	touch "$stop"
 	wait "$pid" || true
+	wait "$gap_pid" || true
+	log "  risk-execution had no ready pod for about $(cat "$WORK/risk-down" 2>/dev/null || echo '?') s during the upgrade (Recreate)"
 	read -r requests failures <"$out"
 	log "  availability during the upgrade: $requests requests, $failures failed (threshold $max)"
 	[ -z "${GITHUB_STEP_SUMMARY:-}" ] ||
