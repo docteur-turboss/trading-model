@@ -908,7 +908,12 @@ verify_ha() {
 	$K -n "$NS" rollout status statefulset/redis-sentinel --timeout=300s || return 1
 	wait_for 120 '[ "$(sentinel replicas mymaster | grep -c "^ip$")" -ge 2 ] && sentinel ckquorum mymaster | grep -q "3 usable"' || return 1
 	CI_RENDER_HA=1 apply_release "$ROOT" "$WORK/digests-current" || return 1
-	release_script redis-last "$NS" <"$WORK/app.yaml" || return 1
+	release_script redis-last "$NS" <"$WORK/app.yaml" || {
+		$K -n "$NS" get pod,pvc -o wide || true
+		$K -n "$NS" get events --field-selector type=Warning --sort-by=.lastTimestamp | tail -20 || true
+		$K -n "$NS" logs redis-0 -c redis --tail=30 || true
+		return 1
+	}
 	[ "$($K -n "$NS" get pod -l app.kubernetes.io/component=redis -o jsonpath='{range .items[*]}{.spec.nodeName}{"
 "}{end}' | sort -u | wc -l)" -eq 3 ] || {
 		log "the 3 Redis pods are not on 3 nodes"
