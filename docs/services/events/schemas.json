@@ -346,6 +346,9 @@
 			"admissible": {
 				"type": "boolean"
 			},
+			"minSharpe": {
+				"type": "number"
+			},
 			"gaControl": {
 				"type": "object",
 				"properties": {

@@ -25,6 +25,8 @@ export interface TrainingModelPublishedPayload {
 	 * promoted; going live stays a manual decision. Absent before ADR-0069.
 	 */
 	admissible?: boolean;
+	/** Sharpe threshold that verdict was held to, attempt penalty included (ADR-0030). */
+	minSharpe?: number;
 	agentId: string;
 	/**
 	 * Version of the stored artifact (`<UTC stamp>-<12 hex of sha256>`); with
