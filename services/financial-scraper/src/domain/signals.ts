@@ -162,6 +162,8 @@ export const Source = z.strictObject({
 	maxAgeSeconds: z.number().positive().optional(),
 	/** Prior trust in the source, copied into the confidence of its signals. */
 	reliabilityScore: z.number().min(0).max(1),
+	/** The source restates past values (split-adjusted prices): a replayed key overwrites the stored value instead of keeping the first. */
+	restated: z.boolean().optional(),
 	/** §1.3: the (asset type, dimension) pairs the source can feed. */
 	covers: z.array(Coverage).min(1),
 	accessPolicy: AccessPolicy,
