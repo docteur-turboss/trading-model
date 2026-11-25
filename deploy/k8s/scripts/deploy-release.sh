@@ -299,15 +299,6 @@ wait_rollout() {
 	done
 }
 
-# Back to the revision recorded before the overlay: its pod template names
-# the image digest and the hashed ConfigMaps of release N, which are still in
-# the namespace (never pruned), so configuration comes back with the image
-# (issue #410). Only Deployments and the Redis StatefulSets (first in the
-# file) are rolled back: docs/deployment/DEPLOY.md lists what is not. Every deployment is tried: one without a previous
-# revision (first deploy) must not leave the others on the failed release.
-# Every undo is issued before any wait, as apply does: a Redis server rolled
-# back alone restarts while the sentinels still name its old pod IP, waits for
-# that dead master and fails its startup probe (PR #579).
 # An OrderedReady StatefulSet waits for a pod of the failed revision to turn
 # ready before replacing it, which a stuck pod never does (Kubernetes "forced
 # rollback"). Once the controller has seen the undo, delete the pods that are
@@ -338,6 +329,15 @@ resync_last_applied() {
 	[ -z "$new" ] || kubectl annotate deployment "$dep" -n "$ns" --overwrite "$ann=$new"
 }
 
+# Back to the revision recorded before the overlay: its pod template names
+# the image digest and the hashed ConfigMaps of release N, which are still in
+# the namespace (never pruned), so configuration comes back with the image
+# (issue #410). Only Deployments and the Redis StatefulSets (first in the
+# file) are rolled back: docs/deployment/DEPLOY.md lists what is not. Every deployment is tried: one without a previous
+# revision (first deploy) must not leave the others on the failed release.
+# Every undo is issued before any wait, as apply does: a Redis server rolled
+# back alone restarts while the sentinels still name its old pod IP, waits for
+# that dead master and fails its startup probe (PR #579).
 rollback() {
 	local ns="$1" file="$2" dep rev failed=0 target entry undone=() waited=0
 	# The apply may have failed because the API server went down (run 43665338171): wait for it.

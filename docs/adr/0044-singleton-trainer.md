@@ -13,7 +13,7 @@
 
 1. *(Superseded by ADR-0058: `RollingUpdate` with a Lease, only its holder trains.)* `trader-trainer` runs exactly one pod: `replicas: 1`, no HorizontalPodAutoscaler, strategy `Recreate`, so a rollout never runs the old and the new trainer side by side.
 2. Sizing stays vertical: the VPA `trader-trainer-vpa` (`updateMode: "Off"`) keeps recommending requests; raising them is a manifest change.
-3. `deploy-release.sh release-replicas` deletes the retired `trader-trainer-hpa` before the overlay is applied (apply never prunes).
+3. `deploy-release.sh release-replicas` deletes the retired `trader-trainer-hpa` before the overlay is applied (apply never prunes). *(Removed in issue #2655: N-1 no longer has the HPA; delete it by hand on an older cluster.)*
 4. The trainer has no canary, like the collector: `deploy-k8s.sh canary` copies the Deployment into a second pod, which would train beside the singleton. `deploy.yml` leaves it out of `canary-all` and `canary-cleanup`.
 5. *(Superseded by ADR-0058: the trainer is checked as a leased singleton.)* `tests/k8s/check-overlays.mjs` fails when the trainer (or the collector, ADR-0042) gets an HPA, `replicas` other than 1, a strategy other than `Recreate`, or a canary in `deploy.yml`.
 6. Several trainers need a new ADR first: partition by symbol (StatefulSet ordinal or a lease per symbol) and read the training state from a shared store.
