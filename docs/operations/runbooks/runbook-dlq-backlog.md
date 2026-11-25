@@ -12,7 +12,7 @@ dlq-service only keeps its historical MongoDB entries (readable, replayable
 and deletable through the API). There is no auto-retry any more. An entry that
 failed `DLQ_RETRY_MAX_ATTEMPTS` replays is abandoned (kept, no longer retried).
 
-- `dlq_entries_replayed_total`: entries replayed with success (`POST /dlq/replay`).
+- `dlq_entries_replayed_total`: entries replayed with success (`POST /v1/dlq-service/dlq/replay`).
 - `dlq_entries_replay_failed_total`, `dlq_collection_size`: failed replays,
   entries currently stored.
 
