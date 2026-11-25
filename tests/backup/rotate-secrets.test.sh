@@ -36,7 +36,7 @@ case " $* " in
 *" get secret "*) f="$STUB_STATE/live_$(sed -E 's/.*\{\.data\.([A-Z_]+)\}.*/\1/' <<<"$*")"; [ -f "$f" ] && cat "$f" || true ;;
 *" get service "*) echo mysql-0 ;;
 *" exec -i "*) cat >/dev/null ;;
-*" exec "*) echo "${STUB_SECONDARY:-0}" ;;
+*" exec "*) echo "${STUB_SECONDARY-0}" ;;
 *" rollout status "*) [ "${STUB_ROLLOUT_FAIL:-0}" = 0 ] ;;
 esac
 STUB
@@ -105,6 +105,17 @@ STUB_ROLLOUT_FAIL=1 run --component mysql
 [ "$RC" != 0 ] && ! calls | grep -q "DISCARD OLD" && pass "mysql: failed rollout keeps the old password" || failed "mysql rollout failure: rc=$RC"
 STUB_SECONDARY=1 run --component mysql
 [ "$RC" != 0 ] && ! calls | grep -q "RETAIN CURRENT" && [ -z "$(restarts)" ] && pass "mysql: existing secondary password refused before RETAIN" || failed "mysql guard: rc=$RC"
+for c in migrator retention; do
+	run --component "$c"
+	want="RETAIN CURRENT apply DISCARD OLD"
+	[ "$RC" = 0 ] && [ "$(steps)" = "$want" ] && calls | grep -q "ALTER USER '$c'" && pass "$c: RETAIN -> apply -> DISCARD" || failed "$c order: rc=$RC steps=$(steps)"
+	DRY_RUN=true run --component "$c"
+	[ "$RC" = 0 ] && [ -z "$(calls)" ] && pass "$c: DRY_RUN calls nothing" || failed "$c DRY_RUN: rc=$RC"
+done
+run --component exporter
+[ "$RC" = 1 ] && [ -z "$(calls)" ] && pass "exporter refused (restarts the single MySQL pod)" || failed "exporter: rc=$RC"
+STUB_SECONDARY= run --component migrator
+[ "$RC" != 0 ] && ! calls | grep -q "RETAIN CURRENT" && pass "absent MySQL user refused before RETAIN" || failed "absent user: rc=$RC"
 run --component redis
 [ "$RC" = 1 ] && [ -z "$(calls)" ] && pass "redis refused with doc pointer" || failed "redis: rc=$RC"
 
