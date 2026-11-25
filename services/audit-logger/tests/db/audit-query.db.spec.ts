@@ -18,7 +18,7 @@ import {
 	AuditRepository,
 } from "../../src/adapters/outbound/persistence/audit-repository";
 
-const NOON = Date.UTC(2026, 9, 31, 12, 0, 0);
+const NOON = Date.now() - 3_600_000;
 
 function envelope(event: {
 	id: string;
