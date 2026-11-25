@@ -22,7 +22,7 @@ echo "$*" >>"$STUB_DIR/kubectl.log"
 case "$*" in
 *cluster-info* | "auth can-i"*) ;;
 *"get secret"*) printf 'secret-key,other' | base64 ;;
-*"exec -i"*discovery-server*) cat >"$STUB_DIR/stdin"; printf '%s' "${STUB_CODE:-200}" ;;
+*"exec -i"*message-manager*) cat >"$STUB_DIR/stdin"; printf '%s' "${STUB_CODE:-200}" ;;
 *prometheus-0*"fs_candles_persisted_total"*) echo "${STUB_FRESH:-$DEFAULT_FRESH}" ;;
 *prometheus-0*ALERTS*) echo "${STUB_ALERTS:-$DEFAULT_ALERTS}" ;;
 *risk-execution*admin/status*) echo "{\"killSwitch\":{\"global\":\"${STUB_RISK_REASON:-operator}\"}}" ;;
@@ -38,7 +38,7 @@ run() { : >"$WORK/kubectl.log"; : >"$WORK/sleep.log"; bash "$DEPLOY" verify-rele
 
 echo "healthy release"
 if run; then pass "passes"; else failed "should pass"; cat "$WORK/out"; fi
-grep -q "x-api-key: secret-key" "$WORK/stdin" && pass "first gateway key sent on stdin" || failed "key not sent"
+grep -qx "secret-key" "$WORK/stdin" && pass "first gateway key sent on stdin" || failed "key not sent"
 grep -q "secret-key" "$WORK/kubectl.log" && failed "key on a command line" || pass "key not on a command line"
 
 echo "API call fails"
@@ -72,6 +72,13 @@ grep -q "firing before the deploy, not blocking: BackupIncrementalStale{instance
 if STUB_ALERTS="$(alerts "$STALE" "$REDIS")" VERIFY_BASELINE_FILE="$WORK/baseline" run; then failed "new alert should fail"; else pass "new alert fails"; fi
 grep -q "critical alert(s) firing: RedisDown$" "$WORK/out" && pass "names only the new alert" || { failed "new alert not named alone"; cat "$WORK/out"; }
 if STUB_ALERTS="$(alerts "${STALE/x:9118/y:9118}")" VERIFY_BASELINE_FILE="$WORK/baseline" run; then failed "same alert on a new instance should fail"; else pass "same alert on a new instance fails"; fi
+# Run 45097230002: the baseline had run=incremental, the alert came back without it.
+STALE_RUN="${STALE/\"job\"/\"run\":\"incremental\",\"job\"}"
+baseline "$STALE_RUN"
+if STUB_ALERTS="$(alerts "$STALE")" VERIFY_BASELINE_FILE="$WORK/baseline" run; then pass "baseline alert without run passes"; else failed "run removed should not block"; cat "$WORK/out"; fi
+baseline "$STALE"
+if STUB_ALERTS="$(alerts "$STALE_RUN")" VERIFY_BASELINE_FILE="$WORK/baseline" run; then pass "baseline alert with run passes"; else failed "run added should not block"; cat "$WORK/out"; fi
+grep -q "firing before the deploy, not blocking: BackupIncrementalStale{instance=x:9118, job=backup-metrics}" "$WORK/out" && pass "reports it" || { failed "not reported"; cat "$WORK/out"; }
 baseline "$HB_A"
 if STUB_ALERTS="$(alerts "$HB_A" "$HB_B")" VERIFY_BASELINE_FILE="$WORK/baseline" run; then failed "same name, other label should fail"; else pass "same name, other label fails"; fi
 grep -q "critical alert(s) firing: HeartbeatStopped{service=api-gateway}$" "$WORK/out" && pass "names the other-label alert" || { failed "other-label alert not named"; cat "$WORK/out"; }

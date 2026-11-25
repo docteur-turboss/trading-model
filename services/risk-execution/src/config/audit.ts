@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { HELPER } from "@trading-model/broker-message";
-import { createMessageManager } from "@trading-model/broker-message/create-message-manager";
+import {
+	busJournalFromEnv,
+	createMessageManager,
+} from "@trading-model/broker-message/create-message-manager";
 import { parseServiceName } from "@trading-model/common/config/services.types";
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
@@ -30,8 +33,8 @@ let messageManager: MessageManager | undefined;
 
 /** Built on first use: the broker client loads the SVID. */
 function _messageManager(): MessageManager {
-	// No journal: the Redis user of the service only publishes through message-manager.
 	messageManager ??= createMessageManager({
+		journal: busJournalFromEnv(ENV),
 		addressManagerClient: AddressManager,
 		tlsPaths: buildTlsFromEnv(ENV),
 		instanceId: InstanceId.of(ENV.INSTANCE_ID),

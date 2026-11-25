@@ -52,7 +52,7 @@ spec:
           type: RuntimeDefault
       initContainers:
         - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+          image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
           imagePullPolicy: IfNotPresent
           restartPolicy: Always
           startupProbe:
@@ -103,6 +103,16 @@ spec:
           env:
             - name: NODE_OPTIONS
               value: --max-old-space-size=192
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_RISK_EXECUTION_PASSWORD
+            - name: REDIS_SENTINEL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: REDIS_INTERNAL_PASSWORD
             - name: INSTANCE_ID
               valueFrom:
                 fieldRef:
@@ -119,6 +129,9 @@ spec:
               mountPath: /run/spire/svid
             - name: tmp
               mountPath: /tmp
+            - name: redis-tls
+              mountPath: /etc/redis-tls
+              readOnly: true
             - name: state
               mountPath: /data/risk-execution
             - name: trainer-models
@@ -127,40 +140,31 @@ spec:
           livenessProbe:
             exec:
               command:
-                - curl
-                - -skf
-                - --cert
-                - /run/spire/svid/svid.pem
-                - --key
-                - /run/spire/svid/svid_key.pem
+                - node
+                - -e
+                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
                 - https://localhost:3000/ping
             initialDelaySeconds: 20
             periodSeconds: 15
-            timeoutSeconds: 5
+            timeoutSeconds: 10
             failureThreshold: 3
           readinessProbe:
             exec:
               command:
-                - curl
-                - -skf
-                - --cert
-                - /run/spire/svid/svid.pem
-                - --key
-                - /run/spire/svid/svid_key.pem
+                - node
+                - -e
+                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
                 - https://localhost:3000/health/ready
             initialDelaySeconds: 10
             periodSeconds: 10
-            timeoutSeconds: 3
+            timeoutSeconds: 10
             successThreshold: 1
           startupProbe:
             exec:
               command:
-                - curl
-                - -skf
-                - --cert
-                - /run/spire/svid/svid.pem
-                - --key
-                - /run/spire/svid/svid_key.pem
+                - node
+                - -e
+                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
                 - https://localhost:3000/ping
             initialDelaySeconds: 30
             periodSeconds: 5
@@ -186,6 +190,12 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
+        - name: redis-tls
+          secret:
+            secretName: redis-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
         - name: state
           persistentVolumeClaim:
             claimName: risk-execution-pvc
@@ -230,11 +240,15 @@ spec:
         - port: 3000
           protocol: TCP
   egress:
-    # discovery-server and trader-trainer (HTTPS on 3000).
+    # trader-trainer (HTTPS on 3000), Redis and its sentinels (bus, ADR-0073).
     - to:
         - podSelector: {}
       ports:
         - port: 3000
+          protocol: TCP
+        - port: 6379
+          protocol: TCP
+        - port: 26379
           protocol: TCP
 ---
 apiVersion: v1

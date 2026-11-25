@@ -71,7 +71,7 @@ spec:
               app.kubernetes.io/component: edge-proxy
       initContainers:
         - name: spiffe-helper
-          image: ghcr.io/spiffe/spiffe-helper:0.10.1@sha256:2402c34d83794aa24c127baa46e9732d653463f3bfcd39cda1313003ed60f8c9
+          image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
           imagePullPolicy: IfNotPresent
           restartPolicy: Always
           startupProbe:
@@ -102,7 +102,7 @@ spec:
               type: RuntimeDefault
       containers:
         - name: edge-proxy
-          image: nginx:1.31.8-alpine@sha256:fed7e14be83cbd2661a75cdc5b872d936cf155d46c327084d30b8df19ae88d72  # nginx 1.31.8-alpine
+          image: nginx:1.31.9-alpine@sha256:fb4658584bd9a916ffb6f6e365f97c25cfdb2923801f551ea08356e695f14ff7  # nginx 1.31.9-alpine
           imagePullPolicy: IfNotPresent
           # nginx reads proxy_ssl_trusted_certificate (the SPIRE bundle) once, at
           # start: after a CA change (ADR-0065) it would reject the gateway until

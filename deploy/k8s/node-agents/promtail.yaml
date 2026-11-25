@@ -128,7 +128,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: promtail
-          image: grafana/promtail:3.1.0@sha256:b3db8e7b1cba0e8c45ce2ae72ebddfd88ebdcae86383f1680edf0074e9010ff6
+          image: grafana/promtail:3.6.8@sha256:6cfa64ec432b24a912d640e2edb940eeae2666f61861a66c121d763dd7241381
           args:
             - "-config.file=/etc/promtail/promtail.yml"
             - "-config.expand-env=true"

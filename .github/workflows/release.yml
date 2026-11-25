@@ -2,7 +2,7 @@
 #  release.yml — Build & push Docker images on version tag
 #  Triggers on push of tags vX.Y.Z (e.g. v2.0.3, or v2.1.0-rc.1).
 #  Runs the whole CI first (ci.yml) on the tagged commit: no image is pushed
-#  unless every gate passes. Then builds the 7 service images + the tooling
+#  unless every gate passes. Then builds the service images + the tooling
 #  images (spire-tools, the K8s SPIRE entry reconciler; backup-tools, the
 #  db-backup CronJob) and pushes each as :X.Y.Z (no leading v).
 #  :latest moves to the release only when it is the highest stable version:
@@ -26,11 +26,12 @@ permissions:
 
 jobs:
   version:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       tag: ${{ steps.version.outputs.tag }}
       latest: ${{ steps.version.outputs.latest }}
       registry: ${{ steps.version.outputs.registry }}
+      scan_tag: ${{ steps.version.outputs.scan_tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -62,6 +63,7 @@ jobs:
           {
             echo "tag=$version"
             echo "latest=$latest"
+            echo "scan_tag=scan-$GITHUB_RUN_ID"
             echo "registry=${registry,,}"
           } >> "$GITHUB_OUTPUT"
           echo "Release $version to ${registry,,} (latest: $latest)"
@@ -72,12 +74,13 @@ jobs:
     permissions:
       contents: read
       packages: read
+      pull-requests: read # asked by the ci.yml lint job (PR title step, skipped on a tag push)
 
   # No `environment:` here, on purpose: it would create the environment
   # unprotected. Reading the settings needs ENVIRONMENT_READ_TOKEN
   # (fine-grained PAT, "Administration: read"); without it the check fails.
   check-environment:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -96,7 +99,7 @@ jobs:
   # The only approval point of a release: publication and signature depend on it (ADR-0038).
   approve:
     needs: [version, ci, check-environment]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 1440
     environment: release
     steps:
@@ -104,14 +107,14 @@ jobs:
 
   scan-services:
     needs: [version, approve]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
+      packages: write
     strategy:
       fail-fast: false
       matrix:
         service:
-          - discovery-server
           - message-manager
           - financial-scraper
           - trader-trainer
@@ -125,13 +128,30 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta (labels)
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ needs.version.outputs.registry }}/${{ matrix.service }}
+          tags: type=raw,value=${{ needs.version.outputs.scan_tag }}
+
       # Gate before publication: a fixable CRITICAL or HIGH vulnerability stops the job
-      # before the image is pushed. Exceptions: .trivyignore.yaml (ADR-0038).
-      - name: Build for scan
+      # before the image is promoted to its release tag. Exceptions: .trivyignore.yaml (ADR-0038).
+      - name: Build and push under the scan tag
+        id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -139,22 +159,27 @@ jobs:
           build-args: |
             BUILD_VERSION=${{ needs.version.outputs.tag }}
             GIT_SHA=${{ github.sha }}
-          load: true
-          tags: ${{ needs.version.outputs.registry }}/${{ matrix.service }}:${{ needs.version.outputs.tag }}
+          push: true
+          sbom: true
+          provenance: mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           # No GHA cache: a push to main could have planted layers in its scope (ADR-0038).
 
       - name: Scan image (Trivy)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         env:
           TRIVY_IGNOREFILE: .trivyignore.yaml
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         with:
-          image-ref: ${{ needs.version.outputs.registry }}/${{ matrix.service }}:${{ needs.version.outputs.tag }}
+          image-ref: ${{ needs.version.outputs.registry }}/${{ matrix.service }}@${{ steps.build.outputs.digest }}
           severity: CRITICAL,HIGH
           # Unfixed CVEs cannot be remedied by a rebuild: block only on those with a fix.
           ignore-unfixed: true
           exit-code: "1"
 
-  # Tooling images, scanned before any push:
+  # Tooling images, built once, pushed under a scan tag and scanned by digest:
   # spire-tools (deploy/spire): spire-server binary + registration scripts (the
   # official SPIRE images have no shell), used by the spire-entries sidecar.
   # backup-tools (deploy/backup): kubectl + age + rclone + mysqlbinlog for the db-backup
@@ -162,9 +187,10 @@ jobs:
   # db-migrate (deploy/migrate): migrate.mjs + migrations + locked mysql2 for the db-migrate Jobs.
   scan-tools:
     needs: [version, approve]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
+      packages: write
     strategy:
       matrix:
         include:
@@ -181,166 +207,69 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta (labels)
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ needs.version.outputs.registry }}/${{ matrix.image }}
+          tags: type=raw,value=${{ needs.version.outputs.scan_tag }}
+
       # Gate before publication: a fixable CRITICAL or HIGH vulnerability stops the job
-      # before the image is pushed. Exceptions: .trivyignore.yaml (ADR-0038).
-      - name: Build for scan
+      # before the image is promoted to its release tag. Exceptions: .trivyignore.yaml (ADR-0038).
+      - name: Build and push under the scan tag
+        id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
           target: ${{ matrix.target }}
-          load: true
-          tags: ${{ needs.version.outputs.registry }}/${{ matrix.image }}:${{ needs.version.outputs.tag }}
+          push: true
+          sbom: true
+          provenance: mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           # No GHA cache: a cached `microdnf upgrade` layer would hide distro fixes published since.
 
       - name: Scan image (Trivy)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         env:
           TRIVY_IGNOREFILE: .trivyignore.yaml
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         with:
-          image-ref: ${{ needs.version.outputs.registry }}/${{ matrix.image }}:${{ needs.version.outputs.tag }}
+          image-ref: ${{ needs.version.outputs.registry }}/${{ matrix.image }}@${{ steps.build.outputs.digest }}
           severity: CRITICAL,HIGH
           # Unfixed CVEs cannot be remedied by a rebuild: block only on those with a fix.
           ignore-unfixed: true
           exit-code: "1"
 
-  # Push only after every scan (services and tools) passed: a failed scan leaves no image
-  # under the tag. The images are rebuilt from the same inputs, without cache (ADR-0038).
-  build-and-push:
-    needs: [version, approve, scan-services, scan-tools]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        service:
-          - discovery-server
-          - message-manager
-          - financial-scraper
-          - trader-trainer
-          - api-gateway
-          - audit-logger
-          - dlq-service
-          - model-evaluator
-          - risk-execution
-          - decision-consumer
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Docker meta (version + latest)
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ${{ needs.version.outputs.registry }}/${{ matrix.service }}
-          flavor: latest=false
-          tags: |
-            type=raw,value=${{ needs.version.outputs.tag }}
-            type=raw,value=latest,enable=${{ needs.version.outputs.latest }}
-
-      - name: Build and push
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          file: services/${{ matrix.service }}/Dockerfile
-          build-args: |
-            BUILD_VERSION=${{ needs.version.outputs.tag }}
-            GIT_SHA=${{ github.sha }}
-          push: true
-          sbom: true
-          provenance: mode=max
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-  build-tools:
-    needs: [version, approve, scan-services, scan-tools]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      matrix:
-        include:
-          - image: spire-tools
-            context: deploy/spire
-            target: bootstrap
-          - image: backup-tools
-            context: deploy/backup
-            target: ""
-          - image: db-migrate
-            context: .
-            file: deploy/migrate/Dockerfile
-            target: ""
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Docker meta (version + latest)
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ${{ needs.version.outputs.registry }}/${{ matrix.image }}
-          flavor: latest=false
-          tags: |
-            type=raw,value=${{ needs.version.outputs.tag }}
-            type=raw,value=latest,enable=${{ needs.version.outputs.latest }}
-
-      - name: Build and push
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.file }}
-          target: ${{ matrix.target }}
-          push: true
-          sbom: true
-          provenance: mode=max
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-  # Keyless signature of every pushed digest (ADR-0038). id-token lives here
+  # Promotes the scanned digest to X.Y.Z (and latest) only once every scan passed, then
+  # signs that same digest (ADR-0038). id-token lives here
   # only; deploy.yml verifies the identity of this workflow.
   sign:
-    needs: [version, approve, build-and-push, build-tools]
-    runs-on: ubuntu-latest
+    needs: [version, approve, scan-services, scan-tools]
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
       id-token: write
     strategy:
+      fail-fast: false
       matrix:
         image:
-          - discovery-server
           - message-manager
           - financial-scraper
           - trader-trainer
@@ -364,21 +293,26 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Sign digest
+      - name: Promote the scanned digest and sign it
         shell: bash
         env:
           REF: ${{ needs.version.outputs.registry }}/${{ matrix.image }}
           TAG: ${{ needs.version.outputs.tag }}
+          SCAN_TAG: ${{ needs.version.outputs.scan_tag }}
+          LATEST: ${{ needs.version.outputs.latest }}
         run: |
-          digest=$(docker buildx imagetools inspect "$REF:$TAG" --format '{{.Manifest.Digest}}')
+          digest=$(docker buildx imagetools inspect "$REF:$SCAN_TAG" --format '{{.Manifest.Digest}}')
+          tags=(-t "$REF:$TAG")
+          [ "$LATEST" = true ] && tags+=(-t "$REF:latest")
+          docker buildx imagetools create "${tags[@]}" "$REF@$digest"
           cosign sign --yes "$REF@$digest"
 
   # Proves the release is deployable: every image deploy.yml resolves (its env
   # IMAGES, read here so the two lists cannot drift) must exist under the path
   # deploy.yml reads, <registry>/<image>:X.Y.Z. Read-only: publishes nothing.
   verify-images:
-    needs: [version, build-and-push, build-tools]
-    runs-on: ubuntu-latest
+    needs: [version, sign]
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: read

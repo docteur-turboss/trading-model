@@ -42,6 +42,9 @@
 #       API server (300s); forgets the recorded revisions on success.
 #   deploy-release.sh forget <namespace>
 #       Deletes configmap/deploy-revisions: the release deployed.
+#   deploy-release.sh pre-migrate-backup <namespace> <job> <environment>
+#       MySQL dump from the db-backup CronJob before the migrations, waited for
+#       (fails on a failed dump). Outside production: no off-site copy, own metrics file.
 #
 # GRAFANA_ALLOWED_CIDRS: comma-separated CIDRs; `render` sets them as whitelist-source-range of grafana-ingress (issue #1630).
 # DEPLOY_TIMEOUT_FACTOR: integer the wait and rollback timeouts are multiplied
@@ -95,7 +98,7 @@ redis_last() {
 }
 
 usage() {
-	echo "usage: $0 without-redis <ns> | redis-last <ns> | record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | dry-run <ns> <node-agents-dir> | wait <ns> [timeout] | rollback <ns> <file> | forget <ns>" >&2
+	echo "usage: $0 without-redis <ns> | redis-last <ns> | record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | dry-run <ns> <node-agents-dir> | wait <ns> [timeout] | rollback <ns> <file> | forget <ns> | pre-migrate-backup <ns> <job> <env>" >&2
 	exit 64
 }
 
@@ -132,6 +135,10 @@ record() {
 
 forget() {
 	kubectl delete configmap "$REVISIONS_CM" -n "$1" --ignore-not-found
+	# discovery-server (retired, ADR-0072): the apply no longer carries it. Removed only after a
+	# good release: pods of release N need it to be Ready, so a rollback to N must still find it.
+	kubectl delete deployment/discovery-server service/discovery-server hpa/discovery-server-hpa pdb/discovery-server-pdb networkpolicy/discovery-server-network-policy serviceaccount/discovery-server -n "$1" --ignore-not-found
+	kubectl delete vpa/discovery-server-vpa -n "$1" --ignore-not-found 2>/dev/null || true
 }
 
 # Deployments driven by an HPA carry no spec.replicas in the overlay. A
@@ -142,12 +149,6 @@ forget() {
 # and on a first deploy (no HPA yet).
 release_replicas() {
 	local ns="$1" ann='kubectl.kubernetes.io/last-applied-configuration' dep last
-	# Retired HPAs: apply never prunes, and a live one would keep scaling its
-	# Deployment. trader-trainer is a singleton (ADR-0044, issue #501);
-	# audit-logger runs 2 fixed pods (one lease holder writes, issue #1395).
-	kubectl delete hpa/trader-trainer-hpa hpa/audit-logger-hpa -n "$ns" --ignore-not-found
-	# Retired redis-cert-cache (unused, unauthenticated; issue #1993).
-	kubectl delete deployment/redis-cert-cache service/redis-cert -n "$ns" --ignore-not-found
 	# A Job's pod template is immutable: apply fails on a finished init Job
 	# whose template changed (labels, issues #727 and #771). All are idempotent and
 	# run again from the overlay.
@@ -305,39 +306,6 @@ wait_rollout() {
 	done
 }
 
-# Back to the revision recorded before the overlay: its pod template names
-# the image digest and the hashed ConfigMaps of release N, which are still in
-# the namespace (never pruned), so configuration comes back with the image
-# (issue #410). Only Deployments and the Redis StatefulSets (first in the
-# file) are rolled back: docs/deployment/DEPLOY.md lists what is not. Every deployment is tried: one without a previous
-# revision (first deploy) must not leave the others on the failed release.
-# Every undo is issued before any wait, as apply does: a Redis server rolled
-# back alone restarts while the sentinels still name its old pod IP, waits for
-# that dead master and fails its startup probe (PR #579).
-# Release N makes MySQL refuse plain connections (require_secure_transport=ON,
-# users bound to a client certificate, issue #767). The mysql StatefulSet is
-# not rolled back, so pods of release N-1 (plain, no certificate) would never
-# turn ready (readiness runs SELECT 1): lift both through the local socket,
-# which TLS rules do not touch, before the undo. A mysqld restart re-applies
-# the ON of mysql.cnf; the next deploy binds the users again.
-# Only `scraper` (financial-scraper and its collector, the Deployments that
-# come back to N-1) is released: `exporter` (sidecar of the mysql pod) and
-# `retention` (CronJob) are not rolled back and keep their certificate, `migrator`
-# only runs in release N Jobs, and no N-1 pod connects as root over the network.
-relax_mysql() {
-	local ns="$1" pod
-	# Not the label alone: Job pods carry it too (no mysql container).
-	for pod in $(kubectl get pods -n "$ns" -l app.kubernetes.io/component=mysql -o name | grep -E "/mysql-[0-9]+$"); do
-		kubectl exec -n "$ns" "$pod" -c mysql -- sh -c '
-			m() { MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N -e "$1"; }
-			m "SET GLOBAL require_secure_transport=OFF"
-			# Only the writable member can alter users (replicated to the others).
-			if [ "$(m "SELECT @@super_read_only")" = 0 ]; then
-				m "ALTER USER IF EXISTS \"scraper\"@\"%\" REQUIRE NONE"
-			fi' || return 1
-	done
-}
-
 # An OrderedReady StatefulSet waits for a pod of the failed revision to turn
 # ready before replacing it, which a stuck pod never does (Kubernetes "forced
 # rollback"). Once the controller has seen the undo, delete the pods that are
@@ -368,6 +336,15 @@ resync_last_applied() {
 	[ -z "$new" ] || kubectl annotate deployment "$dep" -n "$ns" --overwrite "$ann=$new"
 }
 
+# Back to the revision recorded before the overlay: its pod template names
+# the image digest and the hashed ConfigMaps of release N, which are still in
+# the namespace (never pruned), so configuration comes back with the image
+# (issue #410). Only Deployments and the Redis StatefulSets (first in the
+# file) are rolled back: docs/deployment/DEPLOY.md lists what is not. Every deployment is tried: one without a previous
+# revision (first deploy) must not leave the others on the failed release.
+# Every undo is issued before any wait, as apply does: a Redis server rolled
+# back alone restarts while the sentinels still name its old pod IP, waits for
+# that dead master and fails its startup probe (PR #579).
 rollback() {
 	local ns="$1" file="$2" dep rev failed=0 target entry undone=() waited=0
 	# The apply may have failed because the API server went down (run 43665338171): wait for it.
@@ -379,12 +356,6 @@ rollback() {
 		sleep 10
 		waited=$((waited + 10))
 	done
-	if relax_mysql "$ns"; then
-		echo "::warning::MySQL TLS relaxed by the rollback: redeploy release N to restore it (alert MySQLSecureTransportOff)"
-	else
-		echo "::error::Could not lift the MySQL TLS requirement: pods of the previous release cannot connect"
-		failed=1
-	fi
 	while read -r dep rev; do
 		target="$dep"
 		[[ $dep == */* ]] || target="deployment/$dep"
@@ -423,8 +394,39 @@ rollback() {
 	return "$failed"
 }
 
+# A destructive migration cannot be undone by migrate-down or the rollback: this dump is the restore point.
+# The Job runs the CronJob template of release N-1 (not applied yet): outside production its off-site
+# copy may not work with this cluster's store (region fix of #2336, issue #2724), so it stays local.
+pre_migrate_backup() {
+	local ns="$1" job="$2" env="$3" filter=.
+	if ! kubectl get statefulset mysql -n "$ns" >/dev/null 2>&1; then
+		echo "First deploy: MySQL not there yet, no backup"
+		return 0
+	fi
+	# The job needs the age recipients and the off-site Secret (BACKUP_REQUIRE_*): production
+	# was checked before; elsewhere a missing one skips the backup instead of blocking the deploy.
+	if [ "$env" != production ] && ! { kubectl get configmap backup-encryption -n "$ns" &&
+		kubectl get secret trading-model-backup-s3 -n "$ns"; } >/dev/null 2>&1; then
+		echo "::warning::$env has no backup-encryption ConfigMap or trading-model-backup-s3 Secret: pre-migration backup skipped"
+		return 0
+	fi
+	# An env entry wins over envFrom; METRICS_FILE keeps the daily job's metrics.
+	[ "$env" = production ] || filter='{BACKUP_S3_BUCKET: "", BACKUP_REQUIRE_OFFSITE: "false", METRICS_FILE: "/tmp/premigrate.prom"} as $o
+		| .spec.template.spec.containers |= map(if .name == "backup"
+			then .env = [(.env // [])[] | select($o[.name] == null)] + [$o | to_entries[] | {name: .key, value}] else . end)'
+	kubectl create job "$job" --from=cronjob/db-backup -n "$ns" --dry-run=client -o json |
+		sed 's/--components [a-z,]*/--components mysql/' | jq "$filter" |
+		kubectl apply -n "$ns" -f - || return 1
+	bash "$(dirname "$0")/wait-job.sh" "$ns" "$job" 1800 || return 1
+	{
+		echo "MySQL backup finished at $(date -u +%Y-%m-%dT%H:%M:%SZ) (job $job): restore point for restore-k8s.sh --until"
+		[ "$env" = production ] || echo "$env: this restore point is local only (volume backup-data), not copied off-site"
+	} >>"${GITHUB_STEP_SUMMARY:-/dev/null}"
+}
+
 case "${1:-}" in
 deployments) echo $DEPLOYMENTS ;;
+pre-migrate-backup) [ $# -eq 4 ] || usage; pre_migrate_backup "$2" "$3" "$4" ;;
 record) [ $# -eq 3 ] || usage; record "$2" "$3" ;;
 release-replicas) [ $# -eq 2 ] || usage; release_replicas "$2" ;;
 render) [ $# -ge 4 ] && [ $# -le 5 ] || usage; render "$2" "$3" "$4" "${5:-}" ;;

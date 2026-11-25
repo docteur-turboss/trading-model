@@ -29,6 +29,7 @@ function _quarterCpu(_match, indent, value, unit) {
 	return `${indent}cpu: ${Math.max(1, Math.round(millis / 4))}m`;
 }
 
+// CI_RENDER_SCOPES: release N-1 predates the risk:admin scope and refuses it.
 // Public test values, for the throwaway kind cluster only (run-kind.sh API_KEY).
 const TEST_SECRET = `apiVersion: v1
 kind: Secret
@@ -39,7 +40,7 @@ metadata:
     app.kubernetes.io/part-of: trading-model
 type: Opaque
 stringData:
-  AUTH_TOKENS: dev:read+dlq:write:dev-token-0123456789abcdef0123456789abcdef
+  AUTH_TOKENS: dev:${process.env.CI_RENDER_SCOPES ?? "read+dlq:write+risk:admin"}:dev-token-0123456789abcdef0123456789abcdef
   SIGNING_SECRET: dev-signing-0123456789abcdef0123456789abcdef
   SERVICE_BOOTSTRAP_TOKEN: dev-bootstrap-change-me
   MYSQL_ROOT_PASSWORD: dev-mysql-root
@@ -58,6 +59,8 @@ stringData:
   REDIS_AUDIT_LOGGER_PASSWORD: dev-redis-audit-logger-password
   REDIS_TRADER_TRAINER_PASSWORD: dev-redis-trader-trainer-password
   REDIS_MODEL_EVALUATOR_PASSWORD: dev-redis-model-evaluator-password
+  REDIS_RISK_EXECUTION_PASSWORD: dev-redis-risk-execution-password
+  REDIS_DECISION_CONSUMER_PASSWORD: dev-redis-decision-consumer-password
   REDIS_EXPORTER_PASSWORD: dev-redis-exporter-password
   MONGO_ROOT_PASSWORD: dev-mongo-root-password
   MONGO_EXPORTER_PASSWORD: dev-mongo-exporter-password

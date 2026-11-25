@@ -47,10 +47,9 @@ trading-model/
 │   ├── validation/           # Zod schemas, DTOs, env validation
 │   ├── crypto/               # Hashing, signature, crypto primitives
 │   ├── jobs/                 # Worker protocol, orphan recovery
-│   ├── address-manager/      # Service discovery client
+│   ├── address-manager/      # DNS service resolution client
 │   └── broker-message/       # Message bus protocol types
 ├── services/     # microservices (kebab-case directory names)
-│   ├── discovery-server/
 │   ├── message-manager/
 │   ├── financial-scraper/
 │   ├── trader-trainer/      # bun name: trader-trainer
@@ -66,7 +65,7 @@ trading-model/
 
 | Element               | Convention           | Example                |
 | --------------------- | -------------------- | ---------------------- |
-| Directories           | kebab-case           | `discovery-server/`    |
+| Directories           | kebab-case           | `message-manager/`     |
 | Files                 | kebab-case           | `address-manager.ts`   |
 | Classes & Types       | PascalCase           | `class AddressManager` |
 | Variables & Functions | camelCase            | `const addressManager` |

@@ -35,7 +35,6 @@ import { WORKSPACE_ROOTS, walk as walkFiles } from "./lib/fs.mjs";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const SERVICES = [
-  "discovery-server",
   "message-manager",
   "financial-scraper",
   "trader-trainer",
@@ -406,8 +405,16 @@ let allEmitted = new Set(); // emitted metrics + recording rules, reused by chec
   const composeServices = new Set(
     Object.keys(Bun.YAML.parse(readFileSync(join(ROOT, "docker-compose.yml"), "utf-8")).services ?? {})
   );
-  const composeDatasources = Bun.YAML.parse(readFileSync(join(ROOT, "observability", "grafana-datasources.yml"), "utf-8")).datasources ?? [];
-  for (const ds of composeDatasources) {
+  // A datasource that gains a uid is not found by that uid in an existing Grafana database: it must be deleted and recreated (#2414).
+  const checkUidDeleted = (file, parsed) => {
+    const deleted = new Set((parsed.deleteDatasources ?? []).map((d) => d.name));
+    for (const ds of parsed.datasources ?? []) {
+      if (ds.uid && !deleted.has(ds.name)) errors.push(`Datasource ${ds.name} (${file}): has a uid but is missing from deleteDatasources`);
+    }
+  };
+  const composeProvisioning = Bun.YAML.parse(readFileSync(join(ROOT, "observability", "grafana-datasources.yml"), "utf-8"));
+  checkUidDeleted("observability/grafana-datasources.yml", composeProvisioning);
+  for (const ds of composeProvisioning.datasources ?? []) {
     if (!composeServices.has(hostOf(ds.url))) {
       errors.push(`Datasource ${ds.name} (observability/grafana-datasources.yml): ${ds.url} names no service of docker-compose.yml`);
     }
@@ -419,7 +426,9 @@ let allEmitted = new Set(); // emitted metrics + recording rules, reused by chec
       if (parsed?.kind === "Service") k8sServices.add(parsed.metadata?.name);
     }
   }
-  for (const ds of Bun.YAML.parse(k8sConfigFile("datasources.yml")).datasources ?? []) {
+  const k8sProvisioning = Bun.YAML.parse(k8sConfigFile("datasources.yml"));
+  checkUidDeleted("deploy/k8s/infra/config/datasources.yml", k8sProvisioning);
+  for (const ds of k8sProvisioning.datasources ?? []) {
     if (!k8sServices.has(hostOf(ds.url))) {
       errors.push(`Datasource ${ds.name} (deploy/k8s/infra/config/datasources.yml): ${ds.url} names no Service of deploy/k8s/infra`);
     }

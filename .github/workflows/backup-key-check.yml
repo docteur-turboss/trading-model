@@ -27,7 +27,7 @@ on:
         description: 'Components (weekly/monthly tiers: mongodb-audit,mysql-core)'
         required: false
         type: string
-        default: 'mongodb,mongodb-audit,mysql,checkpoints,spire'
+        default: 'mongodb,mongodb-audit,mysql,checkpoints,spire,risk'
 
 permissions:
   contents: read
@@ -41,7 +41,7 @@ jobs:
   # unprotected. Reading the settings needs ENVIRONMENT_READ_TOKEN
   # (fine-grained PAT, "Administration: read"); without it the check fails.
   check-environment:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -71,7 +71,7 @@ jobs:
   # label (issue #1135). That runner has no Docker: the tools go on it.
   verify-escrow-key:
     needs: check-environment
-    runs-on: ${{ vars.BACKUP_KEY_CHECK_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ vars.BACKUP_KEY_CHECK_RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 60
     environment: backup-key-check
     env:
@@ -105,7 +105,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_READ_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_READ_SECRET_ACCESS_KEY }}
           TIER: ${{ inputs.tier }}
-          COMPONENTS: ${{ inputs.components || 'mongodb,mongodb-audit,mysql,checkpoints,spire' }}
+          COMPONENTS: ${{ inputs.components || 'mongodb,mongodb-audit,mysql,checkpoints,spire,risk' }}
         run: |
           missing=()
           [ -n "$BACKUP_ESCROW_AGE_IDENTITY" ] || missing+=(secret BACKUP_ESCROW_AGE_IDENTITY)

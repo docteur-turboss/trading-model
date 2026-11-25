@@ -31,11 +31,6 @@ x-logging: &default-logging
 
 x-message-env: &message-env
   <<: *core-env
-  CACHE_TTL_MS: '30000'
-  SERVICE_PING_TIMEOUT_MS: '2000'
-  TOKEN_REFRESH_INTERVAL_MS: '60000'
-  TTL_REFRESH_INTERVAL_MS: '15000'
-  ADDRESS_MANAGER_URL: https://discovery-server:3000
   MESSAGE_CALLBACK_PATH: message
 
 services:
@@ -44,7 +39,7 @@ services:
   # ---------------------------------------------------------------------------
   mongo:
     logging: *default-logging
-    image: mongo:7.0.45@sha256:8bb4442761a63a8dda452744082cdac9644b429807eb977b42324a63cef59ca4
+    image: mongo:7.0.48@sha256:41e8195b2791692695e1dc9bd21cd51d0a3af05fff8ace9304a5c1acf94f1ae1
     container_name: trading-mongo
     stop_grace_period: 2m
     restart: unless-stopped
@@ -72,7 +67,7 @@ services:
   # Jobs mongo-*-users). Idempotent: runs at every `up`.
   mongo-users:
     logging: *default-logging
-    image: mongo:7.0.45@sha256:8bb4442761a63a8dda452744082cdac9644b429807eb977b42324a63cef59ca4
+    image: mongo:7.0.48@sha256:41e8195b2791692695e1dc9bd21cd51d0a3af05fff8ace9304a5c1acf94f1ae1
     container_name: trading-mongo-users
     restart: "no"
     command: mongosh --quiet mongo:27017/admin --file /scripts/users.js
@@ -93,7 +88,7 @@ services:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------
-  #  Redis — discovery registry, message-manager subscriptions, dlq-service
+  #  Redis — message-manager journal, dlq-service
   #  queues (single node for dev/E2E)
   # ---------------------------------------------------------------------------
   redis:
@@ -205,39 +200,6 @@ services:
         condition: service_completed_successfully
 
   # ---------------------------------------------------------------------------
-  #  Discovery Server — Service registry & lease management
-  # ---------------------------------------------------------------------------
-  discovery-server:
-    logging: *default-logging
-    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/discovery-server:${IMAGE_TAG:-latest}
-    container_name: trading-discovery
-    restart: unless-stopped
-    mem_limit: 256m
-    ports:
-      - '127.0.0.1:${DISCOVERY_PORT:-8443}:3000'
-    environment:
-      <<: *core-env
-      SERVICE_NAME: discovery-server
-      CLEANUP_SERVICE_INTERVAL_MS: '600000'
-      # Signs the instance tokens kept in Redis: stable across restarts.
-      # Required with NODE_ENV=production (discovery refuses to start).
-      SIGNING_SECRET: ${SIGNING_SECRET:-}
-    volumes:
-      - svid-discovery:/run/spire/svid
-    networks:
-      - backend-net
-    depends_on:
-      spiffe-helper-discovery:
-        condition: service_started
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
-      interval: 15s
-      timeout: 5s
-      retries: 3
-
-  # ---------------------------------------------------------------------------
   #  SPIRE Server — workload identity issuance (ADR-0011)
   # ---------------------------------------------------------------------------
   spire-server:
@@ -333,9 +295,8 @@ services:
       APP_VERSION: ${APP_VERSION:-1.3.0}
       SERVICE_NAME: message-manager
       INSTANCE_ID: message-manager-1
-    # Leaves discovery, waits CACHE_TTL_MS (30 s), then lets in-flight
-    # publishes (PUBLISH_ACCEPT_TIMEOUT_MS) and deliveries finish: see
-    # application/index.ts. Undelivered messages stay in the Redis journal.
+    # Lets in-flight publishes (PUBLISH_ACCEPT_TIMEOUT_MS) and deliveries
+    # finish: see application/index.ts. Undelivered messages stay in the Redis journal.
     stop_grace_period: 2m
     volumes:
       - svid-message:/run/spire/svid
@@ -343,7 +304,7 @@ services:
       - backend-net
       - data-net
     healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -351,8 +312,6 @@ services:
       spiffe-helper-message:
         condition: service_started
       redis:
-        condition: service_healthy
-      discovery-server:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------
@@ -408,12 +367,10 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-      discovery-server:
-        condition: service_healthy
       message-manager:
         condition: service_healthy
     healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -470,15 +427,13 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
     depends_on:
       spiffe-helper-trainer:
         condition: service_started
-      discovery-server:
-        condition: service_healthy
       message-manager:
         condition: service_healthy
 
@@ -510,7 +465,7 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -546,7 +501,7 @@ services:
       - backend-net
       - data-net
     healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -555,8 +510,6 @@ services:
         condition: service_started
       mongo-users:
         condition: service_completed_successfully
-      discovery-server:
-        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  Model Evaluator — offline evaluation of published models (ADR-0049, no order flow)
@@ -586,15 +539,13 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
     depends_on:
       spiffe-helper-evaluator:
         condition: service_started
-      discovery-server:
-        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  Risk/Execution — order flow owner of ADR-0064 (simulated broker, paper only)
@@ -613,6 +564,7 @@ services:
       APP_NAME: risk-execution
       APP_VERSION: ${APP_VERSION:-1.0.0}
       SERVICE_NAME: risk-execution
+      BUS_TRANSPORT: library
       INSTANCE_ID: risk-execution-1
       EXECUTION_MODE: paper
       DEPLOYMENT_ENV: development
@@ -625,15 +577,13 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
     depends_on:
       spiffe-helper-risk:
         condition: service_started
-      discovery-server:
-        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  Decision Consumer — paper decisions of the promoted models, intents to risk-execution (ADR-0049 option C, ADR-0088)
@@ -650,6 +600,7 @@ services:
       APP_NAME: decision-consumer
       APP_VERSION: ${APP_VERSION:-1.0.0}
       SERVICE_NAME: decision-consumer
+      BUS_TRANSPORT: library
       INSTANCE_ID: decision-consumer-1
       PROMOTED_MODELS: ${PROMOTED_MODELS:-}
     volumes:
@@ -657,15 +608,13 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
     depends_on:
       spiffe-helper-decision:
         condition: service_started
-      discovery-server:
-        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  DLQ Service - Dead Letter Queue management
@@ -699,7 +648,7 @@ services:
       - backend-net
       - data-net
     healthcheck:
-      test: curl -skf --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/health/ready || exit 1
+      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -708,8 +657,6 @@ services:
         condition: service_started
       mongo-users:
         condition: service_completed_successfully
-      discovery-server:
-        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  SPIFFE Helpers — spiffe-helper sidecars (ADR-0011)
@@ -719,24 +666,9 @@ services:
   #  (spiffe-helper-<suffix>, registered by spire-bootstrap). Helpers only talk
   #  to the agent socket: no network, so a service restart cannot strand them.
   # ---------------------------------------------------------------------------
-  spiffe-helper-discovery:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
-    container_name: trading-helper-discovery
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
-    volumes:
-      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
-      - spire-agent-sockets:/run/spire/agent-sockets:ro
-      - svid-discovery:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
-
   spiffe-helper-message:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
+    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
     container_name: trading-helper-message
     restart: unless-stopped
     network_mode: none
@@ -751,7 +683,7 @@ services:
 
   spiffe-helper-scraper:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
+    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
     container_name: trading-helper-scraper
     restart: unless-stopped
     network_mode: none
@@ -766,7 +698,7 @@ services:
 
   spiffe-helper-trainer:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
+    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
     container_name: trading-helper-trainer
     restart: unless-stopped
     network_mode: none
@@ -781,7 +713,7 @@ services:
 
   spiffe-helper-gateway:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
+    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
     container_name: trading-helper-gateway
     restart: unless-stopped
     network_mode: none
@@ -796,7 +728,7 @@ services:
 
   spiffe-helper-audit:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
+    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
     container_name: trading-helper-audit
     restart: unless-stopped
     network_mode: none
@@ -811,7 +743,7 @@ services:
 
   spiffe-helper-evaluator:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
+    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
     container_name: trading-helper-evaluator
     restart: unless-stopped
     network_mode: none
@@ -826,7 +758,7 @@ services:
 
   spiffe-helper-risk:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
+    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
     container_name: trading-helper-risk
     restart: unless-stopped
     network_mode: none
@@ -841,7 +773,7 @@ services:
 
   spiffe-helper-decision:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
+    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
     container_name: trading-helper-decision
     restart: unless-stopped
     network_mode: none
@@ -856,7 +788,7 @@ services:
 
   spiffe-helper-dlq:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
+    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
     container_name: trading-helper-dlq
     restart: unless-stopped
     network_mode: none
@@ -871,7 +803,7 @@ services:
 
   spiffe-helper-edge:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
+    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
     container_name: trading-helper-edge
     restart: unless-stopped
     network_mode: none
@@ -886,7 +818,7 @@ services:
 
   spiffe-helper-prometheus:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
+    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
     container_name: trading-helper-prometheus
     restart: unless-stopped
     network_mode: none
@@ -901,7 +833,7 @@ services:
 
   spiffe-helper-blackbox:
     logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.3@sha256:58f28329f6be32ab5a80248931845157d858f0aebdf7e462217a43f019e3452f
+    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
     container_name: trading-helper-blackbox
     restart: unless-stopped
     network_mode: none
@@ -921,7 +853,7 @@ services:
   # ---------------------------------------------------------------------------
   edge-proxy:
     logging: *default-logging
-    image: nginx:1.31.8-alpine@sha256:fed7e14be83cbd2661a75cdc5b872d936cf155d46c327084d30b8df19ae88d72  # nginx 1.31.8-alpine
+    image: nginx:1.31.9-alpine@sha256:fb4658584bd9a916ffb6f6e365f97c25cfdb2923801f551ea08356e695f14ff7  # nginx 1.31.9-alpine
     container_name: trading-edge
     restart: unless-stopped
     mem_limit: 128m
@@ -1048,7 +980,7 @@ services:
   # Compose Redis has no ACL (single dev node): no exporter user.
   redis-exporter:
     logging: *default-logging
-    image: oliver006/redis_exporter:v1.97.0@sha256:f5f903fbe77571d455ede0453b084d6840bc62fc105efac001034421cab83b99
+    image: oliver006/redis_exporter:v1.98.0@sha256:2b68665248d909bb25de9d175c648932a8c358ba143e5dbed1eb48f91cc9d2e1
     container_name: trading-redis-exporter
     restart: unless-stopped
     mem_limit: 128m
@@ -1198,7 +1130,7 @@ services:
   # Remaining limit: /networks lists every network of the daemon (names only).
   docker-socket-proxy:
     logging: *default-logging
-    image: nginx:1.31.8-alpine@sha256:fed7e14be83cbd2661a75cdc5b872d936cf155d46c327084d30b8df19ae88d72  # nginx 1.31.8-alpine
+    image: nginx:1.31.9-alpine@sha256:fb4658584bd9a916ffb6f6e365f97c25cfdb2923801f551ea08356e695f14ff7  # nginx 1.31.9-alpine
     container_name: trading-docker-socket-proxy
     restart: unless-stopped
     # Root to read the root-owned socket; SETGID only for nginx's worker initgroups.
@@ -1272,7 +1204,6 @@ volumes:
   spire-bootstrap:
   spire-server-sockets:
   spire-agent-sockets:
-  svid-discovery:
   svid-message:
   svid-scraper:
   svid-trainer:

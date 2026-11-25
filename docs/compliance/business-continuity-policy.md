@@ -17,7 +17,7 @@ This policy defines the Business Continuity (BC) and Disaster Recovery (DR) fram
 
 | Tier | Definition | Services | Maximum Tolerable Downtime (MTD) |
 |---|---|---|---|
-| **T1 — Critical** | Core platform function; loss immediately impacts compliance or security | spire-server, discovery-server | 15 minutes |
+| **T1 — Critical** | Core platform function; loss immediately impacts compliance or security | spire-server | 15 minutes |
 | **T2 — High** | Core business function; loss significantly impacts platform capability | message-manager, audit-logger, trader-trainer | 1 hour |
 | **T3 — Medium** | Supporting function; loss impacts operations but not compliance | financial-scraper, dlq-service, api-gateway | 4 hours |
 | **T4 — Low** | Non-critical; loss has minimal operational impact | monitoring stack | 24 hours |
@@ -26,14 +26,14 @@ This policy defines the Business Continuity (BC) and Disaster Recovery (DR) fram
 
 | Service Tier | Recovery Time Objective (RTO) | Recovery Point Objective (RPO) |
 |---|---|---|
-| **T1 — Critical** | ≤ 15 minutes | Near-zero (AOF + synchronous replication) |
+| **T1 — Critical** | ≤ 15 minutes | ≤ 24 hours (SPIRE, daily backup) |
 | **T2 — High** | ≤ 1 hour | ≤ 5 minutes |
 | **T3 — Medium** | ≤ 4 hours | ≤ 1 hour |
 | **T4 — Low** | ≤ 24 hours | ≤ 24 hours |
 
 **Two RTOs, two meanings.** The service-tier RTO above is the time to get the
 *service* running again when its data store is intact (restart, reschedule,
-failover to a replica, SVID re-issue): T1 spire-server and discovery-server
+failover to a replica, SVID re-issue): T1 spire-server
 15 minutes, T2 audit-logger, message-manager and trader-trainer 1 hour. The
 **data-store RTO** of [BACKUP_DR.md](../deployment/BACKUP_DR.md) (4 hours;
 1 hour for trained agents and the SealedSecrets controller keys) is the time to
@@ -100,42 +100,19 @@ met for its data, which is recovered to within 1 hour.
 1. **Detection:** Complete loss of platform monitoring
 2. **Response:** Infrastructure team notified via out-of-band communication
 3. **Recovery:**
-   - Infrastructure rebuild via `docker-compose up -d` or `kubectl apply -f deploy/`
+   - Infrastructure rebuild via `kubectl apply -f deploy/` (the compose stack is disposable and holds no reference data, ADR-0086)
    - Database restoration from backup (MongoDB and MySQL: latest daily dump, then the hourly oplog / binlog archives up to the last one: `restore-k8s.sh --until`)
    - SPIRE restore (datastore and CA keys, independent of MySQL since ADR-0065) or re-bootstrap (SVID re-enrolment of all workloads)
    - Service restart in dependency order
 
 ## 4. Backup Strategy
 
-### 4.1 Backup Schedule
-
-| Data | Type | Frequency | Retention | Location |
-|---|---|---|---|---|
-| SPIRE datastore + CA keys (SQLite + `keys-sqlite.json`, ADR-0065) | Online SQLite snapshot + file copy, one tar | Daily (CronJob) | 30 days local, 31 days off-site (never promoted) | `backup-data` volume + S3-compatible store (mandatory) |
-| MongoDB (dlq, audit) | `mongodump --oplog` | Daily | 30 days local, 31 days off-site; audit dump also off-site weekly 12 weeks, monthly 60 months (ADR-0032) | `backup-data` volume + S3-compatible store (mandatory) |
-| MySQL (market data) | Dump | Daily | 30 days local, 31 days off-site; also off-site weekly 12 weeks, monthly 60 months (ADR-0032) | `backup-data` volume + S3-compatible store (mandatory) |
-| MySQL binlogs (market data) | Closed binlogs (`backup-incremental-k8s.sh`) | Hourly (CronJob `db-backup-incremental`) | 72 h local, bucket lifecycle off-site (3 days), never promoted | `backup-data` volume + S3-compatible store (mandatory) |
-| MongoDB oplog (dlq, audit) | Oplog entries since the previous archive | Hourly (CronJob `db-backup-incremental`) | 72 h local, bucket lifecycle off-site (3 days), never promoted | `backup-data` volume + S3-compatible store (mandatory) |
-| Redis (message journal, discovery registrations, DLQ retry queue) | Not backed up | — | — | Registrations and DLQ queue rebuilt by the services; the journal is not rebuildable, see the RPO in [BACKUP_DR.md](../deployment/BACKUP_DR.md) |
-
-Every dump is age-encrypted before it is written; the off-site copy only sends encrypted files.
-| K8s manifests | Git | Every commit | Full history | GitHub |
-| Docker images | Registry | Every build | Tagged versions | Docker Hub / GHCR |
-
-### 4.2 Backup Verification
-
-- Restore drill on every CI run (`k8s` job, `tests/k8s/run-kind.sh`): the daily CronJob backs up, the drill writes markers, audit events and a dead letter after the dump, stops the writers, records the instant, runs the hourly archive CronJob, drops data (the real `audit` and `dlq` databases, markers, `market_candles`, the SPIRE server volume), then restores as after the loss of the cluster: `fetch-offsite.sh --pitr` fetches the newest complete run and the binlog / oplog archives from the off-site bucket into a pod that never mounts the `backup-data` volume, and `restore-k8s.sh --until <instant>` restores MongoDB (dlq + audit), MySQL and the SPIRE CA; it passes only if every audit event of the instant (those written after the dump included) comes back with the same hashes and a verified hash chain, nothing written after the instant comes back, the data and the trust bundle come back and mTLS still works
-- The drill times every step and compare the recovery with a budget (`RESTORE_DRILL_BUDGET_SECONDS`): table in the job summary, `restore-drill-timings.json` as an artifact; see the [DR Exercise Log](dr-exercise-log.md)
-- Off-site fetch tests (`backup-test.yml`, `tests/backup/fetch-offsite.test.sh`): newest complete run chosen from an S3 store, files still encrypted, refusal on an incomplete or absent run and on an empty or unreachable bucket
-- Integrity: age authenticates every encrypted file (a corrupted or truncated file fails to decrypt); no separate checksum
-- Monitoring: alerts on a failed, stale, missing or unencrypted backup and on a failed off-site copy (`deploy/k8s/infra/config/alerting.yml`)
+Backup schedule, retention, encryption, verification and restore drills: see [BACKUP_DR.md](../deployment/BACKUP_DR.md), which is authoritative.
 
 ## 5. Dependency Order for Recovery
 
 ```
 SPIRE Server ────────────────────┐
-                                │
-Discovery Server ───────────────┤
                                 │
 Message Manager ────────────────┤
                                 ├──► All Other Services
@@ -148,18 +125,16 @@ Monitoring Stack ───────────────┘
 
 1. **Databases** — MongoDB, MySQL, Redis (restore from backup if needed)
 2. **SPIRE Server** — restore SPIRE datastore, reconcile entries, re-issue SVIDs
-3. **Discovery Server** — Start first for service registry
-4. **Message Manager** — Start next for inter-service communication
-5. **All other services** — Parallel start (financial-scraper, trader-trainer, etc.)
-6. **Monitoring Stack** — Prometheus, Grafana, Loki, Jaeger
+3. **Message Manager** — Start next for inter-service communication
+4. **All other services** — Parallel start (financial-scraper, trader-trainer, etc.)
+5. **Monitoring Stack** — Prometheus, Grafana, Loki, Jaeger
 
 ## 6. Communication During Disruption
 
 | Stakeholder | Method | Frequency |
 |---|---|---|
-| **Internal team** | Incident channel (Slack/Teams) | Every 30 minutes during L1-L2 |
-| **Platform Security Lead** | Phone | Immediate for L1 |
-| **Compliance officer** | Email + phone | Within regulatory notification timeline |
+| **Maintainer (single role)** | Pushover and the channels of [incident-response.md](../operations/incident-response.md#communication-channels) | Best effort, immediate for L1 |
+| **Regulatory authorities** | Formal notification (by the maintainer) | Within regulatory notification timeline |
 
 ## 7. Plan Maintenance & Testing
 

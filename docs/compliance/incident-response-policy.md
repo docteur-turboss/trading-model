@@ -40,12 +40,12 @@ Detection → Triage → Containment → Eradication → Recovery → Post-Morte
 
 ### 3.2 Triage
 
-Upon incident detection, the on-call engineer shall:
+Upon incident detection, the maintainer shall:
 
 1. **Acknowledge** the alert within the response time
 2. **Assess** the severity level using the classification table (§2)
 3. **Document** initial findings in a new incident ticket with correlation ID
-4. **Escalate** to Platform Security Lead for L1-L2 incidents
+4. **Escalate**: no one to escalate to (single maintainer); L1-L2 incidents take priority
 5. **Decide** containment strategy
 
 ### 3.3 Containment
@@ -83,7 +83,7 @@ Within 5 business days of L1-L2 incidents, a post-mortem document shall be produ
 |---|---|---|---|
 | **GDPR Art. 33** | Personal data breach | 72 hours | Supervisory authority (CNIL); every breach is also recorded in the [breach register](breach-register.md) |
 | **DORA Art. 10** | Major ICT incident | 24 hours | Competent authority (ACPR/ECB) |
-| **MiFID II Art. 72** | Record-keeping failure | Immediate internal escalation | Compliance officer |
+| **MiFID II Art. 72** | Record-keeping failure | Immediate internal escalation | Maintainer |
 
 **Important:** The personal data is the truncated caller IP in the edge-proxy access logs (31 days, register activity 6) and operator data (register activity 8). A breach of those logs is unlikely to result in a risk to individuals (Art. 33(1)): record it in the internal breach register (Art. 33(5), template: [breach-register.md](breach-register.md)); notify the CNIL only if the assessment concludes otherwise.
 
@@ -96,26 +96,21 @@ For incidents requiring regulatory notification, the following information must 
 3. Categories of data potentially affected
 4. Estimated number of records affected (if any)
 5. Response actions taken
-6. Contact details of the Platform Security Lead
+6. Contact details of the maintainer
 
 ## 5. Roles & Responsibilities
 
 | Role | Responsibility |
 |---|---|
-| **On-Call Engineer** | First responder. Acknowledge, triage, contain L3-L4 incidents. Escalate L1-L2 |
-| **Platform Security Lead** | Lead L1-L2 response. Coordinate containment. Handle regulatory notification |
-| **DevOps Lead** | Infrastructure recovery, backup restoration, deployment rollback |
-| **Lead Developer** | Code-level root cause analysis, patch development |
-| **Compliance Officer** | Regulatory notification, incident documentation for audit |
+| **Maintainer (single role)** | Every role: first responder, triage and containment, infrastructure recovery and rollback, root cause analysis and patch, regulatory notification, incident documentation for audit. No second person exists ([on-call.md](../operations/on-call.md)) |
 
 ## 6. Communication Plan
 
 | Stakeholder | Communication Method | Timing |
 |---|---|---|
-| **Internal team** | Incident channel (Slack/Teams) | Immediate |
-| **Platform Security Lead** | Phone (L1-L2) / Slack (L3-L4) | Within response time |
+| **Maintainer** | Pushover and the channels of [incident-response.md](../operations/incident-response.md#communication-channels) | Within response time |
 | **Regulatory authorities** | Formal notification | Per regulatory timeline |
-| **Users (if any)** | Status page / email | After containment |
+| **Users (if any)** | None defined: no user-facing channel exists | After containment |
 
 ## 7. Incident Logging
 
@@ -126,8 +121,8 @@ All incidents are logged with the audit-logger for traceability and compliance:
   "correlationId": "inc-20260615-001",
   "eventType": "INCIDENT_DETECTED",
   "severity": "HIGH",
-  "affectedService": "discovery-server",
-  "summary": "SVID renewal failure for discovery-server",
+  "affectedService": "message-manager",
+  "summary": "SVID renewal failure for message-manager",
   "detectedAt": "2026-06-15T10:30:00Z",
   "containedAt": "2026-06-15T10:45:00Z",
   "resolvedAt": "2026-06-15T11:00:00Z",
@@ -139,7 +134,7 @@ All incidents are logged with the audit-logger for traceability and compliance:
 
 | Exercise Type | Frequency | Participants |
 |---|---|---|
-| **Tabletop exercise** | Annual | Platform Security Lead, DevOps Lead, Lead Developer |
+| **Tabletop exercise** | Annual | Maintainer (single role) |
 | **Automated chaos testing** | Quarterly | CI/CD pipeline injects controlled failures |
 | **Full recovery drill** | Annual | Complete platform recovery from backup |
 | **Certificate expiry simulation** | Annual | Verify SVID auto-rotation and alerting |

@@ -9,7 +9,6 @@ jest.mock("../../../src/adapters/inbound/http/routes", () => ({
 }));
 jest.mock("../../../src/config/address-manager", () => ({
 	ADDRESS_MANAGER_ROUTES: jest.fn(),
-	REGISTRATION_READINESS: { name: "discovery-registration", check: () => true },
 }));
 jest.mock("../../../src/config/metrics", () => ({ metricsHandler: jest.fn() }));
 jest.mock("../../../src/infrastructure/config/env", () => ({

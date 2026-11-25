@@ -13,7 +13,7 @@ FAILED=0
 ok() { echo "  ✓ $*"; }
 ko() { echo "  ✗ $*"; FAILED=1; }
 
-IMAGES="discovery-server message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator risk-execution decision-consumer spire-tools backup-tools"
+IMAGES="message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator risk-execution decision-consumer spire-tools backup-tools"
 for img in $IMAGES; do
 	echo "$img sha256:$(printf '%s' "$img" | sha256sum | cut -d' ' -f1)"
 done >"$WORK/digests"
@@ -55,7 +55,10 @@ fi
 if [ "$1" = get ] && [ "$2" = pods ]; then printf "%b" "${STUB_PODS:-}"; exit 0; fi
 if [ "$1" = get ] && [[ $2 == statefulset/* ]]; then [[ $* == *updateRevision* ]] && printf '%s-abc' "${2#*/}"; exit 0; fi
 if [ "$1" = get ] && [ "$2" = statefulset ]; then [ -z "${STUB_NO_REDIS:-}" ] || exit 1; [ "$3" = redis ] && printf 'redis-abc'; exit 0; fi
-if [ "$1" = wait ] || [ "$1" = delete ] || [ "$1" = create ] || [ "$2" = configmap ] || [ "$2" = deployments ]; then exit 0; fi
+[ "$1" = exec ] && exit 0
+if [ "$1" = create ] && [ "$2" = job ]; then cat "$STUB_JOB_JSON"; exit 0; fi
+if [ "$1" = get ] && [[ $2 == job/* ]]; then printf '%s ' "${STUB_JOB_STATE:-Complete}"; exit 0; fi
+if [ "$1" = wait ] || [ "$1" = delete ] || [ "$1" = create ] || [ "$2" = configmap ] || [ "$2" = secret ] || [ "$2" = deployments ]; then exit 0; fi
 if [ "$1" = get ] && [ "$2" = controllerrevision ]; then [ "$3" = redis-abc ] && printf '3'; exit 0; fi
 if [ "$1" = rollout ] && [ "$2" = status ]; then [ "$3" = "deployment/${STUB_STATUS_FAILS:-}" ] || [ "$3" = "statefulset/${STUB_STATUS_FAILS:-}" ] && exit 1; exit 0; fi
 if [ "$1" = get ] && [ "$2" = deployment ]; then
@@ -73,14 +76,15 @@ exit 2
 STUB
 chmod +x "$WORK/bin/kubectl"
 export PATH="$WORK/bin:$PATH" STUB_LOG="$WORK/log" STUB_APPLIED="$WORK/applied"
+log_line() { grep -n "$1" "$WORK/log" | tail -1 | cut -d: -f1; }
 
-STUB_REVS="discovery-server=4 api-gateway=7" bash "$SCRIPT" record ns "$WORK/revs" >/dev/null
-grep -qx "discovery-server 4" "$WORK/revs" && grep -qx "api-gateway 7" "$WORK/revs" &&
+STUB_REVS="message-manager=4 api-gateway=7" bash "$SCRIPT" record ns "$WORK/revs" >/dev/null
+grep -qx "message-manager 4" "$WORK/revs" && grep -qx "api-gateway 7" "$WORK/revs" &&
 	grep -qx "edge-proxy none" "$WORK/revs" && grep -qx "statefulset/redis 3" "$WORK/revs" && grep -qx "statefulset/redis-sentinel none" "$WORK/revs" &&
-	[ "$(wc -l <"$WORK/revs")" -eq 14 ] &&
-	ok "record writes the Redis StatefulSets and the 12 Deployments, none when missing" || ko "record: $(cat "$WORK/revs")"
+	[ "$(wc -l <"$WORK/revs")" -eq 13 ] &&
+	ok "record writes the Redis StatefulSets and the 11 Deployments, none when missing" || ko "record: $(cat "$WORK/revs")"
 
-printf 'discovery-server 4\napi-gateway 7\n' >"$WORK/revs"
+printf 'message-manager 4\napi-gateway 7\n' >"$WORK/revs"
 : >"$WORK/log"
 STUB_UNDO_FAILS="" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 	grep -q "rollout undo deployment/api-gateway -n ns --to-revision=7" "$WORK/log" &&
@@ -89,9 +93,6 @@ STUB_UNDO_FAILS="" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 printf '#!/bin/sh\necho "sleep $*" >>"$STUB_LOG"\n' >"$WORK/bin/sleep"
 chmod +x "$WORK/bin/sleep"
 
-out="$(bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
-	[[ $out == *"::warning::MySQL TLS relaxed by the rollback: redeploy release N to restore it"* ]] &&
-	ok "rollback warns that MySQL TLS stays relaxed" || ko "rollback TLS warning: $out"
 echo 2 >"$WORK/api-down"
 : >"$WORK/log"
 STUB_API_DOWN="$WORK/api-down" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null 2>&1 &&
@@ -105,25 +106,25 @@ out="$(STUB_API_DOWN="$WORK/api-down" bash "$SCRIPT" rollback ns "$WORK/revs" 2>
 		ok "rollback gives up after 300 s of API server down, nothing undone, ConfigMap kept" || ko "rollback API down: $out"; }
 rm "$WORK/bin/sleep"
 
-printf 'discovery-server 4\nedge-proxy none\napi-gateway 7\n' >"$WORK/revs"
+printf 'message-manager 4\nedge-proxy none\napi-gateway 7\n' >"$WORK/revs"
 : >"$WORK/log"
-out="$(STUB_UNDO_FAILS=discovery-server bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
+out="$(STUB_UNDO_FAILS=message-manager bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
 	ko "rollback succeeded with a failed undo and a new Deployment" ||
 	{ grep -q "deployment/api-gateway" "$WORK/log" && grep -q "delete deployment/edge-proxy -n ns" "$WORK/log" &&
 		ok "rollback fails on a failed undo, deletes a new Deployment, still tries every Deployment" || ko "rollback: $out"; }
 
-printf 'discovery-server 4
+printf 'message-manager 4
 api-gateway 7
 ' >"$WORK/revs"
 : >"$WORK/log"
-out="$(STUB_STATUS_FAILS=discovery-server bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
+out="$(STUB_STATUS_FAILS=message-manager bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
 	ko "rollback succeeded though a rollout did not come back" ||
 	{ grep -q "rollout status deployment/api-gateway -n ns --timeout=180s" "$WORK/log" &&
-		[[ $out == *"discovery-server did not finish rolling back"* ]] &&
-		grep -q "describe deployment/discovery-server -n ns" "$WORK/log" &&
+		[[ $out == *"message-manager did not finish rolling back"* ]] &&
+		grep -q "describe deployment/message-manager -n ns" "$WORK/log" &&
 		ok "rollback waits for each rollout and fails if one does not come back" || ko "rollback status: $out"; }
 
-printf 'statefulset/redis 3\nstatefulset/redis-sentinel 2\ndiscovery-server 4\n' >"$WORK/revs"
+printf 'statefulset/redis 3\nstatefulset/redis-sentinel 2\nmessage-manager 4\n' >"$WORK/revs"
 : >"$WORK/log"
 bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 	[ "$(grep -n 'rollout undo statefulset/redis-sentinel' "$WORK/log" | cut -d: -f1)" -lt \
@@ -135,7 +136,7 @@ printf 'statefulset/redis 3\n' >"$WORK/revs"
 : >"$WORK/log"
 STUB_PODS='redis-0 redis-abc False\nredis-1 redis-new True\nredis-2 redis-new False\nredis-3 redis-new\n' bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 	grep -qx "delete pod redis-2 redis-3 -n ns" "$WORK/log" &&
-	[ "$(grep -n 'delete pod' "$WORK/log" | cut -d: -f1)" -lt "$(grep -n 'rollout status' "$WORK/log" | cut -d: -f1)" ] &&
+	[ "$(grep -n 'delete pod' "$WORK/log" | cut -d: -f1)" -lt "$(grep -n 'rollout status statefulset/redis ' "$WORK/log" | cut -d: -f1)" ] &&
 	ok "rollback deletes the not-ready pods of the failed revision only, before waiting" || ko "stuck pods: $(cat "$WORK/log")"
 
 : >"$WORK/log"
@@ -168,7 +169,6 @@ bash "$ROOT/scripts/split-cluster-scope.sh" app <"$WORK/render.yaml" >"$WORK/app
 : >"$WORK/log"
 bash "$SCRIPT" without-redis ns <"$WORK/app.yaml" >"$WORK/overlay.yaml"
 bash "$SCRIPT" wait ns >/dev/null && bash "$SCRIPT" redis-last ns <"$WORK/app.yaml" >/dev/null || ko "wait / redis-last failed"
-log_line() { grep -n "$1" "$WORK/log" | tail -1 | cut -d: -f1; }
 sts_names() { awk '/^---/ { k = "" } /^kind:/ { k = $2 } k == "StatefulSet" && /^  name:/ { printf " %s", $2 }' "$1"; }
 { grep -q 'kind: Deployment' "$WORK/overlay.yaml" && grep -A5 '^kind: Certificate$' "$WORK/overlay.yaml" | grep -q '^  name: redis-tls$' &&
 	[[ "$(sts_names "$WORK/overlay.yaml") " == *" mysql "* && "$(sts_names "$WORK/overlay.yaml") " != *" redis"* ]] &&
@@ -180,6 +180,29 @@ sts_names() { awk '/^---/ { k = "" } /^kind:/ { k = $2 } k == "StatefulSet" && /
 	ko "redis last: $(cat "$WORK/log")"
 STUB_NO_REDIS=1 bash "$SCRIPT" without-redis ns <"$WORK/app.yaml" | cmp -s - "$WORK/app.yaml" &&
 	ok "without-redis keeps the Redis StatefulSets on a first deploy" || ko "without-redis dropped documents on a first deploy"
+
+# pre-migrate-backup (issue #2724): the Job of the db-backup CronJob, off-site only in production.
+cat >"$WORK/job.json" <<'JSON'
+{"kind": "Job", "spec": {"template": {"spec": {"containers": [{"name": "backup",
+  "command": ["sh", "-c", "/scripts/backup-k8s.sh --components mongodb,mysql,checkpoints,spire,risk\n"],
+  "envFrom": [{"secretRef": {"name": "trading-model-backup-s3", "optional": true}}],
+  "env": [{"name": "METRICS_FILE", "value": "/backups/metrics/backup.prom"}, {"name": "BACKUP_REQUIRE_OFFSITE", "value": "true"},
+    {"name": "BACKUP_S3_BUCKET", "valueFrom": {"secretKeyRef": {"name": "trading-model-backup-s3", "key": "BACKUP_S3_BUCKET"}}}]}]}}}}
+JSON
+export STUB_JOB_JSON="$WORK/job.json"
+premigrate() { : >"$WORK/applied"; GITHUB_STEP_SUMMARY="$WORK/summary" bash "$SCRIPT" pre-migrate-backup ns job-1 "$1" >/dev/null 2>&1; }
+: >"$WORK/summary"
+premigrate staging && jq -e '.spec.template.spec.containers[0] | (.command[2] | test("--components mysql\n$"))
+	and ([.env[] | select(.name == "BACKUP_S3_BUCKET")] == [{name: "BACKUP_S3_BUCKET", value: ""}])
+	and ([.env[] | select(.name == "BACKUP_REQUIRE_OFFSITE")] == [{name: "BACKUP_REQUIRE_OFFSITE", value: "false"}])
+	and ([.env[] | select(.name == "METRICS_FILE")] == [{name: "METRICS_FILE", value: "/tmp/premigrate.prom"}])' "$WORK/applied" >/dev/null &&
+	grep -q "local only" "$WORK/summary" &&
+	ok "pre-migrate-backup outside production: MySQL only, no off-site copy, own metrics" || ko "pre-migrate staging: $(cat "$WORK/applied")"
+no_cmd='del(.spec.template.spec.containers[0].command)'
+premigrate production && [ "$(jq -S "$no_cmd" "$WORK/applied")" = "$(jq -S "$no_cmd" "$WORK/job.json")" ] &&
+	jq -e '.spec.template.spec.containers[0].command[2] | test("--components mysql\n$")' "$WORK/applied" >/dev/null &&
+	ok "pre-migrate-backup in production: the CronJob template, off-site required" || ko "pre-migrate production: $(cat "$WORK/applied")"
+STUB_JOB_STATE=Failed premigrate staging && ko "pre-migrate-backup passed on a failed dump" || ok "pre-migrate-backup fails on a failed Job"
 
 # Token expiry check of the "Configure kubeconfigs" step of deploy.yml (issue #1978): fake kubeconfigs holding only a JWT.
 jwt() { printf '{"exp":%s}' "$1" | base64 -w0 | tr '+/' '-_' | tr -d '='; }

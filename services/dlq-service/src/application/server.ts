@@ -3,7 +3,6 @@ import { createServiceServer } from "@trading-model/http/service-server-factory"
 import { ServiceId } from "@trading-model/primitives/primitives";
 import type { DlqHandlers } from "../adapters/inbound/dlq-service";
 import { DlqRoutes } from "../adapters/inbound/routes";
-import { REGISTRATION_READINESS } from "../config/address-manager";
 import { ENV } from "../infrastructure/config/env";
 
 export function createServer(
@@ -17,6 +16,6 @@ export function createServer(
 		routes: (app) => {
 			app.use(DlqRoutes(handlers));
 		},
-		readiness: [REGISTRATION_READINESS, mongoReadiness],
+		readiness: [mongoReadiness],
 	});
 }

@@ -16,7 +16,7 @@
 # commit, the commit before on a push; locally e.g. origin/development),
 # KIND_PREVIOUS_REGISTRY (set: N-1 is the release tag KIND_PREVIOUS_REF, its
 # signed images pulled from this registry instead of built; needs cosign; CI
-# sets both to the last stable tag),
+# sets both to the last stable tag with published images),
 # KIND_OVERLAY (overlay of both releases, default staging; staging-local keeps
 # the data StatefulSets partitioned, issue #1066, e.g. with KIND_PREVIOUS_REF=v3.1.0-rc.1).
 # Needs docker, git, kubectl, node, jq.
@@ -43,6 +43,8 @@ API_KEY="dev-token-0123456789abcdef0123456789abcdef" # secret of the AUTH_TOKENS
 SERVICES="$(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$ROOT/deploy/k8s/services/kustomization.yaml" | grep -vx edge-proxy | tr '\n' ' ')" # edge-proxy is not a first-party image
 # First-party images: the IMAGES of deploy.yml.
 IMAGES="$SERVICES spire-tools backup-tools db-migrate"
+# Services N-1 still deploys but N removed: only their :previous image exists (drop once N-1 is past the removal).
+RETIRED="discovery-server"
 PREVIOUS_REF="${KIND_PREVIOUS_REF:-HEAD^1}"
 # Release N-1 checkout, image digests, recorded revisions: kept between the
 # steps of the CI job, removed by `delete`.
@@ -123,7 +125,14 @@ build_images() {
 	export IMAGE_TAG="$tag"
 	retry 3 docker compose $f build $have spire-bootstrap
 	# shellcheck disable=SC2086
-	[ -z "$missing" ] || retry 3 docker compose -f "$ROOT/docker-compose.yml" -f "$ROOT/docker-compose.build.yml" build $missing
+	# Not built by its compose file: its own Dockerfile if it has one (N-1 probes may need what N dropped, e.g. curl), else this checkout's.
+	for svc in $missing; do
+		if [ -f "$root/services/$svc/Dockerfile" ]; then
+			retry 3 docker build -q -t "ghcr.io/trading-model/$svc:$tag" -f "$root/services/$svc/Dockerfile" "$root"
+		else
+			retry 3 docker compose -f "$ROOT/docker-compose.yml" -f "$ROOT/docker-compose.build.yml" build "$svc"
+		fi
+	done
 	retry 3 docker build -q -t "ghcr.io/trading-model/backup-tools:$tag" "$root/deploy/backup"
 	# N-1 may predate the image: its digest entry is a stand-in built from this checkout.
 	local mroot="$root"
@@ -135,6 +144,12 @@ build_images() {
 	tag_built "${COMPOSE_PROJECT_NAME}-spire-bootstrap" "ghcr.io/trading-model/spire-tools:$tag"
 	for svc in $SERVICES; do
 		tag_built "${COMPOSE_PROJECT_NAME}-${svc}" "ghcr.io/trading-model/${svc}:$tag"
+	done
+	[ "$tag" = previous ] || return 0
+	for svc in $RETIRED; do
+		[ -f "$root/services/$svc/Dockerfile" ] || continue
+		retry 3 docker compose -f "$root/docker-compose.yml" build "$svc"
+		docker tag "${COMPOSE_PROJECT_NAME}-${svc}" "ghcr.io/trading-model/${svc}:$tag"
 	done
 }
 
@@ -159,7 +174,7 @@ previous_checkout() {
 # only: a reference by digest is added, so pods pinned by digest find them.
 node_digests() {
 	local node="${CLUSTER}-control-plane" img ref digest
-	for img in $IMAGES; do
+	for img in $IMAGES $([ "$1" != previous ] || echo "$RETIRED"); do
 		ref="ghcr.io/trading-model/$img"
 		digest="$(docker exec "$node" ctr -n k8s.io images ls "name==$ref:$1" | awk 'NR == 2 {print $3}')"
 		[ -n "$digest" ] || {
@@ -180,7 +195,7 @@ pull_previous_images() {
 	local img ref digest repo="${GITHUB_REPOSITORY:-docteur-turboss/trading-model}" missing=""
 	local released=" $(sed -n 's/^ *- \(.*\)\.yaml$/\1/p' "$PREVIOUS/deploy/k8s/services/kustomization.yaml" | tr '\n' ' ') spire-tools backup-tools "
 	[ ! -f "$PREVIOUS/deploy/migrate/Dockerfile" ] || released="${released}db-migrate "
-	for img in $IMAGES; do
+	for img in $IMAGES $RETIRED; do
 		[[ "$released" == *" $img "* ]] || {
 			missing="$missing $img"
 			continue
@@ -217,7 +232,7 @@ images() {
 		build_images "$PREVIOUS" previous
 	fi
 	# Same sources build the same image: a label keeps N-1 digests apart from N.
-	for img in $IMAGES; do
+	for img in $IMAGES $RETIRED; do
 		echo "FROM ghcr.io/trading-model/$img:previous" |
 			docker build -q --label trading-model.kind-release=previous -t "ghcr.io/trading-model/$img:previous" - >/dev/null
 	done
@@ -226,6 +241,7 @@ images() {
 	build_images "$ROOT" latest
 	local images=""
 	for img in $IMAGES; do images="$images ghcr.io/trading-model/$img:latest ghcr.io/trading-model/$img:previous"; done
+	for img in $RETIRED; do images="$images ghcr.io/trading-model/$img:previous"; done
 	# One archive for every cluster job (ci.yml `k8s-images`): built once, loaded by `load`.
 	log "saving the images to $IMAGE_ARCHIVE"
 	mkdir -p "$(dirname "$IMAGE_ARCHIVE")"
@@ -332,7 +348,9 @@ migrations() {
 # crash broke the pipe in runs 43321359421 and 43328471185).
 render_kind() {
 	release_script render "$1/deploy/k8s/overlays/${KIND_OVERLAY:-staging}" ghcr.io/trading-model "$2" >"$3.raw" || return 1
-	node "$ROOT/tests/k8s/ci-render.mjs" <"$3.raw" >"$3" || return 1
+	local scopes="read+dlq:write+risk:admin"
+	[ "$1" = "$ROOT" ] || scopes="read+dlq:write"
+	CI_RENDER_SCOPES="$scopes" node "$ROOT/tests/k8s/ci-render.mjs" <"$3.raw" >"$3" || return 1
 	rm -f "$3.raw"
 }
 
@@ -418,7 +436,7 @@ deploy() {
 	log "waiting for MySQL, then applying the migrations of release N-1"
 	# 600 s/300 s: run 42498902230, cold deploy of N-1 took 4 m 25 s in all, slowest Deployment
 	# (collector) ~65 s, api-gateway ~77 s; DaemonSets ready within 3 s. Verify rollouts (3 replicas,
-	# rolling restart): message-manager 89 s, discovery-server 35 s. Margins kept for slower runners.
+	# rolling restart): message-manager 89 s. Margins kept for slower runners.
 	$K -n "$NS" rollout status statefulset/mysql --timeout=600s
 	migrations "$PREVIOUS"
 
@@ -464,23 +482,54 @@ release() {
 . "$(dirname "${BASH_SOURCE[0]}")/probe-availability.sh"
 
 # The final upgrade to N under the probe: `release` runs while requests flow
-# through edge-proxy to discovery-server, trader-trainer (Lease handover,
+# through edge-proxy to trader-trainer (Lease handover,
 # ADR-0067) and financial-scraper (PROBE_ROUTES) and market candles are
 # written. Fails above
 # PROBE_MAX_FAILURES (default 0: a release must not drop a request) failed
 # requests or when a candle of BTCUSDT is missing (gap above one interval,
 # 1 minute: the stub serves 1m klines) during the window.
 release_under_probe() {
-	local stop="$WORK/probe.stop" out="$WORK/probe.count" max="${PROBE_MAX_FAILURES:-0}" pid start rc=0 began=$SECONDS
+	local rc=0
+	rm -rf "$WORK/probe-logs"
+	mkdir -p "$WORK/probe-logs"
+	_release_under_probe || rc=$?
+	[ "$rc" = 0 ] || probe_failure_report
+	return "$rc"
+}
+
+# Failed responses (route, status, body) and the gateway / scraper logs of the
+# window, followed per pod from before `release`: the rollout deletes the N-1
+# pods, after which `kubectl logs` can no longer read them.
+probe_failure_report() {
+	local f
+	echo "--- failed probe responses"
+	sort "$WORK/probe.count.err" 2>/dev/null | uniq -c | head -20
+	for f in "$WORK"/probe-logs/*.log; do
+		[ -e "$f" ] || continue
+		echo "--- log $(basename "$f")"
+		cat "$f"
+	done
+}
+
+_release_under_probe() {
+	local stop="$WORK/probe.stop" out="$WORK/probe.count" max="${PROBE_MAX_FAILURES:-0}" pid start rc=0 began svc pod
 	local requests failures row candles gap need
-	rm -f "$stop" "$out"
+	rm -f "$stop" "$out" "$out.err"
 	echo "0 0" >"$out"
-	probe_availability "$stop" "$out" &
+	probe_wait_ready || return 1
+	# After the wait: the candle window below must not include it.
+	began=$SECONDS
+	for svc in api-gateway financial-scraper; do
+		for pod in $($K -n "$NS" get pods -l "app.kubernetes.io/component=$svc" -o name); do
+			$K -n "$NS" logs -f "$pod" --all-containers --prefix >"$WORK/probe-logs/${pod#pod/}.log" 2>&1 &
+		done
+	done
+	probe_availability "$stop" "$out" 2> >(tee "$out.err" >&2) &
 	pid=$!
-	# A failing command under errexit must not leave the probe running.
-	# Expanded now: the locals are gone when a RETURN trap runs.
+	# A failing command under errexit must not leave the probe or the log
+	# followers running.
 	# shellcheck disable=SC2064
-	trap "touch '$stop'; kill $pid 2>/dev/null || true; trap - RETURN" RETURN
+	trap "touch '$stop'; kill $pid \$(jobs -p) 2>/dev/null || true; trap - RETURN" RETURN
 	start="$(mysql_root "SELECT UTC_TIMESTAMP(3)" | tr -d '\r')"
 	[ -n "$start" ] || {
 		log "could not read the window start from MySQL"
@@ -499,7 +548,9 @@ release_under_probe() {
 		return 1
 	}
 	[ "$failures" -le "$max" ] || {
-		log "the upgrade dropped $failures request(s) (threshold $max): a Deployment went to 0 ready pods"
+		# 000 is a timeout or refused connection (a route without ready pod); 4xx/5xx come from the route itself.
+		log "the upgrade dropped $failures request(s) (threshold $max); status codes: $(sed -n 's/^probe: .* answered //p' "$out.err" | sort | uniq -c | tr -s ' 
+' ' ')"
 		return 1
 	}
 	# Candles written in the window and the largest gap between consecutive ones
@@ -832,11 +883,6 @@ verify_network() {
 	}
 	wait_for 120 "curl -sf -o /dev/null -H 'x-api-key: $API_KEY' $url"
 	log "  training status: $(curl -s -H "x-api-key: $API_KEY" "$url")"
-
-	# Release N only (ADR-0072): N-1 gateways still read the registry. Removed in N+1.
-	local registry="curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://discovery-server:3000/v1/services"
-	wait_for 120 "$K -n $NS exec deployment/financial-scraper -c financial-scraper -- $registry | grep -q financial-scraper"
-	log "  registered: $($K -n "$NS" exec deployment/financial-scraper -c financial-scraper -- $registry)"
 }
 
 verify_observability() {
@@ -846,7 +892,7 @@ verify_observability() {
 	wait_for 180 prometheus_targets_down
 
 	log "Loki receives the pod logs (promtail)"
-	wait_for 180 "$K -n $NS get --raw /api/v1/namespaces/$NS/services/loki:http/proxy/loki/api/v1/label/component/values | grep -q discovery-server"
+	wait_for 180 "$K -n $NS get --raw /api/v1/namespaces/$NS/services/loki:http/proxy/loki/api/v1/label/component/values | grep -q message-manager"
 
 	verify_alerts
 	verify_release
@@ -879,24 +925,24 @@ verify_identity_without_mysql() {
 	# A datastore read: the entries are served from SQLite, not MySQL.
 	wait_for 60 "$K -n $NS exec deployment/spire-server -c spire-server -- /opt/spire/bin/spire-server entry count -socketPath /run/spire/server-sockets/api.sock | grep -Eq '[1-9]'"
 	log "  SPIRE server healthy without MySQL"
-	$K -n "$NS" rollout restart deployment/discovery-server
-	$K -n "$NS" rollout status deployment/discovery-server --timeout=300s
+	$K -n "$NS" rollout restart deployment/message-manager
+	$K -n "$NS" rollout status deployment/message-manager --timeout=300s
 	local pod pods
 	# Pods of the old ReplicaSet may still be terminating: skipped. Captured
 	# first so a kubectl failure stops the step (set -e) instead of an empty loop.
-	pods="$($K -n "$NS" get pod -l app.kubernetes.io/component=discovery-server -o go-template --template '{{range .items}}{{if not .metadata.deletionTimestamp}}{{.metadata.name}}{{"\n"}}{{end}}{{end}}')"
+	pods="$($K -n "$NS" get pod -l app.kubernetes.io/component=message-manager -o go-template --template '{{range .items}}{{if not .metadata.deletionTimestamp}}{{.metadata.name}}{{"\n"}}{{end}}{{end}}')"
 	[ -n "$pods" ] || {
-		log "no discovery-server pod found"
+		log "no message-manager pod found"
 		return 1
 	}
 	for pod in $pods; do
-		$K -n "$NS" exec "$pod" -c discovery-server -- test -s /run/spire/svid/svid.pem || {
+		$K -n "$NS" exec "$pod" -c message-manager -- test -s /run/spire/svid/svid.pem || {
 			log "$pod restarted without MySQL has no SVID"
 			return 1
 		}
 		log "  $pod has its SVID"
 	done
-	log "  restarted discovery-server pods got their SVID"
+	log "  restarted message-manager pods got their SVID"
 	$K -n "$NS" scale statefulset mysql --replicas="$mysql_replicas"
 	$K -n "$NS" rollout status statefulset/mysql --timeout=600s
 	log "  MySQL back ($mysql_replicas replicas)"
@@ -1080,7 +1126,7 @@ verify_redis_tls() {
 bus_delivered() {
 	local pod
 	for pod in $($K -n "$NS" get pods -l "app.kubernetes.io/component=$1" -o jsonpath='{.items[*].metadata.name}'); do
-		$K -n "$NS" exec "$pod" -c "$1" -- curl -sk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/metrics |
+		$K -n "$NS" exec "$pod" -c "$1" -- node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/metrics |
 			grep '^mm_messages_delivered_total{.*topic="training.model.published"'
 	done
 }
@@ -1138,17 +1184,17 @@ verify_mysql_tls() {
 	log "  TLS session verified, plain and certificate-less connections refused"
 }
 
-# Production runs message-manager and discovery with 3 replicas (staging: 1).
-# Subscriptions and instance tokens live in Redis. A rolling restart of both
+# Production runs message-manager with 3 replicas (staging: 1).
+# Subscriptions and the journal live in Redis. A rolling restart
 # must leave every pod scraped and ready.
 verify_replicas() {
-	local deployments="deployment/message-manager deployment/discovery-server"
-	log "3 replicas of message-manager and discovery, then a rolling restart of both"
+	local deployments="deployment/message-manager"
+	log "3 replicas of message-manager, then a rolling restart"
 	# shellcheck disable=SC2086
 	$K -n "$NS" scale $deployments --replicas=3
 	for d in $deployments; do $K -n "$NS" rollout status "$d" --timeout=300s; done
 	local job
-	for job in message-manager discovery-server; do
+	for job in message-manager; do
 		wait_for 120 '[ "$(prometheus_up_count '"$job"')" -eq 3 ]' || {
 			log "Prometheus does not scrape the 3 pods of $job (up=$(prometheus_up_count "$job"))"
 			return 1
@@ -1159,7 +1205,7 @@ verify_replicas() {
 	# shellcheck disable=SC2086
 	$K -n "$NS" rollout restart $deployments
 	for d in $deployments; do $K -n "$NS" rollout status "$d" --timeout=300s; done
-	log "  rolling restart of both done"
+	log "  rolling restart done"
 
 	# shellcheck disable=SC2086
 	$K -n "$NS" scale $deployments --replicas=1
@@ -1299,7 +1345,7 @@ inspector() {
 # `kill-switch[/rearm]` with body `$2` through edge-proxy and the risk:admin key, actor = key name (ADR-0059).
 risk_admin() {
 	if [ "$1" = status ]; then
-		$K -n "$NS" exec deployment/risk-execution -c risk-execution -- sh -c 			"curl -sfk --cert /run/spire/svid/svid.pem --key /run/spire/svid/svid_key.pem https://localhost:3000/admin/status"
+		$K -n "$NS" exec deployment/risk-execution -c risk-execution -- node -e 'const f=require("fs"),d="/run/spire/svid/",[m,u]=process.argv.slice(1);const q=require("https").request(u,{method:m,headers:{"content-type":"application/json"},cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>r.pipe(process.stdout));q.on("error",()=>process.exit(1));q.end()' GET https://localhost:3000/admin/status
 		return
 	fi
 	$K -n "$NS" port-forward svc/edge-proxy 18452:8080 >/dev/null 2>&1 &
@@ -1365,7 +1411,7 @@ dlq_ids() {
 audit_metric() {
 	local pod
 	for pod in $($K -n "$NS" get pods -l app.kubernetes.io/component=audit-logger -o jsonpath='{.items[*].metadata.name}'); do
-		$K -n "$NS" exec "$pod" -c audit-logger -- curl -sk --cert /run/spire/svid/svid.pem 			--key /run/spire/svid/svid_key.pem https://localhost:3000/metrics 2>/dev/null |
+		$K -n "$NS" exec "$pod" -c audit-logger -- node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/metrics 2>/dev/null |
 			awk -v name="$1" '$1 == name {print int($2)}'
 	done
 }
@@ -1574,7 +1620,7 @@ verify_backup() {
 
 	drill_disaster
 	step_started=$SECONDS
-	log "restore drill: disaster (audit + dlq databases, markers, market_candles dropped, SPIRE volume deleted)"
+	log "restore drill: disaster (audit + dlq databases, markers, MySQL volume deleted, SPIRE volume deleted)"
 	for label in mongodb mongodb-audit; do
 		mongo_eval "$label" "db.getSiblingDB('restore_drill').dropDatabase()" >/dev/null
 	done
@@ -1584,7 +1630,13 @@ verify_backup() {
 		log "the audit database survived its drop: the drill tests nothing"
 		return 1
 	}
-	mysql_root "DROP DATABASE restore_drill; DROP TABLE financial_scraper.market_candles;"
+	# The MySQL volume itself: empty `mysql` schema (no migrator/retention/exporter), new server_uuid.
+	$K -n "$NS" scale statefulset/mysql --replicas=0
+	$K -n "$NS" wait --for=delete pod/mysql-0 --timeout=120s
+	$K -n "$NS" delete pvc mysql-data-mysql-0 --wait=true
+	$K -n "$NS" scale statefulset/mysql --replicas=1
+	$K -n "$NS" rollout status statefulset/mysql --timeout=300s
+	migrations "$ROOT" user-only || return 1
 	local claim
 	claim="$($K -n "$NS" get pvc spire-server-data -o json |
 		node -e 'const p=JSON.parse(require("fs").readFileSync(0,"utf8"));
@@ -1682,6 +1734,10 @@ verify_backup() {
 	mysql_markers="$(mysql_root "SELECT GROUP_CONCAT(id ORDER BY id) FROM restore_drill.markers")"
 	[ "$mysql_markers" = "1,2,3,4" ] || {
 		log "MySQL: drill markers $mysql_markers instead of 1,2,3,4"
+		return 1
+	}
+	[ "$(mysql_root "SELECT COUNT(*) FROM mysql.user WHERE user IN ('migrator','retention','exporter')" | tr -d '')" = "3" ] || {
+		log "MySQL: migrator, retention or exporter missing after the restore"
 		return 1
 	}
 	[ "$(mysql_count market_candles)" -gt 0 ] || {
@@ -1880,7 +1936,7 @@ dump() {
 	$K -n "$NS" logs deploy/spire-server -c spire-entries --tail=40 2>&1 || true
 	$K -n trading-model-node logs daemonset/spire-agent --tail=40 || true
 	# The market data path and the audit trail, even when their pods look healthy (verify checks them).
-	for workload in binance-stub financial-scraper-collector financial-scraper message-manager audit-logger discovery-server api-gateway trader-trainer otel-collector; do
+	for workload in binance-stub financial-scraper-collector financial-scraper message-manager audit-logger api-gateway trader-trainer otel-collector; do
 		echo "===== deployment/$workload"
 		$K -n "$NS" logs "deployment/$workload" --all-containers --tail=80 2>&1 | grep -v 'x509 context' || true
 	done

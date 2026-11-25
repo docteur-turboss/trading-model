@@ -782,6 +782,10 @@
 				"maxRequestsPerMinute": 8,
 				"maxRequestsPerDay": 800
 			},
+			"history": {
+				"url": "https://api.twelvedata.com/time_series?symbol={asset.alias.twelvedata}&interval=1day&outputsize=500&start_date={from}&end_date={to}",
+				"pageDays": 700
+			},
 			"templates": [
 				{ "select": { "assetType": "equity" }, "dimension": "market", "url": "https://api.twelvedata.com/time_series?symbol={asset.alias.twelvedata}&interval=1day&outputsize=1" },
 				{ "select": { "assetType": "etf" }, "dimension": "market", "url": "https://api.twelvedata.com/time_series?symbol={asset.alias.twelvedata}&interval=1day&outputsize=1" },

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| **Document owner** | Platform Security Lead |
+| **Document owner** | Maintainer (single role) |
 | **Purpose** | Versioned record of every disaster-recovery exercise and restore drill: when, which scenario, how long each step took, and how that compares with the RTO / RPO |
 | **Policy** | [Business Continuity Policy](business-continuity-policy.md) § 7 (annual tabletop exercise and full recovery drill) |
 | **Targets** | [BACKUP_DR.md](../deployment/BACKUP_DR.md) (data-store RTO / RPO) and [Business Continuity Policy](business-continuity-policy.md) § 2.2 (service-tier RTO) |
@@ -26,24 +26,7 @@ Never edit a past entry: add a correction under it.
   (data retention is a separate work item), so `restore_mysql` and
   `fetch_offsite` should be read as a trend, run after run.
 
-### What the automated drills measure and compare
-
-| Drill | Steps in `restore-drill-timings.json` (seconds) | Default budget |
-|---|---|---|
-| kind | `backup_daily`, `backup_incremental`, `disaster`, `fetch_offsite`, `restore_mongodb`, `restore_mysql`, `restore_checkpoints`, `restore_spire`, `restore_total` (per-component values logged by `restore-k8s.sh`), `restore_total_host`, `verify_data`, `spire_agents_reattest`, `verify_services`; then `total_seconds` and `recovery_seconds` | 1200 s |
-
-`recovery_seconds` runs from the moment the data is destroyed to the end of the
-checks: it is the figure the budget (`RESTORE_DRILL_BUDGET_SECONDS`) limits.
-`RESTORE_DRILL_BUDGET_MODE=fail` (default) fails the drill when it is exceeded,
-`warn` only emits a `::warning::`; `RESTORE_DRILL_BUDGET_SECONDS=0` turns the
-check off. **Where the defaults come from:** about 5 times the recovery window
-measured by the first CI run (entry of 2026-11-03: 252 s on kind), rounded: 1200 s. That margin absorbs a slower runner, image
-pulls and the variable drain of the writers, and still catches a step that
-doubles or hangs. Kind on a shared runner is not sized like production, so the
-budget is a guard against a blow-up, not the RTO, which is judged on a real
-exercise, below. Review the values when an entry shows a new baseline. A drill
-that fails half way still writes its JSON (`"status": "failed"`) and its
-summary with the steps done.
+What the drills measure, their steps and budget: [BACKUP_DR.md](../deployment/BACKUP_DR.md#backup-verification-cicd).
 
 ## Entry template
 
@@ -66,6 +49,7 @@ summary with the steps done.
 | Restore MySQL (market data) | | | |
 | Restore SPIRE datastore and CA keys | | | |
 | Restore checkpoints | | | |
+| Restore risk-execution state | | | |
 | Checks (data, audit chain, mTLS) | | | |
 | Services back (tier T1 / T2 / T3) | | | |
 | **Total** | | RTO of the tier / data store | |
@@ -118,5 +102,5 @@ kind (seconds):
 
 No annual tabletop exercise or full recovery drill has been recorded yet; the
 Business Continuity Policy declares them (§ 7). The first one is an
-organisational task (owner: Platform Security Lead) and starts a new entry
+organisational task (owner: maintainer) and starts a new entry
 above this one.

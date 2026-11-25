@@ -22,20 +22,13 @@ are reached under the service prefix `financial-scraper` of the gateway API (v2 
 
 A client of 2.x must migrate: see [Breaking changes in 3.0.0](#breaking-changes-in-300-gateway-api-v2).
 
-| Route                                    | Returns                                           | Parameter                                   |
-| ---------------------------------------- | ------------------------------------------------- | ------------------------------------------- |
-| `/v2/trade/symbols/:symbol`                 | trades of a symbol                                | e.g. `BTCUSDT`                              |
-| `/v2/trade/timestamp/:timestamp`            | trades at **exactly** this instant                | ISO date or date-time                       |
-| `/v2/ticker/symbols/:symbol`                | 24h tickers of a symbol                           | symbol                                      |
-| `/v2/ticker/timestamp/:timestamp`           | 24h tickers opened at **exactly** this instant    | ISO date or date-time                       |
-| `/v2/candles/symbols/:symbol`               | candles of a symbol                               | symbol                                      |
-| `/v2/candles/timestamp/:timestamp`          | candles opened **after** this instant             | ISO date or date-time                       |
+The routes, parameters and answers are listed in the generated [internal OpenAPI](openapi/internal/financial-scraper.yaml).
 
 Every answer is bounded (ADR-0054). Query parameters:
 
 | Parameter | Routes | Meaning |
 | --------- | ------ | ------- |
-| `limit` | all 9 | rows per answer, 1 to 5000, default 500 |
+| `limit` | trades, tickers, candles | rows per answer, 1 to 5000, default 500 |
 | `after` | trades, tickers, candles | `nextCursor` of the previous page (opaque) |
 | `from`, `to` | trades, tickers, candles | optional window on `timestamp`, ISO dates, `[from, to)` |
 
@@ -75,7 +68,7 @@ Order books have no route (ADR-0053): the collector writes each snapshot to
 ### Breaking changes in 3.0.0 (gateway API v2)
 
 Release 3.0.0 moves the public routes of the service from the version prefix
-`v1` to `v2`: it registers in discovery with major version 2
+`v1` to `v2`: it serves major version 2
 (`APP_VERSION=2.0.0`), so the gateway serves it under `v2` only and the same
 route under `v1` answers 404. The signals route is unchanged apart from that
 prefix. A client of 2.x must change:
@@ -140,6 +133,7 @@ Schema v1, the model of the design note's §1: `src/domain/signals.ts`
   exchange MIC, `isin`, `contract`, `insee`, `series`), the
   `applicableDimensions` (signals of other dimensions are neither collected nor
   served for it) and its `sector`.
+- **History** (optional `history` of a source: `url` with `{from}`/`{to}`, `pageDays`): read by the `signal-backfill` command, see [the runbook](../operations/runbooks/runbook-market-data-stale.md#backfill-a-signal-sources-history).
 - **Source**: `protocol` (only `rest_api` has a worker), `covers` (the
   (asset type, dimension) pairs it can feed), `accessPolicy`,
   `reliabilityScore`, an adapter, a cron `schedule` and its requests (subject
@@ -305,6 +299,5 @@ Background
         └── SignalCollector: rest_api worker → source adapter → schema check → MySQL signals
 
 Dependencies
-  ├── MySQL (persistence)
-  └── discovery-server (registration)
+  └── MySQL (persistence)
 ```

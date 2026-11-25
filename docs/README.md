@@ -13,6 +13,7 @@ Welcome to the **trading-model** documentation.
 
 | Document | Description |
 | -------- | ----------- |
+| [System Overview](architecture/system-overview.md) | C4 diagrams: context, containers, Kubernetes, data flow |
 | [Architecture Standards](standards/architecture-standards.md) | Monorepo structure, tech stack, service conventions, dependency graph |
 | [Bounded Contexts](architecture/bounded-contexts.md) | DDD context map with integration patterns |
 | [Databases](architecture/databases.md) | MySQL schemas, MongoDB collections, entity definitions |
@@ -30,19 +31,7 @@ Conceptual explanations of core algorithms, independent of implementation:
 
 ## Services & Packages
 
-Per-service and per-package documentation ([full index](services/README.md)):
-
-| Service | Port | Purpose |
-| ------- | ---- | ------- |
-| `discovery-server` | 8443 | Service registry with TTL leases + HMAC tokens |
-| `message-manager` | 8444 | Topic-based pub/sub broker with DLQ routing |
-| `financial-scraper` | 8445 | Binance market data ingestion |
-| `trader-trainer` | 8446 | GA + DQN agent evolution engine |
-| `api-gateway` | 8448 | External entry point: auth, rate-limit, cache, proxy |
-| `audit-logger` | 8450 | Immutable event traceability |
-| `dlq-service` | 8452 | Dead letter queue storage + replay |
-| `risk-execution` | 8454 | Orders and kill switch (paper only, ADR-0064) |
-| `edge-proxy` | 8449 | nginx: external HTTP entry, `/v1` → api-gateway over mTLS |
+Per-service and per-package documentation: see the [services index](services/README.md) (all services, ports, purposes).
 
 There is no frontend for now: the admin SPA was removed until a new one is specified ([ADR-0018](adr/0018-temporary-frontend-removal.md)). The platform is operated through the api-gateway API (via `edge-proxy`), Grafana and `kubectl` / `docker compose`.
 
@@ -87,4 +76,4 @@ There is no frontend for now: the admin SPA was removed until a new one is speci
 
 ## Code Documentation
 
-TypeDoc HTML is not versioned (ADR-0037): run `bun run docs:generate` to build it locally at `docs/architecture/code/index.html` (git-ignored).
+TypeDoc HTML is not versioned (ADR-0037): run `bun run build`, then `bun run docs:generate` to build it locally at `docs/architecture/code/index.html` (git-ignored).

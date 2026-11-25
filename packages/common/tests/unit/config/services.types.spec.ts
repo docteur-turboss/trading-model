@@ -19,12 +19,13 @@ describe("ALL_SERVICE_NAMES", () => {
 describe("parseServiceName", () => {
 	it("should return valid core names", () => {
 		expect(parseServiceName("api-gateway")).toBe("api-gateway");
-		expect(parseServiceName("discovery-server")).toBe("discovery-server");
+		expect(parseServiceName("audit-logger")).toBe("audit-logger");
 	});
 
 	it("rejects the removed release 3.0.0 transition names", () => {
 		for (const name of [
 			"audit-logger-service",
+			"discovery-server",
 			"discovery-service",
 			"financial-scraper-service",
 			"message-delivery-service",

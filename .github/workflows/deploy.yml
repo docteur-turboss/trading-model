@@ -55,7 +55,7 @@ permissions:
 # tests/k8s/check-overlays.mjs fails when an overlay uses an image missing here.
 env:
   IMAGES: >-
-    discovery-server message-manager financial-scraper trader-trainer
+    message-manager financial-scraper trader-trainer
     api-gateway audit-logger dlq-service model-evaluator risk-execution decision-consumer spire-tools backup-tools db-migrate
 
 concurrency:
@@ -69,7 +69,7 @@ jobs:
   # rights, which GITHUB_TOKEN lacks: secret ENVIRONMENT_READ_TOKEN
   # (fine-grained PAT, repository permission "Administration: read") is required.
   check-environment:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -156,7 +156,7 @@ jobs:
     # STAGING_RUNNER (repository variable): label of the self-hosted runner next
     # to a cluster GitHub cannot reach, e.g. the local kind staging
     # (docs/deployment/STAGING_LOCAL.md). Production always runs on GitHub.
-    runs-on: ${{ (inputs.environment == 'staging' && vars.STAGING_RUNNER) || 'ubuntu-latest' }}
+    runs-on: ${{ (inputs.environment == 'staging' && vars.STAGING_RUNNER) || 'ubuntu-24.04' }}
     environment: ${{ inputs.environment }}
     # Budget = 90 + 60 * DEPLOY_TIMEOUT_FACTOR min (150 at 1, 330 at 4), sum of the step caps:
     # fixed 90 = checks 10 + pre-migrate backup 30 + canary 5 + smoke 5 + market data 10 + verify 10 + rollback 10 + margin 10;
@@ -170,7 +170,7 @@ jobs:
       # cluster (local kind staging). Unset: 1.
       DEPLOY_TIMEOUT_FACTOR: ${{ vars.DEPLOY_TIMEOUT_FACTOR || '1' }}
       # Canary services (canary-all and canary-cleanup read this one list).
-      CANARY_SERVICES: discovery-server message-manager financial-scraper api-gateway audit-logger dlq-service
+      CANARY_SERVICES: message-manager financial-scraper api-gateway audit-logger dlq-service
       # Free-text inputs reach scripts through env only, never ${{ }} in run:.
       DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
       ALLOW_FIRING_ALERTS: ${{ inputs.allow_firing_alerts }}
@@ -462,7 +462,7 @@ jobs:
           # Exporter users (ADR-0056): optional keys for the pods, but without
           # them MySQLDown / RedisDown fire and verify-release rolls back.
           missing=""
-          for key in REDIS_INTERNAL_PASSWORD REDIS_DISCOVERY_PASSWORD REDIS_MESSAGE_MANAGER_PASSWORD REDIS_DLQ_PASSWORD REDIS_AUDIT_LOGGER_PASSWORD REDIS_TRADER_TRAINER_PASSWORD REDIS_MODEL_EVALUATOR_PASSWORD MYSQL_EXPORTER_PASSWORD REDIS_EXPORTER_PASSWORD MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD MONGO_AUDIT_KEYFILE MONGO_DLQ_KEYFILE; do
+          for key in REDIS_INTERNAL_PASSWORD REDIS_DISCOVERY_PASSWORD REDIS_MESSAGE_MANAGER_PASSWORD REDIS_DLQ_PASSWORD REDIS_AUDIT_LOGGER_PASSWORD REDIS_TRADER_TRAINER_PASSWORD REDIS_MODEL_EVALUATOR_PASSWORD REDIS_RISK_EXECUTION_PASSWORD REDIS_DECISION_CONSUMER_PASSWORD MYSQL_EXPORTER_PASSWORD REDIS_EXPORTER_PASSWORD MONGO_ROOT_PASSWORD MONGO_EXPORTER_PASSWORD MONGO_BACKUP_PASSWORD MONGO_AUDIT_PASSWORD MONGO_DLQ_PASSWORD MONGO_AUDIT_KEYFILE MONGO_DLQ_KEYFILE; do
             grep -qE "^ +$key: " <<<"$rendered" || missing="$missing $key"
           done
           if [ -n "$missing" ]; then
@@ -762,8 +762,8 @@ jobs:
           bash scripts/backup-recipients-check.sh --environment "$ENV" --min "$min"
 
       # Production refuses to deploy without a backup encryption key and an
-      # off-site copy (issue #331): each comes from the GitHub environment or
-      # from the resource already in the namespace (ConfigMap
+      # off-site copy at two providers (issue #331, #2599): each comes from
+      # the GitHub environment or from the resource already in the namespace (ConfigMap
       # backup-encryption, Secret trading-model-backup-s3, e.g. a
       # SealedSecret). Other environments warn. Checked before any change.
       - name: Check backup configuration is present
@@ -773,6 +773,8 @@ jobs:
         env:
           BACKUP_AGE_RECIPIENTS: ${{ vars.BACKUP_AGE_RECIPIENTS }}
           BACKUP_S3_BUCKET: ${{ vars.BACKUP_S3_BUCKET }}
+          BACKUP_S3_SECONDARY_BUCKET: ${{ vars.BACKUP_S3_SECONDARY_BUCKET }}
+          BACKUP_S3_SECONDARY_CHECK: ${{ vars.BACKUP_S3_SECONDARY_CHECK }}
         run: |
           bash scripts/backup-config-check.sh --environment "$DEPLOY_ENVIRONMENT" \
             --namespace "$NAMESPACE"
@@ -893,23 +895,13 @@ jobs:
           kubectl kustomize "deploy/k8s/overlays/$OVERLAY/node-agents" |
             KUBECONFIG="$CLUSTER_KUBECONFIG" kubectl apply -f -
 
-      # A destructive migration cannot be undone by migrate-down or the rollback:
-      # the dump taken here (MySQL only, from the db-backup CronJob) is the restore point.
+      # MySQL dump from the db-backup CronJob: the restore point of a destructive migration.
       - name: Back up MySQL before migrations
-        if: ${{ !inputs.preflight_only && inputs.environment == 'production' }}
+        if: ${{ !inputs.preflight_only }}
         shell: bash
         run: |
-          NS="$NAMESPACE"
-          if ! kubectl get statefulset mysql -n "$NS" >/dev/null 2>&1; then
-            echo "First deploy: MySQL not there yet, no backup"
-            exit 0
-          fi
-          job="db-backup-pre-migrate-${{ github.run_id }}"
-          kubectl create job "$job" --from=cronjob/db-backup -n "$NS" --dry-run=client -o json |
-            sed 's/--components mongodb,mysql,checkpoints,spire/--components mysql/' |
-            kubectl apply -n "$NS" -f -
-          bash deploy/k8s/scripts/wait-job.sh "$NS" "$job" 1800
-          echo "MySQL backup finished at $(date -u +%Y-%m-%dT%H:%M:%SZ) (job $job): restore point for restore-k8s.sh --until" >> "$GITHUB_STEP_SUMMARY"
+          bash deploy/k8s/scripts/deploy-release.sh pre-migrate-backup "$NAMESPACE" \
+            "db-backup-pre-migrate-${{ github.run_id }}" "$DEPLOY_ENVIRONMENT"
 
       # Migrations must run before the new image rolls out. On a first deploy
       # MySQL does not exist yet: they run right after the overlay instead.
@@ -986,11 +978,6 @@ jobs:
           # Redis last ("Wait for rollout"): it never restarts under the previous release (issue #1156).
           bash deploy/k8s/scripts/deploy-release.sh without-redis "$NAMESPACE" <"$RUNNER_TEMP/app.yaml" |
             kubectl apply -f -
-          # The former secret-rotation CronJob (issue #424) held write rights on every
-          # Secret; apply never prunes, so remove what an older deploy left behind.
-          kubectl delete cronjob/secret-rotation role/secret-rotator-role \
-            rolebinding/secret-rotator-binding serviceaccount/secret-rotator \
-            -n "$NAMESPACE" --ignore-not-found
 
       # Public age key(s) the db-backup CronJob encrypts every dump for (the
       # private keys never enter the cluster). Environment variable of the

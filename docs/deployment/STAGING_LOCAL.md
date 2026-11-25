@@ -10,7 +10,7 @@ overlay `production`.
 | Cluster `trading-staging` (kind v0.27.0, as the CI `k8s` job) | `deploy/staging-local/kind.yaml` |
 | MinIO (audit anchors, off-site backups) and the runner | `deploy/staging-local/docker-compose.yml`, project `trading-staging`, both on the Docker network `kind` |
 | Overlay | `deploy/k8s/overlays/staging-local`: `staging` + self-signed TLS (`selfsigned-local`), Ingress allow-list `172.18.0.0/16`, audit-logger and backup CronJobs egress to MinIO `172.18.0.200:9000`, SealedSecret sealed for the kind controller, data StatefulSets held by a partition ([below](#database-pods-across-releases)) |
-| Local secrets | `~/.trading-staging/env` (MinIO root, S3 users) and `~/.trading-staging/backup-age-identity.txt` (private age key of the staging backups): never committed |
+| Local secrets | `~/.trading-staging/env` (keys `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` required; `MINIO_IP`, `RUNNER_TOKEN` optional) and `~/.trading-staging/backup-age-identity.txt` (private age key of the staging backups): never committed |
 
 The Ingress answers on `https://localhost:9443` (self-signed certificate).
 The compose stack keeps `http://localhost:8449` (edge-proxy). It is deployed by the `deploy-compose.yml` workflow from a release tag (ADR-0086), which waits for a running `deploy.yml` of staging.
@@ -25,7 +25,7 @@ The compose stack keeps `http://localhost:8449` (edge-proxy). It is deployed by 
   `check-environment` reports a missing rule as `::error::` in the preflight
   summary without blocking the deploy ([DEPLOY.md](DEPLOY.md#prerequisites-secrets)).
 - Repository variable `STAGING_RUNNER` (`trading-staging`): `runs-on` label of the
-  staging job. Unset: `ubuntu-latest`.
+  staging job. Unset: `ubuntu-24.04`.
 - Variable `K8S_OVERLAY` of the environment `staging` (`staging-local`): the
   overlay directory. Unset: the environment name.
 - Variable `DEPLOY_TIMEOUT_FACTOR` of the environment `staging` (`4`): integer
@@ -84,6 +84,8 @@ change it, in this order:
 2. Check: `aws --endpoint-url http://127.0.0.1:9000 s3api get-bucket-location --bucket trading-staging-backup` returns `eu-west-3`.
 3. Set `BACKUP_S3_REGION` and `AUDIT_ANCHOR_REGION` to `eu-west-3` in the GitHub environment `staging`, and `BACKUP_S3_REGION` in `backup-key-check` and `sealed-secrets-key-backup`.
 4. Redeploy staging. MinIO rejects signatures from another region, so the pods, `backup-key-check.yml` and `sealed-secrets-key-backup.yml` need the new value at the same time (until then `BackupOffsiteCopyFailed` fires and the audit anchors fail).
+
+The pre-migration backup of `deploy.yml` runs the `db-backup` template of the release in place, which may not sign for this region: outside production it is not copied off-site and stays on `backup-data` (issue #2724).
 
 ## Runner
 
@@ -285,7 +287,7 @@ kubectl -n "$NS" exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=$REDIS_MESSAGE_MA
 
 The cluster may be stopped between two deploys. Nothing calls it except
 `deploy.yml` and, when `vars.SEALED_SECRETS_BACKUP_RUNNER` is set,
-`sealed-secrets-key-backup.yml` (default `ubuntu-latest`), and staging holds no data that
+`sealed-secrets-key-backup.yml` (default `ubuntu-24.04`), and staging holds no data that
 the compose stack or production needs. The price is a blind period: nothing
 runs in the cluster while it is down.
 

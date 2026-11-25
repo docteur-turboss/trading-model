@@ -27,7 +27,7 @@ jobs:
   gate:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       k8s: ${{ steps.changes.outputs.k8s }}
@@ -57,8 +57,11 @@ jobs:
 
   lint:
     needs: gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read # PR title step: reads the title at run time
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -74,11 +77,14 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run lint
       # The PR title becomes the squash message: release.mjs reads its gitmoji. Dependabot titles ("Bump x") have none.
+      # Title read at run time, not from the event: a re-run replays the original payload, so a PR renamed after
+      # its run (Dependabot title fixed by an agent) stayed red on every re-run (#2543).
       - name: PR title follows commitlint
         if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
         env:
-          TITLE: ${{ github.event.pull_request.title }}
-        run: printf '%s\n' "$TITLE" | bunx --no commitlint --config commitlint.config.mjs
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .title | bunx --no commitlint --config commitlint.config.mjs
       - run: bun run deps:check
       - run: bun run deps:third-party
       - run: bun run api:check
@@ -104,9 +110,10 @@ jobs:
           if grep -hE '^\s*timeout-minutes:.*\$\{\{' .github/workflows/*.yml | sed -E "s/'[^']*'//g" | grep -E '[*+/%]|[0-9] - | - [0-9]'; then exit 1; fi
 
   security:
-    # Not in pre-push: bun audit needs the network, gitleaks the full history (release tags only; PRs scan their commits).
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
-    runs-on: ubuntu-latest
+    # Not in pre-push: bun audit needs the network, gitleaks the full history (every push, PR merge to development
+    # included, so a leak or a broken allowlist shows before the release tag; PRs scan their commits).
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -118,17 +125,18 @@ jobs:
           bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - run: bun audit --audit-level=high
-      # The action only scans the commits of the event; a release tag scans the whole history.
+      # The action only scans the commits of the event; a push (branch or release tag) scans the whole history.
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ github.event_name == 'pull_request' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: gitleaks full history (release tag)
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+          GITLEAKS_VERSION: 8.30.1 # same as the tag scan below; the action default (8.24.3) ignores [[allowlists]]
+      - name: gitleaks full history
+        if: ${{ github.event_name != 'pull_request' }}
         run: |
-          v=8.24.3
+          v=8.30.1
           curl -fsSL -o "$RUNNER_TEMP/gitleaks.tgz" "https://github.com/gitleaks/gitleaks/releases/download/v${v}/gitleaks_${v}_linux_x64.tar.gz"
-          echo "9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c  $RUNNER_TEMP/gitleaks.tgz" | sha256sum -c -
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $RUNNER_TEMP/gitleaks.tgz" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/gitleaks.tgz" -C "$RUNNER_TEMP" gitleaks
           "$RUNNER_TEMP/gitleaks" git --log-opts=--all -c .gitleaks.toml --redact .
 
@@ -136,7 +144,7 @@ jobs:
     needs: gate
     # Also on the merge push to development (gate skipped, see its if), like test.
     if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -160,7 +168,7 @@ jobs:
     needs: gate
     # Also on the merge push to development (gate skipped, see its if): two green PRs can still break the unit tests together.
     if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -180,7 +188,7 @@ jobs:
 
   db-integration:
     needs: gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -201,7 +209,7 @@ jobs:
 
   observability:
     needs: gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -222,11 +230,14 @@ jobs:
       # silent) on the scenarios of tests/alerts/alerting.test.yml.
       - name: Alert rule tests
         run: bash tests/alerts/run.sh
+      # Pinned Grafana image on an existing volume (Loki without uid), issue #2414.
+      - name: Grafana upgrade on an existing database
+        run: bash tests/observability/grafana-upgrade.test.sh
 
   # The k8s job only deploys staging: production is checked by rendering.
   k8s-overlays:
     needs: gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -267,7 +278,7 @@ jobs:
     needs: gate
     # Also on the merge push to development (gate skipped, see its if), like test.
     if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -308,7 +319,7 @@ jobs:
 
   e2e:
     needs: gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       # Compose names the images <project>-<service>; the bake step below tags them the same way.
@@ -370,7 +381,7 @@ jobs:
         run: >-
           docker compose -f docker-compose.yml -f docker-compose.build.yml -f tests/e2e/docker-compose.e2e.yml
           up -d --wait --wait-timeout 600
-          discovery-server message-manager financial-scraper trader-trainer
+          message-manager financial-scraper trader-trainer
           api-gateway audit-logger dlq-service model-evaluator risk-execution decision-consumer edge-proxy
       # Issue #844: no container of the started stack may publish on every interface.
       - name: "No port published on 0.0.0.0 or ::"
@@ -415,7 +426,7 @@ jobs:
           name: zap-baseline-report
           path: zap-out/zap-report.html
           if-no-files-found: warn
-      # Last: restarts message-manager and discovery to check the mesh heals.
+      # Last: restarts message-manager to check the mesh heals.
       - name: Resilience (service restarts)
         run: bun run test:e2e -- resilience
       - name: Dump service logs
@@ -434,7 +445,7 @@ jobs:
     needs: gate
     # The merge push to development skips gate (see its if): kind, typecheck, test and contract still run there, the other jobs stay skipped.
     if: ${{ !cancelled() && (needs.gate.outputs.k8s == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: read
@@ -448,24 +459,33 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      # Release N-1 = the last stable release (manifests of its tag, its signed images), what
-      # production runs: a broken main no longer fails every PR. HEAD^1: on a release tag, the one before.
-      - name: Resolve release N-1 (last stable tag)
-        id: previous
-        env:
-          IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY }}
-          OWNER: ${{ github.repository_owner }}
-        run: |
-          tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' --exclude '*-*' HEAD^1)
-          registry="${IMAGE_REGISTRY:-ghcr.io/$OWNER}"
-          { echo "tag=$tag"; echo "registry=${registry,,}"; } >> "$GITHUB_OUTPUT"
-          echo "Release N-1: $tag (${registry,,})"
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # Release N-1 = the last stable tag with published images (manifests of its tag, its signed images),
+      # what production can run: a broken main no longer fails every PR, a release that failed before
+      # publishing (v3.2.0) is skipped. HEAD^1: on a release tag, the one before.
+      - name: Resolve release N-1 (last stable tag with published images)
+        id: previous
+        env:
+          IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          registry="${IMAGE_REGISTRY:-ghcr.io/$OWNER}"
+          registry="${registry,,}"
+          for tag in $(git tag --merged HEAD^1 --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$'); do
+            if err=$(docker manifest inspect "$registry/api-gateway:${tag#v}" 2>&1 >/dev/null); then
+              { echo "tag=$tag"; echo "registry=$registry"; } >> "$GITHUB_OUTPUT"
+              echo "Release N-1: $tag ($registry)"
+              exit 0
+            fi
+            echo "::warning::Release N-1: $tag skipped, no image $registry/api-gateway:${tag#v} ($err)"
+          done
+          echo "::error::Release N-1: no stable tag merged in HEAD^1 has published images in $registry"
+          exit 1
       - name: Install cosign
         uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
       - name: Pull release N-1, build release N
@@ -484,7 +504,7 @@ jobs:
     needs: [gate, k8s-images]
     if: ${{ !cancelled() && needs.k8s-images.result == 'success' }}
     name: k8s (${{ matrix.group }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # One job per group of checks (run-kind.sh verify_group): each deploys N-1, upgrades to N,
     # then runs its own checks. fail-fast off: a red group does not hide the others.
     # Not measured per group yet: first runs decide the timeout (the single job was 30 min measured, 48 min on PR #460).
@@ -604,7 +624,7 @@ jobs:
   k8s-result:
     needs: [gate, lint, security, typecheck, test, db-integration, observability, k8s-overlays, contract, e2e, k8s-images, k8s]
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - env:
