@@ -105,6 +105,14 @@ STUB_ROLLOUT_FAIL=1 run --component mysql
 [ "$RC" != 0 ] && ! calls | grep -q "DISCARD OLD" && pass "mysql: failed rollout keeps the old password" || failed "mysql rollout failure: rc=$RC"
 STUB_SECONDARY=1 run --component mysql
 [ "$RC" != 0 ] && ! calls | grep -q "RETAIN CURRENT" && [ -z "$(restarts)" ] && pass "mysql: existing secondary password refused before RETAIN" || failed "mysql guard: rc=$RC"
+for c in migrator retention exporter; do
+	run --component "$c"
+	want="RETAIN CURRENT apply DISCARD OLD"
+	[ "$c" != exporter ] || want="RETAIN CURRENT apply restart DISCARD OLD"
+	[ "$RC" = 0 ] && [ "$(steps)" = "$want" ] && calls | grep -q "ALTER USER '$c'" && pass "$c: RETAIN -> apply -> restart -> DISCARD" || failed "$c order: rc=$RC steps=$(steps)"
+	DRY_RUN=true run --component "$c"
+	[ "$RC" = 0 ] && [ -z "$(calls)" ] && pass "$c: DRY_RUN calls nothing" || failed "$c DRY_RUN: rc=$RC"
+done
 run --component redis
 [ "$RC" = 1 ] && [ -z "$(calls)" ] && pass "redis refused with doc pointer" || failed "redis: rc=$RC"
 

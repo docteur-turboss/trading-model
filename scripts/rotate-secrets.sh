@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # Rotates application secrets of trading-model-secrets, by hand (no CronJob does it).
-# Usage: bash scripts/rotate-secrets.sh [--component tokens|mysql|all]
+# Usage: bash scripts/rotate-secrets.sh [--component tokens|mysql|migrator|retention|exporter|all]
 #   tokens   AUTH_TOKENS           -> api-gateway (only the key API_KEY_NAME is replaced, the others kept;
 #            ADR-0059 `name:scopes:secret`). The new key is written to a 0600 file, path logged.
 #   all      tokens (mysql only when named)
 #   mysql    MYSQL_PASSWORD (user scraper) -> financial-scraper, no downtime: ALTER USER ... RETAIN CURRENT PASSWORD,
 #            Secret, restart, DISCARD OLD PASSWORD
-# Other database passwords (MYSQL_*, MONGO_ROOT_PASSWORD, redis, REDIS_*_PASSWORD) are refused: see
+#   migrator | retention | exporter   same scheme for MYSQL_MIGRATE_PASSWORD / MYSQL_RETENTION_PASSWORD /
+#            MYSQL_EXPORTER_PASSWORD (Jobs and CronJob read the Secret when they start; the exporter
+#            sidecars restart with StatefulSet mysql)
+# Other database passwords (other MYSQL_*, MONGO_ROOT_PASSWORD, redis, REDIS_*_PASSWORD) are refused: see
 # docs/deployment/sealed-secrets.md "Rotate a database password".
 # Env: DRY_RUN=true (no kubeseal merge, apply or restart), NAMESPACE, SEALED_SECRETS_FILE.
 # The new value is merged into SEALED_SECRETS_FILE (kubeseal --merge-into), never printed.
@@ -44,6 +47,7 @@ merge_tokens() {
 }
 
 # Database steps of rotate_secret: $1 = file holding the new password (fed on stdin, never argv).
+MYSQL_USER=scraper # MySQL user being rotated, set by mysql_rotate
 PRE_HOOK="" # runs before the Secret is applied: adds the new password, the old one stays valid
 POST_HOOK="" # runs after the consumers restarted: removes the old password
 
@@ -54,19 +58,19 @@ mysql_pod() {
   echo "$pod"
 }
 mysql_alter() { # $1 file, $2 clause ($p = the password read from the file)
-  local sql="ALTER USER 'scraper'@'%' $2"
+  local sql="ALTER USER '$MYSQL_USER'@'%' $2"
   kubectl exec -i -n "$NAMESPACE" "$(mysql_pod)" -c mysql -- sh -c     "IFS= read -r p; echo \"$sql;\" | MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\" mysql --user=root" <"$1"
 }
 mysql_add() {
   # RETAIN CURRENT on a user that already has a secondary password would discard the real old one.
   local has
-  has=$(kubectl exec -n "$NAMESPACE" "$(mysql_pod)" -c mysql -- sh -c "MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\" mysql --user=root -N -e \"SELECT JSON_EXTRACT(User_attributes,'\\$.additional_password') IS NOT NULL FROM mysql.user WHERE User='scraper' AND Host='%'\"")
-  [ "$has" = 0 ] || die "scraper already has a secondary password (an earlier rotation stopped midway): check which value the live Secret holds, run ALTER USER 'scraper'@'%' DISCARD OLD PASSWORD by hand, then rerun"
+  has=$(kubectl exec -n "$NAMESPACE" "$(mysql_pod)" -c mysql -- sh -c "MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\" mysql --user=root -N -e \"SELECT JSON_EXTRACT(User_attributes,'\\$.additional_password') IS NOT NULL FROM mysql.user WHERE User='$MYSQL_USER' AND Host='%'\"")
+  [ "$has" = 0 ] || die "${MYSQL_USER} already has a secondary password (an earlier rotation stopped midway): check which value the live Secret holds, run ALTER USER '${MYSQL_USER}'@'%' DISCARD OLD PASSWORD by hand, then rerun"
   mysql_alter "$1" "IDENTIFIED BY '\$p' RETAIN CURRENT PASSWORD"
 }
 mysql_discard() { mysql_alter "$1" "DISCARD OLD PASSWORD"; }
 
-# $1 Secret key, $2 random bytes, $3 value prefix, rest: Deployments that read the key
+# $1 Secret key, $2 random bytes, $3 value prefix, rest: workloads (kind/name) restarted to read the key
 rotate_secret() {
   local key="$1" bytes="$2" prefix="$3" deployment
   shift 3
@@ -124,33 +128,40 @@ rotate_secret() {
   [ "$live" = "$b64" ] || die "${key} not updated in the live Secret: the controller did not decrypt ${SEALED_SECRETS_FILE}"
 
   for deployment in "$@"; do
-    kubectl rollout restart "deployment/${deployment}" -n "$NAMESPACE"
+    kubectl rollout restart "$deployment" -n "$NAMESPACE"
   done
   for deployment in "$@"; do
-    kubectl rollout status "deployment/${deployment}" -n "$NAMESPACE" --timeout=120s
+    kubectl rollout status "$deployment" -n "$NAMESPACE" --timeout=120s
   done
   # Reached only when every consumer is rolled out on the new password.
   [ -z "$POST_HOOK" ] || "$POST_HOOK" "$secret_file"
   log "${key} rotated"
 }
 
+mysql_rotate() { # $1 MySQL user, $2 Secret key, rest: workloads restarted
+  MYSQL_USER=$1 PRE_HOOK=mysql_add POST_HOOK=mysql_discard rotate_secret "$2" 24 "" "${@:3}"
+}
+
 rotate_component() {
   case "$1" in
-    tokens) rotate_secret AUTH_TOKENS 24 "${API_KEY_NAME}:${API_KEY_SCOPES}:" api-gateway ;;
-    mysql) PRE_HOOK=mysql_add POST_HOOK=mysql_discard rotate_secret MYSQL_PASSWORD 24 "" financial-scraper financial-scraper-collector ;;
+    tokens) rotate_secret AUTH_TOKENS 24 "${API_KEY_NAME}:${API_KEY_SCOPES}:" deployment/api-gateway ;;
+    mysql) mysql_rotate scraper MYSQL_PASSWORD deployment/financial-scraper deployment/financial-scraper-collector ;;
+    migrator) mysql_rotate migrator MYSQL_MIGRATE_PASSWORD ;;
+    retention) mysql_rotate retention MYSQL_RETENTION_PASSWORD ;;
+    exporter) mysql_rotate exporter MYSQL_EXPORTER_PASSWORD statefulset/mysql ;;
     *) die "unknown component '$1'" ;;
   esac
 }
 
 COMPONENT=all
-USAGE="Usage: $0 [--component tokens|mysql|all]"
+USAGE="Usage: $0 [--component tokens|mysql|migrator|retention|exporter|all]"
 if [ $# -gt 0 ]; then
   [ $# -eq 2 ] && [ "$1" = --component ] || { echo "$USAGE" >&2; exit 1; }
   COMPONENT="$2"
 fi
 
 case "$COMPONENT" in
-  tokens | mysql) rotate_component "$COMPONENT" ;;
+  tokens | mysql | migrator | retention | exporter) rotate_component "$COMPONENT" ;;
   all) for c in tokens; do rotate_component "$c"; done ;;
   MYSQL_* | MONGO_ROOT_PASSWORD | REDIS_* | redis | mongo)
     die "this database password is not rotated by this script (Redis: ACL rights for a rotation identity are not granted, ADR-0047): follow 'Rotate a database password' in docs/deployment/sealed-secrets.md" ;;
