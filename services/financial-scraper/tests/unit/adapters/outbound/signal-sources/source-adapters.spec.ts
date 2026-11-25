@@ -115,7 +115,7 @@ describe("fred-series-observations", () => {
 		series: "UNRATE",
 	};
 
-	it('keeps one signal per vintage, stamped at its publication, and skips "."', () => {
+	it('keeps one signal per vintage, stamped at the end of its vintage day, and skips "."', () => {
 		const observations = FRED_SERIES_OBSERVATIONS.normalize(
 			fixture("fred-unrate"),
 			{ params }
@@ -125,7 +125,7 @@ describe("fred-series-observations", () => {
 			["2026-09-01@2026-11-07", 4.4],
 		]);
 		expect(observations[1]).toMatchObject({
-			observedAt: Date.parse("2026-11-07"),
+			observedAt: Date.parse("2026-11-08"),
 			payload: { period: { start: "2026-09-01", end: "2026-09-30" } },
 		});
 		for (const { payload } of observations) {
