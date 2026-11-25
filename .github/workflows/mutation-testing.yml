@@ -1,13 +1,14 @@
 name: Mutation Testing
 
 # Weekly Stryker run (issue #656). Not part of the PR gates or pre-push.
-# Triggers: schedule and workflow_dispatch run the 7 shards; a push to `development` that changes
+# Triggers: schedule and workflow_dispatch run the 8 shards; a push to `development` that changes
 # risk-execution `src/domain/**` runs only the `risk-execution-domain` shard (issue #2741).
-# Scope: trader-trainer `src/domain/**`, model-runtime `src/env/**` (portfolio simulator, ADR-0066) and
-# risk-execution `src/domain/**` (issue #2103).
+# Scope: trader-trainer `src/domain/**`, model-runtime `src/env/**` (portfolio simulator, ADR-0066),
+# `src/replay.ts` and `src/agent/**`, risk-execution `src/domain/**` (issue #2103) and
+# decision-consumer `src/application/decide.ts` + `src/domain/**` (issue #2742).
 # `break` 60 per shard, 50 for the two GA shards (MUTATION_BREAK, read by
 # services/trader-trainer/stryker.config.mjs; model-runtime sets 60 and
-# risk-execution 80 in their config). A single run over all of `src/domain` stalled at 38 %
+# risk-execution 80, decision-consumer 65 in their config). A single run over all of `src/domain` stalled at 38 %
 # after 1 h (genetic-algorithm / neural-network mutants are slow), so the
 # domain is sharded: one job, and one time budget, per shard.
 # Incremental (issue #1813): each shard caches its Stryker incremental file and
@@ -42,7 +43,7 @@ jobs:
       fail-fast: false
       matrix:
         # push: only risk-execution-domain stays
-        exclude: ${{ fromJSON(github.event_name == 'push' && '[{"name":"trader-trainer-domain"},{"name":"trader-trainer-neural-network-a"},{"name":"trader-trainer-neural-network-b"},{"name":"trader-trainer-ga-core"},{"name":"trader-trainer-ga-operators"},{"name":"model-runtime-env"}]' || '[]') }}
+        exclude: ${{ fromJSON(github.event_name == 'push' && '[{"name":"trader-trainer-domain"},{"name":"trader-trainer-neural-network-a"},{"name":"trader-trainer-neural-network-b"},{"name":"trader-trainer-ga-core"},{"name":"trader-trainer-ga-operators"},{"name":"model-runtime-env"},{"name":"decision-consumer"}]' || '[]') }}
         include:
           - name: trader-trainer-domain
             dir: services/trader-trainer
@@ -67,11 +68,15 @@ jobs:
           - name: model-runtime-env
             dir: packages/model-runtime
             break: 60
-            mutate: 'src/env/**/*.ts'
+            mutate: 'src/env/**/*.ts,src/replay.ts,src/agent/**/*.ts'
           - name: risk-execution-domain
             dir: services/risk-execution
             break: 80
             mutate: 'src/domain/**/*.ts'
+          - name: decision-consumer
+            dir: services/decision-consumer
+            break: 65
+            mutate: 'src/application/decide.ts,src/domain/**/*.ts'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
