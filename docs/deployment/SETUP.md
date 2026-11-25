@@ -4,14 +4,14 @@
 
 | Tool                           | Version    | Usage                      |
 | ------------------------------ | ---------- | -------------------------- |
-| Bun                           | 1.4.4      | JS runtime + package manager (tested; same as `services/*/Dockerfile`) |
+| Bun                           | 1.4.5      | JS runtime + package manager (tested; same as `Dockerfile`) |
 | Docker Desktop / Docker Engine | 24+        | Containerization           |
 | Git                            | 2.40+      | Version control            |
 
 Verify installed versions:
 
 ```bash
-bun --version      # 1.4.4 (tested; same as services/*/Dockerfile)
+bun --version      # 1.4.5 (tested; same as Dockerfile)
 docker --version   # ≥ 24.x
 git --version      # ≥ 2.40
 ```
