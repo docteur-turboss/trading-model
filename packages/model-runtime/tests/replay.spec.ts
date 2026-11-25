@@ -11,7 +11,7 @@ import {
 } from "../src/replay";
 
 const T0 = 1_700_000_000_000;
-const candles = Array.from({ length: 120 }, (_, idx) => {
+const candles = Array.from({ length: 560 }, (_, idx) => {
 	const price = 100 + 8 * Math.sin(idx / 5) + idx / 20;
 	return {
 		timestamp: T0 + idx * 60_000,
@@ -153,6 +153,38 @@ describe("decideOnLastBar (ADR-0087)", () => {
 			// The every-bar weights only hold on these last bars.
 			expect(orders.length > 0).toBe(variant === "on-event");
 			expect(orders.every((order) => order.quantity > 0)).toBe(true);
+		}
+	);
+
+	it.each([
+		[2, 500],
+		[2, 501],
+		[3, 500],
+		[3, 501],
+	])(
+		"decides every frameSkip %i bars in absolute time over a sliding window of %i candles",
+		(frameSkip, size) => {
+			const { genome: base, weights: every } = genome("every-bar");
+			const g: PolicyGenome = { ...base, rl: { horizon: { frameSkip } } };
+			// Weights that trade on these last bars.
+			const weights = every.map((_, idx) => Math.sin(idx * 1.1) * 5);
+			// The window slides one bar at a time over the last 40 candles.
+			const ends = Array.from({ length: 40 }, (_, idx) => candles.length - idx);
+			const orders = ends.filter(
+				(end) =>
+					decideOnLastBar({
+						genome: g,
+						weights,
+						simulator: SIMULATOR,
+						candles: candles.slice(end - size, end),
+					})?.order
+			);
+			expect(orders.length).toBeGreaterThan(0);
+			for (const end of orders) {
+				expect(
+					Math.round(candles[end - 1].timestamp / 60_000) % frameSkip
+				).toBe(0);
+			}
 		}
 	);
 
