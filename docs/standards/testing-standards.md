@@ -93,7 +93,6 @@ All workspaces enforce an **80%** global threshold (statements, branches, functi
 | @trading-model/crypto          | 80%      | 80%       | 80%   | 80%        | Jest      |
 | @trading-model/address-manager | 80%      | 80%       | 80%   | 80%        | Jest      |
 | @trading-model/broker-message  | 75%      | 80%       | 80%   | 80%        | Jest      |
-| discovery-server               | 80%      | 80%       | 80%   | 80%        | Jest      |
 | financial-scraper              | 80%      | 80%       | 80%   | 80%        | Jest      |
 | trader-trainer                 | 80%      | 80%       | 80%   | 80%        | Jest      |
 | api-gateway                    | 80%      | 80%       | 80%   | 80%        | Jest      |
@@ -172,10 +171,10 @@ describe('UserService', () => {
 Reusable mocks are placed in a `__mocks__/` directory next to the mocked module:
 
 ```
-services/discovery-server/
+services/audit-logger/
 ├── src/
-│   └── core/
-│       └── lease-manager.ts
+│   └── domain/
+│       └── audit-chain.ts
 └── __mocks__/
     └── @trading-model/
         └── common.ts
@@ -298,7 +297,7 @@ bun run test
 ```bash
 bun run test --testPathPattern="packages/broker-message"
 bun run test --testPathPattern="packages/address-manager"
-bun run test --testPathPattern="discovery-server"
+bun run test --testPathPattern="audit-logger"
 ```
 
 ### Run tests in watch mode (development)

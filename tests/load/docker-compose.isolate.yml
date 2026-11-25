@@ -12,9 +12,6 @@ services:
   migrate:
     container_name: !reset null
     ports: !reset []
-  discovery-server:
-    container_name: !reset null
-    ports: !reset []
   spire-server:
     container_name: !reset null
     ports: !reset []
@@ -36,7 +33,6 @@ services:
   audit-logger:
     container_name: !reset null
     ports: !reset []
-  spiffe-helper-discovery:
     container_name: !reset null
     ports: !reset []
   spiffe-helper-scraper:

@@ -10,7 +10,6 @@ import {
 
 /** In-mesh hostnames of the services that answer /health/ready over mTLS. */
 const MESH_SERVICES = [
-	"discovery-server",
 	"financial-scraper",
 	"trader-trainer",
 	"api-gateway",
@@ -36,7 +35,7 @@ describe("Smoke", () => {
 	it("refuses a client without a certificate at the TLS handshake", () => {
 		const { status } = meshRequest(
 			CALLER.scraper,
-			"https://discovery-server:3000/v1/services",
+			"https://audit-logger:3000/health/ready",
 			{ withoutCert: true }
 		);
 		expect(status).toBe(0);

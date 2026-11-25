@@ -7,7 +7,7 @@ The HTTP status is the `httpStatus` set by the factory in `errors/*.ts`. `500` i
 | Code | HTTP | Cause | Expected action (caller) |
 | ---- | ---- | ----- | ------------------------ |
 | `AuthenticationError` | 498 | Signed request or token rejected (bad signature, expired timestamp, unknown caller). | Do not retry as is; fix the credentials, SVID or clock, then resend. |
-| `AddressManagerError` | 503 | Address manager failed to register, heartbeat or resolve an address. | Retry; check discovery-server and Redis availability. |
+| `AddressManagerError` | 503 | Address manager failed to resolve an address. | Retry; check DNS and the target service. |
 | `MessageManagerError` | 503 | Bus call failed (journal publish or read, Redis unavailable). | Retry with backoff; check Redis health. |
 | `DeadLetterError` | 503 | A message must be dead-lettered at once: payload rejected by the subscriber (`Invalid payload format`). The bus copies it to a dead stream. | Do not retry the message; read it with `audit-dlq list`, fix the cause, then `replay` (runbook-message-bus-outage). |
 | `AgentError` | 503 | A trading agent (training or inference) failed. | Check trainer logs; retry the run. |

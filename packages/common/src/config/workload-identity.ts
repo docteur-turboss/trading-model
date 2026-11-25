@@ -24,7 +24,6 @@ export const PLATFORM_SERVICES = [
 	"api-gateway",
 	"audit-logger",
 	"decision-consumer",
-	"discovery-server",
 	"edge-proxy",
 	"financial-scraper",
 	"model-evaluator",
@@ -33,13 +32,12 @@ export const PLATFORM_SERVICES = [
 ] as const;
 
 /**
- * Aliases still emitted by legacy discovery/compose registration names so the
+ * Aliases still emitted by legacy compose registration names so the
  * identity layer can map them onto their canonical SPIFFE service name during
  * the ADR-0011 migration.
  */
 export const LEGACY_SERVICE_NAME_ALIASES: Readonly<Record<string, string>> = {
 	"audit-logger-service": "audit-logger",
-	"discovery-service": "discovery-server",
 	"financial-scraper-service": "financial-scraper",
 	"trader-training-service": "trader-trainer",
 };

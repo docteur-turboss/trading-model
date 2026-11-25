@@ -2,7 +2,7 @@
 # =============================================================================
 #  Trading Model — Prove that an age private key decrypts the real backups
 #  Usage:  bash scripts/verify-backup-key.sh --identity KEY_FILE [--dir DIR | --offsite]
-#            [--timestamp TS] [--tier T] [--components mongodb-audit,mysql,mysql-core,checkpoints,spire]
+#            [--timestamp TS] [--tier T] [--components mongodb-audit,mysql,mysql-core,checkpoints,spire,risk]
 #          --offsite: BACKUP_S3_BUCKET + AWS_* (+ RCLONE_S3_*), as scripts/fetch-offsite.sh
 #
 #  An age file does not name the keys it is encrypted for: only decrypting it
@@ -39,7 +39,7 @@ DIR=""
 OFFSITE=false
 TIMESTAMP=""
 TIER=""
-COMPONENTS="mongodb-audit,mysql,checkpoints,spire"
+COMPONENTS="mongodb-audit,mysql,checkpoints,spire,risk"
 
 usage() {
 	sed -n 4,6p "$0" | sed 's/^#  //'
@@ -87,7 +87,7 @@ PARTS=()
 IFS=',' read -ra REQUESTED <<<"$COMPONENTS"
 for part in "${REQUESTED[@]}"; do
 	case "$part" in
-	mongodb-audit | mysql | mysql-core | checkpoints | spire) PARTS+=("$part") ;;
+	mongodb-audit | mysql | mysql-core | checkpoints | spire | risk) PARTS+=("$part") ;;
 	*) fail "Unknown component: ${part}"; exit 1 ;;
 	esac
 done

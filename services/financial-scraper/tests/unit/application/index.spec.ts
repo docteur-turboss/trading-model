@@ -24,21 +24,10 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 		APP_VERSION: "1.0.0",
 		SERVICE_NAME: "financial-scraper",
 		INSTANCE_ID: "instance-1",
-		CACHE_TTL_MS: "30000",
-		SERVICE_PING_TIMEOUT_MS: "2000",
-		TOKEN_REFRESH_INTERVAL_MS: "60000",
-		TTL_REFRESH_INTERVAL_MS: "15000",
-		ADDRESS_MANAGER_URL: "https://address-manager.example.com",
 		SYMBOLS_TO_TRACK: [],
 		SCRAPE_INTERVAL: "*/1 * * * *",
 		SCRAPE_SCHEDULER_ENABLED: true,
 	},
-}));
-
-jest.mock("../../../src/config/address-manager", () => ({
-	BOOTSTRAP_ADDRESS_MANAGER: jest.fn((..._args: any[]) => ({
-		stop: jest.fn<(...args: any[]) => any>(),
-	})),
 }));
 
 const MOCK_CLOSE_DATABASE = jest.fn(async (..._args: any[]) => undefined);

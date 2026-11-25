@@ -4,7 +4,6 @@ import {
 	containerHealth,
 	externalRequest,
 	GATEWAY_API_KEY,
-	metric,
 	persistedCandles,
 	eventually as poll,
 } from "./helpers";
@@ -53,28 +52,6 @@ describe("Resilience E2E", () => {
 		}
 	});
 
-	it("keeps accepting heartbeats across a discovery restart", async () => {
-		await restart("trading-discovery");
-
-		// Instance tokens live in Redis, shared by every replica: they survive
-		// the restart. A client whose token is lost anyway re-registers on its
-		// first rejected heartbeat instead of after three failures.
-		const accepted = await eventually("heartbeats accepted again", () => {
-			const ok = metric(
-				"https://discovery-server:3000/metrics",
-				/^http_requests_total\{method="POST",path="\/heartbeat",status="200"\} (\S+)$/m
-			);
-			return ok >= 3 ? ok : undefined;
-		});
-		const rejected = metric(
-			"https://discovery-server:3000/metrics",
-			/^http_requests_total\{method="POST",path="\/heartbeat",status="401"\} (\S+)$/m
-		);
-		expect(accepted).toBeGreaterThanOrEqual(3);
-		// At most one rejected heartbeat per registered service (5 of them).
-		expect(rejected).toBeLessThanOrEqual(5);
-	});
-
 	// The scraper persists before publishing (publish cursor): neither a bus
 	// outage nor a scraper restart during it may stop the persistence. The stub
 	// closes one candle a minute.
@@ -88,10 +65,7 @@ describe("Resilience E2E", () => {
 				await eventually("a candle persisted while the bus is down", () =>
 					persistedCandles("BTCUSDT") > before ? true : undefined
 				);
-				// Not "healthy": its readiness needs the registry, which lives in the Redis that is down.
-				execFileSync("docker", ["restart", "trading-scraper"], {
-					stdio: "ignore",
-				});
+				await restart("trading-scraper");
 				const afterRestart = persistedCandles("BTCUSDT");
 				await eventually("a candle persisted after the scraper restart", () =>
 					persistedCandles("BTCUSDT") > afterRestart ? true : undefined

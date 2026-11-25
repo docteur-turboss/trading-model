@@ -17,24 +17,13 @@ Some concerns are genuinely cross-cutting and have no single owning domain: the 
 > - HTTP middleware, HTTP client, logging system → `@trading-model/http`
 > - Distributed worker protocol & orphan recovery → `@trading-model/jobs` (removed by ADR-0029: no producer, no worker)
 
-`common` depends on `@trading-model/primitives` and `@trading-model/contracts` (plus external `zod`, `express`). It has **no** dependency on `http`, `validation` or `crypto`.
+`common` depends on `@trading-model/primitives` and `@trading-model/contracts` (plus external `zod`, `express`). It has **no** dependency on `http` or `crypto`.
 
 ## Package Map Post-Split
 
 The monorepo has shared packages under the `@trading-model/*` scope. Build order is topological (base → derived); there are **no cyclic dependencies**. `primitives` and `contracts` are the foundations and must never import higher-layer packages such as `http`.
 
-| # | Package | Role | Dependencies |
-|---|---------|------|--------------|
-| 1 | `@trading-model/primitives` | Pure domain primitives: branded types, pagination, circuit-state, service-identity, topic-binding. **Zero deps.** | — |
-| 2 | `@trading-model/contracts` | Shared contracts: event/market-data types, http-status, http-headers, `LoggerPort` registry (setLogger/getLogger) | primitives |
-| 3 | `@trading-model/reliability` | Circuit-breaker, circuit-state-machine, heartbeat interfaces | primitives, contracts |
-| 4 | `@trading-model/common` | Residual shared infra: `AppError`/`ErrorCodes`, retry/backoff, SPIFFE, TLS config, cache, sanitize, shared schemas | primitives, contracts |
-| 5 | `@trading-model/model-runtime` | Network forward pass, feature codec, portfolio simulator (ADR-0066); moved out of the trainer | primitives, contracts, common |
-| 6 | `@trading-model/persistence` | Redis/Mongo connection managers, store adapters, key builders (absorbed `redis-config`) | common, primitives, contracts (+ ioredis, mongodb) |
-| 7 | `@trading-model/http` | HTTP middleware, HTTP client, concrete logging pipeline, secure HTTPS server factory, TLS watcher/loader, bootstrap & shutdown, signal handling, telemetry | primitives, contracts, common, reliability |
-| 8 | `@trading-model/crypto` | Hashing, request signing, token generation, secure randomness | primitives, contracts, common |
-| 9 | `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, load balancing | primitives, contracts, common, persistence, http, reliability |
-| 10 | `@trading-model/broker-message` | Inter-service messaging SDK: journal publisher and consumer, dead streams | primitives, contracts, common, http, persistence |
+Roles and build order: [AGENTS.md](../../AGENTS.md#build-order-dependency-chain). Dependencies of each package: its `package.json`, checked by `bun run deps:check` (ADR-0016); graph in [Architecture Standards](../standards/architecture-standards.md).
 
 ## What Remains in `common`
 

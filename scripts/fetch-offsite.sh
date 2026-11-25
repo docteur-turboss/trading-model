@@ -174,7 +174,6 @@ IFS=',' read -ra REQUESTED <<<"$COMPONENTS"
 for part in "${REQUESTED[@]}"; do
   case "$part" in
     mongodb-audit|mysql|mysql-core|checkpoints|spire|risk) PARTS+=("$part") ;;
-    redis) warn "Redis is not backed up: its content is rebuilt by the services" ;;
     *) fail "Unknown component: ${part}"; exit 1 ;;
   esac
 done

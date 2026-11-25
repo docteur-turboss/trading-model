@@ -21,7 +21,6 @@ trading-model/
 │   ├── address-manager/     # @trading-model/address-manager
 │   └── broker-message/      # @trading-model/broker-message
 ├── services/           # Microservices
-│   ├── discovery-server/
 │   ├── financial-scraper/
 │   ├── trader-trainer/
 │   ├── api-gateway/
@@ -60,7 +59,7 @@ All developers contributing to the codebase. Every architectural decision aims t
 | API          | Express.js                                           |
 | Frontend     | None for now (ADR-0018)                              |
 | Security     | mTLS (all services)                                  |
-| Database     | MongoDB (audit-logger), MySQL (financial-scraper), SQLite (SPIRE datastore, ADR-0065), Redis (discovery registry, message bus journal and dead streams) |
+| Database     | MongoDB (audit-logger), MySQL (financial-scraper), SQLite (SPIRE datastore, ADR-0065), Redis (message bus journal and dead streams) |
 | Validation   | Zod                                                  |
 | Scheduling   | node-cron                                            |
 | Formatting   | Biome                                                |
@@ -80,7 +79,6 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 | --- | --- |
 | api-gateway | common, contracts, http, primitives |
 | audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives |
-| discovery-server | common, contracts, crypto, http, persistence, primitives |
 | model-evaluator | address-manager, broker-message, common, contracts, http, model-runtime, persistence, primitives |
 | risk-execution | address-manager, broker-message, common, contracts, http, model-runtime, persistence, primitives |
 | decision-consumer | address-manager, broker-message, common, contracts, http, model-runtime, persistence, primitives |
@@ -97,7 +95,6 @@ There is no frontend workspace: `admin-interface` was removed until a new one is
   consumed via `spiffe-helper` sidecars. The former in-house CA and
   `certificate-client` were decommissioned.
 - No service trusts another without explicit certificate/bundle validation.
-- The Discovery-Server issues and rotates HMAC tokens.
 - Live trading will be gated by risk limits, capital exposure constraints, and fail-safe mechanisms (planned).
 
 ## Service Conventions
@@ -108,7 +105,6 @@ Each service exposes an HTTPS server with mTLS enabled. The internal container p
 
 | Service           | Host port (dev) | Container port | Notes         |
 | ----------------- | --------------- | -------------- | ------------- |
-| discovery-server  | 8443            | 3000           |               |
 | financial-scraper | 8445            | 3000           |               |
 | trader-trainer    | 8446            | 3000           |               |
 | audit-logger      | 8450            | 3000           |               |
@@ -158,27 +154,25 @@ Rules:
 - `index.ts` and `server.ts` are the **only** files of `application/` allowed to touch adapters/infrastructure, and only for startup concerns. They obtain their collaborators from `config/container.ts` and never `new` an adapter themselves.
 - Every other file of `application/` depends on ports only.
 - **Ports**: type `XxxPort` (never an `I` prefix), file `xxx.port.ts` (never `-port.ts` / `.ports.ts`), located in `domain/ports/` (several ports of one concern may share a file; a small service may use a single `domain/ports.ts`). MySQL schemas: `xxx.schema.ts`.
-- Containers take environment values **as parameters** (`createDiscoveryApp(ENV)`, `createScrapeScheduler(ENV)`) rather than importing `ENV`, so they can be imported by tests without environment validation.
+- Containers take environment values **as parameters** (`createMessageManagerApp(ENV)`, `createScrapeScheduler(ENV)`) rather than importing `ENV`, so they can be imported by tests without environment validation.
 
 ### Entry Point (`src/application/index.ts`)
 
 ```typescript
 import { createBootstrap } from '@trading-model/http/bootstrap';
-import { createDiscoveryApp } from '../config/container';
+import { createMessageManagerApp } from '../config/container';
 import { ENV } from '../infrastructure/config/env';
 import { createServer } from './server';
 
-const { registry, leaseManager, redisClient } = createDiscoveryApp(ENV);
+const { store, redisClient } = createMessageManagerApp(ENV);
 
 createBootstrap({
-  name: 'Discovery',
-  createServer: () => createServer(registry),
+  name: 'MessageManager',
+  createServer: () => createServer(store),
   onStart: async () => {
     await redisClient?.connect();
-    leaseManager.start();
   },
   onStop: () => {
-    leaseManager.stop();
     redisClient?.disconnect();
   },
 });
@@ -189,17 +183,15 @@ createBootstrap({
 ```typescript
 import { ServiceId } from '@trading-model/primitives/primitives';
 import { createServiceServer } from '@trading-model/http/service-server-factory';
-import { heartbeatRoutes } from '../adapters/inbound/heartbeat.routes';
-import { registryRoutes } from '../adapters/inbound/register.routes';
+import { messageRoutes } from '../adapters/inbound/message.routes';
 import { env } from '../config/env';
 
 export function createServer() {
   return createServiceServer({
     env,
-    serviceId: ServiceId.of('discovery-server'),
+    serviceId: ServiceId.of('trader-trainer'),
     routes: app => {
-      app.use('/', registryRoutes());
-      app.use('/', heartbeatRoutes());
+      app.use('/', messageRoutes());
     },
   });
 }

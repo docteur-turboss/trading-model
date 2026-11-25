@@ -78,12 +78,12 @@ export interface service_registry {} // snake_case
 
 ```typescript
 // ✓ CORRECT - Directories and files
-services/discovery-server/
+services/audit-logger/
 services/financial-scraper/        // Not "scrapper"
 packages/address-manager/
 
 // ✗ INCORRECT
-services/DiscoveryServer/
+services/AuditLogger/
 services/Financial_Scrapper/       // Snake case
 ```
 
@@ -201,14 +201,14 @@ Refer to the full document: [JSDoc Standards](./jsdoc-standards.md)
 export async function fetchCandles(symbol: string, interval: string): Promise<Candle[]> {
 
 /**
- * Register a service instance so it can be discovered by peers.
- * Sends a POST to the discovery-server with TTL-based lease.
+ * Subscribe a service to a topic of the message bus.
+ * Creates the service's consumer group on the topic stream in Redis.
  *
- * @param instance - Service metadata to register.
- * @returns The server response with assigned lease duration.
- * @throws If the discovery-server is unreachable after 3 retries.
+ * @param subscription - Topic and service to subscribe.
+ * @returns The subscription state.
+ * @throws If Redis is unreachable after 3 retries.
  */
-export async function register(instance: ServiceInstance): Promise<RegistrationResponse> {
+export async function subscribe(subscription: Subscription): Promise<SubscriptionResponse> {
 
 /**
  * Decay the learning rate over time using a cosine schedule.

@@ -2,7 +2,7 @@
 
 > **Version:** 1.0  
 > **Effective:** 2026-06  
-> **Owner:** Platform Security Lead  
+> **Owner:** Maintainer (single role)  
 > **Review:** Annual  
 > **Framework alignment:** ISO/IEC 27001:2022, NIST CSF
 
@@ -29,10 +29,7 @@ The trading-model platform processes machine-generated financial market data and
 
 | Role | Responsibility |
 |---|---|
-| **Platform Security Lead** | Policy ownership, risk assessment, incident coordination |
-| **DevOps Engineers** | Infrastructure security, certificate lifecycle, access management |
-| **Software Engineers** | Secure coding, dependency management, vulnerability remediation |
-| **All Personnel** | Report security incidents, follow secure practices |
+| **Maintainer (single role)** | Policy ownership, risk assessment, incident coordination, infrastructure security, certificate lifecycle, access management, secure coding, dependency management, vulnerability remediation |
 
 ### 3.2 Segregation of Duties
 
@@ -64,7 +61,7 @@ All platform assets are documented in:
 ### 5.1 Network Access Control
 
 - **mTLS mandatory:** All service-to-service HTTP communication requires mutual TLS 1.3 with X.509 SVIDs issued by SPIRE after workload attestation (ADR-0011)
-- **Redis, TLS offered but not yet required:** `REDIS_TLS_MODE=optional`, so clients may still connect without TLS until `required` (#1580). MongoDB requires TLS and authentication (`requireTLS`, ADR-0060, ADR-0067). Protection meanwhile: NetworkPolicies, per-service credentials, LUKS2 on data disks (ADR-0047). MySQL client connections are TLS-verified with per-service client certificates and `require_secure_transport=ON` (issue #767, `docs/deployment/MYSQL_TLS.md`)
+- **Redis, TLS optional until `required`:** `REDIS_TLS_MODE=optional`, so clients may still connect without TLS until `required` (#1580). MongoDB requires TLS and authentication (`requireTLS`, ADR-0060, ADR-0067). Protection meanwhile: NetworkPolicies, per-service credentials, LUKS2 on data disks (ADR-0047). MySQL client connections are TLS-verified with per-service client certificates and `require_secure_transport=ON` (issue #767, `docs/deployment/MYSQL_TLS.md`)
 - **Service identity:** Extracted from the certificate SAN (SPIFFE ID `spiffe://...`) via `@trading-model/http/mtls-auth.ts`
 - **Authorization:** ACL-based service-to-service access control via `@trading-model/http/mtls-authorization.ts`
 
@@ -73,7 +70,6 @@ All platform assets are documented in:
 | Method | Used For | Implementation |
 |---|---|---|
 | mTLS (SPIRE SVIDs) | Service-to-service | SPIRE Server + `spiffe-helper` sidecars (Workload API) |
-| HMAC-SHA256 tokens | Service registration | `discovery-server` token generation + `address-manager` lifecycle |
 | API keys | External admin access | `AUTH_TOKENS` env var in `api-gateway` |
 
 ## 6. Cryptography
@@ -131,7 +127,7 @@ Implementation: `@trading-model/http/sensitive-data-sanitizer.ts`
 | Requirement | Implementation |
 |---|---|
 | **Network segmentation** | Docker Compose networks (`backend-net`, internal `data-net`). K8s Network Policies |
-| **mTLS enforcement** | TLS 1.3 mutual authentication mandatory between services (databases: TLS offered, not yet required, #1580). ACL enforced on attested SVID identities |
+| **mTLS enforcement** | TLS 1.3 mutual authentication mandatory between services (databases: MongoDB and MySQL require TLS, Redis `optional` until `required`, #1580; ADR-0060, ADR-0067). ACL enforced on attested SVID identities |
 | **Service mesh** | Not deployed; mTLS handled at application layer via Express middleware |
 | **API gateway isolation** | External traffic enters only through api-gateway (port 8448). All other ports are internal |
 
@@ -159,7 +155,7 @@ Implementation: `@trading-model/http/sensitive-data-sanitizer.ts`
 See [Incident Response Policy](incident-response-policy.md) for detailed procedures.
 
 **Key principles:**
-- Report all security incidents immediately to the Platform Security Lead
+- Report all security incidents immediately to the maintainer
 - Document every incident with correlation ID via audit-logger
 - Apply forensic containment (scale to zero / isolate service) before root cause analysis
 - Regulatory notification within 24 hours for reportable incidents (financial regulations)

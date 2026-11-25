@@ -6,7 +6,7 @@ import { normalizeServiceName } from "@trading-model/common/utils/spiffe";
  * entry per major it serves; an old major leaves this list one release after
  * its successor shipped (ADR-0072). Every other route is refused
  * before resolution: the gateway calls services with its own SVID, so
- * proxying a service-to-service route (discovery `/register`...) would lend its identity to any API client.
+ * proxying a service-to-service route would lend its identity to any API client.
  *
  * `scripts/api-contract.mjs` generates the OpenAPI from this list and fails
  * when an entry reaches no route or a service route is left unclassified.
@@ -15,10 +15,6 @@ export const PUBLIC_ROUTES = [
 	"GET /v1/audit-logger/events",
 	"GET /v1/audit-logger/events/stats",
 	"GET /v1/audit-logger/events/:messageId",
-	// Deprecated in release N, removed with discovery-server in N+1 (ADR-0072).
-	"GET /v1/discovery-server/services",
-	"GET /v1/discovery-server/services/:serviceName",
-	"GET /v1/discovery-server/services/:serviceName/:instanceId",
 	// Scope risk:admin; the API key name is the actor (ADR-0059, ADR-0064 §5).
 	"POST /v1/risk-execution/admin/kill-switch",
 	"POST /v1/risk-execution/admin/kill-switch/rearm",

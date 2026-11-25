@@ -132,6 +132,10 @@ record() {
 
 forget() {
 	kubectl delete configmap "$REVISIONS_CM" -n "$1" --ignore-not-found
+	# discovery-server (retired, ADR-0072): the apply no longer carries it. Removed only after a
+	# good release: pods of release N need it to be Ready, so a rollback to N must still find it.
+	kubectl delete deployment/discovery-server service/discovery-server hpa/discovery-server-hpa pdb/discovery-server-pdb networkpolicy/discovery-server-network-policy serviceaccount/discovery-server -n "$1" --ignore-not-found
+	kubectl delete vpa/discovery-server-vpa -n "$1" --ignore-not-found 2>/dev/null || true
 }
 
 # Deployments driven by an HPA carry no spec.replicas in the overlay. A
@@ -326,8 +330,12 @@ wait_rollout() {
 # only runs in release N Jobs, and no N-1 pod connects as root over the network.
 relax_mysql() {
 	local ns="$1" pod
+	# The apply of N may be rolling it: wait for the whole StatefulSet, so no pod is missing from the
+	# list below and none of them is an old one still Terminating (run 45425544444).
+	kubectl rollout status statefulset/mysql -n "$ns" --timeout="$((300 * FACTOR))s" || return 1
 	# Not the label alone: Job pods carry it too (no mysql container).
 	for pod in $(kubectl get pods -n "$ns" -l app.kubernetes.io/component=mysql -o name | grep -E "/mysql-[0-9]+$"); do
+		kubectl wait -n "$ns" --for=condition=Ready "$pod" --timeout="$((300 * FACTOR))s" || return 1
 		kubectl exec -n "$ns" "$pod" -c mysql -- sh -c '
 			m() { MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N -e "$1"; }
 			m "SET GLOBAL require_secure_transport=OFF"

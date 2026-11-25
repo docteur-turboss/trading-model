@@ -11,11 +11,11 @@
       "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
       "targets": [
         {
-          "expr": "count(up{job=~\"api-gateway|audit-logger|discovery-server|financial-scraper.*|model-evaluator|risk-execution|trader-trainer\"} == 1)",
+          "expr": "count(up{job=~\"api-gateway|audit-logger|financial-scraper.*|model-evaluator|risk-execution|trader-trainer\"} == 1)",
           "legendFormat": "Healthy"
         },
         {
-          "expr": "count(up{job=~\"api-gateway|audit-logger|discovery-server|financial-scraper.*|model-evaluator|risk-execution|trader-trainer\"} == 0)",
+          "expr": "count(up{job=~\"api-gateway|audit-logger|financial-scraper.*|model-evaluator|risk-execution|trader-trainer\"} == 0)",
           "legendFormat": "Unhealthy"
         }
       ]

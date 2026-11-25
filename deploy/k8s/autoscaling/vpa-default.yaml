@@ -2,31 +2,6 @@
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
 metadata:
-  name: discovery-server-vpa
-  labels:
-    app.kubernetes.io/component: discovery-server
-    app.kubernetes.io/part-of: trading-model
-spec:
-  targetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: discovery-server
-  updatePolicy:
-    updateMode: "Off"
-  resourcePolicy:
-    containerPolicies:
-      - containerName: discovery-server
-        minAllowed:
-          cpu: 50m
-          memory: 64Mi
-        maxAllowed:
-          cpu: "1"
-          memory: 512Mi
-        controlledResources: ["cpu", "memory"]
----
-apiVersion: autoscaling.k8s.io/v1
-kind: VerticalPodAutoscaler
-metadata:
   name: financial-scraper-vpa
   labels:
     app.kubernetes.io/component: financial-scraper

@@ -30,7 +30,7 @@ Lightweight health check.
 
 **`GET /health/ready`**
 
-Readiness (MongoDB ping, registered with discovery once).
+Readiness (MongoDB ping).
 
 ### Audit Events
 

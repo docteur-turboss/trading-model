@@ -1,12 +1,11 @@
 {
   "name": "@trading-model/address-manager",
   "version": "1.3.2",
-  "description": "Address management and service discovery client",
+  "description": "DNS address resolution client",
   "license": "ISC",
   "type": "commonjs",
   "exports": {
     "./create-service-address-manager": "./dist/create-service-address-manager.js",
-    "./lifecycle-manager": "./dist/lifecycle-manager.js",
     "./config/address-manager-env": "./dist/config/address-manager-env.js"
   },
   "dependencies": {
@@ -15,7 +14,6 @@
     "@trading-model/common": "*",
     "@trading-model/http": "*",
     "express": "^5.3.0",
-    "node-cron": "^4.6.0",
     "prom-client": "^15.1.3",
     "zod": "^4.6.7"
   },

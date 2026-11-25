@@ -20,13 +20,8 @@ jest.mock<{
 		TLS_KEY_PATH: string;
 		TLS_CERT_PATH: string;
 		TLS_CA_PATH: string;
-		ADDRESS_MANAGER_URL: string;
-		CACHE_TTL_MS: number;
 		INSTANCE_ID: string;
 		SERVICE_NAME: string;
-		SERVICE_PING_TIMEOUT_MS: number;
-		TOKEN_REFRESH_INTERVAL_MS: number;
-		TTL_REFRESH_INTERVAL_MS: number;
 		TRAINER_SYMBOLS: string;
 		TRAINER_DATA_WINDOW: number;
 		TRAINER_VALIDATION_SPLIT: number;
@@ -43,13 +38,8 @@ jest.mock<{
 		TLS_KEY_PATH: "",
 		TLS_CERT_PATH: "",
 		TLS_CA_PATH: "",
-		ADDRESS_MANAGER_URL: "http://localhost:3000",
-		CACHE_TTL_MS: 5000,
 		INSTANCE_ID: "test-instance",
 		SERVICE_NAME: "trader-trainer",
-		SERVICE_PING_TIMEOUT_MS: 5000,
-		TOKEN_REFRESH_INTERVAL_MS: 30000,
-		TTL_REFRESH_INTERVAL_MS: 30000,
 		TRAINER_SYMBOLS: "BTCUSDT",
 		TRAINER_DATA_WINDOW: 500,
 		TRAINER_VALIDATION_SPLIT: 0.2,
@@ -63,9 +53,6 @@ jest.mock<{
 
 jest.mock("../../src/config/address-manager", () => ({
 	ADDRESS_MANAGER_ROUTES: (): void => {},
-	BOOTSTRAP_ADDRESS_MANAGER: (): { stop: () => void } => ({
-		stop: (): void => {},
-	}),
 	AddressManager: { getAddress: (): null => null },
 }));
 

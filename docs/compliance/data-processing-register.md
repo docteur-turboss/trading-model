@@ -43,7 +43,7 @@ This register documents the processing activities of the trading-model platform,
 | **Recipients**           | Internal platform services only                                                                           |
 | **Transfers outside EU** | None — all services are self-hosted                                                                       |
 | **Retention period**     | payloads journaled 24 h in Redis Streams (`JOURNAL_RETENTION_MS` = 24 h, `XADD … MINID` trim; AOF + replication; one ACL user per service, ADR-0048, ADR-0073), no personal data by design. Dead letters stay in the dead streams until an operator replays or deletes them, 7 days at most (`DEAD_LETTER_RETENTION_MS`, `XADD … MINID` trim) |
-| **Technical measures**   | mTLS between services (databases: TLS offered, not yet required, #1580), payload sanitization, deduplication                                                      |
+| **Technical measures**   | mTLS between services (databases: MongoDB and MySQL require TLS, Redis `optional` until `required`, #1580), payload sanitization, deduplication                                                      |
 | **System**               | bus library in each service (Redis Streams journal, consumed in process) → dead streams (Redis)                                       |
 
 ## Processing Activity 3: Audit Logging
@@ -140,6 +140,6 @@ This register documents the processing activities of the trading-model platform,
 | ML Training              | ❌ None             | —                   | Per-agent                    | None                         |
 | API Access Logs          | ✅ Truncated IP     | Legitimate interest | 31 days                      | None                         |
 | Operator Access          | ✅ E-mail, name, login, key name | Legitimate interest | Accounts until departure; logs 31 days; `actor` 5 years | None |
-| Telemetry and Backups    | ❌ None             | —                   | 31 days online; backups up to 60 months | Off-site store / Slack (TBD) |
+| Telemetry and Backups    | ❌ None             | —                   | 31 days online; backups up to 60 months | Off-site store / Alertmanager receivers |
 
 **Conclusion:** two activities process personal data: a truncated caller IP kept 31 days (activity 6) and operator data (activity 8). Data subject rights apply. For callers, since a truncated address cannot be linked to a requester, Art. 11 applies (no additional data collected to identify them).

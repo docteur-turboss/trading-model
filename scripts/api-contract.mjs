@@ -56,7 +56,6 @@ const API_MAJOR_VERSION = 1;
 /** Services the gateway proxies to, by canonical (SPIFFE) name. */
 const PROXIED_SERVICES = [
 	"audit-logger",
-	"discovery-server",
 	"financial-scraper",
 	"model-evaluator",
 	"risk-execution",
@@ -66,12 +65,6 @@ const PROXIED_SERVICES = [
 /** Routes of proxied services that the gateway does not expose (PUBLIC_ROUTES). */
 const INFRASTRUCTURE_PATHS = new Set(["/metrics", "/health", "/health/ready", "/ping", "/status"]);
 const SERVICE_TO_SERVICE = {
-	"discovery-server": [
-		"POST /register",
-		"POST /heartbeat",
-		"POST /token/rotate",
-		"POST /unregister",
-	],
 	"risk-execution": ["POST /intents", "POST /orders/:clientOrderId/cancel", "GET /positions/:symbol", "GET /admin/status"],
 	// Model weights: never through the gateway (ADR-0022).
 	"trader-trainer": ["GET /models/:symbol/:version/weights"],
@@ -85,10 +78,6 @@ const SERVICE_TO_SERVICE = {
  * subscribe, so its proof is the owner's subscription (`intents(`).
  */
 const CALLERS = {
-	"discovery-server POST /register": { caller: "packages/address-manager", call: /_url\("\/register"\)/ },
-	"discovery-server POST /heartbeat": { caller: "packages/address-manager", call: /_url\("\/heartbeat"\)/ },
-	"discovery-server POST /token/rotate": { caller: "packages/address-manager", call: /\/token\/rotate`/ },
-	"discovery-server POST /unregister": { caller: "packages/address-manager", call: /_url\("\/unregister"\)/ },
 	"trader-trainer GET /models/:symbol/:version/weights": { caller: "packages/http", call: /\/weights`/ },
 	"financial-scraper GET /v2/candles/latest": { caller: "services/risk-execution", call: /\/v2\/candles\/latest/ },
 	"risk-execution POST /intents": { caller: "services/decision-consumer", call: /\/intents`/ },
@@ -583,14 +572,6 @@ const SECURITY_SCHEMES = {
 			name: "x-signature",
 			description:
 				"Hex HMAC-SHA256(secret, '<x-service-name>:<x-timestamp>:<sha256 hex of the JSON body, or of {} without body>:<METHOD>:<service path>')",
-		},
-	},
-	InstanceToken: {
-		InstanceToken: {
-			type: "apiKey",
-			in: "header",
-			name: "x-instance-token",
-			description: "Token discovery-server returned to the instance at registration (or its last rotation)",
 		},
 	},
 };

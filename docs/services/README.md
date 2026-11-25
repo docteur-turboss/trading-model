@@ -12,7 +12,7 @@ This directory documents every package and service in the **trading-model** mono
 | `@trading-model/contracts`       | `packages/contracts/`       | [contracts.md](./contracts.md)                                          |
 | `@trading-model/reliability`     | `packages/reliability/`     | [reliability.md](./reliability.md)                                          |
 | `@trading-model/common`          | `packages/common/`          | [common.md](./common.md)                   |
-| `@trading-model/model-runtime`   | `packages/model-runtime/`   | [common.md](./common.md#package-map-post-split)                 |
+| `@trading-model/model-runtime`   | `packages/model-runtime/`   | [model-runtime.md](./model-runtime.md)     |
 | `@trading-model/persistence`     | `packages/persistence/`     | [persistence.md](./persistence.md)                                          |
 | `@trading-model/http`            | `packages/http/`            | [http.md](./http.md)                                          |
 | `@trading-model/crypto`          | `packages/crypto/`          | [crypto.md](./crypto.md)                                          |
@@ -23,13 +23,12 @@ This directory documents every package and service in the **trading-model** mono
 
 | Service               | Path                              | Documentation                                      |
 | --------------------- | --------------------------------- | -------------------------------------------------- |
-| discovery-server      | `services/discovery-server/`      | [discovery-server.md](./discovery-server.md)       |
 | financial-scraper     | `services/financial-scraper/`     | [financial-scraper.md](./financial-scraper.md)     |
 | trader-trainer        | `services/trader-trainer/`        | [trader-trainer.md](./trader-trainer.md)           |
 | api-gateway           | `services/api-gateway/`           | [api-gateway.md](./api-gateway.md)                 |
 | audit-logger          | `services/audit-logger/`          | [audit-logger.md](./audit-logger.md)               |
 | model-evaluator       | `services/model-evaluator/`       | [model-evaluator.md](./model-evaluator.md)         |
-| decision-consumer     | `services/decision-consumer/`     | [ADR-0087](../adr/0087-paper-decision-consumer.md) |
+| decision-consumer     | `services/decision-consumer/`     | [decision-consumer.md](./decision-consumer.md)     |
 | risk-execution        | `services/risk-execution/`        | [risk-execution.md](./risk-execution.md)           |
 
 No frontend for now: `admin-interface` was removed ([ADR-0018](../adr/0018-temporary-frontend-removal.md)).

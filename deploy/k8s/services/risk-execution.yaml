@@ -240,7 +240,7 @@ spec:
         - port: 3000
           protocol: TCP
   egress:
-    # discovery-server and trader-trainer (HTTPS on 3000), Redis and its sentinels (bus, ADR-0073).
+    # trader-trainer (HTTPS on 3000), Redis and its sentinels (bus, ADR-0073).
     - to:
         - podSelector: {}
       ports:

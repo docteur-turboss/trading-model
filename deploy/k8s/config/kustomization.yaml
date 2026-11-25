@@ -3,7 +3,6 @@ kind: Kustomization
 
 # HPA, PDB, NetworkPolicy and ServiceAccount of each service (autoscaling.yaml).
 resources:
-  - discovery-server-autoscaling.yaml
   - financial-scraper-autoscaling.yaml
   - trader-trainer-autoscaling.yaml
   - api-gateway-autoscaling.yaml
@@ -17,10 +16,6 @@ resources:
 # image. Old ConfigMaps stay in the namespace (deploy.yml never prunes), so
 # every ReplicaSet revision still finds its own. Never set disableNameSuffixHash.
 configMapGenerator:
-  - name: discovery-server-config
-    envs: [discovery-server.properties]
-    options:
-      labels: {app.kubernetes.io/component: discovery-server, app.kubernetes.io/part-of: trading-model}
   - name: financial-scraper-config
     envs: [financial-scraper.properties]
     options:

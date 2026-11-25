@@ -22,12 +22,6 @@ updates:
       interval: "weekly"
 
   - package-ecosystem: "docker"
-    directory: "/services/discovery-server"
-    target-branch: "development"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
     directory: "/services/financial-scraper"
     target-branch: "development"
     schedule:

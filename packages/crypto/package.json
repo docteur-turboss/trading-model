@@ -6,11 +6,7 @@
   "type": "commonjs",
   "exports": {
     "./node-crypto": "./dist/node-crypto.js",
-    "./prng": "./dist/prng.js",
-    "./token-service": "./dist/token-service.js"
-  },
-  "dependencies": {
-    "@trading-model/primitives": "*"
+    "./prng": "./dist/prng.js"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

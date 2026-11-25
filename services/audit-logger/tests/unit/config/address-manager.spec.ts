@@ -13,7 +13,6 @@ jest.mock(
 		return {
 			createServiceAddressManager: jest.fn((..._args: any[]) => ({
 				AddressManager: am,
-				BOOTSTRAP_ADDRESS_MANAGER: am.start,
 				ADDRESS_MANAGER_ROUTES: am.listenExpress,
 				FIND_A_SERVICE: am.findService,
 			})),
@@ -31,28 +30,18 @@ jest.mock("../../../src/infrastructure/config/env", () => ({
 		APP_NAME: "audit-logger",
 		SERVICE_NAME: "audit",
 		INSTANCE_ID: "instance-1",
-		ADDRESS_MANAGER_URL: "https://address-manager:3000",
-		CACHE_TTL_MS: 30000,
-		SERVICE_PING_TIMEOUT_MS: 2000,
-		DISCOVERY_TIMEOUT_MS: 5000,
-		TOKEN_REFRESH_INTERVAL_MS: 60000,
-		TTL_REFRESH_INTERVAL_MS: 15000,
 		MONGODB_URI: "mongodb://localhost:27017/audit-logger",
 		AUDIT_RETENTION_DAYS: 90,
 	},
 }));
 
 describe("address-manager config", () => {
-	it("should export ADDRESS_MANAGER_ROUTES, BOOTSTRAP_ADDRESS_MANAGER", () => {
+	it("should export ADDRESS_MANAGER_ROUTES", () => {
 		const addressManagerModule = require("../../../src/config/address-manager");
 
 		expect(addressManagerModule.ADDRESS_MANAGER_ROUTES).toBeDefined();
 		expect(addressManagerModule.ADDRESS_MANAGER_ROUTES).toBe(
 			MOCK_ADDRESS_MANAGER.listenExpress
-		);
-		expect(addressManagerModule.BOOTSTRAP_ADDRESS_MANAGER).toBeDefined();
-		expect(addressManagerModule.BOOTSTRAP_ADDRESS_MANAGER).toBe(
-			MOCK_ADDRESS_MANAGER.start
 		);
 	});
 });

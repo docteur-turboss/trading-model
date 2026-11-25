@@ -42,7 +42,7 @@ cp .env.example .env
 
 Edit `.env` and replace every `change-me` / `changeme` value of `.env.example` with your own secret (`openssl rand -hex 32`); `.env.example` lists every required variable. The `GATEWAY_AUTH_TOKENS` key is used in Step 3. A Mongo volume created before authentication needs `docker compose down -v`.
 
-> **Development only.** The Docker Compose stack has no scheduled backup: do not store real data in it. See [SETUP.md](../deployment/SETUP.md#local-development-setup) for the full local setup.
+> **Development only.** The Docker Compose stack has no scheduled backup: do not store real data in it.
 
 ## Step 1: Start Core Infrastructure
 
@@ -51,15 +51,11 @@ Edit `.env` and replace every `change-me` / `changeme` value of `.env.example` w
 > generation or `./certs` bundle is required.
 
 ```bash
-# Start discovery-server + databases
+# Start the databases
 docker compose up -d redis mysql mongo
-docker compose up -d discovery-server
 
-# Verify they're healthy
-# Services only accept mTLS clients with a SPIRE identity: check the
-# container health (its healthcheck pings with the container's SVID)
-docker inspect --format '{{.State.Health.Status}}' trading-discovery
-# → healthy
+# Verify they're healthy (STATUS shows "healthy")
+docker compose ps redis mysql mongo
 ```
 
 ## Step 2: Start the API Gateway
@@ -69,10 +65,9 @@ The gateway is the single entry point for all external requests. It only accepts
 ```bash
 docker compose up -d api-gateway edge-proxy
 
-# Verify
-curl -s http://localhost:8449/ping
-# → {"status":"ok"}
 ```
+
+`/ping` is answered by nginx even with the gateway stopped, so it proves nothing. Step 3 calls a `/v1` route through the gateway: a JSON answer there proves it is up.
 
 ## Step 3: See the Service Registry
 
@@ -84,11 +79,11 @@ export ADMIN_TOKEN="change-me-to-a-long-random-key"  # Use your .env value
 
 ```bash
 # Call a public route (via gateway proxy)
-curl -s http://localhost:8449/v1/discovery-server/services \
+curl -s http://localhost:8449/v1/trader-trainer/training-status \
   -H "x-api-key: $ADMIN_TOKEN"
 ```
 
-You should see `[]`: the services with a registered instance (discovery-server does not register itself, and no other service runs yet). This route goes away with discovery-server (ADR-0072, issue #1244).
+You should see the training status.
 
 ## Step 4: Let the Scraper Publish Market Data
 

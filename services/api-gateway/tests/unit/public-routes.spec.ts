@@ -38,15 +38,7 @@ describe("isPublicRoute", () => {
 	});
 
 	it("refuses service-to-service routes", () => {
-		expect(isPublicRoute("POST", 1, "discovery-server", "/register")).toBe(
-			false
-		);
 		expect(isPublicRoute("POST", 1, "audit-logger", "/message")).toBe(false);
-	});
-
-	// Deprecated in release N, removed in N+1 (ADR-0072).
-	it("still accepts the deprecated registry routes", () => {
-		expect(isPublicRoute("GET", 1, "discovery-server", "/services")).toBe(true);
 	});
 
 	it("refuses another method on a public path", () => {

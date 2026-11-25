@@ -35,15 +35,15 @@ kubectl rollout status -n trading-model deployment/spire-server --timeout=60s
 kubectl get pods -n trading-model -l app.kubernetes.io/component=spire-agent
 
 # 2. Check the SVID the workload currently presents
-kubectl exec -n trading-model deployment/discovery-server -- \
+kubectl exec -n trading-model deployment/audit-logger -- \
   openssl x509 -in /run/spire/svid/svid.pem -noout -enddate
 
 # 3. Force SVID re-fetch by restarting the spiffe-helper sidecar (or the pod)
-kubectl rollout restart -n trading-model deployment/discovery-server
-kubectl rollout status -n trading-model deployment/discovery-server
+kubectl rollout restart -n trading-model deployment/audit-logger
+kubectl rollout status -n trading-model deployment/audit-logger
 
 # 4. Verify the renewed SVID
-kubectl exec -n trading-model deployment/discovery-server -- \
+kubectl exec -n trading-model deployment/audit-logger -- \
   openssl x509 -in /run/spire/svid/svid.pem -noout -enddate
 ```
 

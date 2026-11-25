@@ -458,8 +458,6 @@ tests:
   - name: a job with no up series fires ServiceTargetsMissing, a present one does not
     interval: 1m
     input_series:
-      - series: 'up{job="discovery-server",instance="i"}'
-        values: '1x10'
       - series: 'up{job="api-gateway",instance="i"}'
         values: '1x10'
       - series: 'up{job="audit-logger",instance="i"}'
@@ -480,8 +478,6 @@ tests:
   - name: a job whose up series vanished fires ServiceTargetsMissing
     interval: 1m
     input_series:
-      - series: 'up{job="discovery-server",instance="i"}'
-        values: '1x10'
       - series: 'up{job="api-gateway",instance="i"}'
         values: '1x10'
       - series: 'up{job="audit-logger",instance="i"}'
@@ -511,16 +507,16 @@ tests:
   - name: sustained HTTP breaker rejections fire HttpCircuitBreakerRejecting
     interval: 1m
     input_series:
-      - series: 'http_circuit_breaker_rejections_total{job="trader-trainer",instance="t",target="discovery-server",kind="service"}'
+      - series: 'http_circuit_breaker_rejections_total{job="trader-trainer",instance="t",target="financial-scraper",kind="service"}'
         values: '0+5x30'
     alert_rule_test:
       - eval_time: 20m
         alertname: HttpCircuitBreakerRejecting
         exp_alerts:
-          - exp_labels: {severity: warning, job: trader-trainer, target: discovery-server, kind: service}
+          - exp_labels: {severity: warning, job: trader-trainer, target: financial-scraper, kind: service}
             exp_annotations:
-              summary: 'trader-trainer refuses calls to discovery-server'
-              description: 'trader-trainer has had its outbound calls to service discovery-server refused by the open HTTP circuit breaker for 10 minutes.'
+              summary: 'trader-trainer refuses calls to financial-scraper'
+              description: 'trader-trainer has had its outbound calls to service financial-scraper refused by the open HTTP circuit breaker for 10 minutes.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md#symptom'
 
   # K8s: the HTTP-only replicas persist nothing, the collector does.
@@ -910,56 +906,6 @@ tests:
               summary: 'The live data of BTCUSDT drifts from its model statistics'
               description: 'A normalized field of BTCUSDT received since the newest stored model has a mean 4 standard deviations away from the statistics stored with that model (tt_feature_drift_score), for 1 hour: the model sees a market it was not trained on.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainerfeaturedrift'
-
-  # Three discovery replicas share the heartbeats: one replica seeing none for
-  # a service is normal, every replica seeing none is not.
-  - name: heartbeats are summed over the discovery replicas
-    interval: 1m
-    input_series:
-      - series: 'discovery_heartbeats_total{job="discovery-server",instance="d1",service="api-gateway"}'
-        values: '0+6x20'
-      - series: 'discovery_heartbeats_total{job="discovery-server",instance="d2",service="api-gateway"}'
-        values: '0x20'
-      - series: 'discovery_heartbeats_total{job="discovery-server",instance="d1",service="model-evaluator"}'
-        values: '0x20'
-      - series: 'discovery_heartbeats_total{job="discovery-server",instance="d2",service="model-evaluator"}'
-        values: '0x20'
-    alert_rule_test:
-      - eval_time: 10m
-        alertname: HeartbeatStopped
-        exp_alerts:
-          - exp_labels: {severity: critical, service: model-evaluator}
-            exp_annotations:
-              summary: 'Heartbeats have stopped for model-evaluator'
-              description: 'discovery-server received no heartbeat from model-evaluator in the last 5 minutes.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-discovery.md#heartbeatstopped'
-
-  # api-gateway drops from 2 instances to 1: redundancy lost. trader-trainer
-  # always ran one instance (staging, compose), apart from the surge pod of a
-  # rolling update (maxSurge 1, a few minutes at 2): no alert, ever.
-  - name: instance count alerts on lost redundancy only
-    interval: 1m
-    input_series:
-      - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d1",service="api-gateway"}'
-        values: '2x30 1x10'
-      - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d2",service="api-gateway"}'
-        values: '2x30 1x10'
-      - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d1",service="trader-trainer"}'
-        values: '1x10 2x8 1x22'
-      - series: 'discovery_registered_instances_per_service{job="discovery-server",instance="d1",service="model-evaluator"}'
-        values: '2x40'
-    alert_rule_test:
-      - eval_time: 28m
-        alertname: InstanceCountLow
-        exp_alerts: []
-      - eval_time: 38m
-        alertname: InstanceCountLow
-        exp_alerts:
-          - exp_labels: {severity: critical, service: api-gateway}
-            exp_annotations:
-              summary: 'Low instance count for service api-gateway'
-              description: 'Service api-gateway had 2+ instances for 15 min in the last day and now has fewer than 2: redundancy is lost (single-replica environments never fire, nor does the surge pod of a rolling update).'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-discovery.md#instancecountlow'
 
   - name: the alerting pipeline watches itself
     interval: 1m
@@ -1525,7 +1471,6 @@ tests:
         alertname: LokiRetentionStale
         exp_alerts: []
 
-
   # time() is 12000 s at 200m: 3 h 20 min past a timestamp of 0, over the
   # 3 h threshold plus the 15 min `for`.
   - name: loki retention stale fires and discarded samples fire
@@ -1776,7 +1721,7 @@ tests:
           - exp_labels: {severity: warning, job: mysql, instance: '10.0.0.1:9104'}
             exp_annotations:
               summary: 'MySQL 10.0.0.1:9104 accepts plain connections'
-              description: 'require_secure_transport has been OFF on 10.0.0.1:9104 for 15 minutes: a deploy rollback relaxed MySQL TLS (scraper no longer needs a client certificate) and nothing restored it.'
+              description: 'require_secure_transport has been OFF on 10.0.0.1:9104 for 15 minutes: it was set OFF by hand or mysql.cnf was not applied.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mysqlsecuretransportoff'
 
   - name: a database its exporter cannot query is reported per member
@@ -1926,7 +1871,7 @@ tests:
           - exp_labels: {severity: critical, master_name: mymaster}
             exp_annotations:
               summary: 'Redis Sentinel cannot fail over mymaster'
-              description: 'No sentinel can reach a quorum for mymaster (SENTINEL CKQUORUM): if the master fails now, no replica is promoted and discovery and the bus lose Redis.'
+              description: 'No sentinel can reach a quorum for mymaster (SENTINEL CKQUORUM): if the master fails now, no replica is promoted and the bus loses Redis.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redissentinelquorumlost'
 
   # Two exporters report the same members (deduplicated): member 1 is down,

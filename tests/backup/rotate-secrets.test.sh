@@ -65,7 +65,7 @@ run() { # <args...>: fresh state and sealed file; sets OUT and RC
 	rm -rf "$WORK/state" && mkdir "$WORK/state"
 	[ -z "${SEED_TOKENS:-}" ] || printf '%s' "$SEED_TOKENS" | base64 | tr -d '
 ' >"$WORK/state/live_AUTH_TOKENS"
-	printf 'spec:\n  encryptedData:\n    MYSQL_ROOT_PASSWORD: b2xk\n    SIGNING_SECRET: b2xk\n' >"$WORK/sealed.yaml"
+	printf 'spec:\n  encryptedData:\n    MYSQL_ROOT_PASSWORD: b2xk\n    AUTH_TOKENS: b2xk\n' >"$WORK/sealed.yaml"
 	RC=0
 	OUT=$(SEALED_SECRETS_FILE="$WORK/sealed.yaml" bash "$SCRIPT" "$@" 2>&1) || RC=$?
 }
@@ -82,9 +82,8 @@ run --component MYSQL_MIGRATE_PASSWORD
 DRY_RUN=true run --component all
 [ "$RC" = 0 ] && [ -z "$(calls)" ] && pass "DRY_RUN calls nothing" || failed "DRY_RUN: rc=$RC calls=$(calls)"
 
-run --component signing
-[ "$RC" = 0 ] && [ "$(restarts)" = "discovery-server" ] && pass "signing restarts discovery-server" || failed "signing: rc=$RC restarts=$(restarts)"
-grep -q "MYSQL_ROOT_PASSWORD: b2xk" "$WORK/sealed.yaml" && ! grep -q "SIGNING_SECRET: b2xk" "$WORK/sealed.yaml" && pass "merge keeps other keys, replaces the rotated one" || failed "merge result: $(cat "$WORK/sealed.yaml")"
+run --component tokens
+grep -q "MYSQL_ROOT_PASSWORD: b2xk" "$WORK/sealed.yaml" && ! grep -q "AUTH_TOKENS: b2xk" "$WORK/sealed.yaml" && pass "merge keeps other keys, replaces the rotated one" || failed "merge result: $(cat "$WORK/sealed.yaml")"
 ! grep -q SECRETVALUE <<<"$OUT" && pass "no value printed" || failed "value printed"
 
 SEED_TOKENS='ops:read:old1,team:read:keep2' run --component tokens
@@ -96,7 +95,7 @@ rm -f "$vf"
 ! grep -rq SECRETVALUE "$WORK/state/calls" && pass "no value in kubectl/kubeseal argv" || failed "value in argv"
 
 run
-[ "$(restarts)" = "api-gateway discovery-server" ] && pass "default rotates all" || failed "all: restarts=$(restarts)"
+[ "$(restarts)" = "api-gateway" ] && pass "default rotates all" || failed "all: restarts=$(restarts)"
 
 # Database passwords: add new (old stays valid) -> apply Secret -> restart -> drop old.
 steps() { calls | sed -n -e 's/.*\(RETAIN CURRENT\|DISCARD OLD\|resetpass\|ACL SETUSER\).*/\1/p' -e 's/^kubectl apply.*/apply/p' -e 's/^kubectl rollout restart.*/restart/p' | paste -sd ' ' -; }
@@ -109,28 +108,28 @@ STUB_SECONDARY=1 run --component mysql
 run --component redis
 [ "$RC" = 1 ] && [ -z "$(calls)" ] && pass "redis refused with doc pointer" || failed "redis: rc=$RC"
 
-STUB_DECRYPT=0 run --component signing
+STUB_DECRYPT=0 run --component tokens
 [ "$RC" = 1 ] && [ -z "$(restarts)" ] && pass "no restart when the controller did not decrypt" || failed "undecrypted: rc=$RC restarts=$(restarts)"
 
-run --component signing
+run --component tokens
 rm -f "$WORK/state/calls"
 printf 'spec:
   encryptedData:
     A: AgCHANGE_ME_RUN_KUBESEAL_Ag==
 ' >"$WORK/sealed.yaml"
-RC=0; OUT=$(SEALED_SECRETS_FILE="$WORK/sealed.yaml" bash "$SCRIPT" --component signing 2>&1) || RC=$?
+RC=0; OUT=$(SEALED_SECRETS_FILE="$WORK/sealed.yaml" bash "$SCRIPT" --component tokens 2>&1) || RC=$?
 [ "$RC" = 1 ] && grep -q SEALED_SECRETS_FILE <<<"$OUT" && [ -z "$(calls)" ] && pass "placeholder file refused before kubeseal/apply" || failed "placeholders: rc=$RC calls=$(calls)"
 
-STUB_KUBESEAL_FAIL=1 run --component signing
+STUB_KUBESEAL_FAIL=1 run --component tokens
 [ "$RC" = 1 ] && ! calls | grep -q "kubectl apply" && pass "kubeseal failure stops before apply" || failed "kubeseal failure: rc=$RC"
 
-run --component signing
+run --component tokens
 rm -f "$WORK/state/calls"; printf 'x' >"$WORK/state/live_MYSQL_MIGRATE_PASSWORD"
-RC=0; OUT=$(SEALED_SECRETS_FILE="$WORK/sealed.yaml" bash "$SCRIPT" --component signing 2>&1) || RC=$?
+RC=0; OUT=$(SEALED_SECRETS_FILE="$WORK/sealed.yaml" bash "$SCRIPT" --component tokens 2>&1) || RC=$?
 [ "$RC" = 1 ] && grep -q "MYSQL_MIGRATE_PASSWORD" <<<"$OUT" && ! calls | grep -q "kubectl apply" && pass "live key absent from file refused before apply" || failed "live key guard: rc=$RC"
 
-run --component signing
-RC=0; OUT=$(SEALED_SECRETS_FILE="$WORK/missing.yaml" bash "$SCRIPT" --component signing 2>&1) || RC=$?
+run --component tokens
+RC=0; OUT=$(SEALED_SECRETS_FILE="$WORK/missing.yaml" bash "$SCRIPT" --component tokens 2>&1) || RC=$?
 [ "$RC" = 1 ] && pass "missing sealed file refused" || failed "missing file: rc=$RC"
 
 exit "$FAILED"

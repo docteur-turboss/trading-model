@@ -39,7 +39,7 @@ The GA loop stops when **any** of these conditions is met (checked in order):
 
 **Financial Scraper**: candle window read over HTTP at each session (ADR-0044); the trainer subscribes to no bus topic (ADR-0078). **Bus library** (`@trading-model/broker-message`): only used to publish models.
 
-**Address Manager** (`@trading-model/address-manager`): Service discovery and health monitoring. Every instance registers with the address manager for dynamic endpoint resolution, health check pings, and TTL management.
+**Address Manager** (`@trading-model/address-manager`): Resolves the DNS name of the other services and serves `/ping`, `/status`, `/metrics`.
 
 **Model consumers** (output): the best agent is exposed via `/best-agent`; versioned artifacts via `/models/:symbol` and `/models/:symbol/:version` (ADR-0022). No Trader-Executor service exists (future, not implemented).
 

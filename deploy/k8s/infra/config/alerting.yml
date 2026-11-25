@@ -60,7 +60,7 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md'
 
       - alert: ServiceTargetsMissing
-        expr: absent(up{job="discovery-server"}) or absent(up{job="api-gateway"}) or absent(up{job="audit-logger"}) or absent(up{job="financial-scraper"}) or absent(up{job="trader-trainer"}) or absent(up{job="model-evaluator"}) or absent(up{job="risk-execution"})
+        expr: absent(up{job="api-gateway"}) or absent(up{job="audit-logger"}) or absent(up{job="financial-scraper"}) or absent(up{job="trader-trainer"}) or absent(up{job="model-evaluator"}) or absent(up{job="risk-execution"})
         for: 5m
         labels:
           severity: critical
@@ -89,16 +89,6 @@ groups:
           description: '{{ $labels.job }} has had its outbound calls to {{ $labels.kind }} {{ $labels.target }} refused by the open HTTP circuit breaker for 10 minutes.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md#symptom'
 
-      - alert: InstanceCountLow
-        expr: max by (service) (discovery_registered_instances_per_service) < 2 and max_over_time(min_over_time(max by (service) (discovery_registered_instances_per_service)[15m:1m])[1d:5m]) >= 2
-        for: 2m
-        labels:
-          severity: critical
-        annotations:
-          summary: 'Low instance count for service {{ $labels.service }}'
-          description: 'Service {{ $labels.service }} had 2+ instances for 15 min in the last day and now has fewer than 2: redundancy is lost (single-replica environments never fire, nor does the surge pod of a rolling update).'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-discovery.md#instancecountlow'
-
       - alert: HighMemoryUsage
         expr: nodejs_heap_size_used_bytes / nodejs_heap_size_limit_bytes > 0.9
         for: 5m
@@ -108,16 +98,6 @@ groups:
           summary: 'High memory usage on {{ $labels.job }}'
           description: 'Heap usage is {{ $value | humanizePercentage }} of the V8 heap limit: out of memory is close.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#1-oomkilled-out-of-memory'
-
-      - alert: HeartbeatStopped
-        expr: sum by (service) (rate(discovery_heartbeats_total[5m])) == 0
-        for: 1m
-        labels:
-          severity: critical
-        annotations:
-          summary: 'Heartbeats have stopped for {{ $labels.service }}'
-          description: 'discovery-server received no heartbeat from {{ $labels.service }} in the last 5 minutes.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-discovery.md#heartbeatstopped'
 
       - alert: BackupFailed
         expr: time() - backup_last_success_timestamp > 90000
@@ -831,7 +811,7 @@ groups:
           severity: warning
         annotations:
           summary: 'MySQL {{ $labels.instance }} accepts plain connections'
-          description: 'require_secure_transport has been OFF on {{ $labels.instance }} for 15 minutes: a deploy rollback relaxed MySQL TLS (scraper no longer needs a client certificate) and nothing restored it.'
+          description: 'require_secure_transport has been OFF on {{ $labels.instance }} for 15 minutes: it was set OFF by hand or mysql.cnf was not applied.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mysqlsecuretransportoff'
 
       - alert: RedisDown
@@ -879,7 +859,7 @@ groups:
           severity: critical
         annotations:
           summary: 'Redis Sentinel cannot fail over {{ $labels.master_name }}'
-          description: 'No sentinel can reach a quorum for {{ $labels.master_name }} (SENTINEL CKQUORUM): if the master fails now, no replica is promoted and discovery and the bus lose Redis.'
+          description: 'No sentinel can reach a quorum for {{ $labels.master_name }} (SENTINEL CKQUORUM): if the master fails now, no replica is promoted and the bus loses Redis.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redissentinelquorumlost'
 
       - alert: MongoDBDown

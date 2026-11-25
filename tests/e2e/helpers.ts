@@ -24,7 +24,6 @@ export const CALLER = {
 
 /** Every application container and its compose healthcheck. */
 export const SERVICE_CONTAINERS = [
-	"trading-discovery",
 	"trading-scraper",
 	"trading-trainer",
 	"trading-gateway",
@@ -120,20 +119,6 @@ export function containerHealth(container: string): string {
 	return execFileSync(
 		"docker",
 		["inspect", "--format", "{{.State.Health.Status}}", container],
-		{ encoding: "utf8" }
-	).trim();
-}
-
-/** Primary IPv4 of a container on the backend network. */
-export function containerIp(container: string): string {
-	return execFileSync(
-		"docker",
-		[
-			"inspect",
-			"--format",
-			'{{(index .NetworkSettings.Networks "trading-backend-network").IPAddress}}',
-			container,
-		],
 		{ encoding: "utf8" }
 	).trim();
 }

@@ -12,7 +12,6 @@ graph LR
     AL -->|Write| MDB[("MongoDB<br/>audit_events")]
     AL -->|Anchors| S3[("S3 Object Lock")]
     API["Client"] -->|GET /events| AL
-    AL --> DS["Discovery Server"]
 ```
 
 ## Project Structure

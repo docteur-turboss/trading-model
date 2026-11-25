@@ -30,7 +30,6 @@
 					"api-gateway",
 					"audit-logger",
 					"decision-consumer",
-					"discovery-server",
 					"financial-scraper",
 					"model-evaluator",
 					"risk-execution",
