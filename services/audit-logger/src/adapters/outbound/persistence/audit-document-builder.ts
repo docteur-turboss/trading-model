@@ -26,6 +26,10 @@ export function buildAuditDocument(
 	{ metadata, payload }: DeliveredEnvelope,
 	ttlDays: number
 ): AuditEventDocument {
+	// A shared "unknown" would hit the unique index and drop every later event.
+	if (!metadata.messageId) {
+		throw new Error(`Audit event on ${metadata.topic} has no messageId`);
+	}
 	return {
 		receivedAt: metadata.emittedAt ? new Date(metadata.emittedAt) : new Date(),
 		ttl: new Date(Date.now() + ttlDays * MS_PER_DAY),
@@ -38,7 +42,7 @@ export function buildAuditDocument(
 			eventType: metadata.eventType ?? metadata.topic,
 			publisher: ServiceId.of(metadata.publisher?.serviceName ?? "unknown"),
 			instanceId: InstanceId.of(metadata.publisher?.instanceId ?? "unknown"),
-			messageId: MessageId.of(metadata.messageId ?? "unknown"),
+			messageId: MessageId.of(metadata.messageId),
 			correlationId: metadata.correlationId
 				? CorrelationId.of(metadata.correlationId)
 				: undefined,
