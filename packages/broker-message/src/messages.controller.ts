@@ -1,7 +1,14 @@
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { runWithCorrelationId } from "@trading-model/http/correlation-id";
 import { CorrelationId } from "@trading-model/primitives/primitives";
-import { MESSAGE_PAYLOAD_SCHEMA } from "./shared/barrel/message.schema";
+import { MESSAGES_UNKNOWN_TOPIC_TOTAL } from "./bus/metrics";
+import {
+	EVENT_VALIDATORS,
+	MESSAGE_PAYLOAD_SCHEMA,
+} from "./shared/barrel/message.schema";
+
+// One warning per topic and process; the counter carries the volume.
+const unknownTopicsWarned = new Set<string>();
 
 /** Delivered `messageId`s remembered per process: bounds the memory of the dedup. */
 export const DELIVERED_IDS_MAX = 10_000;
@@ -21,13 +28,26 @@ export interface DeliveredMessage {
  * depends on the topic, so it is checked here. The bus delivers at least once:
  * a `messageId` already handled is not handled again.
  *
- * @returns false when the payload does not match the schema of its topic.
+ * @returns false when the payload does not match the schema of its known topic;
+ * true for an unknown topic, acknowledged and ignored.
  */
 export async function deliverToHandler(
 	{ metadata, payload }: DeliveredMessage,
 	handle: (message: DeliveredMessage, signal?: AbortSignal) => Promise<void>,
 	signal?: AbortSignal
 ): Promise<boolean> {
+	// Expand/contract (ADR-0040): a topic added by release N is not dead-lettered at an N-1 subscriber.
+	if (!(metadata.topic in EVENT_VALIDATORS)) {
+		MESSAGES_UNKNOWN_TOPIC_TOTAL.inc({ topic: metadata.topic });
+		if (!unknownTopicsWarned.has(metadata.topic)) {
+			unknownTopicsWarned.add(metadata.topic);
+			getLogger().warn("Unknown topic acknowledged and ignored", {
+				topic: metadata.topic,
+			});
+		}
+		return true;
+	}
+
 	const resultPayload = await MESSAGE_PAYLOAD_SCHEMA.safeParseAsync({
 		type: metadata.topic,
 		data: payload,

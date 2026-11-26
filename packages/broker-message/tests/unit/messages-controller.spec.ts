@@ -22,6 +22,16 @@ describe("deliverToHandler", () => {
 		expect(handle).not.toHaveBeenCalled();
 	});
 
+	it("should acknowledge a topic it does not know, without calling the handler", async () => {
+		const handle = jest.fn<(message: DeliveredMessage) => Promise<void>>();
+		const ok = await deliverToHandler(
+			{ metadata: { topic: "future.topic" }, payload: { a: 1 } },
+			handle
+		);
+		expect(ok).toBe(true);
+		expect(handle).not.toHaveBeenCalled();
+	});
+
 	it("should handle a messageId once, in its correlation context", async () => {
 		const seen: (string | undefined)[] = [];
 		const handle = jest.fn(async (_message: DeliveredMessage) => {
