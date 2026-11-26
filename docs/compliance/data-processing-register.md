@@ -118,7 +118,7 @@ This register documents the processing activities of the trading-model platform,
 | Field                    | Value                                                                                                              |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------ |
 | **Purpose**              | Authenticate operators to Grafana and attribute DLQ deletions and replays to a key (ADR-0063, ADR-0059)            |
-| **Data categories**      | Grafana account created at first OIDC login (scopes `openid email profile`: e-mail, name, login); Grafana login log lines (logger `context`: login, and possibly the remote address, not confirmed on a live instance, ADR-0063 §6); API key name as `actor` of `dlq.*` audit events and of `kill_switch.*` risk events (risk-execution) |
+| **Data categories**      | Grafana account created at first OIDC login (scopes `openid email profile`: e-mail, name, login); Grafana login log lines (logger `context`: login; the remote address is masked by a promtail `replace` stage before Loki, ADR-0063 §6); API key name as `actor` of `dlq.*` audit events and of `kill_switch.*` risk events (risk-execution) |
 | **Data subjects**        | Operators                                                                                                          |
 | **Legal basis**          | Legitimate interest (Art. 6(1)(f)): security and traceability of operator actions                                  |
 | **Recipients**           | Internal: operators (Grafana/Loki, audit trail via api-gateway). No third party besides the OIDC identity provider |
