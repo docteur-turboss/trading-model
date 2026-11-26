@@ -2,7 +2,10 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { CandleData } from "@trading-model/contracts/market-data.types";
 import type { Intent } from "@trading-model/contracts/order-intent";
+import { AGENT_STATE_DIM } from "@trading-model/model-runtime/agent/agent-state";
+import { isEventDriven } from "@trading-model/model-runtime/agent/decision-events";
 import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
+import { FEATURE_DIM } from "@trading-model/model-runtime/feature-vector-codec";
 import {
 	isSupportedInterval,
 	type ModelManifest,
@@ -92,24 +95,43 @@ export function createDecisionTick(deps: {
 }) {
 	const now = deps.now ?? Date.now;
 	const loaded = new Map<string, Loaded>();
+	/** Symbol -> promoted version refused at load: not read again until a new version is promoted. */
+	const refused = new Map<string, string>();
 	const audited = new Set<string>();
 	const decided = new Map<string, number>();
 
 	async function load(model: PromotedModel): Promise<Loaded | undefined> {
 		const key = model.symbol;
+		if (refused.get(key) === model.version) {
+			return undefined;
+		}
 		const known = loaded.get(key);
 		if (known) {
 			return known;
 		}
+		const refuse = (reason: string): void => {
+			refused.set(key, model.version);
+			skip(model, reason);
+		};
 		const manifest = await deps.trainer.manifest(model.symbol, model.version);
 		// Eligible only: a promotion of a non-admissible model decides nothing (ADR-0069, ADR-0049 §1.4).
 		if (manifest.admission?.admissible !== true) {
-			skip(model, "not-admissible");
+			refuse("not-admissible");
 			return undefined;
 		}
 		const intervalMs = manifest.replay?.intervalMs;
 		if (intervalMs === undefined || !isSupportedInterval(intervalMs)) {
-			skip(model, "unsupported-interval");
+			refuse("unsupported-interval");
+			return undefined;
+		}
+		// The decider feeds market inputs, the agent state and the event input, no signal inputs (a signal-trained model has more).
+		const { network } = manifest.genome;
+		const expectedDim =
+			FEATURE_DIM +
+			AGENT_STATE_DIM +
+			(isEventDriven(manifest.genome.rl.horizon) ? 1 : 0);
+		if (network.inputDim !== expectedDim) {
+			refuse("incompatible-features");
 			return undefined;
 		}
 		const weights = await deps.trainer.weights(model.symbol, model.version);
