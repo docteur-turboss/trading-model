@@ -513,12 +513,20 @@ export class RiskExecution {
 		if (order.status !== "cancel_requested") {
 			this._move(order, "cancel_requested");
 		}
+		await this._brokerCancel(order, () => true);
+	}
+
+	/** Cancels at the broker and applies its fill view when `wanted`; a broker error is emitted, not thrown. */
+	private async _brokerCancel(
+		order: Order,
+		wanted: (view: BrokerOrderView) => boolean
+	): Promise<void> {
 		try {
 			const view = await this._bounded(
 				this._d.broker.cancel(order.clientOrderId),
 				"broker"
 			);
-			if (view) {
+			if (view && wanted(view)) {
 				await this._apply(order, view);
 			}
 		} catch (error) {
@@ -530,17 +538,7 @@ export class RiskExecution {
 		if (order.status === "accepted") {
 			return this._move(order, "expired");
 		}
-		try {
-			const view = await this._bounded(
-				this._d.broker.cancel(order.clientOrderId),
-				"broker"
-			);
-			if (view && view.filledQty > order.filledQty) {
-				await this._apply(order, view);
-			}
-		} catch (error) {
-			this._emitBrokerError(order, error);
-		}
+		await this._brokerCancel(order, (view) => view.filledQty > order.filledQty);
 		if (!FINAL.has(order.status)) {
 			this._move(order, "expired");
 		}

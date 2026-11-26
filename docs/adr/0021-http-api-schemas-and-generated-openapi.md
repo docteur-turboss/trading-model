@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10
 **Verified by:** `bun run api:check` (27/27 public routes and every service-to-service route from registry entries, empty schemas ratchet), `packages/http/tests/unit/adapters/inbound/api-route.spec.ts`, `tests/contract/bus-library.spec.ts`
-**Related:** [ADR-0016](./0016-shared-contracts-ownership.md) (runtime-free `contracts`), [ADR-0015](./0015-hexagonal-layering-completion.md) (layer rules), [ADR-0018](./0018-temporary-frontend-removal.md) (`api:check`), [ADR-0019](./0019-message-broker-as-built.md)
+**Related:** [ADR-0016](./0016-shared-contracts-ownership.md) (runtime-free `contracts`), [ADR-0015](./0015-hexagonal-layering-completion.md) (layer rules), [ADR-0018](./0018-temporary-frontend-removal.md) (`api:check`), ADR-0019 (deleted)
 
 ## Context
 

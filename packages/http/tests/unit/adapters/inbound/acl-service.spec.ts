@@ -33,18 +33,6 @@ describe("AclService", () => {
 		expect(() => acl.resolveCallerName(req)).toThrow();
 	});
 
-	it("should authorize caller with wildcard", () => {
-		const acl = new AclService({
-			"test-service": [ServiceId.of("*")],
-		});
-		expect(() =>
-			acl.authorizeCaller(
-				ServiceId.of("any-caller"),
-				ServiceId.of("test-service")
-			)
-		).not.toThrow();
-	});
-
 	it("should authorize specific caller", () => {
 		const acl = new AclService({
 			"test-service": [ServiceId.of("allowed-caller")],

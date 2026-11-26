@@ -35,6 +35,10 @@ describe("RiskClient", () => {
 		const result = await new RiskClient({} as never).send(INTENT);
 		expect(result.status).toBe("accepted");
 		expect(post.mock.calls[0][0]).toBe("https://risk:3000/intents");
+		expect(post.mock.calls[0][2]).toMatchObject({
+			retryCount: 0,
+			timeoutMs: 5_000,
+		});
 	});
 
 	it("reads the real position from /positions/:symbol", async () => {

@@ -11,8 +11,7 @@
     "./redis-config": "./dist/redis-config.js",
     "./redis-connection-manager": "./dist/redis-connection-manager.js",
     "./redis-env": "./dist/redis-env.js",
-    "./redis-readiness": "./dist/redis-readiness.js",
-    "./redis-key-builder": "./dist/redis-key-builder.js"
+    "./redis-readiness": "./dist/redis-readiness.js"
   },
   "dependencies": {
     "@trading-model/common": "*",

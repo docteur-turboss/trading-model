@@ -7,8 +7,8 @@
  *
  * Writes `{ symbol, interval, klines: [openTime, open, high, low, close,
  * volume, closeTime, quoteVolume, tradeCount, takerBuyVolume][] }`, oldest
- * first, ending at the last closed candle. The last three rebuild the trade
- * features of `--features klines` (scripts/mt4-walk-forward.ts, ADR-0030).
+ * first, ending at the last closed candle. The last three are the trade
+ * fields (quote volume, trade count, taker buy volume).
  */
 import { writeFileSync } from "node:fs";
 

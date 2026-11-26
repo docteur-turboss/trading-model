@@ -135,5 +135,20 @@ describe("env", () => {
 				expect(issues).not.toContain(entry.slice(entry.lastIndexOf(":") + 1));
 			}
 		);
+
+		it("should refuse a weak secret in staging", () => {
+			process.env.NODE_ENV = "staging";
+			process.env.AUTH_TOKENS = "ops:read:abc";
+			expect(refusal()).toContain("secret");
+		});
+
+		it.each(["development", "test"])(
+			"should accept a weak secret in %s",
+			(nodeEnv) => {
+				process.env.NODE_ENV = nodeEnv;
+				process.env.AUTH_TOKENS = "ops:read:abc";
+				expect(loadEnv().AUTH_TOKENS).toBe("ops:read:abc");
+			}
+		);
 	});
 });

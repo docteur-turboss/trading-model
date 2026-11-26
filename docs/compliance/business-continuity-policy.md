@@ -3,7 +3,7 @@
 > **Version:** 1.0  
 > **Effective:** 2026-06  
 > **Review:** Annual (full plan test)  
-> **Regulatory alignment:** DORA Art. 11-13, ISO 22301, NIST SP 800-34
+> **Regulatory alignment:** ISO 22301, NIST SP 800-34
 
 ## 1. Policy Statement
 

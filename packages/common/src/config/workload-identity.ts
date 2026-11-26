@@ -12,9 +12,6 @@ import { ServiceId } from "@trading-model/primitives/primitives/general-ids";
 
 export const TRUST_DOMAIN = "trading-model.local" as const;
 
-/** Namespace embedded in platform SPIFFE IDs when none is supplied. */
-export const DEFAULT_NAMESPACE = "trading-model" as const;
-
 export const SPIFFE_URI_SCHEME = "spiffe://" as const;
 export const SPIFFE_PATH_SEGMENT_NAMESPACE = "ns" as const;
 export const SPIFFE_PATH_SEGMENT_SERVICE_ACCOUNT = "sa" as const;
@@ -89,11 +86,6 @@ export function parseSpiffeId(identity: string): ParsedSpiffeId | null {
 		parsed.serviceAccount = path[path.length - 1];
 	}
 	return parsed;
-}
-
-/** Extracts the canonical service name from a SPIFFE ID, or null. */
-export function serviceNameFromSpiffeId(identity: string): ServiceId | null {
-	return parseSpiffeId(identity)?.serviceName ?? null;
 }
 
 /**

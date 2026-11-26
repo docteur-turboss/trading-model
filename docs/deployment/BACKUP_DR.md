@@ -542,6 +542,7 @@ and Prometheus scrapes them (job `backup-metrics`).
 | `BackupMetricsAbsent`     | no metric of the daily job (`run=""`: the incremental job's series do not count; job never ran, exporter down) |
 | `BackupUnencrypted`       | no age recipient                                                             |
 | `BackupOffsiteCopyFailed` | the off-site copy failed (`component="offsite"`, or `offsite-secondary` for the second bucket) or is not configured (the next daily run sends the missed weekly / monthly copies again: [catch-up](#off-site-tiers); fix within 30 days) |
+| `BackupOffsiteBucketLarge` | the off-site bucket holds more than 100 GB for 1 h (`backup_offsite_bytes`, `rclone size` by the daily and incremental jobs). Locked objects cannot be deleted: find the growth (bigger dumps, monthly tier), then adjust retention for new objects |
 | `RetentionFailed`         | the last `db-retention` run failed on a table ([Retention job](#retention-job); warning) |
 | `RetentionStale`          | no successful `db-retention` run for 36 h (daily job) |
 | `BackupVolumeFilling`     | the `backup-data` volume is more than 80 % full for 30 min (`backup_volume_used_ratio`, measured with `df` by both jobs; independent of kubelet volume metrics) |

@@ -164,6 +164,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `BackupUnencrypted` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupOffsiteCopyFailed` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupVolumeFilling` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
+| `BackupOffsiteBucketLarge` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `ApiAuthFailuresHigh` | warning | [runbook-auth-failures#apiauthfailureshigh](runbooks/runbook-auth-failures.md#apiauthfailureshigh) |
 | `MtlsAclDenials` | warning | [runbook-auth-failures#mtlsacldenials](runbooks/runbook-auth-failures.md#mtlsacldenials) |
 | `AuditChainBroken` | critical | [runbook-audit-chain-broken#auditchainbroken](runbooks/runbook-audit-chain-broken.md#auditchainbroken) |

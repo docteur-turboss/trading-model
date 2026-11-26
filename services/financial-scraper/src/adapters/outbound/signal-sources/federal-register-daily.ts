@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { SourceAdapter } from "../../../domain/ports/signal-source.port";
+import { DAY_MS, METRIC_PATTERN } from "./common";
 
 /**
  * `GET https://www.federalregister.gov/api/v1/documents/facets/daily?conditions[...]`:
@@ -13,7 +14,6 @@ const DailyFacet = z.record(
 
 /** Closing of a Federal Register day: midnight US Eastern, taken as 05:00 UTC (EST, the later). */
 const DAY_CLOSE_UTC_HOUR = 5;
-const DAY_MS = 86_400_000;
 
 /**
  * Federal Register documents published per day (US federal government work:
@@ -23,7 +23,7 @@ const DAY_MS = 86_400_000;
  */
 export const FEDERAL_REGISTER_DAILY: SourceAdapter = {
 	dimensions: ["legal"],
-	params: z.object({ metric: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/) }),
+	params: z.object({ metric: z.string().regex(METRIC_PATTERN) }),
 	normalize(payload, { params }) {
 		return Object.entries(DailyFacet.parse(payload)).map(
 			([day, { count }]) => ({
