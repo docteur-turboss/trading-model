@@ -63,12 +63,14 @@ Consumers reconnect on their own once Redis answers. Publishes refused meanwhile
 **Symptoms:** `XPENDING <journal key> <service>` shows old entries; the subscriber is down or its handler throws.  
 **Fix:** bring the service back; the backlog drains by itself, oldest first. Past 24 h the entries are trimmed and lost: recover what it missed from the source (re-scrape the candles for `market.*` topics; for `audit-logger`, accept the gap and run `chain-cli.js acknowledge-loss` if its chain reports a loss, runbook-audit-chain-broken).
 
-**Retired topic or a service that dropped a topic (issue #2479):** a consumer group lives until an operator removes it (ADR-0073 §2), so its backlog never drains. A topic no longer in the contracts (`EVENT_VALIDATORS`) leaves the gauges by itself, and a service's consumer reports only the topics it consumes. The group and its stream stay in Redis. Remove them by hand once the code without the topic runs everywhere (no N-1 left that publishes or reads it). Run this in the Redis master as the ACL user `message-manager` (kept until issue #2619), once per group of the topic:
+**Retired topic or a service that dropped a topic (issue #2479):** a consumer group lives until an operator removes it (ADR-0073 §2), so its backlog never drains. A topic no longer in the contracts (`EVENT_VALIDATORS`) leaves the gauges by itself, and a service's consumer reports only the topics it consumes. The group and its stream stay in Redis. Remove them by hand once the code without the topic runs everywhere (no N-1 left that publishes or reads it). Run this in the `redis` container of the master (`$REDIS_MASTER`, found above) as the ACL user `message-manager` (kept until issue #2619), once per group of the topic:
 
 ```sh
+kubectl exec -n trading-model "$REDIS_MASTER" -c redis -- sh -c '
 P=trading-model:message-manager
+export REDISCLI_AUTH="$REDIS_MESSAGE_MANAGER_PASSWORD"
 redis-cli --user message-manager XGROUP DESTROY "$P:journal:<topic>" <service>
-redis-cli --user message-manager SREM "$P:journal-groups" "<topic>|<service>"
+redis-cli --user message-manager SREM "$P:journal-groups" "<topic>|<service>"'
 ```
 
 The undelivered entries of that group are lost. A group of a live topic that a subscriber still declares is recreated at its next start: remove it only after that service stopped consuming the topic.

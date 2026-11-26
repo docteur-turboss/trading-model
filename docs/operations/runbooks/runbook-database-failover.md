@@ -274,9 +274,11 @@ kubectl exec -n trading-model redis-sentinel-0 -c sentinel -- sh -c 'REDISCLI_AU
 Redis is not backed up. Registrations and the DLQ queue rebuild by themselves; the message journal does not: if master and replicas are all lost, accepted messages not yet delivered are gone (RPO in [BACKUP_DR.md](../../deployment/BACKUP_DR.md)). `mm_journal_oldest_pending_age_seconds` gives only the age (not the count) of the oldest pending entry and vanishes with the data: read it before the wipe for an upper bound, then republish from the source. Redis restarts from AOF/RDB.
 If persistence is corrupted:
 
-1. Clear Redis data:
+1. Clear Redis data. No ACL user may run `FLUSHALL` (`default` is off, `ha` is `-@all`): drop the volumes instead.
    ```bash
-   kubectl exec -n trading-model "$REDIS_MASTER" -- redis-cli FLUSHALL
+   kubectl scale statefulset redis -n trading-model --replicas=0
+   kubectl delete pvc -n trading-model redis-data-redis-0 redis-data-redis-1 redis-data-redis-2
+   kubectl scale statefulset redis -n trading-model --replicas=3
    ```
 2. Services will reconnect and rebuild cache
 3. Watch `BusDeadLetters` and the consumer lag during rebuild
