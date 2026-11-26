@@ -789,7 +789,7 @@ function buildInternalSpecs(routesByService) {
 
 // ── Gateway path resolution ──────────────────────────────────────────────────
 
-/** Canonical names and legacy aliases the gateway resolves (registryNamesFor). */
+/** Canonical service names the gateway resolves. */
 function resolvableServiceNames() {
 	const names = new Map();
 	visit(parse(IDENTITY_PATH), (node) => {
@@ -798,13 +798,6 @@ function resolvableServiceNames() {
 		while (ts.isAsExpression(init) || ts.isSatisfiesExpression?.(init)) init = init.expression;
 		if (node.name.getText() === "PLATFORM_SERVICES" && ts.isArrayLiteralExpression(init)) {
 			for (const el of init.elements) if (ts.isStringLiteralLike(el)) names.set(el.text, el.text);
-		}
-		if (node.name.getText() === "LEGACY_SERVICE_NAME_ALIASES" && ts.isObjectLiteralExpression(init)) {
-			for (const prop of init.properties) {
-				if (ts.isPropertyAssignment(prop) && ts.isStringLiteralLike(prop.initializer)) {
-					names.set(prop.name.text ?? prop.name.getText(), prop.initializer.text);
-				}
-			}
 		}
 	});
 	if (names.size === 0) errors.push(`${rel(IDENTITY_PATH)}: service names not found`);
