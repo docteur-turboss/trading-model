@@ -27,7 +27,7 @@ import {
 	PROXY_REQUEST_DURATION_SECONDS,
 	SERVICE_ERRORS_TOTAL,
 } from "../../infrastructure/config/metrics";
-import { requiredScope } from "../../shared/api-keys";
+import { hasScope, requiredScope } from "../../shared/api-keys";
 import { parseRequestPath } from "../../shared/path-parser";
 import { matchPublicRoute } from "../../shared/public-routes";
 import { forwardRequest } from "../outbound/proxy-handler";
@@ -110,8 +110,8 @@ const createCatchAllRoute = (env: Env) => {
 
 		res.locals.routeLabel = pattern;
 
-		const scope = requiredScope(req.method);
-		if (!authOf(req).apiKeyScopes.includes(scope)) {
+		const scope = requiredScope(req.method, pattern);
+		if (!hasScope(authOf(req).apiKeyScopes, scope)) {
 			return sendResponse(
 				{ error: "Forbidden", reason: `API key lacks the ${scope} scope` },
 				HTTP_STATUS.FORBIDDEN

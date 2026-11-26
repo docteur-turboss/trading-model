@@ -704,6 +704,26 @@ _upload_offsite_to() {
 	fi
 }
 
+# write_offsite_size: total bytes of the primary off-site bucket as
+# backup_offsite_bytes (alert BackupOffsiteBucketLarge). Listing only: works with
+# the no-delete credentials (ADR-0033). A failed listing publishes nothing, so
+# the alert stays silent instead of firing on a wrong value.
+write_offsite_size() {
+	[ -n "$_METRICS_TMP" ] && command -v rclone >/dev/null || return 0
+	local json bytes
+	if ! json="$(RCLONE_S3_ENV_AUTH=true rclone size --json "$(offsite_remote "${BACKUP_S3_BUCKET%/}")")"; then
+		warn "Cannot size the off-site bucket: backup_offsite_bytes not published"
+		return 0
+	fi
+	bytes="$(sed -nE 's/.*"bytes":([0-9]+).*/\1/p' <<<"$json")"
+	[ -n "$bytes" ] || return 0
+	if [ -n "${BACKUP_RUN:-}" ]; then
+		echo "backup_offsite_bytes{run=\"${BACKUP_RUN}\"} ${bytes}" >>"$_METRICS_TMP"
+	else
+		echo "backup_offsite_bytes ${bytes}" >>"$_METRICS_TMP"
+	fi
+}
+
 upload_offsite() {
 	if [ -z "${BACKUP_S3_BUCKET:-}" ]; then
 		if [ "${BACKUP_REQUIRE_OFFSITE:-false}" = true ]; then
@@ -713,6 +733,7 @@ upload_offsite() {
 		return 0
 	fi
 	_upload_offsite_to "$BACKUP_S3_BUCKET" offsite
+	write_offsite_size
 	[ -n "${BACKUP_S3_SECONDARY_BUCKET:-}" ] || return 0
 	# Optional second bucket at another provider (ADR-0033): its own credentials
 	# and endpoint, swapped in a subshell; a failure there is counted here.

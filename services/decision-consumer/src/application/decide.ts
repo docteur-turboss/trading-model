@@ -187,7 +187,7 @@ export function createDecisionTick(deps: {
 			? sized(decision.order, held, decision.price, manifest)
 			: 0;
 		if (decision.order && quantity > 0) {
-			const result = await deps.risk.send({
+			const sent = await deps.risk.send({
 				decisionId: decisionId(model, bar),
 				symbol: model.symbol,
 				side: decision.order.side,
@@ -196,6 +196,11 @@ export function createDecisionTick(deps: {
 				referenceAt: bar + intervalMs,
 				model,
 			});
+			// A duplicate id means risk-execution already took the intent (an answer lost to our timeout): success.
+			const result =
+				sent.reason === "duplicate_client_order_id"
+					? { ...sent, status: "received", reason: undefined }
+					: sent;
 			DECISION_INTENTS_TOTAL.inc({
 				outcome: result.status,
 				reason: result.reason ?? "",

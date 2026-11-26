@@ -46,8 +46,9 @@ const API_GATEWAY_ENV_SCHEMA = BaseEnvSchema.extend(
 			});
 			continue;
 		}
-		const weak =
-			data.NODE_ENV === "production" ? weakSecretReason(key.secret) : undefined;
+		const weak = ["development", "test"].includes(data.NODE_ENV)
+			? undefined
+			: weakSecretReason(key.secret);
 		if (weak) {
 			ctx.addIssue({
 				code: z.ZodIssueCode.custom,

@@ -24,8 +24,8 @@ describe("isExpectedPublisher", () => {
 		).toBe(false);
 	});
 
-	it("accepts a topic with no publisher list", () => {
-		expect(isExpectedPublisher("unknown.topic", "anyone")).toBe(true);
+	it("rejects a topic absent from the table", () => {
+		expect(isExpectedPublisher("unknown.topic", "anyone")).toBe(false);
 	});
 });
 

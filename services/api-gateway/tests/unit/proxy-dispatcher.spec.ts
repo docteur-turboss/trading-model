@@ -70,7 +70,7 @@ describe("proxyAndCache", () => {
 		expect(d.cache.set).toHaveBeenCalledWith("GET:/x", {
 			data: '{"a":1}',
 			status: 200,
-			bytes: 7,
+			chars: 7,
 		});
 	});
 

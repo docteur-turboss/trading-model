@@ -417,7 +417,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 			}
 		}
 		const now = this._now();
-		// One group per task: its three reads stay ordered, groups overlap.
+		// One group per task: its two reads stay ordered, groups overlap.
 		const results = await Promise.all(
 			groups.map(async (group): Promise<JournalGroupLag | undefined> => {
 				const info = infos.get(`${group.topic}|${group.service}`);

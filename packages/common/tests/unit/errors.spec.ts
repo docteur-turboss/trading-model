@@ -1,5 +1,4 @@
 import {
-	authenticationError,
 	createAppError,
 	ErrorCode,
 	errorProp,
@@ -9,6 +8,8 @@ import {
 	makeGuard,
 	normalizeError,
 } from "../../src/utils/errors";
+
+const authenticationError = makeErrorCode(ErrorCode.Authentication, 498);
 
 const addressManagerError = makeErrorCode(ErrorCode.AddressManager);
 const isAddressManagerError = makeGuard(ErrorCode.AddressManager);

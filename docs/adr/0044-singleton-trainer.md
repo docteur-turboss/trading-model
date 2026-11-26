@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-11
-**Related:** [ADR-0058](./0058-trainer-handover-through-a-lease.md) (amends it: decisions 1 and 5 superseded, the trainer rolls out through a Lease handover), [ADR-0042](./0042-singleton-collector-with-verified-recovery.md) (same pattern for the collector), [ADR-0024](./0024-pod-spread-across-nodes.md) (its trader-trainer row no longer applies), [ADR-0022](./0022-versioned-model-artifacts.md)
+**Related:** [ADR-0058](./0058-trainer-handover-through-a-lease.md) (amends it: decisions 1 and 5 superseded, the trainer rolls out through a Lease handover), ADR-0042 (deleted) (same pattern for the collector), [ADR-0024](./0024-pod-spread-across-nodes.md) (its trader-trainer row no longer applies), [ADR-0022](./0022-versioned-model-artifacts.md)
 **Verified by:** `tests/k8s/check-overlays.mjs`
 
 ## Context

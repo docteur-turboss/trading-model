@@ -7,12 +7,12 @@ import { RedisMessageJournal } from "../../src/bus/redis-journal";
 import { deadLetterError } from "../../src/shared/errors";
 
 const mockServiceIdentity = {
-	serviceName: "financial-scraper",
+	serviceName: "trader-trainer",
 	instanceId: "instance-1",
 };
 
 const PREFIX = "bus-library-db-spec";
-const TOPIC = "test.topic";
+const TOPIC = "training.model.published";
 const clients: Redis[] = [];
 
 function journal(): RedisMessageJournal {

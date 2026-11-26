@@ -35,7 +35,7 @@ function _onStopOnce(options: BootstrapOptions): (() => unknown) | undefined {
 const DEFAULT_CLOSE_TIMEOUT_MS = DurationMs.of(5000);
 /** Server close (5 s) + onStop (3 s) stay below the shortest grace, 10 s (edge-proxy). */
 const DEFAULT_ON_STOP_TIMEOUT_MS = DurationMs.of(3000);
-/** Whole shutdown, beforeClose included, for a service without its own budget. */
+/** Whole shutdown for a service without its own budget. */
 const DEFAULT_DEADLINE_MS = DurationMs.of(8000);
 
 /** Grace left to onStop and the server close; below the shortest terminationGracePeriodSeconds (10 s, edge-proxy). */
@@ -65,17 +65,13 @@ export async function gracefulShutdown(
 	options: BootstrapOptions
 ): Promise<void> {
 	getLogger().warn("Shutdown signal received", { context: { signal } });
-	// Whole-shutdown deadline: a beforeClose that never settles must not end in SIGKILL.
+	// Whole-shutdown deadline: a close or onStop that never settles must not end in SIGKILL.
 	const deadline = setTimeout(
 		() => hardShutdown(1, server, options),
 		options.shutdown?.deadlineMs ?? DEFAULT_DEADLINE_MS
 	);
 	deadline.unref();
 	try {
-		await _warnOnFailure(
-			options.shutdown?.beforeClose,
-			"beforeClose callback failed during graceful shutdown"
-		);
 		if (server) {
 			await withTimeout(
 				server.close(),

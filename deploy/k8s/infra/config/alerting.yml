@@ -249,6 +249,16 @@ groups:
           description: 'The backup-data PVC (100Gi) is filling up: dumps grow with the market data. Check the retention (RETENTION_DAYS) or grow the volume before a night of backups fails.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
+      - alert: BackupOffsiteBucketLarge
+        expr: 'max by (job) (backup_offsite_bytes) > 100 * 1024 ^ 3'
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Off-site backup bucket is over 100 GB'
+          description: 'The Object Lock bucket (compliance mode) only grows: locked objects cannot be deleted. Check dump sizes and the monthly tier before the bill does.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+
       # Retention job (ADR-0051): daily at 03:30 UTC, so 36 h = one missed run.
       - alert: RetentionFailed
         expr: 'retention_last_status == 0'

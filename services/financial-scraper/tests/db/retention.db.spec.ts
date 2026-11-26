@@ -29,6 +29,8 @@ const TABLES = [
 	["market_order_books", "timestamp"],
 	["signals", "observed_at"],
 ] as const;
+// Fixed 90-day purge (ADR-0084), outside TABLES: its age does not follow RETENTION_DAYS.
+const DOCUMENTS = ["signal_documents", "first_seen_at"] as const;
 
 let db: Connection;
 let container: string;
@@ -90,7 +92,7 @@ beforeAll(async () => {
 	container = containerOfPort(uri.port);
 	db = await createConnection({ uri: process.env.TEST_MYSQL_URI });
 	await db.query("SET FOREIGN_KEY_CHECKS = 0");
-	for (const [table, column] of TABLES) {
+	for (const [table, column] of [...TABLES, DOCUMENTS]) {
 		await db.query(`DROP TABLE IF EXISTS \`${table}\``);
 		await db.query(
 			`CREATE TABLE \`${table}\` (id INT AUTO_INCREMENT PRIMARY KEY, \`${column}\` DATETIME(3) NOT NULL, INDEX idx_t (\`${column}\`))`
@@ -99,13 +101,13 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-	for (const [table] of TABLES) {
+	for (const [table] of [...TABLES, DOCUMENTS]) {
 		await db.query(`TRUNCATE \`${table}\``);
 	}
 });
 
 afterAll(async () => {
-	for (const [table] of TABLES) {
+	for (const [table] of [...TABLES, DOCUMENTS]) {
 		await db.query(`DROP TABLE IF EXISTS \`${table}\``);
 	}
 	await db.end();
@@ -157,6 +159,15 @@ describe("scripts/retention-mysql.sh — real MySQL", () => {
 		expect(await count("signals")).toBe(0);
 		expect(await count("market_order_books")).toBe(0);
 		expect(await count("market_trades")).toBe(0);
+	});
+
+	it("should purge signal_documents after 90 days whatever RETENTION_DAYS", async () => {
+		await insertAged(DOCUMENTS[0], DOCUMENTS[1], 100);
+		await insertAged(DOCUMENTS[0], DOCUMENTS[1], 60);
+
+		retention({ RETENTION_DAYS: "1827" });
+
+		expect(await count(DOCUMENTS[0])).toBe(1);
 	});
 
 	it("should publish metrics and keep the last success time when a table fails", async () => {

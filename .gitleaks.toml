@@ -3,7 +3,7 @@ useDefault = true
 
 # [[allowlists]] needs gitleaks >= 8.25 (8.24.3 silently ignores them): the version is pinned in ci.yml.
 [[allowlists]]
-description = "Public series keys, ADR prose and SealedSecret ciphertext (no real credential)"
+description = "Public series keys and ADR prose (no real credential)"
 stopwords = [
   "admin:admin", # default login of the throwaway Grafana in tests/observability
   "YC.B.U2.EUR", # public ECB series key, older registry format
@@ -12,8 +12,15 @@ stopwords = [
 regexTarget = "line"
 regexes = [
   '''"scheme": "series", "provider": "[^"]+", "key": "[^"]+" \},?$''', # signal-registry.json: public ECB / Treasury series keys
-  '''^\s+[A-Z0-9_]+: Ag[A-Za-z0-9+/]{300,}={0,2}$''', # SealedSecret ciphertext, decryptable only by the cluster controller
 ]
+
+# SealedSecret ciphertext, decryptable only by the cluster controller: only in the SealedSecret manifests (regex AND path)
+[[allowlists]]
+description = "SealedSecret ciphertext"
+condition = "AND"
+regexTarget = "line"
+regexes = ['''^\s+[A-Z0-9_]+: Ag[A-Za-z0-9+/]{300,}={0,2}$''']
+paths = ['''^deploy/k8s/.*sealed-secrets\.yaml$''']
 
 # Historical fake keys/tokens in four old commits, limited to the spec files that held them (commit AND path)
 [[allowlists]]

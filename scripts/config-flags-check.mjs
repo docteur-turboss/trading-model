@@ -153,10 +153,10 @@ for (const [name, files] of [...parsedReads].sort(([a], [b]) => a.localeCompare(
     errors.push(`${name}: read from a parsed env but declared by no schema — always undefined (${[...files].join(', ')})`);
   }
 }
-// `cp .env.example .env` must be enough for compose: every `${X:?}` needs an uncommented, non-empty `X=` line.
+// Every `${X:?}` needs an uncommented `X=` line in .env.example (it may be empty: secrets are left blank so a raw copy is refused by compose).
 const envExample = readFileSync(join(ROOT, '.env.example'), 'utf8');
 for (const [, name] of readFileSync(join(ROOT, 'docker-compose.yml'), 'utf8').matchAll(/\$\{([A-Z0-9_]+):\?/g)) {
-  if (!new RegExp(`^${name}=\\S`, 'm').test(envExample)) errors.push(`${name}: required by docker-compose.yml but has no uncommented, non-empty line in .env.example`);
+  if (!new RegExp(`^${name}=`, 'm').test(envExample)) errors.push(`${name}: required by docker-compose.yml but has no uncommented line in .env.example`);
 }
 for (const name of Object.keys(ALLOWED_UNSET)) {
   if (!read.has(name)) errors.push(`${name}: in ALLOWED_UNSET but no code reads it`);

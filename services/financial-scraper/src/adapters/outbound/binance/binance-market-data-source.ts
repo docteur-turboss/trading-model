@@ -23,7 +23,7 @@ import {
 const BAN_BACKOFF_BASE_MS = 5 * 60_000;
 
 /**
- * Binance public REST API (no account, no key: ADR-0026). A 429, 418 or 451
+ * Binance public REST API (no account, no key: ADR-0026). A 429, 418, 403 or 451
  * quarantines it at once: no call until the deadline (`Retry-After` or a
  * doubling backoff), since each call during a ban extends it.
  */

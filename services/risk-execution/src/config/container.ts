@@ -18,7 +18,7 @@ import { assertExecutionLock } from "../domain/execution-mode";
 import { RiskLimits } from "../domain/limits";
 import type { RiskState } from "../domain/state";
 import { ENV } from "../infrastructure/config/env";
-import { initRiskOutbox, publishRiskEvent, replayRiskEvents } from "./audit";
+import { createRiskOutbox, publishRiskEvent } from "./audit";
 import {
 	metricsHandler,
 	RISK_DAILY_LOSS,
@@ -32,7 +32,6 @@ import {
 	RISK_RECONCILIATION_MISMATCH,
 	RISK_TICK_FAILURES,
 } from "./metrics";
-import { runTick } from "./run-tick";
 
 export type RiskExecutionApp = Awaited<
 	ReturnType<typeof createRiskExecutionApp>
@@ -61,7 +60,7 @@ export async function createRiskExecutionApp() {
 	});
 	const mode = ENV.EXECUTION_MODE;
 	const tls = buildTlsFromEnv(ENV);
-	await initRiskOutbox(
+	const outbox = await createRiskOutbox(
 		new JsonFile(join(ENV.RISK_STATE_DIR, "risk-event-outbox.json"))
 	);
 	const risk = new RiskExecution({
@@ -79,7 +78,7 @@ export async function createRiskExecutionApp() {
 		prices: new ScraperPrices(tls),
 		emit: (event, fields) => {
 			getLogger().info(event, fields);
-			publishRiskEvent(event, fields);
+			publishRiskEvent(outbox, event, fields);
 		},
 	});
 	await risk.start();
@@ -105,21 +104,20 @@ export async function createRiskExecutionApp() {
 	publish();
 	RISK_TICK_FAILURES.inc({ mode }, 0);
 	const timer = setInterval(() => {
-		void replayRiskEvents();
-		void runTick(
-			() =>
-				runJob(
-					"risk-execution.tick",
-					() => risk.tick(),
-					(error) => {
-						const { message, stack } = normalizeError(error);
-						getLogger().error("risk tick failed", { error: message, stack });
-						RISK_TICK_FAILURES.inc({ mode });
-					}
-				),
-			publish,
-			() => undefined
-		);
+		void outbox.replay();
+		// The switch may engage in memory during a failed tick: republish the gauges either way.
+		// biome-ignore lint/plugin: onError below already logs and counts the failure
+		void runJob(
+			"risk-execution.tick",
+			() => risk.tick(),
+			(error) => {
+				const { message, stack } = normalizeError(error);
+				getLogger().error("risk tick failed", { error: message, stack });
+				RISK_TICK_FAILURES.inc({ mode });
+			}
+		)
+			.catch(() => undefined)
+			.then(publish);
 	}, ENV.RISK_TICK_MS);
 	timer.unref();
 

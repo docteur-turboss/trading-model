@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { SourceAdapter } from "../../../domain/ports/signal-source.port";
+import { METRIC_PATTERN } from "./common";
 
 const Rows = z.array(
 	z.looseObject({ Date: z.string().regex(/^\d\d\/\d\d\/\d{4}$/) })
@@ -16,7 +17,7 @@ export const TREASURY_PAR_YIELD_CURVE: SourceAdapter = {
 	dimensions: ["market"],
 	params: z.object({
 		column: z.string().min(1),
-		metric: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
+		metric: z.string().regex(METRIC_PATTERN),
 	}),
 	normalize(payload, { params }) {
 		return Rows.parse(payload).flatMap((row) => {

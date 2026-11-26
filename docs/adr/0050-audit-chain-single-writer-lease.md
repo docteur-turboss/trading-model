@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-11
-**Related:** [ADR-0052](./0052-audit-chain-amortized-lease-batched-writes.md) (lease amortized over queued writes), [ADR-0027](./0027-audit-chain-verification-and-anchoring.md) (chain, verifier and anchors stay as they are), [ADR-0043](./0043-message-delivery-once-per-subscribed-service.md)
+**Related:** [ADR-0052](./0052-audit-chain-amortized-lease-batched-writes.md) (lease amortized over queued writes), [ADR-0027](./0027-audit-chain-verification-and-anchoring.md) (chain, verifier and anchors stay as they are), ADR-0043 (deleted)
 **Verified by:** `services/audit-logger/tests/unit/persistence/audit-repository.spec.ts`, `services/audit-logger/tests/db/audit-contention.db.spec.ts`
 
 ## Context

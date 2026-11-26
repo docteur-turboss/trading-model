@@ -178,6 +178,7 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		"market_order_books",
 		"market_tickers",
 		"market_trades",
+		"signal_documents",
 		"signals",
 	];
 
@@ -185,14 +186,17 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
 		await expect(tables()).resolves.toEqual(ALL_TABLES);
 
-		// 013 (cursors, down recreates them), 012 (trades id, down is a no-op), 010 (index), 009 (signals.area), 008 (market_order_books).
-		migrate("down", "5");
+		// 014 (signal_documents), 013 (cursors, down recreates them), 012 (trades id, down is a no-op), 010 (index), 009 (signals.area), 008 (market_order_books).
+		migrate("down", "6");
 		await expect(appliedMigrations()).resolves.toEqual(
-			MIGRATION_IDS.slice(0, -5)
+			MIGRATION_IDS.slice(0, -6)
 		);
 		await expect(tables()).resolves.toEqual(
 			[
-				...ALL_TABLES.filter((table) => table !== "market_order_books"),
+				...ALL_TABLES.filter(
+					(table) =>
+						table !== "market_order_books" && table !== "signal_documents"
+				),
 				"market_publish_cursors",
 			].sort()
 		);
