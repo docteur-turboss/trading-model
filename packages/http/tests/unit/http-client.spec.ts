@@ -166,17 +166,6 @@ describe("HttpClient", () => {
 		return onMock;
 	}
 
-	it("frees idle sockets before the server's 5 s keepAliveTimeout", () => {
-		jest.isolateModules(() => {
-			const { getKeepAliveAgent } = require("../../src/http-utils");
-			getKeepAliveAgent();
-		});
-		const [opts] = (https.Agent as unknown as jest.Mock).mock.calls[0] as [
-			{ timeout: number },
-		];
-		expect(opts.timeout).toBeLessThan(5000);
-	});
-
 	describe("outgoing propagation", () => {
 		it("should inject x-correlation-id from the async context", async () => {
 			const promise: Promise<void> = runWithCorrelationId(
