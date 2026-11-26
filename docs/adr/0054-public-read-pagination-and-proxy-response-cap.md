@@ -4,7 +4,7 @@
 **Date:** 2026-11
 **Amended by:** [ADR-0088](./0088-paged-read-indexes-built-outside-the-migration-job.md) (the 3 `sources/:source` routes removed, the `(symbol, timestamp, id)` indexes)
 **Related:** [ADR-0053](./0053-order-books-persisted-not-served.md) (order book routes removed, so only 9 routes are paged), [ADR-0021](./0021-http-api-schemas-and-generated-openapi.md) (Zod schemas, generated OpenAPI), [ADR-0036](./0036-multi-dimension-signals-mvp.md) (the `signals` route: window, `truncated`), [ADR-0013](./0013-config-gated-dead-code-removal.md) (a new env var, `config:check`)
-**Verified by:** `services/financial-scraper/tests/unit/adapters/inbound/http/api-routes.spec.ts`, `services/financial-scraper/tests/unit/adapters/outbound/persistence/schema/trades.schema.spec.ts`, `services/financial-scraper/tests/unit/adapters/outbound/persistence/schema/ticker24h.schema.spec.ts`, `services/financial-scraper/tests/unit/adapters/outbound/persistence/schema/candles.schema.spec.ts`, `services/financial-scraper/tests/db/market-data.db.spec.ts`, `services/api-gateway/tests/unit/proxy-handler.spec.ts`, `services/api-gateway/tests/unit/proxy-dispatcher.spec.ts`, `bun run api:check`, `bun run config:check`
+**Verified by:** `services/financial-scraper/tests/unit/adapters/inbound/http/api-routes.spec.ts`, `services/financial-scraper/tests/unit/adapters/outbound/persistence/schema/ticker24h.schema.spec.ts`, `services/financial-scraper/tests/unit/adapters/outbound/persistence/schema/candles.schema.spec.ts`, `services/financial-scraper/tests/db/market-data.db.spec.ts`, `services/api-gateway/tests/unit/proxy-handler.spec.ts`, `services/api-gateway/tests/unit/proxy-dispatcher.spec.ts`, `bun run api:check`, `bun run config:check`
 
 ## Context
 

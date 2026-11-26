@@ -102,7 +102,7 @@ spec:
                 name: risk-execution-config
           env:
             - name: NODE_OPTIONS
-              value: --max-old-space-size=192
+              value: --max-old-space-size=128
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -141,10 +141,8 @@ spec:
             exec:
               command:
                 - node
-                - -e
-                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
+                - /app/probe.js
                 - https://localhost:3000/ping
-            initialDelaySeconds: 20
             periodSeconds: 15
             timeoutSeconds: 10
             failureThreshold: 3
@@ -152,8 +150,7 @@ spec:
             exec:
               command:
                 - node
-                - -e
-                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
+                - /app/probe.js
                 - https://localhost:3000/health/ready
             initialDelaySeconds: 10
             periodSeconds: 10
@@ -163,8 +160,7 @@ spec:
             exec:
               command:
                 - node
-                - -e
-                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
+                - /app/probe.js
                 - https://localhost:3000/ping
             initialDelaySeconds: 30
             periodSeconds: 5
@@ -249,6 +245,11 @@ spec:
         - port: 6379
           protocol: TCP
         - port: 26379
+          protocol: TCP
+        # TLS listeners (REDIS_TLS_MODE, ADR-0047).
+        - port: 6380
+          protocol: TCP
+        - port: 26380
           protocol: TCP
 ---
 apiVersion: v1

@@ -2,8 +2,8 @@
 
 **Status:** Accepted
 **Date:** 2026-10
-**Verified by:** `bun run api:check` (27/27 public routes and every service-to-service route from registry entries, empty schemas ratchet), `packages/http/tests/unit/adapters/inbound/api-route.spec.ts`, `tests/contract/dead-letter.spec.ts`
-**Related:** [ADR-0016](./0016-shared-contracts-ownership.md) (runtime-free `contracts`), [ADR-0015](./0015-hexagonal-layering-completion.md) (layer rules), [ADR-0018](./0018-temporary-frontend-removal.md) (`api:check`), [ADR-0019](./0019-message-broker-as-built.md)
+**Verified by:** `bun run api:check` (27/27 public routes and every service-to-service route from registry entries, empty schemas ratchet), `packages/http/tests/unit/adapters/inbound/api-route.spec.ts`, `tests/contract/bus-library.spec.ts`
+**Related:** [ADR-0016](./0016-shared-contracts-ownership.md) (runtime-free `contracts`), [ADR-0015](./0015-hexagonal-layering-completion.md) (layer rules), [ADR-0018](./0018-temporary-frontend-removal.md) (`api:check`), ADR-0019 (deleted)
 
 ## Context
 
@@ -71,7 +71,7 @@ Parsing every response costs CPU on every request for a failure that only a code
 
 One service at a time, each step leaving `api:check`, `build` and the test suites green:
 
-1. **Done 2026-10-28.** Shared pieces: `ErrorResponse`, `defineRoute`, `parseRequest`, `mountRoute` and the response check `responseIssues` in `@trading-model/http/adapters/inbound/api-route/`; `validation/src/wire/` with the accept/yield assertions; `DlqEntryWire`, now used by dlq-service `POST /dlq` (the `as unknown as DlqEntry` cast that hid the drift is gone), checked by `tests/contract/dead-letter.spec.ts`. `timestamp` takes epoch milliseconds, and still ISO dates and epoch strings (E2E, older callers); `deliveryAttempt` must be ≥ 1 as the contract says.
+1. **Done 2026-10-28.** Shared pieces: `ErrorResponse`, `defineRoute`, `parseRequest`, `mountRoute` and the response check `responseIssues` in `@trading-model/http/adapters/inbound/api-route/`; `validation/src/wire/` with the accept/yield assertions; `DlqEntryWire`, now used by dlq-service `POST /dlq` (the `as unknown as DlqEntry` cast that hid the drift is gone), checked by `tests/contract/bus-library.spec.ts`. `timestamp` takes epoch milliseconds, and still ISO dates and epoch strings (E2E, older callers); `deliveryAttempt` must be ≥ 1 as the contract says.
 2. Services, one at a time: registry, `mountRoute`, input schemas for the hand-parsed routes, response schemas checked in the route specs.
    - **dlq-service, done 2026-10-29.** `DLQ_API` (`src/adapters/inbound/api-routes.ts`), mounted after `serviceAuth` and the rate limiters (the signature covers the raw body). The list query is now validated (a non-numeric `limit` is a 400 instead of silently becoming 100; above 1000 it is still capped), invalid input answers the standard `ErrorResponse`, and every response of the routes integration spec is checked against the registry. Typing the responses exposed `StoredDlqEntry.createdAt`, an ISO string cast to `UnixTimestamp`: now typed as a string.
    - **financial-scraper, audit-logger, discovery-server, trader-trainer, done 2026-10-29.** Typing and checking the responses exposed bugs no test caught, all fixed with a regression test on a real Express app:

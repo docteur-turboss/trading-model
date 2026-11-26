@@ -8,12 +8,6 @@ jest.mock(
 	})
 );
 jest.mock(
-	"../../../src/adapters/outbound/persistence/schema/trades.schema",
-	() => ({
-		insertTrades: jest.fn<(...args: any[]) => any>(),
-	})
-);
-jest.mock(
 	"../../../src/adapters/outbound/persistence/schema/order-book.schema",
 	() => ({
 		insertOrderBook: jest.fn<(...args: any[]) => any>(),
@@ -29,13 +23,11 @@ jest.mock(
 import { insertCandles } from "../../../src/adapters/outbound/persistence/schema/candles.schema";
 import { insertOrderBook } from "../../../src/adapters/outbound/persistence/schema/order-book.schema";
 import { insertTicker } from "../../../src/adapters/outbound/persistence/schema/ticker24h.schema";
-import { insertTrades } from "../../../src/adapters/outbound/persistence/schema/trades.schema";
 import { MarketDataPersister } from "../../../src/config/container";
 import { CANDLES_PERSISTED_TOTAL } from "../../../src/config/metrics";
 
 const MOCK_MODEL = {
 	insertCandles: jest.mocked(insertCandles),
-	insertTrades: jest.mocked(insertTrades),
 	insertOrderBook: jest.mocked(insertOrderBook),
 	insertTicker: jest.mocked(insertTicker),
 };
@@ -83,7 +75,6 @@ describe("MarketDataPersister", () => {
 	it("should persist candles when payload has candles", async () => {
 		const payload: any = {
 			candles: [{ symbol: "BTCUSDT", interval: CandleInterval.Min1 }],
-			recentTrades: [],
 			orderBook: undefined,
 			ticker24h: [],
 			fetchedAt: Date.now(),
@@ -92,24 +83,6 @@ describe("MarketDataPersister", () => {
 		await MarketDataPersister.persist(payload);
 
 		expect(MOCK_MODEL.insertCandles).toHaveBeenCalledTimes(1);
-		expect(MOCK_MODEL.insertTrades).not.toHaveBeenCalled();
-		expect(MOCK_MODEL.insertOrderBook).not.toHaveBeenCalled();
-		expect(MOCK_MODEL.insertTicker).not.toHaveBeenCalled();
-	});
-
-	it("should persist trades when payload has recentTrades", async () => {
-		const payload: any = {
-			candles: [],
-			recentTrades: [{ tradeId: 1n }],
-			orderBook: undefined,
-			ticker24h: [],
-			fetchedAt: Date.now(),
-		};
-
-		await MarketDataPersister.persist(payload);
-
-		expect(MOCK_MODEL.insertTrades).toHaveBeenCalledTimes(1);
-		expect(MOCK_MODEL.insertCandles).not.toHaveBeenCalled();
 		expect(MOCK_MODEL.insertOrderBook).not.toHaveBeenCalled();
 		expect(MOCK_MODEL.insertTicker).not.toHaveBeenCalled();
 	});
@@ -117,7 +90,6 @@ describe("MarketDataPersister", () => {
 	it("should persist orderBook when payload has orderBook", async () => {
 		const payload: any = {
 			candles: [],
-			recentTrades: [],
 			orderBook: { symbol: "BTCUSDT" },
 			ticker24h: [],
 			fetchedAt: Date.now(),
@@ -127,14 +99,12 @@ describe("MarketDataPersister", () => {
 
 		expect(MOCK_MODEL.insertOrderBook).toHaveBeenCalledTimes(1);
 		expect(MOCK_MODEL.insertCandles).not.toHaveBeenCalled();
-		expect(MOCK_MODEL.insertTrades).not.toHaveBeenCalled();
 		expect(MOCK_MODEL.insertTicker).not.toHaveBeenCalled();
 	});
 
 	it("should persist ticker24h when payload has ticker24h", async () => {
 		const payload: any = {
 			candles: [],
-			recentTrades: [],
 			orderBook: undefined,
 			ticker24h: [{ symbol: "BTCUSDT" }],
 			fetchedAt: Date.now(),
@@ -144,14 +114,12 @@ describe("MarketDataPersister", () => {
 
 		expect(MOCK_MODEL.insertTicker).toHaveBeenCalledTimes(1);
 		expect(MOCK_MODEL.insertCandles).not.toHaveBeenCalled();
-		expect(MOCK_MODEL.insertTrades).not.toHaveBeenCalled();
 		expect(MOCK_MODEL.insertOrderBook).not.toHaveBeenCalled();
 	});
 
 	it("should persist all data types when payload has everything", async () => {
 		const payload: any = {
 			candles: [{ symbol: "BTCUSDT", interval: CandleInterval.Min1 }],
-			recentTrades: [{ tradeId: 1n }],
 			orderBook: { symbol: "BTCUSDT" },
 			ticker24h: [{ symbol: "BTCUSDT" }],
 			fetchedAt: Date.now(),
@@ -160,7 +128,6 @@ describe("MarketDataPersister", () => {
 		await MarketDataPersister.persist(payload);
 
 		expect(MOCK_MODEL.insertCandles).toHaveBeenCalledTimes(1);
-		expect(MOCK_MODEL.insertTrades).toHaveBeenCalledTimes(1);
 		expect(MOCK_MODEL.insertOrderBook).toHaveBeenCalledTimes(1);
 		expect(MOCK_MODEL.insertTicker).toHaveBeenCalledTimes(1);
 	});
@@ -168,7 +135,6 @@ describe("MarketDataPersister", () => {
 	it("should do nothing when payload has no data", async () => {
 		const payload: any = {
 			candles: [],
-			recentTrades: [],
 			orderBook: undefined,
 			ticker24h: undefined,
 			fetchedAt: Date.now(),
@@ -177,20 +143,17 @@ describe("MarketDataPersister", () => {
 		await MarketDataPersister.persist(payload);
 
 		expect(MOCK_MODEL.insertCandles).not.toHaveBeenCalled();
-		expect(MOCK_MODEL.insertTrades).not.toHaveBeenCalled();
 		expect(MOCK_MODEL.insertOrderBook).not.toHaveBeenCalled();
 		expect(MOCK_MODEL.insertTicker).not.toHaveBeenCalled();
 	});
 
 	it("should propagate error when candle insertion throws", async () => {
 		MOCK_MODEL.insertCandles.mockRejectedValue(new Error("DB error"));
-		MOCK_MODEL.insertTrades.mockResolvedValue(undefined);
 		MOCK_MODEL.insertOrderBook.mockResolvedValue(undefined);
 		MOCK_MODEL.insertTicker.mockResolvedValue(undefined);
 
 		const payload: any = {
 			candles: [{ symbol: "BTCUSDT", interval: CandleInterval.Min1 }],
-			recentTrades: [{ tradeId: 1n }],
 			orderBook: { symbol: "BTCUSDT" },
 			ticker24h: [{ symbol: "BTCUSDT" }],
 			fetchedAt: Date.now(),

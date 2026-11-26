@@ -86,7 +86,7 @@ services/trader-trainer/
 
 1. **Lamarckian evolution** — after each evaluation window, trained weights are frozen back into the genome (`trainedWeights`); offspring inherit them (`ga-runner.ts`, `lamarckianUpdate`).
 2. **Walk-forward validation** — fitness is computed only on held-out data, never on the window the agent learned on (`ga-runner.ts`, `WindowSet`; segment rules in the service page).
-3. **NSGA-II multi-objective** — **avgPnl** and **sharpe** maximized, **negFlops** (complexity) minimized; a persistent `ParetoArchive` keeps the non-dominated solutions (`pareto-engine.ts`).
-4. **Self-adaptive GA control** — population size, elitism fraction and episodes per individual (kept within 10–30) are evolved too (`adaptive-control-system.ts`, `adaptGAControl`).
+3. **NSGA-II multi-objective** — **avgPnl** and **sharpe** maximized, **negFlops** (complexity) minimized; a persistent `ParetoArchive` keeps the non-dominated solutions (`pareto/`).
+4. **Self-adaptive GA control** — population size, elitism fraction and episodes per individual (kept within 10–30) are evolved too (`genome-control.ts`, `adaptGAControl`).
 5. **Immutable genome** — every genome operation returns a new `deepFreeze`d object.
 6. **Sequential evaluation** — genomes are evaluated one by one on the training worker thread; each gets its own `TradingAgent` (`ga-runner.ts`, `sequentialEval`).

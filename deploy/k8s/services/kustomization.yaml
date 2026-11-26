@@ -2,12 +2,10 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - message-manager.yaml
   - financial-scraper.yaml
   - trader-trainer.yaml
   - api-gateway.yaml
   - audit-logger.yaml
-  - dlq-service.yaml
   - model-evaluator.yaml
   - risk-execution.yaml
   - decision-consumer.yaml

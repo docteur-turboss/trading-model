@@ -1,6 +1,6 @@
 import { agentError } from "../errors";
 import { ACTIVATIONS } from "./activation";
-import { NORMALIZERS, type NormalizeParams } from "./normalizers";
+import { NORMALIZERS } from "./normalizers";
 import {
 	ConnectionType,
 	type ForwardContext,
@@ -106,10 +106,7 @@ export class FeedForwardEngine {
 		return output;
 	}
 
-	private _normalize(
-		input: Float32Array,
-		params?: NormalizeParams
-	): Float32Array {
+	private _normalize(input: Float32Array): Float32Array {
 		if (this._config.normalisationType === NormalisationType.None) {
 			return input;
 		}
@@ -119,9 +116,6 @@ export class FeedForwardEngine {
 		if (len === 0) {
 			return data;
 		}
-		return NORMALIZERS[this._config.normalisationType].normalize(
-			{ data, len },
-			params
-		);
+		return NORMALIZERS[this._config.normalisationType].normalize({ data, len });
 	}
 }

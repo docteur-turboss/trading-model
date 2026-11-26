@@ -52,6 +52,26 @@ it("prices all symbols with one call, dropping a candle older than the halt thre
 	);
 });
 
+it("filters the read on the interval of the model's bars and keeps a candle of 2 bars", async () => {
+	get.mockResolvedValue({
+		rows: [
+			{
+				symbol: "BTCUSDT",
+				close: 1,
+				closeTimestamp: "2026-11-19T10:00:00.000Z", // 24 h old, 2 bars of a day
+			},
+		],
+	});
+	const prices = await new ScraperPrices({} as never, () => NOW).latest(
+		["BTCUSDT"],
+		86_400_000
+	);
+	expect(get.mock.calls[get.mock.calls.length - 1][0]).toContain(
+		"&interval=1d"
+	);
+	expect(prices.BTCUSDT.price).toBe(1);
+});
+
 it("falls back to one call per symbol when financial-scraper N-1 answers 404", async () => {
 	get.mockReset();
 	get.mockRejectedValueOnce(

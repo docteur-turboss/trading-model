@@ -51,9 +51,19 @@ export namespace CandleInterval {
 		Object.values(CandleInterval).filter(
 			(value): value is CandleInterval => typeof value === "string"
 		);
-}
 
-export enum TradeSide {
-	Buy = "buy",
-	Sell = "sell",
+	const UNIT_MS = {
+		s: 1000,
+		m: 60_000,
+		h: 3_600_000,
+		d: 86_400_000,
+		w: 604_800_000,
+		M: 2_592_000_000,
+	};
+
+	/** Length of a bar in ms (a month = 30 d). */
+	export const toMs = (interval: CandleInterval): number => {
+		const [, count, unit] = /^(\d+)([smhdwM])$/.exec(interval) ?? [];
+		return Number(count) * UNIT_MS[unit as keyof typeof UNIT_MS];
+	};
 }

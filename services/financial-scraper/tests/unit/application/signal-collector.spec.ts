@@ -84,11 +84,16 @@ const normalize = jest.fn<SourceAdapter["normalize"]>();
 const confirm = jest.fn<(url: string) => void>();
 const worker = Object.assign(
 	jest.fn<
-		(request: unknown, auth: unknown, source: unknown) => Promise<unknown>
+		(
+			request: unknown,
+			auth: unknown,
+			source: unknown,
+			signal?: AbortSignal
+		) => Promise<unknown>
 	>(),
 	{ confirm }
 );
-const save = jest.fn<(signals: unknown) => Promise<void>>();
+const save = jest.fn<(signals: unknown, restate?: boolean) => Promise<void>>();
 const sleep = jest.fn<(ms: number) => Promise<void>>();
 
 let clock = NOW;
@@ -213,33 +218,82 @@ describe("SignalCollector", () => {
 	it("wraps each canonical payload in a signal of the request's dimension and stores it", async () => {
 		await collector().collect(SOURCE);
 
-		expect(worker).toHaveBeenCalledWith(SOURCE.requests[0], "none", SOURCE);
+		expect(worker).toHaveBeenCalledWith(
+			SOURCE.requests[0],
+			"none",
+			SOURCE,
+			undefined
+		);
 		expect(normalize).toHaveBeenCalledWith(
 			{ payload: true },
 			{ params: {}, ingestedAt: NOW }
 		);
-		expect(save).toHaveBeenNthCalledWith(1, [
-			{
-				id: signalId(
-					"test-source",
-					{ assetId: "BTC" },
-					"pageviews",
-					"2026-11-03"
-				),
-				schemaVersion: 1,
-				sourceId: "test-source",
-				dimension: "social",
-				assetId: "BTC",
-				sector: null,
-				area: null,
-				observedAt: "2026-11-04T12:00:00.000Z",
-				ingestedAt: "2026-11-04T12:03:00.000Z",
-				// The source reliability, kept for the consumers to weigh.
-				confidenceScore: 0.3,
-				payload: PAYLOAD,
-			},
-		]);
+		expect(save).toHaveBeenNthCalledWith(
+			1,
+			[
+				{
+					id: signalId(
+						"test-source",
+						{ assetId: "BTC" },
+						"pageviews",
+						"2026-11-03"
+					),
+					schemaVersion: 1,
+					sourceId: "test-source",
+					dimension: "social",
+					assetId: "BTC",
+					sector: null,
+					area: null,
+					observedAt: "2026-11-04T12:00:00.000Z",
+					ingestedAt: "2026-11-04T12:03:00.000Z",
+					// The source reliability, kept for the consumers to weigh.
+					confidenceScore: 0.3,
+					payload: PAYLOAD,
+				},
+			],
+			undefined
+		);
 		await expect(counted()).resolves.toEqual({ "test-source:success": 2 });
+	});
+
+	it("stops at an aborted signal: no partial save, no further request", async () => {
+		const controller = new AbortController();
+		worker.mockImplementationOnce(async () => {
+			controller.abort();
+			return { payload: true };
+		});
+
+		await collector().collect(SOURCE, controller.signal);
+
+		expect(worker).toHaveBeenCalledTimes(1);
+		expect(worker.mock.calls[0][3]).toBe(controller.signal);
+		expect(save).not.toHaveBeenCalled();
+	});
+
+	it("does not count, log or quarantine a request cut in flight", async () => {
+		const instance = collector();
+		for (let i = 0; i < 10; i++) {
+			const controller = new AbortController();
+			worker.mockImplementationOnce(async () => {
+				controller.abort();
+				throw new Error("AbortError from host");
+			});
+			await instance.collect(ONE_REQUEST, controller.signal);
+		}
+
+		await expect(counted()).resolves.toEqual({});
+		expect(MOCK_LOGGER.error).not.toHaveBeenCalled();
+		expect(save).not.toHaveBeenCalled();
+		// Ten cut cycles opened no quarantine.
+		worker.mockResolvedValueOnce({ payload: true });
+		await instance.collect(ONE_REQUEST);
+		await expect(counted()).resolves.toEqual({ "test-source:success": 1 });
+	});
+
+	it("tells the store to restate the values of a restated source", async () => {
+		await collector().collect({ ...SOURCE, restated: true });
+
+		expect(save.mock.calls.map(([, restate]) => restate)).toEqual([true, true]);
 	});
 
 	it("spaces the requests of a source by its maxRequestsPerMinute", async () => {
@@ -264,7 +318,8 @@ describe("SignalCollector", () => {
 				url: "https://a.test/pageviews/daily/20261027/20261103?today=20261104&y=2026",
 			},
 			"none",
-			expect.anything()
+			expect.anything(),
+			undefined
 		);
 	});
 

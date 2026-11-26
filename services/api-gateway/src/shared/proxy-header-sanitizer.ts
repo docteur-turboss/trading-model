@@ -29,7 +29,7 @@ function addProxyHeaders(
 	headers[HTTP_HEADERS.X_FORWARDED_PROTO] = "https";
 	headers[HTTP_HEADERS.X_REQUEST_ID] =
 		(req.headers[HTTP_HEADERS.X_REQUEST_ID] as string) ?? crypto.randomUUID();
-	// The key name, never the key: dlq-service records it in the audit trail (ADR-0059).
+	// The key name, never the key: services record it in the audit trail (ADR-0059).
 	const actor = req.apiKeyName;
 	if (actor) {
 		headers[HTTP_HEADERS.X_ACTOR] = actor;

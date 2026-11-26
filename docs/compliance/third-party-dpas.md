@@ -11,11 +11,10 @@ The financial-scraper service fetches **market data only** from Binance's public
 | Endpoint                        | Data Retrieved                                 |
 | ------------------------------- | ---------------------------------------------- |
 | `GET /api/v3/klines`            | OHLCV candles (open, high, low, close, volume) |
-| `GET /api/v3/trades`            | Recent trades (price, quantity, side)          |
 | `GET /api/v3/depth`             | Order book snapshots (bids, asks)              |
 | `GET /api/v3/ticker/24hr`       | 24-hour statistics                             |
 
-The four endpoints above are the only ones called, all public. No request is signed and no Binance account exists: `BINANCE_API_KEY` / `BINANCE_API_SECRET` are read by no code.
+The three endpoints above are the only ones called, all public. No request is signed and no Binance account exists: `BINANCE_API_KEY` / `BINANCE_API_SECRET` are read by no code.
 
 ### Regulatory Status (MiCA)
 
@@ -108,8 +107,10 @@ sources, not processors, and no personal data received.
 | ------------------ | ------------------- | ---- | ---------------------------------- |
 | Binance API        | Market data source  | No   | No — documented above              |
 | Every signal source of the registry (table above) | Signal sources (ADR-0036) | No | No — documented above |
-| GitHub Actions     | CI/CD pipeline      | No   | No — no data processed             |
-| Docker Hub / GHCR  | Container registry  | No   | No — infrastructure only           |
+| GitHub (Actions, environment secrets) | CI/CD, secret store | Operator e-mail (contact secret), CI logs | to be confirmed by the operator — sheet below |
+| GHCR               | Container registry  | No (public images) | No — sheet below |
+| Cloudflare         | DNS zone, DNS-01 token | No | to be confirmed by the operator — sheet below |
+| OIDC identity provider (Grafana login) | Operator authentication | Yes (e-mail, name, login) | to be confirmed by the operator — sheet below |
 | Discord            | Alert notifications | No (alert text) | No — not a processor, no DPA offered; SCCs + DPF — sheet below |
 | Pushover           | Critical alert paging | No (alert text) | No — not a processor, no DPA offered; SCCs — sheet below |
 | healthchecks.io    | Heartbeat of Watchdog | No | No — not a processor, EU provider, no DPA offered — sheet below |
@@ -160,6 +161,37 @@ Provider terms below were read on 2026-11-23 from the providers' public privacy 
 | Processor? | No personal data except the notification contact of the operator's account |
 | Mechanism | None needed for the provider (EU-established). Its policy says sub-processors may operate outside the EEA, without naming the safeguard |
 | Signed by | Nothing to sign: no DPA offered; the operator's account accepts healthchecks.io's terms |
+
+### OIDC identity provider (Grafana login)
+
+| Field | Value |
+| ----- | ----- |
+| Role | Authenticates operators to Grafana (ADR-0063) |
+| Data | Scopes `openid email profile`: e-mail, name, login of each operator. Personal data, register activity 8 |
+| Provider, region | Chosen by the operator, EU or non-EU: to be decided before the first production deploy. The provider is not named in this public repository |
+| Mechanism | Depends on the region chosen: none inside the EU, SCCs or DPF outside it. To be confirmed by the operator |
+| DPA | To be filled in by the operator |
+
+### Cloudflare (DNS zone)
+
+| Field | Value |
+| ----- | ----- |
+| Role | Hosts the DNS zone of the production hosts; cert-manager uses an API token (DNS Edit + Zone Read on that zone) for DNS-01 (`KUBERNETES.md`) |
+| Data | Host names and ACME challenge records. No personal data. The token is a secret, held in the cluster |
+| Region | United States (provider-wide) |
+| Mechanism | None needed: no personal data |
+| DPA | To be filled in by the operator |
+
+### GitHub and GHCR (CI, secrets, images)
+
+| Field | Value |
+| ----- | ----- |
+| Role | Runs CI/CD (`ci.yml`, `release.yml`, `deploy.yml`), holds environment secrets and variables, hosts the images in GHCR |
+| Data | Environment secrets, among them the signal contact e-mail (`SIGNAL_CONTACT_EMAIL`, an operator address) and deploy credentials; CI job logs. Images and the repository are public and hold no personal data |
+| Region | United States (provider-wide) |
+| Processor? | For the contact e-mail and secrets only, as the operator's service provider; the platform's data subjects' data never reaches GitHub |
+| Mechanism | To be confirmed by the operator (GitHub's DPA and DPF certification) |
+| DPA | To be filled in by the operator |
 
 ### Off-site S3 store (backups, up to 5 years)
 

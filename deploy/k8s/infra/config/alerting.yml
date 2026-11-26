@@ -60,7 +60,7 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md'
 
       - alert: ServiceTargetsMissing
-        expr: absent(up{job="message-manager"}) or absent(up{job="dlq-service"}) or absent(up{job="api-gateway"}) or absent(up{job="audit-logger"}) or absent(up{job="financial-scraper"}) or absent(up{job="trader-trainer"}) or absent(up{job="model-evaluator"}) or absent(up{job="risk-execution"})
+        expr: absent(up{job="api-gateway"}) or absent(up{job="audit-logger"}) or absent(up{job="financial-scraper"}) or absent(up{job="trader-trainer"}) or absent(up{job="model-evaluator"}) or absent(up{job="risk-execution"}) or absent(up{job="decision-consumer"})
         for: 5m
         labels:
           severity: critical
@@ -68,6 +68,17 @@ groups:
           summary: '{{ $labels.job }} has no scrape target'
           description: 'Prometheus has had no up series for {{ $labels.job }} for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
+
+      - alert: EdgeProxyProbeFailing
+        # The edge-proxy has no `up` series: only the blackbox probe sees it down.
+        expr: probe_success{service="edge-proxy"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'edge-proxy /ping probe fails'
+          description: 'The blackbox-exporter has not got a 200 from the edge-proxy /ping for 2 minutes: the API is unreachable from outside while the server-side SLO can stay green.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#edge-proxy-probe-failing'
 
       - alert: CertificateExpiry
         expr: probe_ssl_earliest_cert_expiry - time() < 5400
@@ -88,6 +99,17 @@ groups:
           summary: '{{ $labels.job }} refuses calls to {{ $labels.target }}'
           description: '{{ $labels.job }} has had its outbound calls to {{ $labels.kind }} {{ $labels.target }} refused by the open HTTP circuit breaker for 10 minutes.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-circuit-breaker-open.md#symptom'
+
+      - alert: ErrorLogBurst
+        # Catches errors that have no metric of their own (logger counts every written line).
+        expr: sum by (job) (increase(log_messages_total{level="error"}[15m])) > 20
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Burst of error logs on {{ $labels.job }}'
+          description: '{{ $labels.job }} wrote {{ $value | humanize }} error log lines in 15 minutes (threshold 20).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#errorlogburst'
 
       - alert: HighMemoryUsage
         expr: nodejs_heap_size_used_bytes / nodejs_heap_size_limit_bytes > 0.9
@@ -188,7 +210,7 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
       - alert: BackupComponentMissing
-        expr: 'absent(backup_last_success_timestamp{component="mongodb"}) or absent(backup_last_success_timestamp{component="mongodb-audit"}) or absent(backup_last_success_timestamp{component="mysql"}) or absent(backup_last_success_timestamp{component="spire"}) or absent(backup_last_success_timestamp{component="checkpoints"}) or absent(backup_last_success_timestamp{component="risk"})'
+        expr: 'absent(backup_last_success_timestamp{component="mongodb-audit"}) or absent(backup_last_success_timestamp{component="mysql"}) or absent(backup_last_success_timestamp{component="spire"}) or absent(backup_last_success_timestamp{component="checkpoints"}) or absent(backup_last_success_timestamp{component="risk"})'
         for: 26h
         labels:
           severity: warning
@@ -227,6 +249,16 @@ groups:
           description: 'The backup-data PVC (100Gi) is filling up: dumps grow with the market data. Check the retention (RETENTION_DAYS) or grow the volume before a night of backups fails.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
+      - alert: BackupOffsiteBucketLarge
+        expr: 'max by (job) (backup_offsite_bytes) > 100 * 1024 ^ 3'
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Off-site backup bucket is over 100 GB'
+          description: 'The Object Lock bucket (compliance mode) only grows: locked objects cannot be deleted. Check dump sizes and the monthly tier before the bill does.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+
       # Retention job (ADR-0051): daily at 03:30 UTC, so 36 h = one missed run.
       - alert: RetentionFailed
         expr: 'retention_last_status == 0'
@@ -260,6 +292,16 @@ groups:
           description: 'risk-execution stopped new orders and cancelled the open ones. It stays on until an operator re-arms it by hand after checking the cause (loss limit, stale data, reconciliation, rejections).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#killswitchengaged'
 
+      - alert: RiskDrawdownApproaching
+        expr: 'max by (job, mode) (risk_drawdown_ratio) > 0.7'
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Drawdown above 70 % of its limit ({{ $labels.mode }})'
+          description: 'The drawdown from the high-water mark has been above 70 % of its limit for 5 min. At 100 % the kill switch engages by itself.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskdrawdownapproaching'
+
       - alert: RiskTickFailing
         expr: 'sum by (job, mode) (increase(risk_tick_failures_total[10m])) > 0'
         for: 5m
@@ -269,6 +311,25 @@ groups:
           summary: 'risk-execution ticks keep failing ({{ $labels.mode }})'
           description: 'The periodic risk tick (reconciliation, stale-data and loss checks, state write) threw for 5 min. Gauges are still republished from memory, but the state may not be persisted.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#risktickfailing'
+
+      - alert: RiskOutboxDropped
+        expr: 'sum by (job) (increase(risk_outbox_dropped_total[1h])) > 0'
+        labels:
+          severity: critical
+        annotations:
+          summary: 'risk-execution dropped audit events (outbox full)'
+          description: 'The bus kept refusing order or kill switch events until the outbox file hit its bound: the oldest events are lost from the audit chain (ADR-0027).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskoutboxdropped'
+
+      - alert: RiskOutboxPending
+        expr: 'max by (job) (risk_outbox_pending) > 0'
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'risk-execution audit events stuck in the outbox'
+          description: 'Order or kill switch events refused by the bus have waited for 30 min; past 1000 the oldest are dropped.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskoutboxpending'
 
       - alert: ReconciliationMismatch
         expr: 'max by (job, mode) (risk_reconciliation_mismatch) > 0'
@@ -308,6 +369,15 @@ groups:
           summary: 'risk-execution rejected 3 or more intents of the decision consumer in 1 hour ({{ $labels.reason }})'
           description: 'The promoted models decide once per closed bar, so three rejections with the same reason code in an hour are not noise: the consumer sends a price or a size the limits refuse (ADR-0087).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#decisionintentsrejected'
+
+      - alert: DecisionPassFailing
+        expr: 'sum by (job) (increase(decision_skipped_total{reason="error"}[1h])) > 0'
+        labels:
+          severity: warning
+        annotations:
+          summary: 'decision-consumer decision pass failed in the last hour'
+          description: 'A decision pass or a promoted model failed (decision_skipped_total{reason="error"}): no intent is decided while it keeps failing, so paper trading is stopped.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#decisionpassfailing'
 
       # -- Authentication failures and ACL denials -------------------
 
@@ -380,7 +450,7 @@ groups:
           slo: message_delivery
         annotations:
           summary: 'Message delivery success rate below 99.5%'
-          description: 'Message-manager delivery rate is {{ $value | humanizePercentage }} over 5m.'
+          description: 'Bus delivery rate is {{ $value | humanizePercentage }} over 5m.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md'
 
       - alert: BusDeadLetters
@@ -393,21 +463,9 @@ groups:
           description: '{{ $value | humanize }} dead letter(s) wait in the dead stream of {{ $labels.topic }} (a subscriber group gave up on them): list, replay or delete them with the audit-dlq CLI, see the runbook.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost'
 
-      # A DLQ delete or replay was done but message-manager refused its audit
-      # event: the audit trail misses who did it (ADR-0059). The API answered 502.
-      - alert: DlqAuditEventLost
-        expr: sum by (event) (increase(dlq_audit_publish_failures_total{event=~"dlq.entries.deleted|dlq.replay.completed"}[1h])) > 0
-        for: 0m
-        labels:
-          severity: critical
-        annotations:
-          summary: 'DLQ action missing from the audit trail: {{ $labels.event }}'
-          description: 'message-manager refused {{ $value | humanize }} {{ $labels.event }} event(s) in the last hour: the deletion or replay was done but is not in the audit chain. The dlq-service error log "DLQ event not published" holds the actor and the ids.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-dlq-backlog.md#dlqauditeventlost'
-
-      # A topic with no journal group (no service ever subscribed) drops its messages. Expected for a few
-      # seconds at a cold start (publishers up before subscribers), so only a
-      # drop lasting 10 minutes alerts.
+      # A topic with no journal group (no service ever subscribed) drops its messages.
+      # Expected for a few seconds at a cold start (publishers up before subscribers),
+      # so only a drop lasting 10 minutes alerts.
       - alert: MessagesUnrouted
         expr: sum by (topic) (rate(mm_messages_unrouted_total[5m])) > 0
         for: 10m
@@ -415,8 +473,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Messages dropped on {{ $labels.topic }}: no subscriber'
-          description: 'message-manager drops the messages published on {{ $labels.topic }}: the topic has no journal group (no service ever subscribed to it). audit-logger subscribes to the audit, training and dlq topics: check that the subscribers are up and renew their subscriptions, and that message-manager reaches Redis.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic'
+          description: 'The bus library drops the messages published on {{ $labels.topic }}: no service subscribed to it (no journal group). audit-logger subscribes to the audit and training topics: check that the subscribers are up and consuming, and that Redis answers.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-no-subscriber-on-a-topic'
 
       - alert: JournalEntriesTrimmed
         expr: sum by (topic, service) (increase(mm_journal_trimmed_pending_total[15m])) > 0 or sum by (topic, service) (mm_journal_trimmed_pending_total unless mm_journal_trimmed_pending_total offset 15m) > 0
@@ -425,7 +483,7 @@ groups:
           severity: critical
         annotations:
           summary: 'Messages lost on {{ $labels.topic }} for {{ $labels.service }}: journal trimmed before delivery'
-          description: '{{ $labels.service }} stayed unreachable for more than 24 h: message-manager trimmed undelivered {{ $labels.topic }} entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
+          description: '{{ $labels.service }} stayed unreachable for more than 24 h: the bus trimmed undelivered {{ $labels.topic }} entries from its journal and they are gone. Check the service, then republish what it missed from the source.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#5-journal-entries-trimmed-before-delivery'
 
       - alert: JournalBacklogOld
@@ -435,8 +493,8 @@ groups:
           severity: warning
         annotations:
           summary: 'Journal backlog on {{ $labels.topic }} for {{ $labels.service }}: oldest entry waiting for more than 15 min'
-          description: '{{ $labels.service }} has not acknowledged a {{ $labels.topic }} entry for more than 15 min (messages are lost after 24 h, JournalEntriesTrimmed). Check that the service is up and answers its callback, and the message-manager delivery logs.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#6-journal-backlog-of-a-subscriber'
+          description: '{{ $labels.service }} has not acknowledged a {{ $labels.topic }} entry for more than 15 min (messages are lost after 24 h, JournalEntriesTrimmed). Check that the service is up and consuming, and its bus logs.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#3-backlog-of-a-subscriber'
 
       - alert: TrainingCompletionRateLow
         expr: (sum by (job) (rate(tt_training_sessions_total{result="success"}[12h])) or sum by (job) (rate(tt_training_sessions_total[12h])) * 0) / sum by (job) (rate(tt_training_sessions_total[12h])) < 0.95
@@ -460,15 +518,24 @@ groups:
           description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 12h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
-      - alert: TrainerEventLoopLagHigh
-        expr: max by (job) (nodejs_eventloop_lag_max_seconds{job="trader-trainer"}) > 10
+      - alert: EventLoopLagHigh
+        expr: max by (job) (nodejs_eventloop_lag_p99_seconds) > 0.2
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: 'trader-trainer event loop lag above 10 s'
-          description: 'Trainer event loop lag reached {{ $value | humanizeDuration }} (threshold 10 s) outside or inside GA evaluation. Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventlooplaghigh'
+          summary: '{{ $labels.job }} event loop lag p99 above 200 ms'
+          description: '{{ $labels.job }} event loop lag p99 is {{ $value | humanizeDuration }} (threshold 200 ms) for 5 min. Heartbeats and deliveries time out when it grows.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#eventlooplaghigh'
+
+      - alert: DbIndexBuildFailed
+        expr: max(kube_job_failed{job_name=~"db-index-build.*",condition="true"}) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Job db-index-build failed'
+          description: 'The paged-read index build failed: reads by symbol use the old idx_*_symbol index and a sort until it succeeds (ADR-0088).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#dbindexbuildfailed'
 
       # ADR-0058: only the holder of the trainer Lease trains; the other pod of a
       # rollout reports 0, so max() is 0 when no pod holds it.
@@ -705,6 +772,51 @@ groups:
           description: 'The collector dropped {{ $value | humanize }} span(s) in 10 minutes: traces are lost between the collector and Jaeger. Check the jaeger Service and the collector logs.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#otelspanexportfailing'
 
+      - alert: BusPublisherRejected
+        expr: 'sum by (job, topic, publisher) (increase(bus_publisher_rejected_total[1h])) > 0'
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Bus entries rejected: {{ $labels.publisher }} may not publish on {{ $labels.topic }}'
+          description: 'A subscriber dropped entries whose publisher is not allowed on the topic (EVENT_PUBLISHERS): a misconfigured service, or a service that spoofs another publisher.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#7-entries-dropped-unreadable-or-publisher-rejected'
+
+      - alert: BusJournalUnreadable
+        expr: 'sum by (job, topic) (increase(mm_journal_unreadable_total[1h])) > 0'
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Journal entries of {{ $labels.topic }} were not JSON and were dropped ({{ $labels.job }})'
+          description: 'The subscriber acknowledged and discarded entries whose message field is not valid JSON: messages are lost.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#7-entries-dropped-unreadable-or-publisher-rejected'
+
+      - alert: ModelPublishFailing
+        expr: 'sum by (job) (increase(tt_model_publish_failures_total[1h])) > 0'
+        labels:
+          severity: warning
+        annotations:
+          summary: 'trader-trainer stored a model but could not publish it'
+          description: 'decision-consumer and model-evaluator never learn about the stored model until the next one is published.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelpublishfailing'
+
+      - alert: TrainerSignalReadErrors
+        expr: 'sum by (job) (increase(tt_signal_read_errors_total[1h])) > 0'
+        labels:
+          severity: warning
+        annotations:
+          summary: 'trader-trainer trains without signals (read errors)'
+          description: 'Signal windows could not be read from financial-scraper: the sessions train on market data only.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainersignalreaderrors'
+
+      - alert: AuditChainCollisionsExhausted
+        expr: 'sum by (job) (increase(audit_chain_sequence_collisions_total{outcome="exhausted"}[1h])) > 0'
+        labels:
+          severity: warning
+        annotations:
+          summary: 'audit-logger gave up appending an event after repeated chain collisions'
+          description: 'Retries on the chain sequence ran out (writers contend for the head, ADR-0050): the event was not appended.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-audit-chain-broken.md#auditchaincollisionsexhausted'
+
       - alert: Watchdog
         expr: vector(1)
         for: 0m
@@ -896,7 +1008,7 @@ groups:
           severity: critical
         annotations:
           summary: 'Redis Sentinel cannot fail over {{ $labels.master_name }}'
-          description: 'No sentinel can reach a quorum for {{ $labels.master_name }} (SENTINEL CKQUORUM): if the master fails now, no replica is promoted and message-manager and dlq-service lose Redis.'
+          description: 'No sentinel can reach a quorum for {{ $labels.master_name }} (SENTINEL CKQUORUM): if the master fails now, no replica is promoted and the bus loses Redis.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#redissentinelquorumlost'
 
       - alert: MongoDBDown
@@ -942,5 +1054,5 @@ groups:
           severity: critical
         annotations:
           summary: 'MongoDB {{ $labels.job }} has no primary'
-          description: 'No member of the {{ $labels.job }} replica set is primary for 2 minutes: writes fail (audit events for mongo-audit, dead letters for mongo-dlq).'
+          description: 'No member of the {{ $labels.job }} replica set is primary for 2 minutes: writes fail (audit events).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#mongodbreplicasetnoprimary'

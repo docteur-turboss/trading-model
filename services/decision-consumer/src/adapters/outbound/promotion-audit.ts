@@ -1,6 +1,6 @@
+import type BusClient from "@trading-model/broker-message";
 import { HELPER } from "@trading-model/broker-message";
-import { createMessageManager } from "@trading-model/broker-message/create-message-manager";
-import type { TlsPaths } from "@trading-model/common/config/tls-paths";
+import { createServiceBusClient } from "@trading-model/broker-message/create-message-manager";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import { RiskEvent } from "@trading-model/contracts/risk-events";
 import {
@@ -9,32 +9,17 @@ import {
 	Topic,
 } from "@trading-model/primitives/primitives";
 import { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
-import { AddressManager } from "../../config/address-manager";
+import { ENV } from "../../infrastructure/config/env";
 
 /**
  * Publishes `risk.promotion.loaded` for the audit chain (ADR-0027, ADR-0087 §2).
- * Through the bus journal when given (ADR-0073), else message-manager over HTTP.
- * A refusal throws, and the caller does not decide.
+ * Goes through the bus journal in Redis (ADR-0073). A refusal throws, and the caller does not decide.
  */
 export class PromotionAudit {
-	private readonly _messages: ReturnType<
-		typeof createMessageManager
-	>["messageManager"];
+	private readonly _messages: BusClient;
 
-	constructor(
-		tls: TlsPaths,
-		private readonly _instanceId: InstanceId,
-		callbackPath: string,
-		journal?: Parameters<typeof createMessageManager>[0]["journal"]
-	) {
-		this._messages = createMessageManager({
-			journal,
-			addressManagerClient: AddressManager,
-			tlsPaths: tls,
-			instanceId: _instanceId,
-			serviceName: ServiceInstanceName.DecisionConsumerService,
-			callbackPath,
-		}).messageManager;
+	constructor(private readonly _instanceId: InstanceId) {
+		this._messages = createServiceBusClient(ENV);
 	}
 
 	async promotionLoaded(fields: {
@@ -52,6 +37,6 @@ export class PromotionAudit {
 		)
 			.setDelivery({ mode: DeliveryMode.AtLeastOnce })
 			.toJSON();
-		await this._messages.post.indirect(fields, metadata);
+		await this._messages.publish(fields, metadata);
 	}
 }

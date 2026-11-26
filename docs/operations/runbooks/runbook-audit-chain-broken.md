@@ -57,6 +57,10 @@ No verification completed for 45 minutes: audit-logger logs
 `Audit chain cycle failed` with the cause (MongoDB unreachable most of the
 time). Fix the cause; the next cycle resumes from the last verified point.
 
+## AuditChainCollisionsExhausted
+
+`audit_chain_sequence_collisions_total{outcome="exhausted"}`: an append gave up after its retries because another writer kept taking the sequence. Check that a single audit-logger holds the chain lease (ADR-0050); a second holder or a stuck lease is the usual cause. The bus redelivers the event.
+
 ## AuditChainAnchoringStale
 
 Verification runs but no anchor was written for 45 minutes: the bucket refuses

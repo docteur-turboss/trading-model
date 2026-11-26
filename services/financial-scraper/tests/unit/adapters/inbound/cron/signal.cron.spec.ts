@@ -53,7 +53,7 @@ describe("SignalCronScheduler", () => {
 			resolve();
 		}
 	};
-	const collect = jest.fn<(s: Source) => Promise<void>>();
+	const collect = jest.fn<(s: Source, signal?: AbortSignal) => Promise<void>>();
 
 	beforeEach(() => {
 		jest.clearAllMocks();
@@ -73,6 +73,15 @@ describe("SignalCronScheduler", () => {
 			"*/5 * * * *",
 			"17 */6 * * *",
 		]);
+	});
+
+	it("hands the cycle's AbortSignal to the collection", async () => {
+		new SignalCronScheduler([FAST], { collect }).start();
+		const run = tick(0)();
+
+		expect(collect).toHaveBeenCalledWith(FAST, expect.any(AbortSignal));
+		release();
+		await run;
 	});
 
 	it("skips a tick while the previous collection of the source runs, not the other sources", async () => {

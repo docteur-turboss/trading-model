@@ -15,7 +15,7 @@ ADR-0056. Prometheus scrapes, in K8s:
 | `kube-state-metrics` | Deployment `kube-state-metrics`, own namespace only (Role) | `kube_pod_*`, `kube_statefulset_*`, `kube_deployment_*`, `kube_persistentvolumeclaim_*` |
 | `kubelet`, `cadvisor` | kubelet of each node, port 10250 (ClusterRole `prometheus-nodes`: `nodes/metrics`) | `kubelet_volume_stats_*`, `container_cpu_usage_seconds_total`, `container_cpu_cfs_(throttled_)periods_total`, `container_memory_working_set_bytes`, `container_spec_memory_limit_bytes`, `container_oom_events_total` |
 | `node-exporter` | DaemonSet in `trading-model-node`, port 9100 of each node | `node_*` |
-| `mysql`, `mongo-dlq`, `mongo-audit`, `redis`, `redis-sentinel` | exporter sidecar of each database pod (port `metrics`) | `mysql_*`, `mongodb_*`, `redis_*` |
+| `mysql`, `mongo-audit`, `redis`, `redis-sentinel` | exporter sidecar of each database pod (port `metrics`) | `mysql_*`, `mongodb_*`, `redis_*` |
 
 Compose scrapes `mysqld-exporter`, `mongodb-exporter`, `redis-exporter` and
 `node-exporter` (on Docker Desktop: the disks of the Docker VM and the Windows drives). The rules on
@@ -29,7 +29,7 @@ password. Look at the exporter logs first:
 NS=trading-model
 kubectl -n $NS logs mysql-0 -c mysqld-exporter --tail=20     # "Access denied" = user
 kubectl -n $NS logs redis-0 -c redis-exporter --tail=20      # "WRONGPASS" = user
-kubectl -n $NS logs mongo-dlq-0 -c mongodb-exporter --tail=20
+kubectl -n $NS logs mongo-audit-0 -c mongodb-exporter --tail=20
 ```
 
 The users come from the keys `MYSQL_EXPORTER_PASSWORD` and
@@ -135,7 +135,7 @@ kubectl -n $NS exec <pod> -- df -h <mount path>
   ([BACKUP_DR](../../deployment/BACKUP_DR.md#retention-job)), then grow the
   volume.
 - `mongo-*-data-*`, `redis-data-*`: grow the volume; for Redis also check the
-  journal backlog ([runbook-message-bus-outage](runbook-message-bus-outage.md#6-journal-backlog-of-a-subscriber)).
+  journal backlog ([runbook-message-bus-outage](runbook-message-bus-outage.md#3-backlog-of-a-subscriber)).
 - `prometheus-data-*`, `loki-*`: retention (Prometheus 30 days) or volume size.
 - `backup-data`: `BackupVolumeFilling` covers it ([BACKUP_DR](../../deployment/BACKUP_DR.md#monitoring)).
 
@@ -239,7 +239,33 @@ stable id, a restart of the StatefulSet clears them
 `mongodb_up == 0` for 5 minutes: the exporter sidecar cannot reach `mongod` on
 `127.0.0.1:27017` of its pod (no user involved: MongoDB runs without
 authentication, ADR-0056). The `mongod` container is down, restarting or
-stuck: [runbook-database-failover#mongodb-dlq-and-audit-trail](runbook-database-failover.md#mongodb-dlq-and-audit-trail).
+stuck: [runbook-database-failover#mongodb-audit-trail](runbook-database-failover.md#mongodb-audit-trail).
+
+## EventLoopLagHigh
+
+`nodejs_eventloop_lag_p99_seconds` of a service above 200 ms for 5 min. A
+blocked loop delays heartbeats (15 s) and deliveries (10 s timeout). Find the
+service in the alert's `job` label, then its CPU throttling, GC and logs.
+
+```bash
+kubectl -n $NS top pod -l app.kubernetes.io/name=<job>
+```
+
+Causes: CPU limit, JSON parsing, GC, memory pressure. Trainer: see
+[runbook-trainer](runbook-trainer.md#eventlooplaghigh-trainer).
+
+## DbIndexBuildFailed
+
+Job `db-index-build` (ADR-0088) failed. Paged reads by symbol use the old
+`idx_*_symbol` index and a sort until it succeeds.
+
+```bash
+kubectl -n $NS logs job/db-index-build
+```
+
+The build is idempotent: fix the cause (error 1205 lock wait, disk), delete the
+failed Job and rerun `bun scripts/migrate.mjs index-build` through
+`deploy/k8s/jobs/index-build-job.yaml`.
 
 ## StatefulSetStuckOnOldRevision
 
@@ -259,22 +285,22 @@ Elsewhere (no partition), the rollout is blocked: look at the pod events.
 
 ## MongoDBReplicaSetMemberUnhealthy
 
-A member of `mongo-dlq` or `mongo-audit` (label `member_idx`) is unreachable or
+A member of `mongo-audit` (label `member_idx`) is unreachable or
 neither primary nor secondary (`RECOVERING`, `STARTUP2`, `DOWN`...) for 5
 minutes. The set still has a majority, one more failure takes it away.
 
 ```bash
-kubectl -n $NS exec mongo-dlq-0 -c mongodb -- mongosh --quiet --eval \
+kubectl -n $NS exec mongo-audit-0 -c mongodb -- mongosh --quiet --eval \
   'rs.status().members.map((m) => [m.name, m.stateStr, m.health, m.lastHeartbeatMessage])'
 ```
 
 A member far behind (`RECOVERING`, oplog too short) must resync: follow
-[runbook-database-failover#mongodb-dlq-and-audit-trail](runbook-database-failover.md#mongodb-dlq-and-audit-trail).
+[runbook-database-failover#mongodb-audit-trail](runbook-database-failover.md#mongodb-audit-trail).
 
 ## MongoDBReplicaSetNoPrimary
 
 No member of the replica set reports `PRIMARY` for 2 minutes: writes fail
-(audit events for `mongo-audit`, dead letters for `mongo-dlq`). Follow
+(audit events). Follow
 [runbook-database-failover#no-primary-elected](runbook-database-failover.md#no-primary-elected).
 For `mongo-audit`, check the audit chain afterwards
 ([runbook-audit-chain-broken](runbook-audit-chain-broken.md)).

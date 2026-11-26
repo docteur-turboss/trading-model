@@ -25,7 +25,6 @@ const REGISTER = 'docs/compliance/data-processing-register.md';
 const DPIA = 'docs/compliance/dpia.md';
 
 const auditDays = grab('services/audit-logger/src/infrastructure/config/env.ts', /AUDIT_RETENTION_DAYS: .*?\.default\((\d+)\)/)[1];
-const dlqDays = grab('services/dlq-service/src/config/index-manager.ts', /expireAfterSeconds: (\d+) \* 86400/)[1];
 const lokiHours = grab('observability/loki-config.yml', /retention_period: (\d+h)/)[1];
 const promDays = [
   grab('docker-compose.yml', /--storage\.tsdb\.retention\.time=(\d+)d/)[1],
@@ -34,7 +33,7 @@ const promDays = [
   if (a !== b) throw new Error(`Prometheus retention differs: compose ${a}d, k8s ${b}d`);
   return a;
 });
-const lokiDays = parseInt(lokiHours, 10) / 24;
+const lokiDays = Number.parseInt(lokiHours, 10) / 24;
 const POLICY = 'docs/compliance/information-security-policy.md';
 const journalH = grab('packages/broker-message/src/bus/journal.port.ts', /JOURNAL_RETENTION_MS = (\d+) \* 60 \* 60 \* 1000/)[1];
 const mysqlDays = grab('scripts/retention-mysql.sh', /RETENTION_DAYS="\$\{RETENTION_DAYS:-(\d+)\}"/)[1];
@@ -45,12 +44,11 @@ const keyPatterns = grab('packages/http/src/sensitive-data-sanitizer.ts', /SENSI
 // [file, text it must contain]
 const CHECKS = [
   [REGISTER, `${auditDays} days (5 years): \`AUDIT_RETENTION_DAYS\``],
-  [REGISTER, `DLQ: ${dlqDays} days`],
   [REGISTER, `\`retention_period: ${lokiHours}\``],
   [REGISTER, `journaled ${journalH} h in Redis Streams`],
   ["docs/compliance/data-retention-policy.md", `Until delivered, ${journalH} h at most`],
   [REGISTER, `${mysqlDays} days (5 years`],
-  [DPIA, `${auditDays} days audit, ${dlqDays} days DLQ`],
+  [DPIA, `${auditDays} days audit`],
   [DPIA, `${keyPatterns} sensitive-key patterns`],
   [DPIA, `Loki ${lokiDays} days, Prometheus ${promDays} days`],
   [POLICY, `${lokiDays} days (\`${lokiHours}\`)`],
@@ -62,7 +60,7 @@ const CHECKS = [
 const TLS_CLAIMS = 'plain TCP (in|inside) the cluster|not toward databases|mTLS everywhere|[|] TLS connection [|]|All inter-service communication|TLS offered, not yet required|TLS offered but not yet required';
 const FORBIDDEN = new RegExp(`message-manager memory|not bounded|pino|in-memory dispatch|triple-layer|quadruple-layer|SecureKeyStore|AES-256-GCM|${TLS_CLAIMS}`, 'i');
 // The README is prose: only the database TLS claims apply to it.
-const README_FORBIDDEN = new RegExp('mTLS everywhere|[|] TLS connection [|]', 'i');
+const README_FORBIDDEN = /mTLS everywhere|[|] TLS connection [|]/i;
 
 const errors = [];
 for (const [file, text] of CHECKS) {

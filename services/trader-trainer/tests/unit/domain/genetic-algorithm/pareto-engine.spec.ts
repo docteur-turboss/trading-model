@@ -110,7 +110,7 @@ describe("buildPopulationMeta", () => {
 describe("ParetoArchive", () => {
 	test("starts empty", () => {
 		const archive = new ParetoArchive();
-		expect(archive.size).toBe(0);
+		expect(archive.members.length).toBe(0);
 		expect(archive.members).toEqual([]);
 	});
 
@@ -124,7 +124,7 @@ describe("ParetoArchive", () => {
 		];
 		const changed = archive.update([g1, g2], objs);
 		expect(changed).toBe(true);
-		expect(archive.size).toBe(2);
+		expect(archive.members.length).toBe(2);
 	});
 
 	test("rejects dominated solutions", () => {
@@ -138,7 +138,7 @@ describe("ParetoArchive", () => {
 		archive.update([g1], [objs[0]]);
 		const changed = archive.update([g2], [objs[1]]);
 		expect(changed).toBe(false);
-		expect(archive.size).toBe(1);
+		expect(archive.members.length).toBe(1);
 	});
 
 	test("evicts archive members dominated by a new candidate", () => {
@@ -152,10 +152,10 @@ describe("ParetoArchive", () => {
 			{ avgPnl: 10, sharpe: 2, negFlops: -100 },
 		];
 		archive.update([g1], weakObjs);
-		expect(archive.size).toBe(1);
+		expect(archive.members.length).toBe(1);
 		const changed = archive.update([g2], strongObjs);
 		expect(changed).toBe(true);
-		expect(archive.size).toBe(1);
+		expect(archive.members.length).toBe(1);
 		expect(archive.members[0]).toBe(g2);
 	});
 
@@ -184,7 +184,7 @@ describe("ParetoArchive", () => {
 			[{ fitness: 5 }]
 		);
 		expect(changed).toBe(false);
-		expect(archive.size).toBe(1);
+		expect(archive.members.length).toBe(1);
 		expect(archive.best()?.genome).toBe(g1);
 	});
 

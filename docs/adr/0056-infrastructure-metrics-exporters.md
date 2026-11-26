@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-11
-**Related:** [ADR-0011](./0011-spiffe-spire-workload-identity.md) (exporters speak plain HTTP, no SVID), [ADR-0041](./0041-least-privilege-deploy-identities.md) (new ClusterRole applied by the admin, new DaemonSet in the node-agents identity), [ADR-0047](./0047-redis-isolation-per-service.md) (new ACL user `exporter`), [ADR-0051](./0051-mysql-retention-cronjob.md) (same model for the MySQL user), [ADR-0048](./0048-durable-message-journal-in-redis-streams.md)
+**Related:** [ADR-0011](./0011-spiffe-spire-workload-identity.md) (exporters speak plain HTTP, no SVID), [ADR-0041](./0041-least-privilege-deploy-identities.md) (new ClusterRole applied by the admin, new DaemonSet in the node-agents identity), [ADR-0047](./0047-redis-isolation-per-service.md) (new ACL user `exporter`), [ADR-0051](./0051-mysql-retention-cronjob.md) (same model for the MySQL user), ADR-0048 (deleted)
 **Verified by:** `tests/alerts/alerting.test.yml`, `scripts/observability-gate.mjs`, `packages/persistence/tests/db/k8s-redis-ha.db.spec.ts`, `tests/k8s/check-overlays.mjs`, `tests/k8s/run-kind.sh`
 
 ## Context

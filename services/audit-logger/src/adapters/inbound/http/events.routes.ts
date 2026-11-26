@@ -2,10 +2,7 @@ import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { mountRoute } from "@trading-model/http/api-route/mount-route";
 import { sendResponse } from "@trading-model/http/response-exception";
 import { DateRange } from "@trading-model/primitives/date-range";
-import {
-	Limit,
-	PageNumber,
-} from "@trading-model/primitives/primitives/page-number";
+import { Limit } from "@trading-model/primitives/primitives/page-number";
 import { Router } from "express";
 import type {
 	AuditEventQuery,
@@ -20,7 +17,7 @@ function toAuditEventQuery(query: ListEventsQuery): AuditEventQuery {
 		correlationId: query.correlationId,
 		dateRange: DateRange.fromQueryParams(query.startDate, query.endDate),
 		withTotal: query.withTotal,
-		page: query.page === undefined ? undefined : PageNumber.of(query.page),
+		before: query.before,
 		limit: query.limit === undefined ? undefined : Limit.of(query.limit, 1000),
 	};
 }

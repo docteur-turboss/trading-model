@@ -67,7 +67,7 @@ export interface MarketStep {
 }
 
 const FlopSoftCapMacs = 5_000_000;
-const MemSoftCapMb = 200_000_000;
+const MemSoftCapBytes = 200_000_000;
 
 type ActivationName = ActivationType | "swish";
 
@@ -114,7 +114,7 @@ function _computePenalty(
 	replayBytes: number
 ): number {
 	const flopPenalty = Math.min(1, effectiveFlops / FlopSoftCapMacs);
-	const memPenalty = Math.min(1, (paramBytes + replayBytes) / MemSoftCapMb);
+	const memPenalty = Math.min(1, (paramBytes + replayBytes) / MemSoftCapBytes);
 	return 0.6 * flopPenalty + 0.4 * memPenalty;
 }
 

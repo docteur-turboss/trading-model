@@ -46,7 +46,7 @@ new_run() {
 restore_dry() {
 	local script="$1"
 	shift
-	BACKUP_DIR="$BACKUP_DIR" bash "$ROOT/scripts/$script" --dry-run "$@" 2>&1
+	RESTORE_HELPER_IMAGE=helper:test BACKUP_DIR="$BACKUP_DIR" bash "$ROOT/scripts/$script" --dry-run "$@" 2>&1
 }
 
 echo "a failed dump leaves nothing behind"

@@ -13,7 +13,7 @@ FAILED=0
 ok() { echo "  ✓ $*"; }
 ko() { echo "  ✗ $*"; FAILED=1; }
 
-IMAGES="message-manager financial-scraper trader-trainer api-gateway audit-logger dlq-service model-evaluator risk-execution decision-consumer spire-tools backup-tools"
+IMAGES="financial-scraper trader-trainer api-gateway audit-logger model-evaluator risk-execution decision-consumer spire-tools backup-tools"
 for img in $IMAGES; do
 	echo "$img sha256:$(printf '%s' "$img" | sha256sum | cut -d' ' -f1)"
 done >"$WORK/digests"
@@ -54,10 +54,38 @@ if [ "$1" = get ] && [ "$2" = deployment ] && [[ $* == *terminationGracePeriodSe
 fi
 if [ "$1" = get ] && [ "$2" = pods ]; then printf "%b" "${STUB_PODS:-}"; exit 0; fi
 if [ "$1" = get ] && [[ $2 == statefulset/* ]]; then [[ $* == *updateRevision* ]] && printf '%s-abc' "${2#*/}"; exit 0; fi
+# Redis swap (issue #2882): "$STUB_REDIS" = partition replicas updateRevision; pods run revision `old`.
+if [ "$1" = get ] && [ "$2" = statefulset ] && [[ $* == *partition* ]]; then printf '%s' "${STUB_REDIS:-}"; exit 0; fi
+if [ "$1" = get ] && [ "$2" = pod ]; then [[ $* == *podIP* ]] && printf 'ip-%s' "$3" || printf old; exit 0; fi
+# Sentinel in $STUB_MASTER: FAILOVER promotes the other pod, unless $STUB_NO_PROMOTE. CLIENT PAUSE
+# answers $STUB_PAUSE, the first one $STUB_PAUSE_FIRST when set.
+if [ "$1" = exec ] && [ -n "${STUB_MASTER:-}" ]; then
+	case "$*" in
+	*get-master-addr-by-name*) cat "$STUB_MASTER" ;;
+	*"SENTINEL replicas"*) printf 'ip\nip-redis-0\nip\nip-redis-1\n' ;;
+	*"INFO replication"*) printf 'master_link_status:up\r\nmaster_repl_offset:7\r\n' ;;
+	*"CLIENT PAUSE"*)
+		if [ -n "${STUB_PAUSE_FIRST:-}" ] && [ ! -e "$STUB_LOG.paused" ]; then
+			: >"$STUB_LOG.paused"
+			echo "$STUB_PAUSE_FIRST"
+		else echo "${STUB_PAUSE:-OK}"; fi
+		;;
+	*"SENTINEL FAILOVER"*) [ -n "${STUB_NO_PROMOTE:-}" ] || { [ "$(cat "$STUB_MASTER")" = ip-redis-0 ] && echo ip-redis-1 >"$STUB_MASTER" || echo ip-redis-0 >"$STUB_MASTER"; } ;;
+	esac
+	exit 0
+fi
+# Swap marker (annotation trading-model/redis-swap) in the file $STUB_SWAP.
+if [ "$1" = get ] && [[ $* == *redis-swap* ]]; then cat "${STUB_SWAP:-/dev/null}"; exit 0; fi
+if [ "$1" = patch ]; then
+	[[ $* == *'redis-swap":"1"'* ]] && echo 1 >"$STUB_SWAP"
+	[[ $* == *'redis-swap":null'* ]] && : >"$STUB_SWAP"
+	exit 0
+fi
 if [ "$1" = get ] && [ "$2" = statefulset ]; then [ -z "${STUB_NO_REDIS:-}" ] || exit 1; [ "$3" = redis ] && printf 'redis-abc'; exit 0; fi
 [ "$1" = exec ] && exit 0
 if [ "$1" = create ] && [ "$2" = job ]; then cat "$STUB_JOB_JSON"; exit 0; fi
 if [ "$1" = get ] && [[ $2 == job/* ]]; then printf '%s ' "${STUB_JOB_STATE:-Complete}"; exit 0; fi
+[ "$1" = wait ] && [ -n "${STUB_WAIT_FAILS:-}" ] && exit 1
 if [ "$1" = wait ] || [ "$1" = delete ] || [ "$1" = create ] || [ "$2" = configmap ] || [ "$2" = secret ] || [ "$2" = deployments ]; then exit 0; fi
 if [ "$1" = get ] && [ "$2" = controllerrevision ]; then [ "$3" = redis-abc ] && printf '3'; exit 0; fi
 if [ "$1" = rollout ] && [ "$2" = status ]; then [ "$3" = "deployment/${STUB_STATUS_FAILS:-}" ] || [ "$3" = "statefulset/${STUB_STATUS_FAILS:-}" ] && exit 1; exit 0; fi
@@ -78,13 +106,13 @@ chmod +x "$WORK/bin/kubectl"
 export PATH="$WORK/bin:$PATH" STUB_LOG="$WORK/log" STUB_APPLIED="$WORK/applied"
 log_line() { grep -n "$1" "$WORK/log" | tail -1 | cut -d: -f1; }
 
-STUB_REVS="message-manager=4 api-gateway=7" bash "$SCRIPT" record ns "$WORK/revs" >/dev/null
-grep -qx "message-manager 4" "$WORK/revs" && grep -qx "api-gateway 7" "$WORK/revs" &&
+STUB_REVS="trader-trainer=4 api-gateway=7" bash "$SCRIPT" record ns "$WORK/revs" >/dev/null
+grep -qx "trader-trainer 4" "$WORK/revs" && grep -qx "api-gateway 7" "$WORK/revs" &&
 	grep -qx "edge-proxy none" "$WORK/revs" && grep -qx "statefulset/redis 3" "$WORK/revs" && grep -qx "statefulset/redis-sentinel none" "$WORK/revs" &&
-	[ "$(wc -l <"$WORK/revs")" -eq 13 ] &&
-	ok "record writes the Redis StatefulSets and the 11 Deployments, none when missing" || ko "record: $(cat "$WORK/revs")"
+	[ "$(wc -l <"$WORK/revs")" -eq 11 ] &&
+	ok "record writes the Redis StatefulSets and the 9 Deployments, none when missing" || ko "record: $(cat "$WORK/revs")"
 
-printf 'message-manager 4\napi-gateway 7\n' >"$WORK/revs"
+printf 'trader-trainer 4\napi-gateway 7\n' >"$WORK/revs"
 : >"$WORK/log"
 STUB_UNDO_FAILS="" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 	grep -q "rollout undo deployment/api-gateway -n ns --to-revision=7" "$WORK/log" &&
@@ -106,25 +134,25 @@ out="$(STUB_API_DOWN="$WORK/api-down" bash "$SCRIPT" rollback ns "$WORK/revs" 2>
 		ok "rollback gives up after 300 s of API server down, nothing undone, ConfigMap kept" || ko "rollback API down: $out"; }
 rm "$WORK/bin/sleep"
 
-printf 'message-manager 4\nedge-proxy none\napi-gateway 7\n' >"$WORK/revs"
+printf 'trader-trainer 4\nedge-proxy none\napi-gateway 7\n' >"$WORK/revs"
 : >"$WORK/log"
-out="$(STUB_UNDO_FAILS=message-manager bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
+out="$(STUB_UNDO_FAILS=trader-trainer bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
 	ko "rollback succeeded with a failed undo and a new Deployment" ||
 	{ grep -q "deployment/api-gateway" "$WORK/log" && grep -q "delete deployment/edge-proxy -n ns" "$WORK/log" &&
 		ok "rollback fails on a failed undo, deletes a new Deployment, still tries every Deployment" || ko "rollback: $out"; }
 
-printf 'message-manager 4
+printf 'trader-trainer 4
 api-gateway 7
 ' >"$WORK/revs"
 : >"$WORK/log"
-out="$(STUB_STATUS_FAILS=message-manager bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
+out="$(STUB_STATUS_FAILS=trader-trainer bash "$SCRIPT" rollback ns "$WORK/revs" 2>&1)" &&
 	ko "rollback succeeded though a rollout did not come back" ||
 	{ grep -q "rollout status deployment/api-gateway -n ns --timeout=180s" "$WORK/log" &&
-		[[ $out == *"message-manager did not finish rolling back"* ]] &&
-		grep -q "describe deployment/message-manager -n ns" "$WORK/log" &&
+		[[ $out == *"trader-trainer did not finish rolling back"* ]] &&
+		grep -q "describe deployment/trader-trainer -n ns" "$WORK/log" &&
 		ok "rollback waits for each rollout and fails if one does not come back" || ko "rollback status: $out"; }
 
-printf 'statefulset/redis 3\nstatefulset/redis-sentinel 2\nmessage-manager 4\n' >"$WORK/revs"
+printf 'statefulset/redis 3\nstatefulset/redis-sentinel 2\ntrader-trainer 4\n' >"$WORK/revs"
 : >"$WORK/log"
 bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
 	[ "$(grep -n 'rollout undo statefulset/redis-sentinel' "$WORK/log" | cut -d: -f1)" -lt \
@@ -178,6 +206,46 @@ sts_names() { awk '/^---/ { k = "" } /^kind:/ { k = $2 } k == "StatefulSet" && /
 	[ "$(log_line 'apply -f -')" -lt "$(log_line 'rollout status statefulset/redis ')" ]; } &&
 	ok "Redis StatefulSets left out of the overlay, applied after the Deployment rollouts and redis-tls, then waited for" ||
 	ko "redis last: $(cat "$WORK/log")"
+printf '#!/bin/sh\n' >"$WORK/bin/sleep"
+chmod +x "$WORK/bin/sleep"
+echo ip-redis-0 >"$WORK/master"
+: >"$WORK/log"
+export STUB_SWAP="$WORK/swap"
+: >"$STUB_SWAP"
+held="CLIENT PAUSE SENTINEL FAILOVER REPLICAOF CLIENT UNPAUSE"
+STUB_MASTER="$WORK/master" STUB_REDIS="1 1 new" bash "$SCRIPT" redis-last ns <"$WORK/app.yaml" >/dev/null &&
+	[ "$(grep -oE '"replicas":[0-9]|"partition":[0-9]|SENTINEL FAILOVER|CLIENT [A-Z]+|REPLICAOF' "$WORK/log" | tr '\n' ' ')" = "\"replicas\":2 $held \"partition\":0 $held \"replicas\":1 \"partition\":1 " ] &&
+	[ "$(cat "$WORK/master")" = ip-redis-0 ] &&
+	[ ! -s "$STUB_SWAP" ] && grep -q "SENTINEL RESET mymaster" "$WORK/log" &&
+	ok "partitioned redis-0 on an older template: writes held over each failover, redis-0 updated and master again, back to 1 pod" || ko "redis swap: $(cat "$WORK/log")"
+: >"$WORK/log"
+STUB_MASTER="$WORK/master" STUB_REDIS="1 1 old" bash "$SCRIPT" redis-last ns <"$WORK/app.yaml" >/dev/null && ! grep -q patch "$WORK/log" &&
+	ok "partitioned redis-0 already on the current template: no swap" || ko "redis no swap: $(cat "$WORK/log")"
+# Rollback of a run stopped inside the swap, master on redis-1: redis-0 master and one pod before the undo.
+echo ip-redis-1 >"$WORK/master"
+echo 1 >"$STUB_SWAP"
+printf 'statefulset/redis 3\n' >"$WORK/revs"
+: >"$WORK/log"
+STUB_PAUSE=NOPERM STUB_MASTER="$WORK/master" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
+	[ "$(cat "$WORK/master")" = ip-redis-0 ] && [ ! -s "$STUB_SWAP" ] && ! grep -qE 'REPLICAOF|UNPAUSE' "$WORK/log" &&
+	[ "$(log_line '"replicas":1')" -lt "$(log_line 'rollout undo statefulset/redis ')" ] &&
+	ok "rollback inside a swap: redis-0 master again (old master unable to pause: plain failover), back to 1 pod before the Redis undo" || ko "rollback swap: $(cat "$WORK/log")"
+# A pause failing for another reason than NOPERM: no unpaused failover, the next pass pauses.
+echo ip-redis-1 >"$WORK/master"
+echo 1 >"$STUB_SWAP"
+: >"$WORK/log"
+STUB_PAUSE_FIRST="error: Timeout occurred" STUB_MASTER="$WORK/master" bash "$SCRIPT" rollback ns "$WORK/revs" >/dev/null &&
+	[ "$(grep -oE 'SENTINEL FAILOVER|CLIENT [A-Z]+|REPLICAOF' "$WORK/log" | tr '
+' ' ')" = "CLIENT PAUSE CLIENT PAUSE SENTINEL FAILOVER REPLICAOF CLIENT UNPAUSE " ] &&
+	ok "pause refused by a transient error: retried, failover only once paused" || ko "pause error: $(cat "$WORK/log")"
+# The sentinel never promotes: the old master is unpaused and the failover fails.
+echo ip-redis-0 >"$WORK/master"
+: >"$STUB_SWAP"
+: >"$WORK/log"
+STUB_NO_PROMOTE=1 STUB_MASTER="$WORK/master" STUB_REDIS="1 1 new" bash "$SCRIPT" redis-last ns <"$WORK/app.yaml" >/dev/null 2>&1 && ko "failover without promotion succeeded" ||
+	{ [ "$(grep -oE 'CLIENT [A-Z]+|REPLICAOF' "$WORK/log" | tail -n 1)" = "CLIENT UNPAUSE" ] && ! grep -q REPLICAOF "$WORK/log" &&
+		ok "sentinel never promotes: old master unpaused, failover fails"; } || ko "no promotion: $(tail -n 5 "$WORK/log")"
+rm "$WORK/bin/sleep"
 STUB_NO_REDIS=1 bash "$SCRIPT" without-redis ns <"$WORK/app.yaml" | cmp -s - "$WORK/app.yaml" &&
 	ok "without-redis keeps the Redis StatefulSets on a first deploy" || ko "without-redis dropped documents on a first deploy"
 
@@ -204,6 +272,17 @@ premigrate production && [ "$(jq -S "$no_cmd" "$WORK/applied")" = "$(jq -S "$no_
 	ok "pre-migrate-backup in production: the CronJob template, off-site required" || ko "pre-migrate production: $(cat "$WORK/applied")"
 STUB_JOB_STATE=Failed premigrate staging && ko "pre-migrate-backup passed on a failed dump" || ok "pre-migrate-backup fails on a failed Job"
 
+: >"$WORK/log"
+: >"$WORK/applied"
+STUB_PODS=node-1 bash "$SCRIPT" prepull ns <"$WORK/render.yaml" >/dev/null &&
+	[ "$(grep -c '^ *nodeName: node-1$' "$WORK/applied")" -eq 2 ] && grep -q "image: r/risk-execution@sha256:" "$WORK/applied" &&
+	[ "$(grep -c '^delete pod prepull-' "$WORK/log")" -eq 2 ] &&
+	ok "prepull pulls the image N on the node of each Recreate pod, then deletes the pods" || ko "prepull: $(cat "$WORK/log")"
+: >"$WORK/log"
+out="$(STUB_WAIT_FAILS=1 STUB_PODS=node-1 bash "$SCRIPT" prepull ns <"$WORK/render.yaml" 2>&1)" &&
+	[[ $out == *"::warning::Pre-pull"* ]] && grep -q '^delete pod prepull-risk-execution' "$WORK/log" &&
+	ok "a failed pre-pull only warns" || ko "prepull failure: $out"
+
 # Token expiry check of the "Configure kubeconfigs" step of deploy.yml (issue #1978): fake kubeconfigs holding only a JWT.
 jwt() { printf '{"exp":%s}' "$1" | base64 -w0 | tr '+/' '-_' | tr -d '='; }
 mkdir -p "$WORK/kube" "$WORK/bin"
@@ -220,6 +299,7 @@ out="$(expiry 1700000000)" && ko "expired token accepted" ||
 	{ [[ "$out" == *"::error::KUBECONFIG_STAGING_APP token expired on 2023-11-14 22:13 UTC"*"deploy-identity.sh app"* ]] && ok "expired token: error with date and regeneration command" || ko "expired: $out"; }
 out="$(expiry $(($(date +%s) + 3600)))" && [[ "$out" == *"::warning::KUBECONFIG_STAGING_APP token expires on"* ]] && ok "token expiring in 1 h: warning" || ko "soon: $out"
 out="$(expiry $(($(date +%s) + 999999)))" && [ -z "$out" ] && ok "valid token: silent" || ko "valid: $out"
+
 
 bash "$SCRIPT" bogus >/dev/null 2>&1 && ko "unknown command accepted" || ok "unknown command refused"
 

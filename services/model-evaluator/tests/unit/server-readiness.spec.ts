@@ -4,9 +4,7 @@ const MOCK_CREATE_SERVER = jest.fn<(...args: any[]) => any>();
 jest.mock("@trading-model/http/service-server-factory", () => ({
 	createServiceServer: MOCK_CREATE_SERVER,
 }));
-jest.mock("../../src/config/address-manager", () => ({
-	ADDRESS_MANAGER_ROUTES: jest.fn(),
-}));
+jest.mock("../../src/config/address-manager", () => ({}));
 jest.mock("../../src/config/metrics", () => ({ metricsHandler: jest.fn() }));
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: { REDIS_URL: "redis://redis:6379" },
@@ -25,7 +23,7 @@ import { createServer } from "../../src/application/server";
 
 describe("model-evaluator readiness", () => {
 	function redisCheck(): () => Promise<boolean> {
-		void createServer(jest.fn() as never);
+		void createServer();
 		return MOCK_CREATE_SERVER.mock.calls[0][0].readiness.find(
 			(r: { name: string }) => r.name === "redis"
 		).check;

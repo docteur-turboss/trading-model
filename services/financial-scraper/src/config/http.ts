@@ -6,6 +6,7 @@ import axios, {
 	type AxiosError,
 	type AxiosInstance,
 	type AxiosRequestConfig,
+	type AxiosResponse,
 } from "axios";
 
 import { ENV } from "../infrastructure/config/env";
@@ -13,7 +14,7 @@ import {
 	BINANCE_REQUEST_DURATION_SECONDS,
 	BINANCE_REQUESTS_TOTAL,
 } from "./metrics";
-import { acquireToken } from "./rate-limiter";
+import { acquireToken, syncUsedWeight } from "./rate-limiter";
 
 const DEFAULT_TIMEOUT = 7000;
 
@@ -97,6 +98,18 @@ function _attachRateLimiter(instance: AxiosInstance, baseURL: string): void {
 		);
 		return config;
 	});
+	const sync = (headers: AxiosResponse["headers"] | undefined): void =>
+		syncUsedWeight(baseURL, Number(headers?.["x-mbx-used-weight-1m"]));
+	instance.interceptors.response.use(
+		(response) => {
+			sync(response.headers);
+			return response;
+		},
+		(error: AxiosError) => {
+			sync(error.response?.headers);
+			throw error;
+		}
+	);
 }
 
 function _attachMetricsInterceptor(instance: AxiosInstance): void {

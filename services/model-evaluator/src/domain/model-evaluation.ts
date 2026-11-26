@@ -1,13 +1,12 @@
-import { createHash } from "node:crypto";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { CandleData } from "@trading-model/contracts/market-data.types";
-import { ModelManifestSchema } from "@trading-model/model-runtime/model-manifest";
+import {
+	KEY_PART,
+	type ModelManifest,
+} from "@trading-model/model-runtime/model-manifest";
 import { replayModel } from "@trading-model/model-runtime/replay";
 import type { SegmentRatios } from "@trading-model/model-runtime/replay-metrics";
 import { z } from "zod";
-
-/** Safe as a path segment: the key names the record file. */
-const KEY_PART = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_.-]*$/);
 
 /** What the evaluator reads of `training.model.published` (ADR-0049 §1.1). */
 export const PublishedModel = z.looseObject({
@@ -18,17 +17,6 @@ export const PublishedModel = z.looseObject({
 });
 export type PublishedModel = z.infer<typeof PublishedModel>;
 
-/** The part of the trainer manifest the evaluator relies on (ADR-0022). */
-export const ModelManifest = ModelManifestSchema.pick({
-	symbol: true,
-	version: true,
-	weights: true,
-	genome: true,
-	admission: true,
-	replay: true,
-	riskLimits: true,
-});
-export type ModelManifest = z.infer<typeof ModelManifest>;
 type ReplayWindow = NonNullable<ModelManifest["replay"]>;
 
 /** Fees and execution cost paid over the replay, in quote currency. */
@@ -56,40 +44,6 @@ export type EvaluationRecord = {
 } & ReplayOutcome;
 
 /**
- * Checks the downloaded weights against the event, the manifest and the
- * `x-model-sha256` header; throws on any mismatch (ADR-0049 §1.2).
- */
-export function verifyModel(input: {
-	event: PublishedModel;
-	manifest: ModelManifest;
-	weights: Uint8Array;
-	headerSha256: string | undefined;
-}): void {
-	const { event, manifest, weights, headerSha256 } = input;
-	const actual = createHash("sha256").update(weights).digest("hex");
-	const expected = manifest.weights.sha256;
-	if (manifest.symbol !== event.symbol || manifest.version !== event.version) {
-		throw new Error(
-			`Manifest ${manifest.symbol}/${manifest.version} is not the published ${event.symbol}/${event.version}`
-		);
-	}
-	if (
-		actual !== expected ||
-		event.sha256 !== expected ||
-		headerSha256 !== expected
-	) {
-		throw new Error(
-			`Weights of ${event.symbol}/${event.version} refused: sha256 ${actual} differs from the manifest ${expected}, the event ${event.sha256} or the header ${headerSha256}`
-		);
-	}
-	if (weights.byteLength !== manifest.weights.length * 4) {
-		throw new Error(
-			`Weights of ${event.symbol}/${event.version} refused: ${weights.byteLength} bytes for ${manifest.weights.length} float32`
-		);
-	}
-}
-
-/**
  * Replays the model greedily on the candles read for its window (ADR-0079
  * §3-4): candles closing after `to` are never used, and a window the
  * candles do not cover from `from` to `to` is `missing-candles`.
@@ -99,7 +53,7 @@ export function replayOutcome(
 	genome: ModelManifest["genome"],
 	weights: Uint8Array,
 	candles: readonly CandleData[],
-	maxExposureFraction = 1
+	maxExposureFraction?: number
 ): ReplayOutcome {
 	const bars = candles.filter((candle) => candle.closeTimestamp <= window.to);
 	if (

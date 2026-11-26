@@ -136,7 +136,7 @@ kubectl describe pod -n trading-model -l app.kubernetes.io/component=<service-na
 ### After successful rollback
 
 - [ ] Verify all health endpoints return 200
-- [ ] Run E2E smoke tests (`bun run test:e2e:docker`)
+- [ ] Run the smoke test (`deploy/k8s/scripts/deploy-k8s.sh smoke-test`)
 - [ ] Confirm Prometheus alerts resolve
 - [ ] Document deployment failure in post-mortem
 

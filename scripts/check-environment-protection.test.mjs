@@ -61,14 +61,14 @@ const run = (name, routes, extra = {}) => {
   return { code: r.status, out: r.stdout + r.stderr };
 };
 const base = 'repos/o/r/environments/';
-const ok = { [base + 'production']: { status: 200, body: env([rule()]) }, [base + 'production/deployment-branch-policies?per_page=100']: { status: 200, body: { branch_policies: tag } } };
+const ok = { [`${base}production`]: { status: 200, body: env([rule()]) }, [`${base}production/deployment-branch-policies?per_page=100`]: { status: 200, body: { branch_policies: tag } } };
 
-test('cli: 404 -> ::error:: + DEPLOY.md, exit 1 in production', { skip: process.platform === 'win32' && 'execFileSync(\"gh\") only resolves gh.exe on Windows' }, () => {
+test('cli: 404 -> ::error:: + DEPLOY.md, exit 1 in production', { skip: process.platform === 'win32' && 'execFileSync("gh") only resolves gh.exe on Windows' }, () => {
   const r = run('production', {});
   assert.equal(r.code, 1);
   assert.match(r.out, /::error::.*does not exist.*DEPLOY\.md/);
 });
-test('cli: 404 on staging -> ::error::, exit 1; unknown environment -> ::warning::, exit 0', { skip: process.platform === 'win32' && 'execFileSync(\"gh\") only resolves gh.exe on Windows' }, () => {
+test('cli: 404 on staging -> ::error::, exit 1; unknown environment -> ::warning::, exit 0', { skip: process.platform === 'win32' && 'execFileSync("gh") only resolves gh.exe on Windows' }, () => {
   const r = run('staging', {});
   assert.equal(r.code, 1);
   assert.match(r.out, /::error::.*DEPLOY\.md/);
@@ -76,17 +76,17 @@ test('cli: 404 on staging -> ::error::, exit 1; unknown environment -> ::warning
   assert.equal(w.code, 0);
   assert.match(w.out, /::warning::/);
 });
-test('cli: 403 fails closed, never compliant', { skip: process.platform === 'win32' && 'execFileSync(\"gh\") only resolves gh.exe on Windows' }, () => {
-  const r = run('production', { [base + 'production']: { status: 403 } });
+test('cli: 403 fails closed, never compliant', { skip: process.platform === 'win32' && 'execFileSync("gh") only resolves gh.exe on Windows' }, () => {
+  const r = run('production', { [`${base}production`]: { status: 403 } });
   assert.notEqual(r.code, 0);
   assert.doesNotMatch(r.out, /::warning::/);
 });
-test('cli: compliant -> exit 0, no output', { skip: process.platform === 'win32' && 'execFileSync(\"gh\") only resolves gh.exe on Windows' }, () => {
+test('cli: compliant -> exit 0, no output', { skip: process.platform === 'win32' && 'execFileSync("gh") only resolves gh.exe on Windows' }, () => {
   const r = run('production', ok);
   assert.equal(r.code, 0, r.out);
   assert.equal(r.out.trim(), '');
 });
-test('cli: exists output for the deploy preflight', { skip: process.platform === 'win32' && 'execFileSync(\"gh\") only resolves gh.exe on Windows' }, () => {
+test('cli: exists output for the deploy preflight', { skip: process.platform === 'win32' && 'execFileSync("gh") only resolves gh.exe on Windows' }, () => {
   const out = join(dir, 'github-output');
   writeFileSync(out, '');
   run('production', {}, { GITHUB_OUTPUT: out });
@@ -96,18 +96,18 @@ test('cli: exists output for the deploy preflight', { skip: process.platform ===
   assert.equal(readFileSync(out, 'utf8').trim(), 'exists=true');
 });
 const fork = 'repos/o/r/actions/permissions/fork-pr-contributor-approval';
-test('cli: fork approval compliant -> exit 0, no output', { skip: process.platform === 'win32' && 'execFileSync(\"gh\") only resolves gh.exe on Windows' }, () => {
+test('cli: fork approval compliant -> exit 0, no output', { skip: process.platform === 'win32' && 'execFileSync("gh") only resolves gh.exe on Windows' }, () => {
   const r = run('--fork-approval', { [fork]: { status: 200, body: { approval_policy: 'all_external_contributors' } } });
   assert.equal(r.code, 0, r.out);
   assert.equal(r.out.trim(), '');
 });
-test('cli: fork approval not compliant -> ::error::, exit 1', { skip: process.platform === 'win32' && 'execFileSync(\"gh\") only resolves gh.exe on Windows' }, () => {
+test('cli: fork approval not compliant -> ::error::, exit 1', { skip: process.platform === 'win32' && 'execFileSync("gh") only resolves gh.exe on Windows' }, () => {
   const r = run('--fork-approval', { [fork]: { status: 200, body: { approval_policy: 'first_time_contributors_new_to_github' } } });
   assert.equal(r.code, 1);
   assert.match(r.out, /::error::.*first_time_contributors_new_to_github.*STAGING_LOCAL\.md/);
 });
 for (const status of [403, 404, 500]) {
-  test(`cli: fork approval HTTP ${status} fails closed`, { skip: process.platform === 'win32' && 'execFileSync(\"gh\") only resolves gh.exe on Windows' }, () => {
+  test(`cli: fork approval HTTP ${status} fails closed`, { skip: process.platform === 'win32' && 'execFileSync("gh") only resolves gh.exe on Windows' }, () => {
     const r = run('--fork-approval', status === 404 ? {} : { [fork]: { status } });
     assert.notEqual(r.code, 0);
     assert.doesNotMatch(r.out, /::warning::/);

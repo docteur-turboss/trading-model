@@ -21,18 +21,6 @@ export interface BinanceDepthResponse {
 	asks: BinanceDepthEntry[];
 }
 
-interface BinanceTrade {
-	id: number;
-	price: PriceString;
-	qty: VolumeString;
-	quoteQty: CashString;
-	time: UnixTimestamp;
-	isBuyerMaker: boolean;
-	isBestMatch: boolean;
-}
-
-export type BinanceTradeResponse = BinanceTrade[];
-
 /** OHLCV + last price fields shared by Binance ticker responses (all strings as received from API). */
 interface BinanceTickerBaseStats {
 	symbol: TradingSymbol;

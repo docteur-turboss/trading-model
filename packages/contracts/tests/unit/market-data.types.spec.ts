@@ -3,7 +3,6 @@ import {
 	CandleInterval,
 	MarketType,
 	SourceType,
-	TradeSide,
 } from "@trading-model/contracts/market-data.types";
 
 describe("MarketType", () => {
@@ -39,11 +38,9 @@ describe("CandleInterval", () => {
 		const values = CandleInterval.values();
 		expect(values).toContain(CandleInterval.Min1);
 	});
-});
 
-describe("TradeSide", () => {
-	it("should have correct enum values", () => {
-		expect(TradeSide.Buy).toBe("buy");
-		expect(TradeSide.Sell).toBe("sell");
+	it("should give the length of a bar in ms", () => {
+		expect(CandleInterval.toMs(CandleInterval.Min1)).toBe(60_000);
+		expect(CandleInterval.toMs(CandleInterval.D1)).toBe(86_400_000);
 	});
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 import type { CandleData } from "@trading-model/contracts/market-data.types";
 import { AGENT_STATE_DIM } from "../src/agent/agent-state";
+import { playEpisode } from "../src/agent/decision-events";
 import { FEATURE_DIM } from "../src/feature-vector-codec";
 import { ActivationType, NormalisationType } from "../src/neural-network/type";
 import {
@@ -11,7 +12,7 @@ import {
 } from "../src/replay";
 
 const T0 = 1_700_000_000_000;
-const candles = Array.from({ length: 120 }, (_, idx) => {
+const candles = Array.from({ length: 560 }, (_, idx) => {
 	const price = 100 + 8 * Math.sin(idx / 5) + idx / 20;
 	return {
 		timestamp: T0 + idx * 60_000,
@@ -62,7 +63,7 @@ function genome(variant: "every-bar" | "on-event"): {
 								minGap: 2,
 							},
 						}
-					: { frameSkip: 2 },
+					: { frameSkip: 3 },
 			},
 		},
 		// Weights the greedy policy trades with on these candles.
@@ -93,13 +94,13 @@ describe("replayModel (ADR-0079 §3)", () => {
 		}
 	);
 
-	it("replays at the manifest exposure cap, default 0.3 when absent", () => {
+	it("replays at the manifest exposure cap, default 0.1 when absent", () => {
 		const { network } = genome("every-bar").genome;
 		const cap = (maxExposureFraction?: number) =>
 			policyAgentConfig(network, { ...SIMULATOR, maxExposureFraction }).wallet
 				.maxExposureFraction;
 		expect(cap(1)).toBe(1);
-		expect(cap()).toBe(0.3);
+		expect(cap()).toBe(0.1);
 	});
 
 	it("drops inconsistent candles and those before the last gap, as the trainer does", () => {
@@ -156,6 +157,38 @@ describe("decideOnLastBar (ADR-0087)", () => {
 		}
 	);
 
+	it.each([
+		[2, 500],
+		[2, 501],
+		[3, 500],
+		[3, 501],
+	])(
+		"decides every frameSkip %i bars in absolute time over a sliding window of %i candles",
+		(frameSkip, size) => {
+			const { genome: base, weights: every } = genome("every-bar");
+			const g: PolicyGenome = { ...base, rl: { horizon: { frameSkip } } };
+			// Weights that trade on these last bars.
+			const weights = every.map((_, idx) => Math.sin(idx * 1.1) * 5);
+			// The window slides one bar at a time over the last 40 candles.
+			const ends = Array.from({ length: 40 }, (_, idx) => candles.length - idx);
+			const orders = ends.filter(
+				(end) =>
+					decideOnLastBar({
+						genome: g,
+						weights,
+						simulator: SIMULATOR,
+						candles: candles.slice(end - size, end),
+					})?.order
+			);
+			expect(orders.length).toBeGreaterThan(0);
+			for (const end of orders) {
+				expect(
+					Math.round(candles[end - 1].timestamp / 60_000) % frameSkip
+				).toBe(0);
+			}
+		}
+	);
+
 	it("has no decision for a window without a step", () => {
 		const { genome: g, weights } = genome("every-bar");
 		expect(
@@ -166,5 +199,27 @@ describe("decideOnLastBar (ADR-0087)", () => {
 				candles: candles.slice(0, 1),
 			})
 		).toBeUndefined();
+	});
+});
+
+describe("playEpisode last bar", () => {
+	it("marks a buy to the final close when the last bar is no decision", () => {
+		const steps = [100, 100, 90].map((price) => ({ price }) as never);
+		const curve: number[] = [];
+		let mark = 100;
+		const { pnl } = playEpisode(
+			steps,
+			{ frameSkip: 3 },
+			{
+				step: () => undefined,
+				pnl: (last?: { price: number }) => {
+					mark = last?.price ?? mark;
+					return mark - 100;
+				},
+			},
+			curve
+		);
+		expect(pnl).toBe(-10);
+		expect(curve[2]).toBe(-10);
 	});
 });

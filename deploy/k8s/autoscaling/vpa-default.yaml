@@ -2,31 +2,6 @@
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
 metadata:
-  name: message-manager-vpa
-  labels:
-    app.kubernetes.io/component: message-manager
-    app.kubernetes.io/part-of: trading-model
-spec:
-  targetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: message-manager
-  updatePolicy:
-    updateMode: "Off"
-  resourcePolicy:
-    containerPolicies:
-      - containerName: message-manager
-        minAllowed:
-          cpu: 100m
-          memory: 128Mi
-        maxAllowed:
-          cpu: "2"
-          memory: 1Gi
-        controlledResources: ["cpu", "memory"]
----
-apiVersion: autoscaling.k8s.io/v1
-kind: VerticalPodAutoscaler
-metadata:
   name: financial-scraper-vpa
   labels:
     app.kubernetes.io/component: financial-scraper
@@ -116,31 +91,6 @@ spec:
   resourcePolicy:
     containerPolicies:
       - containerName: audit-logger
-        minAllowed:
-          cpu: 50m
-          memory: 64Mi
-        maxAllowed:
-          cpu: "1"
-          memory: 512Mi
-        controlledResources: ["cpu", "memory"]
----
-apiVersion: autoscaling.k8s.io/v1
-kind: VerticalPodAutoscaler
-metadata:
-  name: dlq-service-vpa
-  labels:
-    app.kubernetes.io/component: dlq-service
-    app.kubernetes.io/part-of: trading-model
-spec:
-  targetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: dlq-service
-  updatePolicy:
-    updateMode: "Off"
-  resourcePolicy:
-    containerPolicies:
-      - containerName: dlq-service
         minAllowed:
           cpu: 50m
           memory: 64Mi

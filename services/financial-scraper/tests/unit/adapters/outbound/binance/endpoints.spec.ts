@@ -4,7 +4,6 @@ import { TradingSymbol } from "@trading-model/primitives/primitives";
 import { BINANCE_ENDPOINTS } from "../../../../../src/adapters/outbound/binance/endpoints";
 
 const BTC = TradingSymbol.of("BTCUSDT");
-const ETH = TradingSymbol.of("ETHUSDT");
 
 describe("BINANCE_ENDPOINTS", () => {
 	describe("depth", () => {
@@ -16,18 +15,6 @@ describe("BINANCE_ENDPOINTS", () => {
 		it("should build order book URL without params", () => {
 			const url = BINANCE_ENDPOINTS.depth();
 			expect(url).toBe("/api/v3/depth");
-		});
-	});
-
-	describe("trades", () => {
-		it("should build recent trades URL with limit and symbol", () => {
-			const url = BINANCE_ENDPOINTS.trades({ symbol: ETH, limit: 500 });
-			expect(url).toBe("/api/v3/trades?symbol=ETHUSDT&limit=500");
-		});
-
-		it("should build recent trades URL without params", () => {
-			const url = BINANCE_ENDPOINTS.trades();
-			expect(url).toBe("/api/v3/trades");
 		});
 	});
 

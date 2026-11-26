@@ -50,12 +50,10 @@ trading-model/
 │   ├── address-manager/      # DNS service resolution client
 │   └── broker-message/       # Message bus protocol types
 ├── services/     # microservices (kebab-case directory names)
-│   ├── message-manager/
 │   ├── financial-scraper/
 │   ├── trader-trainer/      # bun name: trader-trainer
 │   ├── api-gateway/
-│   ├── audit-logger/
-│   └── dlq-service/
+│   └── audit-logger/
 ├── deploy/       # K8s manifests + nginx configs
 ├── docs/         # Centralized documentation
 └── scripts/      # Automation scripts
@@ -65,7 +63,7 @@ trading-model/
 
 | Element               | Convention           | Example                |
 | --------------------- | -------------------- | ---------------------- |
-| Directories           | kebab-case           | `message-manager/`     |
+| Directories           | kebab-case           | `audit-logger/`        |
 | Files                 | kebab-case           | `address-manager.ts`   |
 | Classes & Types       | PascalCase           | `class AddressManager` |
 | Variables & Functions | camelCase            | `const addressManager` |
@@ -92,7 +90,7 @@ File naming: `kebab-case` descriptive names; `.controller.ts`/`.service.ts`/`.re
 
 - **Framework**: Jest with `ts-jest` (every workspace)
 - **Convention**: Single `.spec.ts` suffix
-- **Coverage thresholds**: 80% across all workspaces (branch-only exceptions: `broker-message` 75%, `message-manager` and `dlq-service` 79%)
+- **Coverage thresholds**: 80% across all workspaces (branch-only exceptions: `broker-message` 75%)
 - **Structure**: Tests mirror source under `tests/unit/`, `tests/integration/`, `tests/e2e/`
 
 ---

@@ -6,13 +6,7 @@
   "type": "commonjs",
   "exports": {
     "./node-crypto": "./dist/node-crypto.js",
-    "./prng": "./dist/prng.js",
-    "./request-signer": "./dist/request-signer.js"
-  },
-  "dependencies": {
-    "@trading-model/primitives": "*",
-    "@trading-model/contracts": "*",
-    "@trading-model/common": "*"
+    "./prng": "./dist/prng.js"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

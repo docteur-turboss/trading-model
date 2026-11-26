@@ -15,7 +15,6 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 		APP_VERSION: "1.0.0",
 		SERVICE_NAME: "audit-logger-service",
 		INSTANCE_ID: "test-instance",
-		MESSAGE_CALLBACK_PATH: "message",
 	},
 }));
 
@@ -25,11 +24,6 @@ jest.mock("@trading-model/http/logger", () => ({
 		warn: jest.fn<(...args: any[]) => any>(),
 		error: jest.fn<(...args: any[]) => any>(),
 	},
-}));
-
-jest.mock("../../src/config/address-manager", () => ({
-	ADDRESS_MANAGER_ROUTES: (_app: any): void => {},
-	AddressManager: { getAddress: (): null => null },
 }));
 
 function createApp() {

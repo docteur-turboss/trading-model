@@ -44,6 +44,7 @@ Slack is down: configure that external check to notify someone directly
 | `AlertmanagerNotificationsFailing` | a receiver that rejects notifications (wrong webhook, missing Pushover key): at least 50 % of an integration's attempts failed over 15 min. One transient failure (DNS timeout) retried by the next send does not fire; an integration with no traffic does not fire |
 | `PrometheusRuleEvaluationFailures` | a rule that cannot be evaluated |
 | `ServiceDown` | a scrape target that is down, Alertmanager and Prometheus included |
+| `EdgeProxyProbeFailing` | the edge-proxy `/ping` probe fails (it has no `up` series, so `ServiceDown` cannot see it) |
 | `ServiceTargetsMissing` | an application service with no `up` series at all (0 replicas, Pending pods, broken scrape config), which `up == 0` cannot see |
 
 Dead man's switch margin: `Watchdog` is re-sent every minute (`repeat_interval: 1m`), so an isolated failed send is made up the next minute. Configure the heartbeat service with a 1 min period and a grace period of at least 10 min, or one transient failure pages as a false positive.
@@ -98,17 +99,26 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `TrainerMarketDataStale` | newest stored candle read by the trainer older than 15 min for every symbol (`tt_last_candle_age_seconds`) | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `ModelBelowBuyAndHold` | the last 3 stored models of a symbol have an out-of-sample Sharpe below buy and hold on the same bars (`tt_model_below_buy_and_hold_streak`, Lease holder only; `segment="test"`, ADR-0068) | [runbook-trainer#modelbelowbuyandhold](runbooks/runbook-trainer.md#modelbelowbuyandhold) |
 | `TrainerFeatureDrift` | for 1 h, a normalized field of a symbol received since its newest stored model has a mean more than 3 standard deviations from the statistics stored with that model (`tt_feature_drift_score`) | [runbook-trainer#trainerfeaturedrift](runbooks/runbook-trainer.md#trainerfeaturedrift) |
+| `BusPublisherRejected` | `critical`: a bus entry whose publisher is not authorized on its topic was rejected (possible publisher spoofing), `bus_publisher_rejected_total` increased over 1 h | [runbook-message-bus-outage#7](runbooks/runbook-message-bus-outage.md#7-entries-dropped-unreadable-or-publisher-rejected) |
+| `BusJournalUnreadable` | `warning`: a journal entry could not be read and was skipped, `mm_journal_unreadable_total` increased over 1 h | [runbook-message-bus-outage#7](runbooks/runbook-message-bus-outage.md#7-entries-dropped-unreadable-or-publisher-rejected) |
+| `ModelPublishFailing` | `warning`: a model was stored but not published to decision-consumer and model-evaluator, `tt_model_publish_failures_total` increased over 1 h | [runbook-trainer#modelpublishfailing](runbooks/runbook-trainer.md#modelpublishfailing) |
+| `TrainerSignalReadErrors` | `warning`: the trainer failed to read signals, `tt_signal_read_errors_total` increased over 1 h | [runbook-trainer#trainersignalreaderrors](runbooks/runbook-trainer.md#trainersignalreaderrors) |
+| `AuditChainCollisionsExhausted` | `warning`: the audit chain gave up after exhausting its sequence retries, `audit_chain_sequence_collisions_total{outcome="exhausted"}` increased over 1 h | [runbook-audit-chain-broken#auditchaincollisionsexhausted](runbooks/runbook-audit-chain-broken.md#auditchaincollisionsexhausted) |
 | `ScrapeCyclesFailing` | more than half of the scrape cycles fail | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
 | `SymbolMarketDataStale` | no candle of one symbol persisted for 15 min while the others may still flow (`fs_candles_persisted_total{symbol}`): symbol rejected, klines failing or candles refused by the normalizer, by symbol | [runbook-market-data-stale#symbolmarketdatastale](runbooks/runbook-market-data-stale.md#symbolmarketdatastale) |
 | `SignalCollectionFailing` | a signal source (ADR-0036) failed a collection in the last 24 h, by source: fetch error (403 from SEC EDGAR without contact e-mail), changed format or MySQL | [runbook-market-data-stale#signalcollectionfailing](runbooks/runbook-market-data-stale.md#signalcollectionfailing) |
 | `SignalSourceStale` | a signal source (ADR-0036) had no successful collection for longer than its threshold (`maxAgeSeconds`, else three cron periods), by source, with no failure counted | [runbook-market-data-stale#signalsourcestale](runbooks/runbook-market-data-stale.md#signalsourcestale) |
 | `MessageDeliveryLowSuccessRate` | less than 99.5% of the messages delivered (the rest dead-lettered) | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `BusDeadLetters` | A dead stream holds entries (`bus_dead_letters`): a subscriber group gave up on them, an operator replays or deletes them with `audit-dlq` | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
-| `DlqAuditEventLost` | a DLQ delete or replay was done but message-manager refused its audit event (`dlq_audit_publish_failures_total`): not in the audit chain, the API answered 502 (ADR-0059) | [runbook-dlq-backlog#dlqauditeventlost](runbooks/runbook-dlq-backlog.md#dlqauditeventlost) |
+| `MessagesUnrouted` | the bus library dropped messages for 10 min on a topic with no subscriber (`mm_messages_unrouted_total`) | [runbook-message-bus-outage#6-no-subscriber-on-a-topic](runbooks/runbook-message-bus-outage.md#6-no-subscriber-on-a-topic) |
 | `KillSwitchEngaged` | the Risk/Execution kill switch is engaged (global or per symbol): no new order, open orders cancelled, manual re-arming only | [runbook-risk-execution#killswitchengaged](runbooks/runbook-risk-execution.md#killswitchengaged) |
+| `RiskDrawdownApproaching` | the drawdown from the high-water mark has been above 70 % of its limit for 5 min (`risk_drawdown_ratio`; 1 = kill switch) | [runbook-risk-execution#riskdrawdownapproaching](runbooks/runbook-risk-execution.md#riskdrawdownapproaching) |
 | `RiskTickFailing` | the risk-execution tick failed repeatedly for 5 min (`risk_tick_failures_total`): state write or reconciliation error | [runbook-risk-execution#risktickfailing](runbooks/runbook-risk-execution.md#risktickfailing) |
+| `RiskOutboxDropped` | risk-execution dropped audit events because its outbox was full (`risk_outbox_dropped_total`): lost from the audit chain | [runbook-risk-execution#riskoutboxdropped](runbooks/runbook-risk-execution.md#riskoutboxdropped) |
+| `RiskOutboxPending` | order or kill switch events refused by the bus stayed in the risk-execution outbox for 30 min (`risk_outbox_pending`) | [runbook-risk-execution#riskoutboxpending](runbooks/runbook-risk-execution.md#riskoutboxpending) |
 | `ReconciliationMismatch` | risk-execution found a position, open order or balance difference with the broker (ADR-0064 §4) | [runbook-risk-execution#reconciliationmismatch](runbooks/runbook-risk-execution.md#reconciliationmismatch) |
 | `RiskRejectRatioHigh` | risk-execution rejected over 50% of the order intents for 15 min (`risk_orders_total`) | [runbook-risk-execution#riskrejectratiohigh](runbooks/runbook-risk-execution.md#riskrejectratiohigh) |
+| `DecisionPassFailing` | a decision pass or a promoted model of decision-consumer failed in the last hour (`decision_skipped_total{reason="error"}`) | [runbook-risk-execution#decisionpassfailing](runbooks/runbook-risk-execution.md#decisionpassfailing) |
 | `DecisionIntentsRejected` | risk-execution rejected 3 or more intents of the decision consumer in 1 h with the same reason (`decision_intents_total`) | [runbook-risk-execution#decisionintentsrejected](runbooks/runbook-risk-execution.md#decisionintentsrejected) |
 | `RiskMarketDataStale` | the newest reference price of an allowed instrument is older than 15 min (ADR-0064 §7) | [runbook-risk-execution#riskmarketdatastale](runbooks/runbook-risk-execution.md#riskmarketdatastale) |
 | `RetentionFailed` | warning | [BACKUP_DR#retention-job](../deployment/BACKUP_DR.md#retention-job) |
@@ -119,13 +129,6 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `AuditChainVerificationStale` / `AuditChainAnchoringStale` | no verification, or no anchor written, for 45 min | [runbook-audit-chain-broken](runbooks/runbook-audit-chain-broken.md) |
 | `AuditChainNotAnchored` (warning) | no anchor store configured (`AUDIT_ANCHOR_BUCKET`): expected in compose and staging | [runbook-audit-chain-broken](runbooks/runbook-audit-chain-broken.md) |
 | `HighMemoryUsage` | heap above 90% of the V8 limit (`nodejs_heap_size_limit_bytes`), not of the allocated heap | [runbook-service-down](runbooks/runbook-service-down.md#1-oomkilled-out-of-memory) |
-
-The first run of these rules on a healthy-looking compose stack (2026-10-28)
-caught two incidents nobody had seen: the broker-message subscriber endpoint
-never answered (every delivery to trader-trainer timed out, was retried 10
-times and dead-lettered: ~1/3 of the market data), and message-manager
-ignored its dead-letter file path (in K8s the dead letters were written to the
-read-only root filesystem: lost). Both are fixed (the file is gone since #910).
 
 ## Alert → runbook
 
@@ -143,9 +146,11 @@ file absent from the repository, or on an anchor that matches no heading.
 | `SLOLatencySlowBurn` | warning | [runbook-latency-and-errors#slolatencyfastburn](runbooks/runbook-latency-and-errors.md#slolatencyfastburn) |
 | `SLOErrorBudgetLow` | warning | [runbook-latency-and-errors#slo-error-budget-low](runbooks/runbook-latency-and-errors.md#slo-error-budget-low) |
 | `ServiceDown` | critical | [runbook-service-down](runbooks/runbook-service-down.md) |
+| `EdgeProxyProbeFailing` | critical | [runbook-service-down#edge-proxy-probe-failing](runbooks/runbook-service-down.md#edge-proxy-probe-failing) |
 | `ServiceTargetsMissing` | critical | [runbook-service-down#no-scrape-target](runbooks/runbook-service-down.md#no-scrape-target) |
 | `CertificateExpiry` | critical | [runbook-certificate-expiry](runbooks/runbook-certificate-expiry.md) |
 | `HttpCircuitBreakerRejecting` | warning | [runbook-circuit-breaker-open#symptom](runbooks/runbook-circuit-breaker-open.md#symptom) |
+| `ErrorLogBurst` | warning | [runbook-latency-and-errors#errorlogburst](runbooks/runbook-latency-and-errors.md#errorlogburst) |
 | `HighMemoryUsage` | warning | [runbook-service-down#1-oomkilled-out-of-memory](runbooks/runbook-service-down.md#1-oomkilled-out-of-memory) |
 | `BackupFailed` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `SealedSecretsKeyBackupStale` | warning | [BACKUP_DR#sealedsecretskeybackupstale](../deployment/BACKUP_DR.md#sealedsecretskeybackupstale) |
@@ -159,6 +164,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `BackupUnencrypted` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupOffsiteCopyFailed` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupVolumeFilling` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
+| `BackupOffsiteBucketLarge` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `ApiAuthFailuresHigh` | warning | [runbook-auth-failures#apiauthfailureshigh](runbooks/runbook-auth-failures.md#apiauthfailureshigh) |
 | `MtlsAclDenials` | warning | [runbook-auth-failures#mtlsacldenials](runbooks/runbook-auth-failures.md#mtlsacldenials) |
 | `AuditChainBroken` | critical | [runbook-audit-chain-broken#auditchainbroken](runbooks/runbook-audit-chain-broken.md#auditchainbroken) |
@@ -166,14 +172,14 @@ file absent from the repository, or on an anchor that matches no heading.
 | `AuditChainAnchoringStale` | warning | [runbook-audit-chain-broken#auditchainanchoringstale](runbooks/runbook-audit-chain-broken.md#auditchainanchoringstale) |
 | `AuditChainNotAnchored` | warning | [runbook-audit-chain-broken#auditchainnotanchored](runbooks/runbook-audit-chain-broken.md#auditchainnotanchored) |
 | `MessageDeliveryLowSuccessRate` | critical | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
-| `DlqAuditEventLost` | critical | [runbook-dlq-backlog#dlqauditeventlost](runbooks/runbook-dlq-backlog.md#dlqauditeventlost) |
 | `BusDeadLetters` | warning | [runbook-message-bus-outage#4-dead-letters-stuck-refused-or-lost](runbooks/runbook-message-bus-outage.md#4-dead-letters-stuck-refused-or-lost) |
-| `MessagesUnrouted` | warning | [runbook-message-bus-outage#3-no-subscriber-on-a-topic](runbooks/runbook-message-bus-outage.md#3-no-subscriber-on-a-topic) |
+| `MessagesUnrouted` | warning | [runbook-message-bus-outage#6-no-subscriber-on-a-topic](runbooks/runbook-message-bus-outage.md#6-no-subscriber-on-a-topic) |
 | `JournalEntriesTrimmed` | critical | [runbook-message-bus-outage#5-journal-entries-trimmed-before-delivery](runbooks/runbook-message-bus-outage.md#5-journal-entries-trimmed-before-delivery) |
-| `JournalBacklogOld` | warning | [runbook-message-bus-outage#6-journal-backlog-of-a-subscriber](runbooks/runbook-message-bus-outage.md#6-journal-backlog-of-a-subscriber) |
+| `JournalBacklogOld` | warning | [runbook-message-bus-outage#3-backlog-of-a-subscriber](runbooks/runbook-message-bus-outage.md#3-backlog-of-a-subscriber) |
 | `TrainingCompletionRateLow` | warning | [runbook-trainer#trainingcompletionratelow](runbooks/runbook-trainer.md#trainingcompletionratelow) |
 | `TrainingCompletionRateCritical` | critical | [runbook-trainer#trainingcompletionratelow](runbooks/runbook-trainer.md#trainingcompletionratelow) |
-| `TrainerEventLoopLagHigh` | warning | [runbook-trainer#trainereventlooplaghigh](runbooks/runbook-trainer.md#trainereventlooplaghigh) |
+| `EventLoopLagHigh` | warning | [runbook-infrastructure#eventlooplaghigh](runbooks/runbook-infrastructure.md#eventlooplaghigh) |
+| `DbIndexBuildFailed` | warning | [runbook-infrastructure#dbindexbuildfailed](runbooks/runbook-infrastructure.md#dbindexbuildfailed) |
 | `TrainerNoLeader` | warning | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `TrainerNoLeaderProlonged` | warning | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `MarketDataStale` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
@@ -246,5 +252,5 @@ Compose runs the same datasources as K8s, each one fed:
 
 Prometheus runs without `--web.enable-lifecycle` (issue #850): `POST /-/reload` and `/-/quit` answer 403/404 for any network client.
 
-- K8s: the Prometheus container checksums `/etc/prometheus` every 20 s and sends itself `SIGHUP` (PID 1) when it changed. After `kubectl apply`, the new rules are live within about a minute (kubelet ConfigMap sync included).
+- K8s: `prometheus-config` is hash-suffixed, so a changed rule file changes the pod template and `kubectl apply` rolls the StatefulSet (issue #2825); no in-pod reload.
 - Compose: `docker kill --signal=HUP trading-prometheus` after editing `observability/*.yml`.

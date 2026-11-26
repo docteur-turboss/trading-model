@@ -93,7 +93,7 @@ cmd_apply() {
     kustomize_build "${K8S_DIR}/node-agents" | kubectl apply -f -
     log "Applying all Trading Model manifests..."
     # Immutable pod template: recreated (idempotent) by the apply (issue #727).
-    kubectl delete job -n "$NAMESPACE" mongo-audit-users mongo-dlq-users --ignore-not-found
+    kubectl delete job -n "$NAMESPACE" mongo-audit-users --ignore-not-found
     kustomize_build "${K8S_DIR}/" | kubectl apply -f -
   fi
 
@@ -184,9 +184,8 @@ cmd_migrate_down() {
 
 # Services without request metrics: their canary gate can only check readiness.
 # Declared here (comma-separated) so the exemption is explicit and logged.
-# Set for services that get no steady traffic (dlq-service: only dead letters and
-# admin calls): "no signal" there is not a failure. Services with traffic keep the
-# rule "no signal is a failure".
+# Set for services that get no steady traffic: "no signal" there is not a failure.
+# Services with traffic keep the rule "no signal is a failure".
 CANARY_READINESS_ONLY="${CANARY_READINESS_ONLY:-}"
 
 # Sums http_requests_total from a /metrics payload on stdin and prints
@@ -446,7 +445,7 @@ cmd_smoke_test() {
     local code="" try
     for try in $(seq 1 12); do
       # node, not curl: the service images (node alpine) ship no curl.
-      code=$(kubectl exec -n "$NAMESPACE" deployment/message-manager -c message-manager -- \
+      code=$(kubectl exec -n "$NAMESPACE" deployment/api-gateway -c api-gateway -- \
         node -e 'const f=require("fs"),d="/run/spire/svid/";require(process.argv[1].split(":")[0]).get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' "$url" >/dev/null 2>&1 && echo 200 || true)
       [[ "$code" == "200" || "$try" -eq 12 ]] && break
       sleep 5
@@ -455,6 +454,23 @@ cmd_smoke_test() {
       log "  ✓ $name is healthy"
     else
       err "  ✗ $name is NOT healthy"
+      failed=$((failed + 1))
+    fi
+  done
+
+  # Every Redis node must know each bus user (redis-ha.sh bus_user): a node on an older template
+  # lacks the newer ones while every readiness probe stays green (issue #2882).
+  # shortcut: clear port only (REDIS_TLS_MODE optional); add --tls with the required step (ADR-0047).
+  local users="" user pod
+  for user in $(sed -n 's/^\tbus_user \([a-z-]*\) .*/\1/p' "$K8S_DIR/infra/redis-ha.sh"); do
+    [[ " ${SMOKE_SKIP:-} " == *" $user "* ]] || users+=" $user"
+  done
+  for pod in $(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/component=redis -o name); do
+    # shellcheck disable=SC2016,SC2086 # expanded in the pod; one argument per user
+    if kubectl exec -n "$NAMESPACE" "$pod" -c redis -- sh -c 'for u; do eval "p=\${REDIS_$(echo "$u" | tr a-z- A-Z_)_PASSWORD:-}"; [ "$(REDISCLI_AUTH="$p" redis-cli --user "$u" PING 2>&1)" = PONG ] || { echo "bus user $u refused"; exit 1; }; done' sh $users; then
+      log "  ✓ ${pod#pod/} accepts the bus users:$users"
+    else
+      err "  ✗ ${pod#pod/} refuses a bus user: restart it on the current template (redis-last)"
       failed=$((failed + 1))
     fi
   done
@@ -556,7 +572,7 @@ release_checks_once() {
   fi
   # The key goes through stdin, never on a command line or in a log.
   local path="/v1/trader-trainer/training-status"
-  code="$(printf '%s' "$key" | kubectl exec -i -n "$NAMESPACE" deployment/message-manager -c message-manager -- \
+  code="$(printf '%s' "$key" | kubectl exec -i -n "$NAMESPACE" deployment/api-gateway -c api-gateway -- \
     node -e 'let k="";process.stdin.on("data",d=>k+=d).on("end",()=>require("http").get(process.argv[1],{headers:{"x-api-key":k}},r=>{console.log(r.statusCode);r.resume()}).on("error",()=>console.log("000")))' "http://edge-proxy:8080${path}")" || code="000"
   if [[ "$code" != "200" ]]; then
     err "  ✗ GET ${path} through edge-proxy answered ${code}, expected 200"

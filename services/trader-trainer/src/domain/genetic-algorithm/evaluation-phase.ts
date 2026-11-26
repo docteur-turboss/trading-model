@@ -75,7 +75,7 @@ function _runEvalEpisode(
 		genome.rl.horizon,
 		{
 			step: (step, barsSince) => backend.step(step, barsSince),
-			pnl: () => Number(backend.getPnL()),
+			pnl: (mark) => Number(backend.getPnL(mark?.price)),
 		},
 		pnlCurve
 	);

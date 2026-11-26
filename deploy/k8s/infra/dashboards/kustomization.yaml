@@ -5,7 +5,6 @@ configMapGenerator:
   - name: grafana-dashboards
     files:
       - dashboard-provider.yml
-      - message-manager.json
       - risk-execution.json
       - services.json
       - slo.json

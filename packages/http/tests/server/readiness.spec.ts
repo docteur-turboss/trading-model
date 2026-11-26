@@ -1,4 +1,7 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import http from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import express from "express";
 import {
@@ -116,5 +119,35 @@ describe("createReadinessHandler", () => {
 		await expect(
 			svidReadinessCheck({ ...env, TLS_CA_PATH: "/missing/ca.pem" }).check()
 		).rejects.toThrow();
+	});
+
+	it("svid check is not ready once the certificate has expired", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "svid-"));
+		const cert = join(dir, "svid.pem");
+		writeFileSync(
+			cert,
+			// Self-signed, notAfter 2020-01-02.
+			`-----BEGIN CERTIFICATE-----
+MIIBbjCCAROgAwIBAgIUc6J7FD5/7WMOMsxmKRm0pUOmfJAwCgYIKoZIzj0EAwIw
+DDEKMAgGA1UEAwwBdDAeFw0yMDAxMDEwMDAwMDBaFw0yMDAxMDIwMDAwMDBaMAwx
+CjAIBgNVBAMMAXQwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQbMNfVwSXOZx5d
+rDfPPbg8n/VfyBRxtCGbidW+pQQFea6gissszctWwc0PccPSgY8wcdVq5uyE7biv
+ReSf4DYao1MwUTAdBgNVHQ4EFgQUugKln4D5/5wMX4OzeuBBWfkLeKswHwYDVR0j
+BBgwFoAUugKln4D5/5wMX4OzeuBBWfkLeKswDwYDVR0TAQH/BAUwAwEB/zAKBggq
+hkjOPQQDAgNJADBGAiEAh+eLcCHf/mkpGsqetbSA4pGyugkzhD6yBm/O1OcD04sC
+IQC2HhfiumYFB3cRq0RG73ODF2a+Uk3iR2tFt9BoanMLfQ==
+-----END CERTIFICATE-----
+`
+		);
+		const env = {
+			TLS_KEY_PATH: cert,
+			TLS_CERT_PATH: cert,
+			TLS_CA_PATH: cert,
+		};
+		try {
+			await expect(svidReadinessCheck(env).check()).resolves.toBe(false);
+		} finally {
+			rmSync(dir, { recursive: true });
+		}
 	});
 });

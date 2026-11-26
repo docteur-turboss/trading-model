@@ -1,5 +1,4 @@
 import { afterAll, beforeEach, describe, expect, it } from "@jest/globals";
-import type { Message } from "@trading-model/contracts/message-types";
 import Redis from "ioredis";
 import { BusConsumer } from "../../src/bus/consumer";
 import { DeadStreams } from "../../src/bus/dead-streams";
@@ -8,12 +7,12 @@ import { RedisMessageJournal } from "../../src/bus/redis-journal";
 import { deadLetterError } from "../../src/shared/errors";
 
 const mockServiceIdentity = {
-	serviceName: "financial-scraper",
+	serviceName: "trader-trainer",
 	instanceId: "instance-1",
 };
 
 const PREFIX = "bus-library-db-spec";
-const TOPIC = "test.topic";
+const TOPIC = "training.model.published";
 const clients: Redis[] = [];
 
 function journal(): RedisMessageJournal {
@@ -48,39 +47,6 @@ afterAll(async () => {
 });
 
 describe("bus library — real Redis", () => {
-	it("should deliver a published message once per service while message-manager reads the same group", async () => {
-		const library = journal();
-		const seen: string[] = [];
-		const consumer = new BusConsumer({
-			journal: library,
-			deadStreams: new DeadStreams(library),
-			service: "trader-trainer",
-			handle: async (message: Message) => {
-				seen.push(`library:${message.payload}`);
-			},
-		});
-		await consumer.start([TOPIC]);
-		// message-manager's worker: same journal code, same group.
-		const worker = journal();
-		const group = { topic: TOPIC as never, service: "trader-trainer" };
-
-		for (let i = 0; i < 20; i++) {
-			await publishToBus(journal(), i, metadata);
-		}
-		for (let round = 0; seen.length < 20 && round < 100; round++) {
-			for (const entry of await worker.readNew(group, "mm", 5)) {
-				seen.push(`mm:${entry.message.payload}`);
-				await worker.ack(group, entry.id);
-			}
-			await new Promise((resolve) => setTimeout(resolve, 20));
-		}
-		await consumer.stop();
-
-		expect(seen.map((item) => item.split(":")[1]).sort()).toEqual(
-			Array.from({ length: 20 }, (_, i) => String(i)).sort()
-		);
-	});
-
 	it("should move a rejected message to the dead stream, replay it to its group only, then delete it", async () => {
 		const library = journal();
 		const streams = new DeadStreams(library);

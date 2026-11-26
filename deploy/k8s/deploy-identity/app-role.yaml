@@ -22,10 +22,10 @@ rules:
   - apiGroups: [""]
     resources: [events]
     verbs: [get, list, watch]
-  # deploy-release.sh rollback replaces the stuck pods of a Redis StatefulSet.
+  # deploy-release.sh: rollback replaces the stuck pods of a Redis StatefulSet; prepull creates a throwaway pod.
   - apiGroups: [""]
     resources: [pods]
-    verbs: [get, list, watch, delete]
+    verbs: [get, list, watch, create, delete]
   - apiGroups: [""]
     resources: [pods/exec]
     verbs: [create]

@@ -31,6 +31,8 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
       latest: ${{ steps.version.outputs.latest }}
       registry: ${{ steps.version.outputs.registry }}
+      services: ${{ steps.version.outputs.services }}
+      images: ${{ steps.version.outputs.images }}
       scan_tag: ${{ steps.version.outputs.scan_tag }}
     steps:
       - name: Checkout repository
@@ -60,11 +62,17 @@ jobs:
             [ "$version" = "$highest" ] && latest=true
           fi
           registry="${IMAGE_REGISTRY:-ghcr.io/$OWNER}"
+          # Single source of the image list: deploy.yml IMAGES. Services have a services/<name> directory; tools do not.
+          list=$(yq '.env.IMAGES' .github/workflows/deploy.yml)
+          services=$(for i in $list; do [ -d "services/$i" ] && echo "$i"; done | jq -R . | jq -sc .)
+          images=$(for i in $list; do echo "$i"; done | jq -R . | jq -sc .)
           {
             echo "tag=$version"
             echo "latest=$latest"
             echo "scan_tag=scan-$GITHUB_RUN_ID"
             echo "registry=${registry,,}"
+            echo "images=$images"
+            echo "services=$services"
           } >> "$GITHUB_OUTPUT"
           echo "Release $version to ${registry,,} (latest: $latest)"
 
@@ -114,16 +122,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service:
-          - message-manager
-          - financial-scraper
-          - trader-trainer
-          - api-gateway
-          - audit-logger
-          - dlq-service
-          - model-evaluator
-          - risk-execution
-          - decision-consumer
+        service: ${{ fromJSON(needs.version.outputs.services) }}
 
     steps:
       - name: Checkout repository
@@ -155,8 +154,9 @@ jobs:
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
-          file: services/${{ matrix.service }}/Dockerfile
+          file: Dockerfile
           build-args: |
+            SERVICE=${{ matrix.service }}
             BUILD_VERSION=${{ needs.version.outputs.tag }}
             GIT_SHA=${{ github.sha }}
           push: true
@@ -269,19 +269,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image:
-          - message-manager
-          - financial-scraper
-          - trader-trainer
-          - api-gateway
-          - audit-logger
-          - dlq-service
-          - model-evaluator
-          - risk-execution
-          - decision-consumer
-          - spire-tools
-          - backup-tools
-          - db-migrate
+        image: ${{ fromJSON(needs.version.outputs.images) }}
     steps:
       - name: Install cosign
         uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3

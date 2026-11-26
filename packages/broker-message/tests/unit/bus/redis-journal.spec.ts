@@ -282,6 +282,29 @@ describe("RedisMessageJournal", () => {
 		expect(redis.call).toHaveBeenCalledWith("WAIT", "1", "2000");
 	});
 
+	it("should cover concurrent appends with one WAIT, resolving each only after it, and refuse them all together", async () => {
+		let answer = 1;
+		const { journal, redis } = setup(
+			async (command) =>
+				command === "WAIT" ? answer : command === "XADD" ? "9-0" : "OK",
+			1
+		);
+		const append = () =>
+			journal.append(createMockMessage("payload"), ["trader-trainer"]);
+
+		await Promise.all(Array.from({ length: 5 }, append));
+		const waits = () =>
+			redis.call.mock.calls.filter(([command]) => command === "WAIT").length;
+		expect(waits()).toBe(1);
+
+		answer = 0;
+		const refused = await Promise.allSettled(Array.from({ length: 5 }, append));
+		expect(refused.every((r) => r.status === "rejected")).toBe(true);
+		expect(waits()).toBe(2);
+		const xdels = redis.call.mock.calls.filter(([c]) => c === "XDEL").length;
+		expect(xdels).toBe(5);
+	});
+
 	it("should list the registered groups", async () => {
 		await expect(setup().journal.groups()).resolves.toEqual([GROUP]);
 	});

@@ -5,6 +5,7 @@ import {
 	newYorkLocalToUtc,
 	notBeforeCollection,
 } from "./cftc-cot-legacy";
+import { DAY_MS, METRIC_PATTERN } from "./common";
 
 /** `GET https://api.eia.gov/v2/<route>/data/?facets[series][]=<id>`: weekly rows, the value a string. */
 const Rows = z.object({
@@ -21,8 +22,6 @@ const Rows = z.object({
 		),
 	}),
 });
-
-const DAY_MS = 86_400_000;
 
 /**
  * The Weekly Petroleum Status Report comes out Wednesday 10:30 ET after the
@@ -56,7 +55,7 @@ const US_CENTRE = {
  */
 export const EIA_OPEN_DATA: SourceAdapter = {
 	dimensions: ["contextual"],
-	params: z.object({ metric: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/) }),
+	params: z.object({ metric: z.string().regex(METRIC_PATTERN) }),
 	normalize(payload, { params, ingestedAt }) {
 		return Rows.parse(payload).response.data.map((row, index) => ({
 			key: `${row.period}|${row.value}`,

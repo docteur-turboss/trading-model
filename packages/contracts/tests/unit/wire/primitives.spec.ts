@@ -1,21 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { isNonEmptyString, isObject } from "../../../src/wire/primitives";
-
-describe("isNonEmptyString", () => {
-	it.each([
-		["hello", true],
-		["a", true],
-		[" ", false],
-		["", false],
-		[123, false],
-		[null, false],
-		[undefined, false],
-		[{}, false],
-		[[], false],
-	])("returns %p for %p", (input, expected) => {
-		expect(isNonEmptyString(input)).toBe(expected);
-	});
-});
+import { isObject } from "../../../src/wire/primitives";
 
 describe("isObject", () => {
 	it.each([

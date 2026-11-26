@@ -10,8 +10,8 @@ Map of the regulations that apply to the platform. Processing activities: [Data 
 |---|---|---|---|
 | **GDPR** (EU) 2016/679 | Data protection and privacy | ✅ Yes | Platform operates in EU jurisdiction. Art. 30 register required regardless of data type |
 | **MiFID II** Directive 2014/65/EU | Financial instruments, algorithmic trading | ⚠️ If operated by an investment firm / financial entity; research by a natural person today | Algorithmic trading research on financial instruments |
-| **MAR** Regulation (EU) 596/2014 | Market abuse prevention | ⚠️ If operated by an investment firm / financial entity; research by a natural person today | Agents could generate manipulative patterns |
-| **DORA** Regulation (EU) 2022/2554 | Digital operational resilience | ⚠️ If operated by an investment firm / financial entity; research by a natural person today | ICT risk management, incident reporting, resilience testing |
+| **MiCA** Regulation (EU) 2023/1114, Title VI (Art. 86-92) | Market abuse in crypto-assets (BTCUSDT, ETH…) | ⚠️ Would apply to any person from the first real trading of crypto-assets; not triggered while there is no live execution | Agents could generate manipulative patterns on traded pairs. Applicability to the operating entity to be confirmed by counsel |
+| **MAR** Regulation (EU) 596/2014 | Market abuse prevention | ⚠️ Only for financial instruments (equities via Twelve Data), if operated by an investment firm / financial entity; research by a natural person today | Same agent patterns, on instruments within MAR scope |
 | **PCI-DSS** | Payment card data | ❌ No | No payment card data processed |
 | **CCPA** (California) | Consumer privacy | ❌ No | No consumer data processed; only truncated caller IPs in API access logs |
 | **LGPD** (Brazil) | Data protection | ❌ No | No Brazilian personal data. GDPR equivalence sufficient |
@@ -41,6 +41,8 @@ Map of the regulations that apply to the platform. Processing activities: [Data 
 
 ### 2.3 DORA Control Map
 
+DORA (Regulation (EU) 2022/2554) binds authorised financial entities, not an unauthorised natural person: this map is a good-practice reference, not an obligation.
+
 | Article | Requirement | Platform Control |
 |---|---|---|
 | **Art. 5-8** | ICT risk management framework | ISMS aligned with ISO 27001 (see [Information Security Policy](information-security-policy.md)) |
@@ -69,7 +71,5 @@ Map of the regulations that apply to the platform. Processing activities: [Data 
 | Authority | Regulation | Notification Period |
 |---|---|---|
 | **CNIL** (FR) | GDPR | 72h for personal data breach (Art. 33) |
-| **AMF** (FR) | MiFID II, MAR | 24h for algorithmic trading incidents |
-| **ACPR** (FR) / **ECB** | DORA | 24h for major ICT incidents |
 
 Not applicable at current research stage — contacts listed for production deployment readiness.
