@@ -32,6 +32,11 @@ jobs:
     outputs:
       k8s: ${{ steps.changes.outputs.k8s }}
     steps:
+      # The free CI minutes hold only while the repository is public; a private one is allowed, not silent.
+      - if: ${{ github.event.repository.private }}
+        env:
+          PRIVATE: ${{ github.event.repository.private }}
+        run: echo "::warning::Repository private=$PRIVATE, Actions minutes are billed (docs/deployment/KUBERNETES.md)"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false

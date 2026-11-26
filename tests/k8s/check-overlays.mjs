@@ -322,6 +322,14 @@ for (const env of OVERLAYS) {
 	if ((riskValue("DEPLOYMENT_ENV") === "production") !== (env === "production")) errors.push(`${env}: risk-execution-config DEPLOYMENT_ENV=${riskValue("DEPLOYMENT_ENV")}, only the production overlay may be production`);
 	if (env !== "production" && /BROKER_API_(KEY|SECRET)/.test(rendered)) errors.push(`${env}: live broker keys outside the production overlay (ADR-0064 §6)`);
 
+	// Issue #2821: replica-set members of production never share a node.
+	for (const name of ["redis", "redis-sentinel", "mongo-audit"]) {
+		const sts = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === name);
+		if (env === "production" && sts && !spreadsAcrossNodes(sts.text)) {
+			errors.push(`production: StatefulSet ${name} lacks topologySpreadConstraints on kubernetes.io/hostname (DoNotSchedule)`);
+		}
+	}
+
 	// Issue #809 (ADR-0062): production runs the alerting path twice, Alertmanager as one cluster.
 	for (const name of ["alertmanager", "prometheus"]) {
 		const sts = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === name);
