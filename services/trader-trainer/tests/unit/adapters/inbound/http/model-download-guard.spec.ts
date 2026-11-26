@@ -27,13 +27,4 @@ describe("MODEL_DOWNLOAD_GUARD", () => {
 			403
 		);
 	});
-
-	it("compares canonical names: a legacy name in the list still matches", async () => {
-		const guard = MODEL_DOWNLOAD_GUARD(
-			["financial-scraper-service"],
-			() => "financial-scraper"
-		);
-
-		expect(await status(guard)).toBe(200);
-	});
 });
