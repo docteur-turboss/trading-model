@@ -102,13 +102,12 @@ services:
     container_name: trading-redis
     restart: unless-stopped
     mem_limit: 512m
-    # Snapshots (RDB) always; the append-only file is per environment:
-    # dev leaves it off, a compose host running staging/production sets
-    # REDIS_APPENDONLY=yes like the K8s StatefulSet (deploy/k8s/infra/redis.yaml).
+    # Snapshots (RDB) always, append-only file on by default (journal survives a restart);
+    # REDIS_APPENDONLY=no turns it off for a disposable stack.
     command:
       - redis-server
       - --appendonly
-      - ${REDIS_APPENDONLY:-no}
+      - ${REDIS_APPENDONLY:-yes}
       # A full Redis refuses writes (a publish fails visibly) instead of evicting journal entries (ADR-0073).
       # 384mb = 75 % of mem_limit: room for the AOF rewrite fork, so Redis refuses writes before an OOM kill.
       - --maxmemory
@@ -125,7 +124,7 @@ services:
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 5
 
   # ---------------------------------------------------------------------------
@@ -562,6 +561,8 @@ services:
     depends_on:
       spiffe-helper-risk:
         condition: service_started
+      redis:
+        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  Decision Consumer — paper decisions of the promoted models, intents to risk-execution (ADR-0049 option C, ADR-0088)
@@ -593,6 +594,8 @@ services:
     depends_on:
       spiffe-helper-decision:
         condition: service_started
+      redis:
+        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  SPIFFE Helpers — spiffe-helper sidecars (ADR-0011)
