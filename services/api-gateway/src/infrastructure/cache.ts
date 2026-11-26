@@ -4,8 +4,8 @@ import type { DurationMs } from "@trading-model/primitives/primitives";
 export interface ResponseCacheEntry<TData = unknown> {
 	data: TData;
 	status: HttpStatusCode;
-	/** JSON body length in UTF-16 code units (about its bytes), counted against `MAX_BYTES`. */
-	bytes?: number;
+	/** JSON body length in UTF-16 code units (not bytes), counted against `MAX_BYTES`. */
+	chars?: number;
 	expiresAt: number;
 }
 
@@ -43,7 +43,7 @@ export class ResponseCache {
 		value: Omit<ResponseCacheEntry<TData>, "expiresAt">
 	): void {
 		this._remove(key);
-		const bytes = value.bytes ?? 0;
+		const bytes = value.chars ?? 0;
 		if (bytes > MAX_BYTES) {
 			return;
 		}
@@ -59,7 +59,7 @@ export class ResponseCache {
 	}
 
 	private _remove(key: string): void {
-		this._bytes -= this._store.get(key)?.bytes ?? 0;
+		this._bytes -= this._store.get(key)?.chars ?? 0;
 		this._store.delete(key);
 	}
 }

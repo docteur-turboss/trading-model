@@ -99,7 +99,7 @@ function tryCacheResponse(
 		cache.set(ctx.cacheKey, {
 			data: result.body,
 			status: result.status,
-			bytes: result.body.length,
+			chars: result.body.length,
 		});
 	}
 }

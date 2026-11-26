@@ -64,7 +64,7 @@ export interface ResponseCachePort {
 	get(key: string): { data: unknown; status: HttpStatusCode } | undefined;
 	set(
 		key: string,
-		value: { data: unknown; status: HttpStatusCode; bytes?: number }
+		value: { data: unknown; status: HttpStatusCode; chars?: number }
 	): void;
 }
 

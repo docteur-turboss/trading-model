@@ -31,7 +31,7 @@ const ErrorBody = z.object({
 
 /**
  * Daily prices of one equity or ETF from Twelve Data (free key, internal use,
- * ADR-0078): sessions as `market` signals, `period` = the session day.
+ * ADR-0080): sessions as `market` signals, `period` = the session day.
  * The API gives no release time: live and backfill bars alike are dated 21:00
  * UTC of their day, after the US close all year, so a point-in-time read sees
  * a bar no earlier than the session ended and one bar has one id. `close` is
