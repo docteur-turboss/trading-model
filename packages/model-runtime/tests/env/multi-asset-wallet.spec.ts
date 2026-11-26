@@ -20,7 +20,7 @@ describe("MultiAssetWallet", () => {
 	test("one asset gives the single-asset wallet results", () => {
 		const mono = createWallet(params);
 		const multi = new MultiAssetWallet(params, ["A"]);
-		const steps: Array<["buy" | "sell", number, number]> = [
+		const steps: ["buy" | "sell", number, number][] = [
 			["buy", 3, 52],
 			["buy", 100, 51],
 			["sell", 2, 55],

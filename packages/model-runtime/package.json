@@ -30,6 +30,7 @@
     "./noise": "./dist/noise.js",
     "./replay": "./dist/replay.js",
     "./replay-metrics": "./dist/replay-metrics.js",
+    "./sector-replay": "./dist/sector-replay.js",
     "./model-api/scraper-client": "./dist/model-api/scraper-client.js",
     "./model-api/trainer-client": "./dist/model-api/trainer-client.js",
     "./signals/candle-pages": "./dist/signals/candle-pages.js",
