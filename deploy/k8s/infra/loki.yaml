@@ -58,12 +58,15 @@ spec:
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop:
                 - ALL
             seccompProfile:
               type: RuntimeDefault
           volumeMounts:
+            - name: tmp
+              mountPath: /tmp
             - name: config
               mountPath: /etc/loki
               readOnly: true
@@ -77,6 +80,8 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
       volumes:
+        - name: tmp
+          emptyDir: {}
         - name: config
           configMap:
             name: loki-config
