@@ -1,5 +1,6 @@
 import { describe, expect, test } from "@jest/globals";
 import type { PositiveInt } from "@trading-model/primitives/primitives";
+import { policyNetworkConfig } from "@trading-model/model-runtime/replay";
 import { createDefaultGenome } from "../../../../src/domain/genetic-algorithm/factory";
 import type { LamarckGenome } from "../../../../src/domain/genetic-algorithm/genome";
 import { crossoverNetwork } from "../../../../src/domain/genetic-algorithm/genome-network/crossover";
@@ -7,6 +8,8 @@ import {
 	mutateNetworkStructure,
 	TOPOLOGY_BOUNDS,
 } from "../../../../src/domain/genetic-algorithm/genome-network/mutation";
+
+import { NeuralNetwork } from "../../../../src/domain/neural-network/neural-network";
 
 const base = createDefaultGenome("t") as LamarckGenome;
 const layer = base.network.hiddenLayers[0];
@@ -16,37 +19,29 @@ const withLayers = (neurons: number[]): LamarckGenome["network"] => ({
 });
 
 describe("topology genes (FEATURE_TOPOLOGY_GENES)", () => {
-	const mutate = (topologyGene?: boolean) =>
+	const mutate = (topologyGene?: boolean, neurons = [500, 500, 500, 500, 500, 2]) =>
 		mutateNetworkStructure({
 			genome: {
 				...base,
-				network: withLayers([500, 500, 500, 500, 500, 2]),
-				gaControl: { ...base.gaControl, topologyGene },
+				network: withLayers(neurons),
+				gaControl: {
+					...base.gaControl,
+					...(topologyGene !== undefined && { topologyGene }),
+				},
 			},
 			mutationConfig: base.mutation,
 			rng: () => 0.99,
 		}).hiddenLayers.map((l) => l.neurons);
 
-	test("flag off: no bound; flag on: depth and width clamped", () => {
-		expect(mutate(false)).toEqual([500, 500, 500, 500, 500, 2]);
-		expect(mutate(true)).toEqual([
-			TOPOLOGY_BOUNDS.maxNeurons,
-			TOPOLOGY_BOUNDS.maxNeurons,
-			TOPOLOGY_BOUNDS.maxNeurons,
-			TOPOLOGY_BOUNDS.maxNeurons,
-		]);
-		expect(
-			mutateNetworkStructure({
-				genome: {
-					...base,
-					network: withLayers([2]),
-					gaControl: { ...base.gaControl, topologyGene: true },
-				},
-				mutationConfig: base.mutation,
-				rng: () => 0.99,
-			}).hiddenLayers[0].neurons
-		).toBe(TOPOLOGY_BOUNDS.minNeurons);
+	test("flag off or absent: same genome, no bound; on: clamped", () => {
+		expect(mutate(false)).toEqual(mutate());
+		expect(mutate()).toEqual([500, 500, 500, 500, 500, 2]);
+		expect(mutate(true)).toEqual(Array(4).fill(TOPOLOGY_BOUNDS.maxNeurons));
+		expect(mutate(true, [2])).toEqual([TOPOLOGY_BOUNDS.minNeurons]);
 	});
+
+	const net = (n: LamarckGenome["network"]) =>
+		new NeuralNetwork({ ...policyNetworkConfig(n), rng: () => 0.5 });
 
 	test.each([
 		[
@@ -55,18 +50,29 @@ describe("topology genes (FEATURE_TOPOLOGY_GENES)", () => {
 		],
 		[[64, 32, 16, 8], [16]],
 		[[10], [128, 8]],
-	])("parents of depth %j and %j cross into a valid network", (a, b) => {
+	])("parents %j and %j cross into a valid network", (a, b) => {
 		for (const r of [0.1, 0.9]) {
 			const child = crossoverNetwork({
 				left: withLayers(a),
 				right: withLayers(b),
 				rng: () => r,
 			});
-			const depth = child.hiddenLayers.length;
-			expect(depth).toBeLessThanOrEqual(Math.max(a.length, b.length));
-			for (const l of child.hiddenLayers) {
-				expect(l.neurons).toBeGreaterThanOrEqual(1);
-			}
+			expect(child.hiddenLayers.length).toBeLessThanOrEqual(
+				Math.max(a.length, b.length)
+			);
+			const n = net(child);
+			expect(() => n.setWeights(n.getWeights())).not.toThrow();
 		}
+	});
+
+	test("evolved topology: weights reloaded give the same output", () => {
+		const g = withLayers([128, 8]);
+		const x = new Float32Array(g.inputDim).fill(0.3);
+		const a = net(g);
+		const b = new NeuralNetwork({ ...policyNetworkConfig(g), rng: () => 0.1 });
+		b.setWeights(a.getWeights());
+		expect(Array.from(b.forward(x).output)).toEqual(
+			Array.from(a.forward(x).output)
+		);
 	});
 });

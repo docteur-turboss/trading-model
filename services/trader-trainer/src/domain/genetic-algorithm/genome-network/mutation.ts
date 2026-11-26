@@ -175,7 +175,6 @@ function _maybeMutateNormalization(
 
 /** FEATURE_TOPOLOGY_GENES (ADR-0076 §4): fixed, written bounds of the depth and width genes. */
 export const TOPOLOGY_BOUNDS = {
-	minLayers: 1,
 	maxLayers: 4,
 	minNeurons: 8,
 	maxNeurons: 128,

@@ -166,7 +166,7 @@ async function runSegment(
 	klines: Kline[],
 	run: { segment: number; fitness: FitnessType; variant: string; seed: number }
 ): Promise<SegmentResult> {
-	const observePosition = run.variant !== "hidden"; // `topology` = shown + FEATURE_TOPOLOGY_GENES
+	const observePosition = run.variant !== "hidden";
 	const end = klines.length - (opts.segments - 1 - run.segment) * opts.test;
 	const start = end - opts.test - opts.window;
 	if (start < 0) {
