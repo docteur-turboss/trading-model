@@ -60,7 +60,7 @@ rate(tt_training_sessions_total[12h])`.
 
 | SLI                 | Target   | Window | Alerts |
 | ------------------- | -------- | ------ | ------ |
-| Availability        | ≥ 99.9%  | 30d    | fast: 5xx > 1.44% over 1h and 5m (14.4x); slow: > 0.6% over 6h and 30m (6x) |
+| Availability        | ≥ 99%    | 30d    | fast: 5xx > 14.4% over 1h and 5m (14.4x); slow: > 6% over 6h and 30m (6x) |
 | Latency P95         | ≤ 2s     | 30d    | fast: P95 > 5s over 5m; slow: P95 > 3s over 1h (single window) |
 | Message Delivery    | ≥ 99.95% | 30d    | `MessageDeliveryLowSuccessRate`: < 99.5% over 5m (no slow burn) |
 | Training Completion | ≥ 99%    | 30d    | `TrainingCompletionRateLow` (warning): < 95% over 12h; `TrainingCompletionRateCritical` (critical, pages): < 50% over 12h (no slow burn) |
@@ -74,11 +74,11 @@ guard first.
 
 The burn-rate rules and the budget read the recording rules `slo:sli_error:ratio_rate{5m,30m,1h,6h,30d}`, which exclude `/ping`, `/health/ready` and `/metrics` and fall back to the blackbox probe failure rate of the same `job` when a service receives no requests (full outage); `ratio_rate30d` is the 30-day mean of `ratio_rate1h`, not weighted by traffic.
 
-### Availability SLO (99.9%)
+### Availability SLO (99%)
 
 Multi-window multi-burn-rate: an alert fires only when the long window (the
 budget is really burning) and the short window (it is still burning) both
-exceed the threshold. Thresholds are the burn rate times the budget (0.1%).
+exceed the threshold. Thresholds are the burn rate times the budget (1%, about 7 h 12 min over 30 days).
 
 - Fast burn, 14.4x: windows 1h and 5m, `for: 2m`, critical (2% of a 30d budget in 1h).
 - Slow burn, 6x: windows 6h and 30m, `for: 15m`, warning (5% of a 30d budget in 6h).
@@ -106,7 +106,11 @@ below.
   Monday 09:00).
 - **Error budget:** time lost outside covered hours counts against the SLOs
   above like any other time. A night incident that burns more than the budget
-  policy allows triggers the same freeze and postmortem.
+  policy allows triggers the same freeze and postmortem. The availability
+  target is 99% rather than 99.9% for this reason (issue #2735): a 43-minute
+  budget would be spent by any night incident, so the freeze would never end.
+  An incident that lasts a whole weekend still exceeds the 7 h 12 min budget,
+  by design.
 
 ### Losses accepted while nobody reacts
 

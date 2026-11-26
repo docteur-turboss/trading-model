@@ -18,7 +18,7 @@ The trading-model platform processes machine-generated financial market data and
 |---|---|---|
 | Prevent unauthorised access to platform services | mTLS authentication coverage | 100% of service-to-service HTTP communication (database clients excluded, ADR-0060) |
 | Ensure data integrity in transit and at rest | Encryption coverage | 100% of service-to-service HTTP in transit (TLS 1.3) and of the SPIRE datastore, backups and data disks at rest; database client traffic is not encrypted (ADR-0060) |
-| Maintain service availability | Uptime per service | ≥ 99.9% (production target) |
+| Maintain service availability | Uptime per service | ≥ 99% over 30 days (production target, [SLO](../operations/slo.md)) |
 | Detect and respond to security incidents | Time to detect (TTD) | ≤ 15 minutes |
 | Ensure secure software development lifecycle | Critical/high vulnerabilities in production | 0 |
 | Maintain immutable audit trail | Audit event capture rate | 100% of inter-service messages |
