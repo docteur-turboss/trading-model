@@ -94,16 +94,20 @@ tls_cli_args() {
 # redis-cli against a data node / a sentinel, authenticated when ACLs are on.
 node_cli() {
 	if [ -n "${REDIS_INTERNAL_PASSWORD:-}" ]; then
+		# shellcheck disable=SC2046 # tls_cli_args prints several flags, the split is intended
 		REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli $(tls_cli_args) --user ha "$@"
 	else
+		# shellcheck disable=SC2046 # tls_cli_args prints several flags, the split is intended
 		redis-cli $(tls_cli_args) "$@"
 	fi
 }
 
 sentinel_cli() {
 	if [ -n "${REDIS_INTERNAL_PASSWORD:-}" ]; then
+		# shellcheck disable=SC2046 # tls_cli_args prints several flags, the split is intended
 		REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli $(tls_cli_args) "$@"
 	else
+		# shellcheck disable=SC2046 # tls_cli_args prints several flags, the split is intended
 		redis-cli $(tls_cli_args) "$@"
 	fi
 }

@@ -109,6 +109,9 @@ jobs:
           echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $RUNNER_TEMP/actionlint.tgz" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/actionlint.tgz" -C "$RUNNER_TEMP" actionlint
           "$RUNNER_TEMP/actionlint" .github/workflows/*.yml
+      # Warning level: the info/style notes (SC2015, SC2016, SC1091) are idioms the scripts use on purpose (#2751).
+      - name: Shell scripts (shellcheck, warnings and errors)
+        run: git ls-files 'scripts/*.sh' 'deploy/**/*.sh' | xargs shellcheck -S warning
       # actionlint accepts arithmetic in timeout-minutes; GitHub refuses the file (run without jobs, #2111).
       - name: No arithmetic in timeout-minutes expressions
         run: |

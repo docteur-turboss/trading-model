@@ -84,6 +84,7 @@ TS_PATTERN='[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}'
 # Relative paths (inside the bucket prefix) of component `$1` for run `$2`,
 # with its PITR starting points when --pitr.
 component_files() {
+  # shellcheck disable=SC2034 # label is read by component_files branches per component
   local label
   case "$1" in
     mongodb-audit)

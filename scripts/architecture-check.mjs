@@ -24,8 +24,8 @@
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { WORKSPACE_ROOTS, walk } from './lib/fs.mjs';
 import ts from 'typescript';
+import { WORKSPACE_ROOTS, walk } from './lib/fs.mjs';
 
 const SCOPE = '@trading-model/';
 const STARTUP = new Set(['index.ts', 'server.ts', 'telemetry.ts']);
