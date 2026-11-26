@@ -49,7 +49,7 @@ Every service instance is provisioned with an X.509 SVID issued by the SPIRE Ser
 
 ### 4.1 Default ACL
 
-The default ACL maps each target service to the callers allowed to reach it (`"*"` = any platform service). Its single source is [`packages/http/src/acl-config.ts`](../../packages/http/src/acl-config.ts).
+The default ACL maps each target service to the callers allowed to reach it. Its single source is [`packages/http/src/acl-config.ts`](../../packages/http/src/acl-config.ts).
 
 **Enforcement:** Every incoming request passes through `mtls-authorization.ts` middleware. If the caller's identity is not found in the target service's authorised callers, the request is rejected with HTTP 403.
 
