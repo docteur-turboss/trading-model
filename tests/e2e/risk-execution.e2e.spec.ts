@@ -155,16 +155,16 @@ describe("risk-execution E2E", () => {
 				"decision-consumer",
 			],
 			{
-				stdio: "ignore",
+				stdio: "inherit",
 				env: { ...process.env, PROMOTED_MODELS: `${SYMBOL}@${version}` },
 			}
 		);
 
-		const held = await eventually(
+		// `eventually` only returns a defined value: a non-zero position.
+		await eventually(
 			"a paper position opened by the promoted model",
 			() => status().positions[SYMBOL] || undefined,
 			{ timeoutMs: DECISION_TIMEOUT_MS, intervalMs: 5_000 }
 		);
-		expect(held).not.toBe(0);
 	});
 });
