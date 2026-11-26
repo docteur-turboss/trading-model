@@ -7,6 +7,6 @@
     "lib": ["es2022"],
     "rootDir": "."
   },
-  "include": ["src/**/*", "tests/**/*", "bench/**/*"],
+  "include": ["src/**/*", "tests/**/*", "bench/**/*", "scripts/**/*"],
   "exclude": ["node_modules", "dist"]
 }
