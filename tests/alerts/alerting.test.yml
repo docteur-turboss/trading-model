@@ -290,6 +290,9 @@ tests:
   - name: db-index-build job failed
     interval: 1m
     input_series:
+      - series: 'kube_job_failed{job="kube-state-metrics",namespace="trading-model",job_name="db-index-build",condition="true"}'
+        values: '0x5 1x10'
+      # one failed pod retried by backoffLimit, Job then succeeds: condition never true
       - series: 'kube_job_status_failed{job="kube-state-metrics",namespace="trading-model",job_name="db-index-build"}'
         values: '0x5 1x10'
     alert_rule_test:

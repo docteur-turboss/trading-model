@@ -88,7 +88,7 @@ Common causes:
 
 The previous artifacts stay valid meanwhile: nothing serving them is affected.
 
-## TrainerEventLoopLagHigh
+## EventLoopLagHigh (trainer)
 
 `EventLoopLagHigh` on the trainer (p99 above 200 ms for 5 min). The max
 (`nodejs_eventloop_lag_max_seconds`, reset at each scrape) shows isolated long
@@ -222,7 +222,7 @@ Compose: `docker logs trading-trainer 2>&1 | grep ...` and
 | `Failed to store model artifact` | Volume: see [ModelArtifactWriteFailing](#modelartifactwritefailing) |
 | `Model not stored: the best genome has no trained weights` | Every session ends without trained weights (`result="skipped"`): a training regression, check the release notes of the running version |
 | `Market data is stale: training paused`, no session at all | No fresh candles: `TrainerMarketDataStale` fires too, follow [runbook-market-data-stale](runbook-market-data-stale.md) |
-| No line at all | The loop does not run on the leader: the holder of the Lease is stuck (event loop, see [TrainerEventLoopLagHigh](#trainereventlooplaghigh)); delete that pod to hand the Lease over |
+| No line at all | The loop does not run on the leader: the holder of the Lease is stuck (event loop, see [EventLoopLagHigh (trainer)](#eventlooplaghigh-trainer)); delete that pod to hand the Lease over |
 
 **Resolution check:** `sum(increase(tt_model_artifacts_total{result="stored"}[9h]))`
 is above 0 again; the alert resolves at the next evaluation.

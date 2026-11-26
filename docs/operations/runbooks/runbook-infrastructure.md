@@ -251,7 +251,7 @@ kubectl -n $NS top pod -l app.kubernetes.io/name=<job>
 ```
 
 Causes: CPU limit, JSON parsing, GC, memory pressure. Trainer: see
-[runbook-trainer](runbook-trainer.md#trainereventlooplaghigh).
+[runbook-trainer](runbook-trainer.md#eventlooplaghigh-trainer).
 
 ## DbIndexBuildFailed
 

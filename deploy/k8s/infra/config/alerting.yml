@@ -510,7 +510,7 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#eventlooplaghigh'
 
       - alert: DbIndexBuildFailed
-        expr: max(kube_job_status_failed{job_name=~"db-index-build.*"}) > 0
+        expr: max(kube_job_failed{job_name=~"db-index-build.*",condition="true"}) > 0
         labels:
           severity: warning
         annotations:
