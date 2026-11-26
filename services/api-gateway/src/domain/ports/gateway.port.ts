@@ -13,17 +13,24 @@ export interface ForwardableRequest {
 	apiKeyName?: string | null;
 }
 
-/** Forwards a request to a resolved service and returns its raw answer. */
-type ForwardRequestPort = (opts: {
+/** Call the forward port makes: the request, its resolved target and the path to hit. */
+export interface ProxyRequestOptions {
 	req: ForwardableRequest;
 	target: ResolvedEndpoint;
 	path: string;
+	/** Service whose SVID the target must present. */
 	serviceName: string;
-}) => Promise<{
+}
+
+/** Raw upstream answer. */
+export interface ProxyResult {
 	status: HttpStatusCode;
 	body: string;
 	headers?: Record<string, string | string[] | undefined>;
-}>;
+}
+
+/** Forwards a request to a resolved service and returns its raw answer. */
+type ForwardRequestPort = (opts: ProxyRequestOptions) => Promise<ProxyResult>;
 
 /**
  * The upstream answer passed PROXY_MAX_RESPONSE_BYTES: the forward port cut

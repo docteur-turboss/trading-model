@@ -4,19 +4,14 @@ import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { logger } from "@trading-model/http/logger";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import {
+	type ProxyRequestOptions,
+	type ProxyResult,
 	ProxyOverloadedError,
 	UpstreamResponseTooLargeError,
 	UpstreamTimeoutError,
 } from "../../domain/ports/gateway.port";
 import type { Env } from "../../infrastructure/config/env";
-import type { ProxyRequestOptions } from "./proxy-options-builder";
 import { buildProxyOptions } from "./proxy-options-builder";
-
-export interface ProxyResult {
-	status: HttpStatusCode;
-	body: string;
-	headers: Record<string, string | string[]>;
-}
 
 let inFlight = 0;
 

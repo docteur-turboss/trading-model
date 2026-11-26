@@ -52,7 +52,7 @@ jest.mock("../../src/adapters/outbound/proxy-handler", () => ({
 }));
 
 import { createRouter } from "../../src/adapters/inbound/router";
-import type { ProxyResult } from "../../src/adapters/outbound/proxy-handler";
+import type { ProxyResult } from "../../src/domain/ports/gateway.port";
 import { forwardRequest } from "../../src/adapters/outbound/proxy-handler";
 import type { ForwardableRequest } from "../../src/domain/ports/gateway.port";
 import { safeHeaders } from "../../src/shared/proxy-header-sanitizer";
