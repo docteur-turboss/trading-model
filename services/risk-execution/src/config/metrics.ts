@@ -38,6 +38,18 @@ export const RISK_DAILY_LOSS = new promClient.Gauge({
 	labelNames: ["mode"] as const,
 });
 
+export const RISK_EQUITY = new promClient.Gauge({
+	name: "risk_equity",
+	help: "Equity (cash plus positions at their marks), in quote currency",
+	labelNames: ["mode"] as const,
+});
+
+export const RISK_DRAWDOWN_RATIO = new promClient.Gauge({
+	name: "risk_drawdown_ratio",
+	help: "Drawdown from the high-water mark over its limit (drawdownPct x allocatedCapital): 1 = kill switch",
+	labelNames: ["mode"] as const,
+});
+
 export const RISK_OPEN_ORDERS = new promClient.Gauge({
 	name: "risk_open_orders",
 	help: "Orders not yet in a final state",
@@ -48,6 +60,16 @@ export const RISK_TICK_FAILURES = new promClient.Counter({
 	name: "risk_tick_failures_total",
 	help: "Risk ticks that threw (state write, reconciliation), by mode",
 	labelNames: ["mode"] as const,
+});
+
+export const RISK_OUTBOX_PENDING = new promClient.Gauge({
+	name: "risk_outbox_pending",
+	help: "Audit events refused by the bus and waiting in the outbox file",
+});
+
+export const RISK_OUTBOX_DROPPED = new promClient.Counter({
+	name: "risk_outbox_dropped_total",
+	help: "Audit events dropped because the outbox was full (lost from the audit chain)",
 });
 
 export { metricsHandler };

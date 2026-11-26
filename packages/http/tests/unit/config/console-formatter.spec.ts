@@ -101,10 +101,10 @@ describe("formatLogEntry", () => {
 		});
 
 		it("never lets context override service and instance", () => {
-			process.env.SERVICE_NAME = "message-manager";
+			process.env.SERVICE_NAME = "audit-logger";
 			process.env.INSTANCE_ID = "mm-1";
 			expect(parse({ service: "dest", instance: "other" })).toMatchObject({
-				service: "message-manager",
+				service: "audit-logger",
 				instance: "mm-1",
 			});
 		});

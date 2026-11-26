@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- Bun 1.4.4 (tested version, same as the Docker images in `services/*/Dockerfile`; see `bun --version`)
+- Bun 1.4.5 (tested version, same as the Docker images in `Dockerfile`; see `bun --version`)
 - Docker Desktop (for Compose)
 - Git
 
@@ -51,15 +51,11 @@ Edit `.env` and replace every `change-me` / `changeme` value of `.env.example` w
 > generation or `./certs` bundle is required.
 
 ```bash
-# Start message-manager + databases
+# Start the databases
 docker compose up -d redis mysql mongo
-docker compose up -d message-manager
 
-# Verify they're healthy
-# Services only accept mTLS clients with a SPIRE identity: check the
-# container health (its healthcheck pings with the container's SVID)
-docker inspect --format '{{.State.Health.Status}}' trading-message
-# → healthy
+# Verify they're healthy (STATUS shows "healthy")
+docker compose ps redis mysql mongo
 ```
 
 ## Step 2: Start the API Gateway
@@ -93,7 +89,7 @@ You should see the training status.
 
 Messages are published by the services themselves: the gateway only exposes the
 public API (`docs/services/openapi/api-gateway.yaml`), not service-to-service
-routes such as message-manager `POST /message`. Start the scraper, which
+routes such as the discovery `POST /register`. Start the scraper, which
 publishes the market data it collects every `SCRAPE_INTERVAL` (one minute by
 default):
 

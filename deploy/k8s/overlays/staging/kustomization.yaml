@@ -16,8 +16,6 @@ components:
 # Staging image tags: `latest` is only a default for rendering outside deploy.yml.
 # deploy.yml always deploys the digests of the requested release tag (deploy-release.sh render).
 images:
-  - name: ghcr.io/trading-model/message-manager
-    newTag: latest
   - name: ghcr.io/trading-model/financial-scraper
     newTag: latest
   - name: ghcr.io/trading-model/trader-trainer
@@ -25,8 +23,6 @@ images:
   - name: ghcr.io/trading-model/api-gateway
     newTag: latest
   - name: ghcr.io/trading-model/audit-logger
-    newTag: latest
-  - name: ghcr.io/trading-model/dlq-service
     newTag: latest
   - name: ghcr.io/trading-model/model-evaluator
     newTag: latest
@@ -83,7 +79,7 @@ patches:
                   target_label: node
               metric_relabel_configs:
                 - source_labels: [__name__]
-                  regex: 'container_(cpu_usage_seconds_total|memory_working_set_bytes|spec_memory_limit_bytes|oom_events_total)'
+                  regex: 'container_(cpu_usage_seconds_total|cpu_cfs_throttled_periods_total|cpu_cfs_periods_total|memory_working_set_bytes|spec_memory_limit_bytes|oom_events_total)'
                   action: keep
   # Badger outgrew its PVC (#1773), then was OOMKilled every 80 min and re-read
   # ~8 GB of the shared HDD at each start (#2583): staging keeps traces in an
@@ -116,7 +112,7 @@ patches:
                   sizeLimit: 1Gi
   - target:
       kind: StatefulSet
-      name: "^(mysql|redis|redis-sentinel|mongo-dlq|mongo-audit)$"
+      name: "^(mysql|redis|redis-sentinel|mongo-audit)$"
     patch: |-
       - op: replace
         path: /spec/replicas

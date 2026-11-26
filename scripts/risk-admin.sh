@@ -4,7 +4,7 @@
 #        bash scripts/risk-admin.sh engage|rearm --reason "<text>" [--symbol BTCUSDT]
 #        bash scripts/risk-admin.sh reduce --symbol BTCUSDT --quantity 0.5   (sell, allowed under the switch: policy §4.1)
 # Scope is global without --symbol, symbol with it. `status` accepts only the service's own SVID, so it runs
-# from the pod (kubectl exec). `engage`/`rearm`/`reduce` go through the gateway (scope risk:admin, ADR-0059): the
+# from the pod (kubectl exec). `engage`/`rearm`/`reduce` go through the gateway (scope risk:admin, risk:rearm for rearm, ADR-0059): the
 # API key name is the actor. Env: RISK_ADMIN_URL (edge-proxy base URL), RISK_ADMIN_KEY (API key),
 # NAMESPACE, DRY_RUN=true (prints the request, calls nothing). Needs jq; kubectl for status.
 

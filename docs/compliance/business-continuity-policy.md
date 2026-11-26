@@ -3,7 +3,7 @@
 > **Version:** 1.0  
 > **Effective:** 2026-06  
 > **Review:** Annual (full plan test)  
-> **Regulatory alignment:** DORA Art. 11-13, ISO 22301, NIST SP 800-34
+> **Regulatory alignment:** ISO 22301, NIST SP 800-34
 
 ## 1. Policy Statement
 
@@ -18,8 +18,8 @@ This policy defines the Business Continuity (BC) and Disaster Recovery (DR) fram
 | Tier | Definition | Services | Maximum Tolerable Downtime (MTD) |
 |---|---|---|---|
 | **T1 — Critical** | Core platform function; loss immediately impacts compliance or security | spire-server | 15 minutes |
-| **T2 — High** | Core business function; loss significantly impacts platform capability | message-manager, audit-logger, trader-trainer | 1 hour |
-| **T3 — Medium** | Supporting function; loss impacts operations but not compliance | financial-scraper, dlq-service, api-gateway | 4 hours |
+| **T2 — High** | Core business function; loss significantly impacts platform capability | audit-logger, trader-trainer | 1 hour |
+| **T3 — Medium** | Supporting function; loss impacts operations but not compliance | financial-scraper, api-gateway | 4 hours |
 | **T4 — Low** | Non-critical; loss has minimal operational impact | monitoring stack | 24 hours |
 
 ### 2.2 Recovery Objectives
@@ -34,7 +34,7 @@ This policy defines the Business Continuity (BC) and Disaster Recovery (DR) fram
 **Two RTOs, two meanings.** The service-tier RTO above is the time to get the
 *service* running again when its data store is intact (restart, reschedule,
 failover to a replica, SVID re-issue): T1 spire-server
-15 minutes, T2 audit-logger, message-manager and trader-trainer 1 hour. The
+15 minutes, T2 audit-logger and trader-trainer 1 hour. The
 **data-store RTO** of [BACKUP_DR.md](../deployment/BACKUP_DR.md) (4 hours;
 1 hour for trained agents and the SealedSecrets controller keys) is the time to
 rebuild the *data* from backups after the store is lost: new volume or cluster,
@@ -45,7 +45,7 @@ example spire-server (T1) is restarted in 15 minutes from its volume, but
 needs up to 4 hours when its datastore and CA keys must be restored.
 
 **Data RPO, as committed (ADR-0031):** the databases are recovered to within
-**1 hour** of an incident: MongoDB `mongo-audit` and `mongo-dlq`, MySQL
+**1 hour** of an incident: MongoDB `mongo-audit`, MySQL
 `financial_scraper` (hourly binlog / oplog archives,
 point-in-time restore over the last 72 hours, daily backups for 30 days before
 that). The SPIRE datastore and CA keys (SQLite on the server volume, ADR-0065)
@@ -81,7 +81,7 @@ met for its data, which is recovered to within 1 hour.
 1. **Detection:** Prometheus alert — MongoDB replica set state change
 2. **Response:** Automatic failover to secondary replica (MongoDB replica set, ≤ 5s)
 3. **Recovery:** Failed node re-joins as secondary after repair
-4. **Backup:** Daily `mongodump --oplog` of each replica set (dlq, audit), plus the oplog archived every hour: `restore-k8s.sh --until <instant>` restores to any point of the last 72 h (RPO 1 h, ADR-0031).
+4. **Backup:** Daily `mongodump --oplog` of each replica set (audit), plus the oplog archived every hour: `restore-k8s.sh --until <instant>` restores to any point of the last 72 h (RPO 1 h, ADR-0031).
 5. **Verification:** Replica set status: `rs.status().ok === 1`
 
 #### 3.2.3 SPIRE Server Outage
@@ -161,7 +161,7 @@ automated restore drills time each step and compare the recovery with a budget
 | `docs/operations/runbooks/runbook-service-down.md` | Single service recovery procedure |
 | `docs/operations/runbooks/runbook-certificate-expiry.md` | SVID / certificate expiry runbook |
 | `docs/operations/runbooks/runbook-data-corruption.md` | Data corruption recovery |
-| `docs/operations/runbooks/runbook-message-bus-outage.md` | Redis/message-manager recovery |
+| `docs/operations/runbooks/runbook-message-bus-outage.md` | Redis bus journal recovery |
 | `docs/operations/runbooks/runbook-deployment-failure.md` | Deployment failure recovery |
 | `docs/deployment/BACKUP_DR.md` | Technical backup and DR configuration |
 | [DR Exercise Log](dr-exercise-log.md) | Record of DR exercises and restore drill timings |

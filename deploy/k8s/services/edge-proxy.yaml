@@ -143,8 +143,6 @@ spec:
           volumeMounts:
             - name: nginx-cache
               mountPath: /var/cache/nginx
-            - name: nginx-log
-              mountPath: /var/log/nginx
             - name: nginx-run
               mountPath: /var/run
             - name: tmp
@@ -159,7 +157,6 @@ spec:
             httpGet:
               path: /ping
               port: 8080
-            initialDelaySeconds: 10
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 3
@@ -193,8 +190,6 @@ spec:
           configMap:
             name: spiffe-helper-config
         - name: nginx-cache
-          emptyDir: {}
-        - name: nginx-log
           emptyDir: {}
         - name: nginx-run
           emptyDir: {}

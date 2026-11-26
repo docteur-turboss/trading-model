@@ -1,7 +1,7 @@
 import { AddressManagerEnvSchema } from "@trading-model/address-manager/config/address-manager-env";
 import { BaseEnvSchema } from "@trading-model/http/config/env";
 import { validateEnv } from "@trading-model/http/config/validate-env";
-import { BusEnvSchema } from "@trading-model/persistence/redis-env";
+import { RedisEnvSchema } from "@trading-model/persistence/redis-env";
 import { z } from "zod";
 
 const DECISION_CONSUMER_ENV_SHAPE = {
@@ -15,6 +15,6 @@ const DECISION_CONSUMER_ENV_SHAPE = {
 
 export const ENV = validateEnv(
 	BaseEnvSchema.extend(AddressManagerEnvSchema.shape)
-		.extend(BusEnvSchema.shape)
+		.extend(RedisEnvSchema.shape)
 		.extend(DECISION_CONSUMER_ENV_SHAPE)
 );

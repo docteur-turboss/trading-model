@@ -3,6 +3,7 @@ import {
 	NoopLogger,
 	setLogger,
 } from "@trading-model/contracts/logger-registry";
+import { DurationMs } from "@trading-model/primitives/primitives";
 import { gracefulShutdown, hardShutdown } from "../../src/bootstrap-shutdown";
 
 function createMockServer() {
@@ -199,41 +200,6 @@ describe("gracefulShutdown", () => {
 		expect(process.exitCode).toBe(1);
 	});
 
-	it("should run beforeClose while the server still serves, then close, then onStop", async () => {
-		const calls: string[] = [];
-		const server = {
-			close: jest.fn(async () => {
-				calls.push("close");
-			}),
-		};
-		const options = createOptions({
-			shutdown: {
-				beforeClose: async () => {
-					calls.push("beforeClose");
-				},
-			},
-			onStop: async () => {
-				calls.push("onStop");
-			},
-		});
-
-		await gracefulShutdown("SIGTERM", server, options);
-
-		expect(calls).toEqual(["beforeClose", "close", "onStop"]);
-	});
-
-	it("should go on closing when beforeClose fails", async () => {
-		const server = createMockServer();
-		const options = createOptions({
-			shutdown: { beforeClose: jest.fn().mockRejectedValue(new Error("x")) },
-		});
-
-		await gracefulShutdown("SIGTERM", server, options);
-
-		expect(server.close).toHaveBeenCalled();
-		expect(process.exitCode).toBe(originalExitCode);
-	});
-
 	it("should wait closeTimeoutMs for in-flight requests", async () => {
 		let finish: () => void = () => undefined;
 		const server = {
@@ -298,18 +264,15 @@ describe("gracefulShutdown", () => {
 		expect(process.exit).toHaveBeenCalledWith(0);
 	});
 
-	it("should force exit 1 at the deadline when beforeClose never settles", async () => {
-		const server = createMockServer();
+	it("should force exit 1 at the deadline when the close never settles", async () => {
+		const server = { close: jest.fn(() => new Promise<void>(() => {})) };
 		const promise = gracefulShutdown(
 			"SIGTERM",
 			server,
-			createOptions({
-				shutdown: { beforeClose: () => new Promise<void>(() => {}) },
-			})
+			createOptions({ shutdown: { closeTimeoutMs: DurationMs.of(60_000) } })
 		);
 
 		await jest.advanceTimersByTimeAsync(8000);
-		expect(server.close).toHaveBeenCalledTimes(1);
 		await jest.advanceTimersByTimeAsync(5000);
 
 		expect(process.exit).toHaveBeenCalledWith(1);

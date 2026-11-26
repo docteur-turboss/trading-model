@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { ACTION_SET_IDS } from "./agent/action-mapper";
+import { DAY_MS } from "./features/feature-builder";
 import {
 	ActivationType,
 	ConnectionType,
@@ -98,7 +100,7 @@ export const ModelManifestSchema = z.object({
 	features: z.object({ dim: z.number().int(), fields: z.array(z.string()) }),
 	/** Normalization statistics of the symbol at the end of training. */
 	normalization: z.record(z.string(), z.unknown()),
-	/** Constraint the policy learned under; absent on older manifests (unbounded). */
+	/** Constraint the policy learned under; absent on older manifests (DEFAULT_MAX_EXPOSURE_FRACTION). */
 	riskLimits: z.object({ maxExposureFraction: z.number() }).optional(),
 	metrics: ModelMetricsSchema,
 	/** ADR-0030 verdict on the test segment (ADR-0069); absent: not admissible. */
@@ -138,3 +140,60 @@ export const ModelManifestSchema = z.object({
 		.optional(),
 });
 export type ModelManifestData = z.infer<typeof ModelManifestSchema>;
+
+/** Safe in an identifier and in a URL path segment. */
+export const KEY_PART = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_.-]*$/);
+
+/** The part of the trainer manifest the decider and the evaluator rely on (ADR-0022). */
+export const ModelManifest = ModelManifestSchema.pick({
+	symbol: true,
+	version: true,
+	weights: true,
+	genome: true,
+	admission: true,
+	replay: true,
+	riskLimits: true,
+});
+export type ModelManifest = z.infer<typeof ModelManifest>;
+
+export const MINUTE_MS = 60_000;
+
+/** Bar lengths the scraper serves and the replay supports. */
+export const isSupportedInterval = (intervalMs: number): boolean =>
+	intervalMs === MINUTE_MS || intervalMs === DAY_MS;
+
+/**
+ * Checks the downloaded weights against the expected model (and its event
+ * `sha256` when given), the manifest and the `x-model-sha256` header; throws
+ * on any mismatch (ADR-0049 §1.2).
+ */
+export function verifyModel(input: {
+	model: { symbol: string; version: string; sha256?: string };
+	manifest: ModelManifest;
+	weights: Uint8Array;
+	headerSha256: string | undefined;
+}): void {
+	const { model, manifest, weights, headerSha256 } = input;
+	const name = `${model.symbol}/${model.version}`;
+	if (manifest.symbol !== model.symbol || manifest.version !== model.version) {
+		throw new Error(
+			`Manifest ${manifest.symbol}/${manifest.version} is not the expected ${name}`
+		);
+	}
+	const actual = createHash("sha256").update(weights).digest("hex");
+	const expected = manifest.weights.sha256;
+	if (
+		actual !== expected ||
+		(model.sha256 ?? expected) !== expected ||
+		headerSha256 !== expected
+	) {
+		throw new Error(
+			`Weights of ${name} refused: sha256 ${actual} differs from the manifest ${expected}, the event ${model.sha256} or the header ${headerSha256}`
+		);
+	}
+	if (weights.byteLength !== manifest.weights.length * 4) {
+		throw new Error(
+			`Weights of ${name} refused: ${weights.byteLength} bytes for ${manifest.weights.length} float32`
+		);
+	}
+}

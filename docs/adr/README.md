@@ -27,11 +27,11 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0016](./0016-shared-contracts-ownership.md) | Shared Contracts Owned by `@trading-model/contracts` and Manifest-Checked Dependencies | Accepted | 2026-10 |
 | [ADR-0017](./0017-no-swallowed-errors.md) | No Swallowed Errors — Lint Rule, GritQL Plugin and Review Criterion | Accepted | 2026-10 |
 | [ADR-0018](./0018-temporary-frontend-removal.md) | Temporary Removal of the Admin Frontend (`admin-interface`) | Accepted | 2026-10 |
-| [ADR-0019](./0019-message-broker-as-built.md) | Message Broker As Built — HTTP Pub/Sub Without Message Persistence | Superseded by [ADR-0048](./0048-durable-message-journal-in-redis-streams.md) | 2026-10 |
+| ADR-0019 | Message Broker As Built — HTTP Pub/Sub Without Message Persistence | Deleted (superseded by ADR-0048, then ADR-0073) | 2026-10 |
 | [ADR-0020](./0020-database-topology-as-deployed.md) | Database Topology As Deployed — MySQL and MongoDB | Accepted | 2026-10 |
 | [ADR-0021](./0021-http-api-schemas-and-generated-openapi.md) | HTTP API Schemas Owned by Services, OpenAPI Generated From Zod | Accepted | 2026-10 |
 | [ADR-0022](./0022-versioned-model-artifacts.md) | Versioned Model Artifacts Instead of Genomes in the Public API | Accepted | 2026-10 |
-| [ADR-0023](./0023-discovery-registry-in-redis.md) | Discovery Registry Shared Through Redis | Superseded by [ADR-0072](./0072-dns-routing-and-majors-served-by-services.md) | 2026-10 |
+| ADR-0023 | Discovery Registry Shared Through Redis | Deleted (superseded by ADR-0072) | 2026-10 |
 | [ADR-0024](./0024-pod-spread-across-nodes.md) | Replicas Spread Evenly Across Nodes | Accepted | 2026-10 |
 | [ADR-0025](./0025-ga-fitness-wired-to-fitness-type.md) | GA Fitness Computed on Wallet PnL and Selected by `fitnessType`; DQN Learning From Its Own Experience | Accepted | 2026-10 |
 | [ADR-0026](./0026-binance-public-market-data-kept.md) | Binance Kept as the Market Data Source While Its Public API Answers From the EU | Accepted | 2026-10 |
@@ -49,13 +49,13 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0039](./0039-configuration-feature-flags.md) | Configuration Feature Flags (env booleans, fallback switches) | Accepted | 2026-11 |
 | [ADR-0040](./0040-locked-resumable-migrations-and-expand-contract.md) | Locked, Resumable Schema Migrations and the Expand/Contract Rule | Accepted | 2026-11 |
 | [ADR-0041](./0041-least-privilege-deploy-identities.md) | Least-Privilege Deploy Identities — Application and Cluster-Scope, Bounded Tokens | Accepted | 2026-11 |
-| [ADR-0042](./0042-singleton-collector-with-verified-recovery.md) | Singleton Collector Kept, Recovery Verified After Each Deploy | Superseded by [ADR-0057](./0057-collector-handover-through-a-lease.md) | 2026-11 |
-| [ADR-0043](./0043-message-delivery-once-per-subscribed-service.md) | Message Delivery Once per Subscribed Service (Consumer Group) | Superseded by [ADR-0073](./0073-message-bus-as-a-redis-streams-library.md) | 2026-11 |
+| ADR-0042 | Singleton Collector Kept, Recovery Verified After Each Deploy | Deleted (superseded by ADR-0057) | 2026-11 |
+| ADR-0043 | Message Delivery Once per Subscribed Service (Consumer Group) | Deleted (superseded by ADR-0073) | 2026-11 |
 | [ADR-0044](./0044-singleton-trainer.md) | trader-trainer Runs as a Singleton | Accepted | 2026-11 |
-| [ADR-0045](./0045-single-service-resolution-strategy.md) | One Service Resolution Strategy: Registry Says Alive, Platform Says Where | Superseded by [ADR-0072](./0072-dns-routing-and-majors-served-by-services.md) | 2026-11 |
+| ADR-0045 | One Service Resolution Strategy: Registry Says Alive, Platform Says Where | Deleted (superseded by ADR-0072) | 2026-11 |
 | [ADR-0046](./0046-simplification-trajectory.md) | Simplification Trajectory for the Services, Broker, Discovery and DLQ | Accepted | 2026-11 |
 | [ADR-0047](./0047-redis-isolation-per-service.md) | Redis Isolated Per Service — ACL Users, In-Process Address Cache, In-Memory DLQ Rate Limiter | Accepted | 2026-11 |
-| [ADR-0048](./0048-durable-message-journal-in-redis-streams.md) | Durable Message Journal in Redis Streams — Accept First, Deliver Afterwards | Superseded by [ADR-0073](./0073-message-bus-as-a-redis-streams-library.md) | 2026-11 |
+| ADR-0048 | Durable Message Journal in Redis Streams — Accept First, Deliver Afterwards | Deleted (superseded by ADR-0073) | 2026-11 |
 | [ADR-0049](./0049-downstream-context-for-models-and-signals.md) | Downstream Context and Contract for Trained Models and Collected Signals | Accepted | 2026-11 |
 | [ADR-0050](./0050-audit-chain-single-writer-lease.md) | One Writer at a Time on the Audit Chain Head (Lease) | Accepted | 2026-11 |
 | [ADR-0051](./0051-mysql-retention-cronjob.md) | MySQL Retention Job for Market Data and Signals (CronJob, `retention` User) | Accepted | 2026-11 |
@@ -77,8 +77,8 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0067](./0067-mongodb-authentication.md) | MongoDB Authentication: keyFile, One User per Client, Switch in Two Releases | Accepted | 2026-11 |
 | [ADR-0068](./0068-test-segment-for-published-model-metrics.md) | Test Segment for the Published Model Metrics | Accepted | 2026-11 |
 | [ADR-0069](./0069-model-admission-verdict-on-the-test-segment.md) | Model Admission Verdict on the Test Segment | Accepted | 2026-11 |
-| [ADR-0070](./0070-replayed-dead-letter-reopens-its-entry.md) | A Replayed Dead Letter That Fails Again Reopens Its Entry | Accepted | 2026-11 |
-| [ADR-0071](./0071-empty-registry-serves-last-known-target.md) | An Empty Registry Answer Serves the Last Known Target for 60 Seconds | Superseded by [ADR-0072](./0072-dns-routing-and-majors-served-by-services.md) | 2026-11 |
+| ADR-0070 | A Replayed Dead Letter That Fails Again Reopens Its Entry | Deleted (superseded by ADR-0073) | 2026-11 |
+| ADR-0071 | An Empty Registry Answer Serves the Last Known Target for 60 Seconds | Deleted (superseded by ADR-0072) | 2026-11 |
 | [ADR-0072](./0072-dns-routing-and-majors-served-by-services.md) | Route on Service DNS Names, Majors Served by the Services, Retire discovery-server | Accepted | 2026-11 |
 | [ADR-0073](./0073-message-bus-as-a-redis-streams-library.md) | The Message Bus as a Redis Streams Library, Dead Letters in Dead Streams | Accepted | 2026-11 |
 | [ADR-0074](./0074-merge-shared-packages-into-six.md) | Merge the Twelve Shared Packages into Six, One Merge per PR | Accepted | 2026-11 |
@@ -97,6 +97,8 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0087](./0087-paper-decision-consumer.md) | Paper Decision Consumer (ADR-0049 Option C) | Accepted | 2026-11 |
 | [ADR-0088](./0088-paged-read-indexes-built-outside-the-migration-job.md) | Paged Market Read Indexes Are Built Outside the Migration Job | Accepted | 2026-11 |
 | [ADR-0089](./0089-model-readers-mount-the-artifact-volume-read-only.md) | Model Readers Mount the Artifact Volume Read-Only | Accepted | 2026-11 |
+| [ADR-0090](./0090-ha-user-holds-writes-over-a-planned-redis-failover.md) | The Redis `ha` User Holds Writes Over a Planned Failover | Accepted | 2026-11 |
+| [ADR-0091](./0091-plain-http-probe-listener.md) | Plain-HTTP Probe Listener Beside the mTLS Port | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 

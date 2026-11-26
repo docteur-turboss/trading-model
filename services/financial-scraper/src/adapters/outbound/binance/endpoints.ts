@@ -10,7 +10,6 @@ export interface BinanceQueryParams {
 	symbol: TradingSymbol;
 	limit?: number | PositiveInt;
 	startTime?: UnixTimestamp;
-	endTime?: UnixTimestamp;
 }
 
 /** All-optional variant used for URL building. */
@@ -46,12 +45,6 @@ function arraySymbolEndpoint(path: string, symbol?: TradingSymbol[]): string {
 export const BINANCE_ENDPOINTS = {
 	depth: (query?: BinanceEndpointQuery): string =>
 		buildUrl("/api/v3/depth", {
-			symbol: query?.symbol,
-			limit: query?.limit,
-		}),
-
-	trades: (query?: BinanceEndpointQuery): string =>
-		buildUrl("/api/v3/trades", {
 			symbol: query?.symbol,
 			limit: query?.limit,
 		}),

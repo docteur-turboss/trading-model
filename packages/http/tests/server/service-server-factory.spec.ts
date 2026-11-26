@@ -1,5 +1,9 @@
 jest.mock("node:https", () => ({ createServer: jest.fn() }));
-jest.mock("../../src/configure-app", () => ({ configureApp: jest.fn() }));
+jest.mock("node:http", () => ({ createServer: jest.fn() }));
+jest.mock("../../src/configure-app", () => ({
+	configureApp: jest.fn(),
+	createHealthApp: jest.fn(() => "health-app"),
+}));
 jest.mock("../../src/mtls-auth", () => ({ MTLSAuthMiddleware: jest.fn() }));
 jest.mock("../../src/mtls-authorization", () => ({
 	MTLSAuthorizationMiddleware: jest.fn(() => "authorize-middleware"),
@@ -18,6 +22,7 @@ jest.mock("../../src/tls-watcher", () => ({
 	setupTlsWatcher: jest.fn().mockResolvedValue(undefined),
 }));
 
+import http from "node:http";
 import https from "node:https";
 import { ServiceId } from "@trading-model/primitives/primitives";
 import { configureApp } from "../../src/configure-app";
@@ -37,12 +42,18 @@ const ENV = {
 const mockApp = { use: jest.fn() };
 const listen = jest.fn();
 const close = jest.fn();
+const healthListen = jest.fn();
+const healthClose = jest.fn((cb) => cb());
 
 describe("createServiceServer", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 		(configureApp as jest.Mock).mockReturnValue(mockApp);
 		(https.createServer as jest.Mock).mockReturnValue({ listen, close });
+		(http.createServer as jest.Mock).mockReturnValue({
+			listen: healthListen,
+			close: healthClose,
+		});
 	});
 
 	const create = (extra = {}) => {
@@ -92,6 +103,13 @@ describe("createServiceServer", () => {
 		expect(setupTlsWatcher).toHaveBeenCalledTimes(1);
 	});
 
+	it("serves the probes in plain HTTP on 3001, apart from the mTLS port", async () => {
+		await create();
+
+		expect(http.createServer).toHaveBeenCalledWith("health-app");
+		expect(healthListen).toHaveBeenCalledWith(3001, expect.any(Function));
+	});
+
 	it("resolves close when the server closes and rejects on error", async () => {
 		const { server } = await create();
 
@@ -99,5 +117,6 @@ describe("createServiceServer", () => {
 		await expect(server.close()).resolves.toBeUndefined();
 		close.mockImplementationOnce((cb) => cb(new Error("close error")));
 		await expect(server.close()).rejects.toThrow("close error");
+		expect(healthClose).toHaveBeenCalledTimes(2);
 	});
 });

@@ -8,7 +8,7 @@ export interface GaTelemetry {
 	generationStarted(generation: number): void;
 	stagnationUpdated(stagnation: number): void;
 	evaluationFailed(reason: string): void;
-	/** One genome evaluated on every window: it blocks the event loop that long. */
+	/** One genome evaluated on every window: duration of that evaluation in ms. */
 	genomeEvaluated(durationMs: number): void;
 }
 

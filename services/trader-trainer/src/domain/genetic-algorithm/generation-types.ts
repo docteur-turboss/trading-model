@@ -19,6 +19,8 @@ export interface WindowSet {
 	 * the session, never by the training nor the selection (ADR-0068).
 	 */
 	test?: MarketStep[];
+	/** Candle range the split was cut from, frozen with it: the manifest replay window (ADR-0079). */
+	replay?: { from: number; to: number };
 }
 
 export interface GARunnerConfig {
@@ -45,10 +47,8 @@ export interface GenerationContext {
 	population: DeepReadonly<LamarckGenome>[];
 	archive: DeepReadonly<LamarckGenome>[];
 	bestFitness: number;
-	bestGenome: DeepReadonly<LamarckGenome>;
 	bestFitnessMeta?: GenomeFitnessMeta;
 	avgFitness: number;
-	efficiencyScore: number;
 	elapsedMs: number;
 	stagnation: number;
 	gaControl: DeepReadonly<GAControlGenome>;

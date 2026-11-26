@@ -15,8 +15,8 @@ All of them read the shared HTTP middleware metrics of every service
 | --- | --- |
 | `SLOLatencyFastBurn` | P95 of a job above 5 s over 5 min, for 2 min |
 | `SLOLatencySlowBurn` | P95 above 3 s over 1 h, for 10 min |
-| `SLOAvailabilityFastBurn` | 5xx ratio above 1.44% over 1 h **and** 5 min, for 2 min |
-| `SLOAvailabilitySlowBurn` | 5xx ratio above 0.6% over 6 h **and** 30 min, for 15 min |
+| `SLOAvailabilityFastBurn` | 5xx ratio above 14.4% over 1 h **and** 5 min, for 2 min |
+| `SLOAvailabilitySlowBurn` | 5xx ratio above 6% over 6 h **and** 30 min, for 15 min |
 
 `/ping`, `/health/ready` and `/metrics` are excluded from the SLO ratios and from the latency P95.
 
@@ -59,7 +59,7 @@ Common causes:
 
 1. **A slow dependency**: MongoDB, MySQL or Redis (see
    [runbook-database-failover](runbook-database-failover.md)), Binance for the
-   scraper, message-manager for publishers (see
+   scraper, Redis for publishers (see
    [runbook-message-bus-outage](runbook-message-bus-outage.md)). The slow path
    of step 1 names it.
 2. **CPU throttling or GC pressure**: `kubectl top` near the limit, or
@@ -106,12 +106,26 @@ Fix the dependency, roll back a bad deploy
 stuck pod (`kubectl -n $NS rollout restart deploy/$JOB`). A burn-rate alert
 consumes error budget: apply the [error budget policy](../slo.md#error-budget-policy).
 
+## ErrorLogBurst
+
+`ErrorLogBurst` (warning): more than 20 `error` log lines in 15 min on a job,
+for 10 min. `log_messages_total{level}` counts every line the logger writes, so
+it also covers failures that have no metric of their own.
+
+```bash
+kubectl -n $NS logs deploy/$JOB --since=15m | grep '"level":"error"\|ERROR' | sort | uniq -c | sort -rn | head
+```
+
+Fix the most frequent message with the runbook of its dependency. If the
+errors are expected (known noisy dependency), lower the log level of that
+message instead of raising the threshold.
+
 ## SLO error budget low
 
 ### Symptom
 
 `SLOErrorBudgetLow`: less than 20% of the 30-day availability error budget
-(99.9%) remains for a job. Budget remaining = `(1 - error ratio / 0.001) * 100`,
+(99%) remains for a job. Budget remaining = `(1 - error ratio / 0.01) * 100`,
 from the recording rule `slo:sli_error:ratio_rate30d` (Grafana: SLO dashboard,
 "Error Budget Remaining").
 

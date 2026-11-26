@@ -13,8 +13,8 @@
         "gridPos": { "h": 10, "w": 12, "x": 0, "y": 0 },
         "targets": [
           {
-            "expr": "sum(rate(http_requests_total{status!~\"5..\"}[28d])) / sum(rate(http_requests_total[28d])) * 100",
-            "legendFormat": "Availability"
+            "expr": "(1 - max(slo:sli_error:ratio_rate30d)) * 100",
+            "legendFormat": "Availability (worst job, 30d)"
           }
         ],
         "fieldConfig": {
@@ -26,8 +26,8 @@
               "mode": "absolute",
               "steps": [
                 { "color": "red", "value": null },
-                { "color": "orange", "value": 99.9 },
-                { "color": "green", "value": 99.95 }
+                { "color": "orange", "value": 99 },
+                { "color": "green", "value": 99.5 }
               ]
             }
           }
@@ -66,16 +66,16 @@
         "gridPos": { "h": 8, "w": 8, "x": 0, "y": 10 },
         "targets": [
           {
-            "expr": "rate(http_requests_total{status=~\"5..\"}[5m]) / rate(http_requests_total[5m])",
-            "legendFormat": "Error Rate (5m)"
+            "expr": "max(slo:sli_error:ratio_rate5m) / 0.01",
+            "legendFormat": "Burn rate (5m)"
           }
         ],
         "fieldConfig": {
           "defaults": {
-            "unit": "percentunit",
+            "unit": "none",
             "thresholds": {
               "mode": "absolute",
-              "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0.02 }]
+              "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 14.4 }]
             }
           }
         }
@@ -86,16 +86,16 @@
         "gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 },
         "targets": [
           {
-            "expr": "rate(http_requests_total{status=~\"5..\"}[1h]) / rate(http_requests_total[1h])",
-            "legendFormat": "Error Rate (1h)"
+            "expr": "max(slo:sli_error:ratio_rate1h) / 0.01",
+            "legendFormat": "Burn rate (1h)"
           }
         ],
         "fieldConfig": {
           "defaults": {
-            "unit": "percentunit",
+            "unit": "none",
             "thresholds": {
               "mode": "absolute",
-              "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0.005 }]
+              "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 6 }]
             }
           }
         }
@@ -106,7 +106,7 @@
         "gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 },
         "targets": [
           {
-            "expr": "clamp_max((1 - max(slo:sli_error:ratio_rate30d) / 0.001) * 100, 100)",
+            "expr": "clamp_max((1 - max(slo:sli_error:ratio_rate30d) / 0.01) * 100, 100)",
             "legendFormat": "Budget %"
           }
         ],
@@ -132,12 +132,8 @@
         "gridPos": { "h": 6, "w": 6, "x": 0, "y": 18 },
         "targets": [
           {
-            "expr": "avg(up{job=\"message-manager\"}) * 100",
-            "legendFormat": "message-manager"
-          },
-          {
-            "expr": "avg(up{job=\"api-gateway\"}) * 100",
-            "legendFormat": "api-gateway"
+            "expr": "avg by (job) (up) * 100",
+            "legendFormat": "{{job}}"
           }
         ],
         "fieldConfig": {
@@ -176,49 +172,12 @@
         }
       },
       {
-        "title": "Messages In Flight",
-        "type": "timeseries",
-        "gridPos": { "h": 6, "w": 12, "x": 0, "y": 24 },
-        "targets": [
-          {
-            "expr": "sum(mm_in_flight_messages)",
-            "legendFormat": "in-flight"
-          }
-        ]
-      },
-      {
-        "title": "Message Delivery Success Rate",
-        "type": "bargauge",
-        "gridPos": { "h": 6, "w": 8, "x": 0, "y": 30 },
-        "targets": [
-          {
-            "expr": "sum(rate(mm_messages_delivered_total{status=\"success\"}[5m])) / (sum(rate(mm_messages_delivered_total{status=\"success\"}[5m])) + sum(rate(mm_messages_dlq_total[5m]))) * 100",
-            "legendFormat": "Delivery Rate"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "percent",
-            "min": 95,
-            "max": 100,
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                { "color": "red", "value": null },
-                { "color": "orange", "value": 99.5 },
-                { "color": "green", "value": 99.95 }
-              ]
-            }
-          }
-        }
-      },
-      {
         "title": "Training Completion Rate",
         "type": "bargauge",
         "gridPos": { "h": 6, "w": 8, "x": 16, "y": 30 },
         "targets": [
           {
-            "expr": "sum(rate(tt_training_sessions_total{result=\"success\"}[15m])) / sum(rate(tt_training_sessions_total[15m])) * 100",
+            "expr": "sum(rate(tt_training_sessions_total{result=\"success\"}[12h])) / sum(rate(tt_training_sessions_total[12h])) * 100",
             "legendFormat": "Completion Rate"
           }
         ],

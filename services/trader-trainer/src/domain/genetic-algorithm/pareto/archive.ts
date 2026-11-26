@@ -80,7 +80,4 @@ export class ParetoArchive {
 	get members(): DeepReadonly<LamarckGenome>[] {
 		return this._members;
 	}
-	get size(): number {
-		return this._members.length;
-	}
 }

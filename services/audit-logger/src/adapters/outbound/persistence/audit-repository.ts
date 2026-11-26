@@ -58,7 +58,7 @@ const LEASE_YIELD_MS = 100;
 
 /** Events chained in one ordered insertMany. */
 const MAX_BATCH = 100;
-/** Queue cap: 10 batches bound memory when Mongo is slow; beyond it, 503 and message-manager retries. */
+/** Queue cap: 10 batches bound memory when Mongo is slow; beyond it, 503 and the bus retries. */
 const MAX_PENDING = 10 * MAX_BATCH;
 
 interface LeaseDocument {
@@ -133,9 +133,10 @@ export class AuditRepository {
 
 	async ensureIndexes(): Promise<void> {
 		await this._collection.createIndexes([
-			{ key: { [METADATA_FIELDS.correlationId]: 1 } },
-			{ key: { [METADATA_FIELDS.publisher]: 1, receivedAt: -1 } },
-			{ key: { [METADATA_FIELDS.topic]: 1, receivedAt: -1 } },
+			// Filter + chainSequence: a filtered page is read in index order, no in-memory sort.
+			{ key: { [METADATA_FIELDS.correlationId]: 1, chainSequence: -1 } },
+			{ key: { [METADATA_FIELDS.publisher]: 1, chainSequence: -1 } },
+			{ key: { [METADATA_FIELDS.topic]: 1, chainSequence: -1 } },
 			{ key: { receivedAt: -1 } },
 			{ key: { [METADATA_FIELDS.messageId]: 1 }, unique: true },
 			{ key: { ttl: 1 }, expireAfterSeconds: 0 },

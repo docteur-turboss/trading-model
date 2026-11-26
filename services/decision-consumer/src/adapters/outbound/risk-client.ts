@@ -2,7 +2,11 @@ import { ServiceInstanceName } from "@trading-model/common/config/services.types
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import { Intent } from "@trading-model/contracts/order-intent";
 import { HttpClient } from "@trading-model/http/http-client";
-import { ServiceId, URLString } from "@trading-model/primitives/primitives";
+import {
+	DurationMs,
+	ServiceId,
+	URLString,
+} from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import { z } from "zod";
 import { FIND_A_SERVICE } from "../../config/address-manager";
@@ -49,7 +53,13 @@ export class RiskClient {
 		const result = await this._http.post(
 			URLString.of(`https://${HostPort.toAddress(target)}/intents`),
 			Intent.parse(intent),
-			{ serviceName: ServiceId.of("risk-execution"), signal },
+			{
+				serviceName: ServiceId.of("risk-execution"),
+				signal,
+				// A replay after a lost answer would come back as a false duplicate; the next pass retries with the same decisionId.
+				retryCount: 0,
+				timeoutMs: DurationMs.of(5_000),
+			},
 			Result
 		);
 		if (!result) {

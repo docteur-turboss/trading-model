@@ -10,10 +10,12 @@ import type { HttpHeaders, HttpMethod, TlsHttpOptions } from "./http-types";
 
 let sharedAgent: https.Agent | null = null;
 
-function getKeepAliveAgent(): https.Agent {
+export function getKeepAliveAgent(): https.Agent {
 	sharedAgent ??= new https.Agent({
 		keepAlive: true,
 		keepAliveMsecs: 30_000,
+		// Below Node's 5 s server keepAliveTimeout: free sockets close before the server resets them.
+		timeout: 4000,
 		maxSockets: 64,
 		maxFreeSockets: 16,
 		scheduling: "lifo",

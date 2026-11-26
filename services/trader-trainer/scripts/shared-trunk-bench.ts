@@ -16,13 +16,16 @@ import { runInProcess } from "../src/application/training-session";
 import { evalPhase } from "../src/domain/genetic-algorithm/evaluation-phase";
 import type { MarketStep } from "../src/domain/genetic-algorithm/genome";
 import { FitnessType } from "../src/domain/genetic-algorithm/genome-control";
-import { makeSeededBackendFactory } from "../src/domain/genetic-algorithm/rl-backend";
+import {
+	makeSeededBackendFactory,
+	SIMULATOR_PARAMS,
+} from "../src/domain/genetic-algorithm/rl-backend";
 import { weightsOf } from "../src/domain/genetic-algorithm/shared-trunk";
 import { EMBARGO_STEPS } from "../src/domain/market-data/window-splitter";
 import { assessAdmission } from "../src/domain/model-admission";
+import { arg, splitTrainValidation } from "./common";
 import { type Kline, marketSteps } from "./mt4-walk-forward";
 
-const INITIAL_CASH = 1000;
 /** Tolerance on the median test fitness and share of the cost of 10 sessions (ADR-0076 section 9). */
 const FITNESS_TOLERANCE = 0.05;
 const TIME_SHARE = 1 / 3;
@@ -41,14 +44,6 @@ interface SeedResult {
 	groupSeconds: number[];
 }
 
-const arg = (name: string, fallback?: string): string => {
-	const idx = process.argv.indexOf(`--${name}`);
-	const value = idx >= 0 ? process.argv[idx + 1] : fallback;
-	if (value === undefined) {
-		throw new Error(`missing --${name}`);
-	}
-	return value;
-};
 const median = (values: number[]) => {
 	const sorted = [...values].sort((left, right) => left - right);
 	const mid = sorted.length >> 1;
@@ -81,12 +76,10 @@ async function measure(seed: number): Promise<SeedResult> {
 				data.klines.slice(-(window + test))
 			);
 			const train = steps.slice(0, -test);
-			const split = Math.floor(train.length * 0.8);
 			return {
 				id: data.symbol,
 				symbol: data.symbol,
-				train: train.slice(0, split),
-				validation: train.slice(split + EMBARGO_STEPS),
+				...splitTrainValidation(train),
 				test: steps.slice(-test + EMBARGO_STEPS),
 			};
 		});
@@ -102,7 +95,7 @@ async function measure(seed: number): Promise<SeedResult> {
 		return (
 			(100 * episodePnl.reduce((sum, value) => sum + value, 0)) /
 			episodePnl.length /
-			INITIAL_CASH
+			SIMULATOR_PARAMS.initialCash
 		);
 	};
 

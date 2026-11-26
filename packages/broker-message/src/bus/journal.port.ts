@@ -40,7 +40,9 @@ export interface MessageJournalPort {
 		message: Message,
 		services: readonly string[],
 		/** Replay of a dead letter: only this service's group delivers the entry (ADR-0043). */
-		onlyFor?: string
+		onlyFor?: string,
+		/** The caller resends the same `messageId` after a refusal: the entry stays (consumers deduplicate); otherwise it is removed. */
+		keepOnRefusal?: boolean
 	): Promise<void>;
 	/** Every group any replica registered. */
 	groups(): Promise<JournalGroup[]>;

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { link, mkdir, rm, stat, writeFile } from "node:fs/promises";
+import { link, mkdir, open, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { EvaluationRecord } from "../../domain/model-evaluation";
 
@@ -36,11 +36,13 @@ export class FileEvaluationStore {
 			`.tmp-${process.pid}-${randomUUID()}`
 		);
 		try {
-			await writeFile(
-				tmp,
-				`${JSON.stringify(record, null, 2)}
-`
-			);
+			const file = await open(tmp, "wx");
+			try {
+				await file.writeFile(`${JSON.stringify(record, null, 2)}\n`);
+				await file.sync();
+			} finally {
+				await file.close();
+			}
 			await link(tmp, this._file(record.symbol, record.version));
 			return true;
 		} catch (error) {

@@ -21,9 +21,6 @@ services:
   spire-agent:
     container_name: !reset null
     ports: !reset []
-  message-manager:
-    container_name: !reset null
-    ports: !reset []
   financial-scraper:
     container_name: !reset null
     ports: !reset []
@@ -36,10 +33,6 @@ services:
   audit-logger:
     container_name: !reset null
     ports: !reset []
-  dlq-service:
-    container_name: !reset null
-    ports: !reset []
-  spiffe-helper-message:
     container_name: !reset null
     ports: !reset []
   spiffe-helper-scraper:
@@ -52,9 +45,6 @@ services:
     container_name: !reset null
     ports: !reset []
   spiffe-helper-audit:
-    container_name: !reset null
-    ports: !reset []
-  spiffe-helper-dlq:
     container_name: !reset null
     ports: !reset []
   spiffe-helper-edge:

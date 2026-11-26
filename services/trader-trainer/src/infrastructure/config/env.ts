@@ -4,7 +4,7 @@ import { AssetType } from "@trading-model/contracts/wire/signals";
 import { BaseEnvSchema } from "@trading-model/http/config/env";
 import { featureFlag } from "@trading-model/http/config/feature-flags";
 import { validateEnv } from "@trading-model/http/config/validate-env";
-import { BusEnvSchema } from "@trading-model/persistence/redis-env";
+import { RedisEnvSchema } from "@trading-model/persistence/redis-env";
 import { z } from "zod";
 import { FitnessType } from "../../domain/genetic-algorithm/genome-control";
 import { SIGNAL_KEY_PATTERN } from "../../domain/signal-features";
@@ -90,6 +90,8 @@ const TRAINER_ENV_SHAPE = {
 	FEATURE_RISK_ADJUSTED_FITNESS: featureFlag(true),
 	/** Feature flag (ADR-0039): true lets the GA choose the action space (partial order sizes). */
 	FEATURE_ACTION_SPACE_GENE: featureFlag(false),
+	/** Feature flag (ADR-0039): true bounds the evolved depth and width (ADR-0076 §4). */
+	FEATURE_TOPOLOGY_GENES: featureFlag(false),
 	/** Feature flag (ADR-0039): true makes the agent decide on market events, not every bar (ADR-0076 §5). */
 	FEATURE_EVENT_DRIVEN_DECISIONS: featureFlag(false),
 	/** Show the agent its position; false to measure what it is worth (ADR-0025). */
@@ -106,7 +108,7 @@ const TRAINER_ENV_SHAPE = {
 export const TRADER_TRAINER_ENV_SCHEMA = BaseEnvSchema.merge(
 	AddressManagerEnvSchema
 )
-	.extend(BusEnvSchema.shape)
+	.extend(RedisEnvSchema.shape)
 	.extend(TRAINER_ENV_SHAPE);
 
 export const ENV = validateEnv(TRADER_TRAINER_ENV_SCHEMA);

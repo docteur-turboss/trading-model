@@ -6,6 +6,7 @@ import type {
 } from "@trading-model/contracts/order-intent";
 import { PaperBroker } from "../../src/adapters/outbound/paper-broker";
 import {
+	RearmRefusedError,
 	RiskExecution,
 	type RiskExecutionDeps,
 } from "../../src/application/risk-execution";
@@ -54,6 +55,7 @@ class MemoryStore<T> implements StatePort<T> {
 
 let clock = T0;
 let admissible = true;
+let barMs: number | undefined;
 /** The market the service reads: price per symbol, observed now unless `marketAt` freezes the feed. */
 let market: Record<string, number> = {};
 let marketAt: number | null = null;
@@ -84,15 +86,19 @@ function build(
 		limits: LIMITS,
 		broker,
 		store,
-		admission: { isAdmissible: async () => admissible },
+		admission: { admission: async () => ({ admissible, barMs }) },
 		prices: {
-			latest: async (symbols) => {
+			latest: async (symbols, readBarMs) => {
 				if (feedDown) {
 					throw new Error("ECONNREFUSED");
 				}
 				return Object.fromEntries(
 					symbols
 						.filter((sym) => market[sym])
+						// Like the scraper adapter: no bar, no candle older than `haltAgeMs`.
+						.filter(
+							() => readBarMs || clock - (marketAt ?? clock) <= LIMITS.haltAgeMs
+						)
 						.map((sym) => [sym, { price: market[sym], at: marketAt ?? clock }])
 				);
 			},
@@ -109,6 +115,7 @@ function build(
 beforeEach(() => {
 	clock = T0;
 	admissible = true;
+	barMs = undefined;
 	seq = 0;
 	market = { BTCUSDT: 60_000, ETHUSDT: 3_000 };
 	marketAt = null;
@@ -120,7 +127,7 @@ describe("preTradeReject on crafted states", () => {
 		const state = newState(CAPITAL, T0);
 		edit(state);
 		return preTradeReject({
-			intent: intent({ allowRepeat: false }),
+			intent: intent({ allowRepeat: false, limitPrice: 60_000 }),
 			limits: LIMITS,
 			state,
 			now: T0,
@@ -221,6 +228,21 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		);
 	});
 
+	it("sends an intent without a limit at the far end of the band", async () => {
+		const ctx = build();
+		await ctx.svc.start();
+		for (const [side, limit] of [
+			["buy", 60_600],
+			["sell", 59_400],
+		] as const) {
+			const r = await ctx.svc.submitIntent(intent({ side, quantity: 0.01 }));
+			expect(ctx.store.value?.orders[r.clientOrderId]).toMatchObject({
+				status: "filled",
+				limitPrice: expect.closeTo(limit, 6),
+			});
+		}
+	});
+
 	it("rejects a model that is not admitted", async () => {
 		admissible = false;
 		expect(await reject({})).toBe("model_not_admitted");
@@ -240,6 +262,28 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		market.BTCUSDT = 60_000;
 		marketAt = clock - LIMITS.haltAgeMs - 1;
 		expect(await reject({})).toBe("stale_price");
+	});
+
+	it("ages the price by the model's bars: 2 bars of 1 min or of 1 day", async () => {
+		barMs = 60_000;
+		marketAt = clock - 10 * 60_000;
+		expect(await reject({})).toBe("stale_price");
+		barMs = 86_400_000;
+		marketAt = clock - 20 * 3_600_000;
+		expect(await reject({})).toBe("accepted");
+	});
+
+	it("does not mark a bar-aged price: the tick after a daily intent engages no stale_data", async () => {
+		barMs = 86_400_000;
+		marketAt = clock - 20 * 3_600_000;
+		const ctx = build();
+		await ctx.svc.start();
+		await ctx.svc.submitIntent(intent({}));
+		await ctx.svc.tick();
+		expect(ctx.svc.status().killSwitch).toMatchObject({
+			global: null,
+			symbols: {},
+		});
 	});
 
 	it("values the order at the price read, not at the intent's, and fills there", async () => {
@@ -345,17 +389,19 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 				price: { price: 60_000, at: T0 },
 			});
 		};
-		expect(check(0.051, { BTCUSDT: 0.2 })).toBe("instrument_exposure"); // 15 060 > 15 000
-		expect(check(0.001, { BTCUSDT: 0.2, ETHUSDT: 6 })).toBe("global_exposure"); // 30 060 > 30 000
-		// A buy limit is valued at its own price: 0.25 BTC is 15 000 at the read price, 15 125 at 60 500.
-		expect(check(0.05, { BTCUSDT: 0.2 })).toBeNull();
-		expect(check(0.05, { BTCUSDT: 0.2 }, 60_500)).toBe("instrument_exposure");
+		expect(check(0.0671, { BTCUSDT: 0.1 })).toBe("instrument_exposure"); // 10 126 > 10 000
+		expect(check(0.002, { BTCUSDT: 0.1, ETHUSDT: 1.3 })).toBe(
+			"global_exposure"
+		); // 10 021 > 10 000
+		// A buy is valued at its limit: 0.1655 BTC is 9 930 at 60 000, 10 029 at the marketable limit 60 600.
+		expect(check(0.0655, { BTCUSDT: 0.1 }, 60_000)).toBeNull();
+		expect(check(0.0655, { BTCUSDT: 0.1 })).toBe("instrument_exposure");
 	});
 
-	it("caps the global exposure across two instruments (30 %)", async () => {
+	it("caps the global exposure across two instruments (10 %)", async () => {
 		const limits = RiskLimits.parse({
 			...LIMITS,
-			instrumentExposurePct: 0.3,
+			instrumentExposurePct: 0.1,
 			orderNotionalPct: 0.1,
 			instruments: {
 				BTCUSDT: { maxQuantity: 1 },
@@ -364,13 +410,11 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		});
 		const ctx = build({ limits });
 		await ctx.svc.start();
-		for (let n = 0; n < 3; n++) {
-			await ctx.svc.submitIntent(intent({ quantity: 0.16 })); // 28 800 of 30 000
-		}
+		await ctx.svc.submitIntent(intent({ quantity: 0.1 })); // 6 000 of 10 000
 		const r = await ctx.svc.submitIntent(
 			intent({
 				symbol: "ETHUSDT",
-				quantity: 1,
+				quantity: 1.4,
 				referencePrice: 3_000,
 				model: { symbol: "ETHUSDT", version: "v1" },
 			})
@@ -382,7 +426,7 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 		const limits = RiskLimits.parse({
 			...LIMITS,
 			allocatedCapital: 10_000,
-			instrumentExposurePct: 0.3,
+			instrumentExposurePct: 0.1,
 			orderNotionalPct: 0.1,
 			instruments: { BTCUSDT: { maxQuantity: 1 } },
 		});
@@ -488,6 +532,9 @@ describe("pre-trade checks (ADR-0064 §2)", () => {
 				...LIMITS,
 				globalExposurePct: HARD_CEILINGS.globalExposurePct + 0.01,
 			})
+		).toThrow();
+		expect(() =>
+			RiskLimits.parse({ ...LIMITS, globalExposurePct: 0.3 })
 		).toThrow();
 		expect(() =>
 			RiskLimits.parse({ ...LIMITS, maxIntentAgeMs: 61_000 })
@@ -754,6 +801,7 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 				intent: intent({
 					quantity: 0.01665,
 					referencePrice: 60_000,
+					limitPrice: 60_000,
 					allowRepeat: false,
 				}),
 				limits: LIMITS,
@@ -931,6 +979,7 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		market.BTCUSDT = 48_000; // -600: past 0.5 %, under the 2 % daily and 1 % symbol limits
 		await ctx.svc.tick();
 		expect(ctx.svc.status().killSwitch.global).toBe("drawdown");
+		expect(ctx.svc.status().drawdownRatio).toBeGreaterThanOrEqual(1);
 		expect(
 			(ctx.store.value as RiskState).orders[resting.clientOrderId].status
 		).toBe("cancelled");
@@ -941,6 +990,52 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		expect(emitted[0].previousHwm).toBeGreaterThan(state.hwm);
 		await ctx.svc.tick();
 		expect(ctx.svc.status().killSwitch.global).toBeNull();
+	});
+
+	it("cumulative loss floor survives an owner re-arm, engages once, and only a lower allocated capital lifts it", async () => {
+		const limits = RiskLimits.parse({
+			...LIMITS,
+			drawdownPct: 0.0025,
+			cumulativeLossPct: 0.0085,
+		});
+		const ctx = build({ limits });
+		await ctx.svc.start();
+		await ctx.svc.submitIntent(intent());
+		market.BTCUSDT = 48_000; // -600: drawdown only, floor (99 150) not crossed
+		await ctx.svc.tick();
+		await ctx.svc.rearm({ scope: "global" }, "reviewed", "owner");
+		market.BTCUSDT = 42_000; // -300 more: drawdown and floor both crossed
+		await ctx.svc.tick();
+		await ctx.svc.tick();
+		const engaged = ctx.events
+			.filter((e) => e.startsWith("kill_switch.engaged:"))
+			.map((e) => e.split(":")[1]);
+		expect(engaged).toEqual(["drawdown", "drawdown", "cumulative_loss"]);
+		await expect(
+			ctx.svc.rearm({ scope: "global" }, "reviewed", "owner")
+		).rejects.toThrow(RearmRefusedError);
+		const lowered = build({
+			limits: RiskLimits.parse({ ...limits, allocatedCapital: 99_000 }),
+			store: ctx.store,
+		});
+		await lowered.svc.start();
+		await lowered.svc.rearm({ scope: "global" }, "capital lowered", "owner");
+		expect(lowered.svc.status().killSwitch.global).toBeNull();
+	});
+
+	it("a re-arm that cannot be saved leaves the switch engaged and emits nothing", async () => {
+		const emitted: string[] = [];
+		const ctx = build({ emit: (e) => emitted.push(e) });
+		await ctx.svc.start();
+		await ctx.svc.engage({ scope: "global" }, "operator", "ops");
+		ctx.store.save = async () => {
+			throw new Error("disk full");
+		};
+		await expect(
+			ctx.svc.rearm({ scope: "global" }, "x", "ops")
+		).rejects.toThrow("disk full");
+		expect(ctx.svc.status().killSwitch.global).toBe("operator");
+		expect(emitted).not.toContain("kill_switch.rearmed");
 	});
 
 	it("an unreadable state counts as on and cannot be re-armed", async () => {
@@ -974,9 +1069,9 @@ describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
 		let release: (ok: boolean) => void = () => undefined;
 		const ctx = build({
 			admission: {
-				isAdmissible: () =>
-					new Promise<boolean>((resolve) => {
-						release = resolve;
+				admission: () =>
+					new Promise<{ admissible: boolean }>((resolve) => {
+						release = (ok) => resolve({ admissible: ok });
 					}),
 			},
 		});
@@ -1230,13 +1325,17 @@ describe("accounting effects (ADR-0064 §4-§5)", () => {
 		s.cash = 94_000;
 		s.positions = { BTCUSDT: 0.1, ETHUSDT: 1 };
 		mark(s, "BTCUSDT", 60_000);
-		rollDay(s, T0 + 13 * 3_600_000); // 23:00 UTC, same day
+		rollDay(s, T0 + 13 * 3_600_000, LIMITS.haltAgeMs); // 23:00 UTC, same day
 		expect(s.day).toEqual({
 			date: "2026-11-20",
 			startEquity: CAPITAL,
 			symbols: {},
 		});
-		rollDay(s, T0 + 14 * 3_600_000);
+		const midnight = T0 + 14 * 3_600_000;
+		rollDay(s, midnight, LIMITS.haltAgeMs); // BTC mark is 14 h old: deferred
+		expect(s.day.date).toBe("2026-11-20");
+		s.marks.BTCUSDT.at = midnight;
+		rollDay(s, midnight, LIMITS.haltAgeMs);
 		expect(s.day).toEqual({
 			date: "2026-11-21",
 			startEquity: 100_000,

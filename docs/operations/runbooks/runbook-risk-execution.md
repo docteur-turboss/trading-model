@@ -1,7 +1,7 @@
 # Runbook: Risk/Execution Kill Switch, Reconciliation, Stale Prices
 
 **Severity:** L1 (`KillSwitchEngaged`, `ReconciliationMismatch`), L2 (`RiskRejectRatioHigh`, `RiskMarketDataStale`, `RiskTickFailing`)
-**Alerts:** `KillSwitchEngaged`, `ReconciliationMismatch`, `RiskRejectRatioHigh`, `RiskMarketDataStale`, `RiskTickFailing`, `DecisionIntentsRejected`
+**Alerts:** `KillSwitchEngaged`, `ReconciliationMismatch`, `RiskRejectRatioHigh`, `RiskMarketDataStale`, `RiskTickFailing`, `RiskOutboxDropped`, `RiskOutboxPending`, `DecisionIntentsRejected`, `DecisionPassFailing`
 **Decision:** [ADR-0064](../../adr/0064-risk-and-execution-context-before-order-flow.md) · **Policy:** [risk-limits-policy](../../compliance/risk-limits-policy.md) · **Drill log:** [risk-drill-log](../../compliance/risk-drill-log.md)
 
 `risk-execution` owns every order (paper only: simulated broker, no live adapter). The switch state is in `/data/risk-execution/state.json` on its PVC. Nothing re-arms the switch except an operator, by hand.
@@ -55,9 +55,17 @@ More than 50% of the intents were rejected over 15 min (no alert without traffic
 Three or more intents of the decision consumer rejected in an hour with the same `reason` label (`decision_intents_total{outcome="rejected"}`; the reasons are those of risk-execution, `risk_orders_total`). The consumer decides once per closed bar, so this is a pattern, not noise.
 
 1. Read the `Intent rejected by risk-execution` log lines of `decision-consumer` (symbol, model, reason).
-2. `price_band`, `price_gap`, `stale_intent`: the bar read from financial-scraper is far from the price risk-execution reads, or old; check the feed ([runbook-market-data-stale](runbook-market-data-stale.md)).
-3. A rejected buy (`instrument_exposure`, `global_exposure`) is a finding: the consumer bounds buys and sales on the real position (`GET /positions/:symbol`, ADR-0087 §3), so risk-execution limits tighter than the model's cap are the usual cause.
-4. `instrument_exposure`, `global_exposure`, `max_quantity`: the size of the model exceeds a limit of risk-execution; the limit stays, lower `PROMOTED_MODELS` by a PR if the model is the cause.
+2. `price_band`, `price_gap`: the bar read from financial-scraper is far from the price risk-execution reads; check the feed ([runbook-market-data-stale](runbook-market-data-stale.md)).
+3. `stale_intent`: the intent is dated at its decision time, so the call decision-consumer → risk-execution took more than 1 min, or the decision-consumer clock is more than 5 s ahead of (or 1 min behind) the risk-execution clock; check the latency and the node clocks, not the feed.
+4. A rejected buy (`instrument_exposure`, `global_exposure`) is a finding: the consumer bounds buys and sales on the real position (`GET /positions/:symbol`, ADR-0087 §3), so risk-execution limits tighter than the model's cap are the usual cause.
+5. `instrument_exposure`, `global_exposure`, `max_quantity`: the size of the model exceeds a limit of risk-execution; the limit stays, lower `PROMOTED_MODELS` by a PR if the model is the cause.
+
+## DecisionPassFailing
+
+A decision pass or a promoted model of decision-consumer failed (`decision pass failed` log line or a model error, `decision_skipped_total{reason="error"}`); no intent is decided while it repeats.
+
+1. Read the `decision pass failed` error in the `decision-consumer` logs.
+2. Fix the cause (feed, trainer or risk-execution unreachable, bad `PROMOTED_MODELS`); the next tick retries by itself.
 
 ## RiskMarketDataStale
 
@@ -66,12 +74,34 @@ A price older than 15 min on an allowed instrument that already had one: that sy
 1. The service reads the last closed candle of each instrument from financial-scraper at every tick: check the `prices.error` log lines, then [runbook-market-data-stale](runbook-market-data-stale.md) for the feed.
 2. When fresh prices flow, re-arm the symbol (and the global switch if engaged).
 
+## RiskDrawdownApproaching
+
+`risk_drawdown_ratio` (drawdown from the high-water mark over `drawdownPct` × allocated capital) stayed above 0.7 for 5 min. At 1 the kill switch engages by itself and only the owner re-arms it.
+
+1. Read `GET /admin/status` (`equity`, positions) and the `risk_equity` gauge: which positions lose.
+2. Decide before the limit: engage a symbol switch by hand, or let the stop act.
+
 ## RiskTickFailing
 
 The periodic tick threw for 5 min (`risk tick failed` log line, counter `risk_tick_failures_total`). Gauges are still republished from memory, so a switch engaged during the failure shows in `KillSwitchEngaged`; what is lost is persistence.
 
 1. Read the `risk tick failed` error: PVC full or read-only (`df` in the pod), broker unreachable, state file unwritable.
 2. Fix the cause, then check `GET /admin/status`. Copy `state.json` out of the pod before restarting (the daily backup may be older).
+
+## RiskOutboxPending
+
+Order or kill switch events the bus refused wait in the outbox file (gauge `risk_outbox_pending`, `risk event kept for replay` and `risk outbox replay stopped` log lines). They replay at every tick and at restart; past 1000 the oldest is dropped (`RiskOutboxDropped`).
+
+1. Find why the bus refuses: Redis down or failing over, or an ACL error (`WRONGPASS`, `NOPERM` in the `risk outbox replay stopped` error).
+2. Fix the bus. The next tick replays the file and the gauge returns to 0.
+
+## RiskOutboxDropped
+
+The outbox hit 1000 events: the oldest were dropped (`risk outbox full: oldest event dropped` error log, counter `risk_outbox_dropped_total`). Those order or kill switch events are missing from the audit chain (ADR-0027).
+
+1. Read the `dropped` field of each log line: it holds the full event (topic, fields, `eventId`).
+2. Fix the bus as in [RiskOutboxPending](#riskoutboxpending).
+3. Record the lost events (order transitions, kill switch changes) in the incident log; they cannot be replayed.
 
 ## Drill
 

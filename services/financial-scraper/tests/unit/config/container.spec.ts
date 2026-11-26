@@ -48,12 +48,6 @@ jest.mock(
 	})
 );
 jest.mock(
-	"../../../src/adapters/outbound/persistence/schema/trades.schema",
-	() => ({
-		insertTrades: jest.fn<(...args: any[]) => any>(),
-	})
-);
-jest.mock(
 	"../../../src/adapters/outbound/persistence/schema/order-book.schema",
 	() => ({
 		insertOrderBook: jest.fn<(...args: any[]) => any>(),

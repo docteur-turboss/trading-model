@@ -14,7 +14,6 @@ export function buildParetoFronts(
 	popWithMeta: PopMember[];
 	popMeta: PopulationMeta;
 	avgFit: number;
-	avgEff: number;
 } {
 	const popMeta = buildPopulationMeta(objectives, rng);
 
@@ -27,10 +26,8 @@ export function buildParetoFronts(
 	const avgFit =
 		popWithMeta.reduce((sum, member) => sum + member.fitness, 0) /
 		popWithMeta.length;
-	const avgEff =
-		metas.reduce((sum, meta) => sum + meta.efficiencyScore, 0) / metas.length;
 
-	return { popWithMeta, popMeta, avgFit, avgEff };
+	return { popWithMeta, popMeta, avgFit };
 }
 
 export function sortPopulation(

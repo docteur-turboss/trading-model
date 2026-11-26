@@ -1,6 +1,9 @@
 import { DiagConsoleLogger, DiagLogLevel, diag } from "@opentelemetry/api";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
-import { ExpressInstrumentation } from "@opentelemetry/instrumentation-express";
+import {
+	ExpressInstrumentation,
+	ExpressLayerType,
+} from "@opentelemetry/instrumentation-express";
 import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
 import { IORedisInstrumentation } from "@opentelemetry/instrumentation-ioredis";
 import { MongoDBInstrumentation } from "@opentelemetry/instrumentation-mongodb";
@@ -33,6 +36,12 @@ export const createHttpInstrumentation = () =>
 			"user_agent.original": undefined,
 			"url.query": undefined,
 		}),
+	});
+
+/** Express instrumentation keeping route and request spans, not one span per middleware (~12 per gateway request). */
+export const createExpressInstrumentation = () =>
+	new ExpressInstrumentation({
+		ignoreLayersType: [ExpressLayerType.MIDDLEWARE],
 	});
 
 /**
@@ -68,7 +77,7 @@ export function startTelemetry(serviceName: ServiceInstanceName): void {
 		}),
 		instrumentations: [
 			createHttpInstrumentation(),
-			new ExpressInstrumentation(),
+			createExpressInstrumentation(),
 			// No query values in spans: mysql2 masks literals, mongodb replaces
 			// them by default, redis keeps the command name only (no key, no value).
 			new MySQL2Instrumentation({ maskStatement: true }),

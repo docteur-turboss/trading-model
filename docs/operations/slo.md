@@ -41,7 +41,7 @@ rate(http_request_duration_seconds_bucket{path!~"/ping|/health/ready|/metrics"}[
 - **Definition:** Proportion of delivery outcomes that succeed: a message accepted but not delivered (subscriber down, retries pending) no longer counts as success once it is dead-lettered.
 - **Measurement:** Prometheus `rate(mm_messages_delivered_total{status="success"}[5m]) /
 (rate(mm_messages_delivered_total{status="success"}[5m]) + rate(mm_messages_dlq_total[5m]))`.
-- **Source:** message-manager.
+- **Source:** the bus library of each subscriber service.
 
 ### 5. Training Completion Rate
 
@@ -52,19 +52,19 @@ rate(tt_training_sessions_total[12h])`.
 
 ### 6. Data Freshness
 
-- **Definition:** Age of the newest candle the trainer reads from financial-scraper.
-- **Measurement:** Prometheus `min(tt_last_candle_age_seconds)`, read at each session.
-- **Source:** trader-trainer.
+- **Definition:** Age of the newest candle financial-scraper persists.
+- **Measurement:** Prometheus `fs_candles_persisted_total`, alert `MarketDataStale` (no candle persisted). `TrainerMarketDataStale` (`tt_last_candle_age_seconds`, sampled at each 4 h session) only tells that the trainer cannot read what is persisted: it is not the SLI.
+- **Source:** financial-scraper.
 
 ## SLOs
 
 | SLI                 | Target   | Window | Alerts |
 | ------------------- | -------- | ------ | ------ |
-| Availability        | ≥ 99.9%  | 30d    | fast: 5xx > 1.44% over 1h and 5m (14.4x); slow: > 0.6% over 6h and 30m (6x) |
+| Availability        | ≥ 99%    | 30d    | fast: 5xx > 14.4% over 1h and 5m (14.4x); slow: > 6% over 6h and 30m (6x) |
 | Latency P95         | ≤ 2s     | 30d    | fast: P95 > 5s over 5m; slow: P95 > 3s over 1h (single window) |
 | Message Delivery    | ≥ 99.95% | 30d    | `MessageDeliveryLowSuccessRate`: < 99.5% over 5m (no slow burn) |
 | Training Completion | ≥ 99%    | 30d    | `TrainingCompletionRateLow` (warning): < 95% over 12h; `TrainingCompletionRateCritical` (critical, pages): < 50% over 12h (no slow burn) |
-| Data Freshness      | ≤ 15 min | 30d    | `MarketDataStale` / `TrainerMarketDataStale` |
+| Data Freshness      | ≤ 15 min | 30d    | `MarketDataStale` |
 
 The Message Delivery and Training SLOs have no slow-burn alert: their
 traffic is low and bursty, so a 1h ratio flaps on a handful of events. A
@@ -72,11 +72,13 @@ dead-lettered message already raises `BusDeadLetters`, and the existing
 alert on each SLI catches sustained loss. Adding them needs a minimum-volume
 guard first.
 
-### Availability SLO (99.9%)
+The burn-rate rules and the budget read the recording rules `slo:sli_error:ratio_rate{5m,30m,1h,6h,30d}`, which exclude `/ping`, `/health/ready` and `/metrics` and fall back to the blackbox probe failure rate of the same `job` when a service receives no requests (full outage); `ratio_rate30d` is the 30-day mean of `ratio_rate1h`, not weighted by traffic.
+
+### Availability SLO (99%)
 
 Multi-window multi-burn-rate: an alert fires only when the long window (the
 budget is really burning) and the short window (it is still burning) both
-exceed the threshold. Thresholds are the burn rate times the budget (0.1%).
+exceed the threshold. Thresholds are the burn rate times the budget (1%, about 7 h 12 min over 30 days).
 
 - Fast burn, 14.4x: windows 1h and 5m, `for: 2m`, critical (2% of a 30d budget in 1h).
 - Slow burn, 6x: windows 6h and 30m, `for: 15m`, warning (5% of a 30d budget in 6h).
@@ -104,7 +106,11 @@ below.
   Monday 09:00).
 - **Error budget:** time lost outside covered hours counts against the SLOs
   above like any other time. A night incident that burns more than the budget
-  policy allows triggers the same freeze and postmortem.
+  policy allows triggers the same freeze and postmortem. The availability
+  target is 99% rather than 99.9% for this reason (issue #2735): a 43-minute
+  budget would be spent by any night incident, so the freeze would never end.
+  An incident that lasts a whole weekend still exceeds the 7 h 12 min budget,
+  by design.
 
 ### Losses accepted while nobody reacts
 
@@ -137,17 +143,6 @@ point-in-time correct, but they see the value later.
 2. **Budget 20–50%:** Freeze non-critical features; prioritise reliability work.
 3. **Budget < 20%:** Full freeze on all changes except critical bug fixes and
    rollbacks. Mandatory postmortem.
-
-## Burn Rate Alerts
-
-The following alerts are configured in `deploy/k8s/infra/config/alerting.yml`:
-
-- `SLOAvailabilityFastBurn`, `SLOAvailabilitySlowBurn`: 99.9% SLO, multi-window multi-burn-rate (1h/5m at 14.4x, 6h/30m at 6x).
-- `SLOErrorBudgetLow`: less than 20% of the 30d budget left (recording rule `slo:sli_error:ratio_rate30d`).
-- `SLOLatencyFastBurn`, `SLOLatencySlowBurn`: P95 ≤ 2s SLO, 5m and 1h windows.
-- `MessageDeliveryLowSuccessRate`, `TrainingCompletionRateLow`: one alert per SLI.
-
-The burn-rate rules and the budget read the recording rules `slo:sli_error:ratio_rate{5m,30m,1h,6h,30d}`, which exclude `/ping`, `/health/ready` and `/metrics` and fall back to the blackbox probe failure rate of the same `job` when a service receives no requests (full outage); `ratio_rate30d` is the 30-day mean of `ratio_rate1h`, not weighted by traffic.
 
 ## Dashboard Alignment
 

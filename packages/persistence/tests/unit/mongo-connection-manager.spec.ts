@@ -46,7 +46,7 @@ describe("MongoConnectionManager", () => {
 	});
 
 	it("should hand the credentials to the driver, not through the URI", async () => {
-		const auth = { username: "dlq-service", password: "pw" };
+		const auth = { username: "audit-logger", password: "pw" };
 		await new MongoConnectionManager({
 			uri: "mongodb://localhost:27017/?authSource=admin",
 			auth,

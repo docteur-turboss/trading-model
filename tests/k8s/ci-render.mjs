@@ -17,6 +17,8 @@
 //     instead of reaching the real service
 //   - keeps 100 % of the traces: verify_traces needs the api-gateway and
 //     trader-trainer spans of one request, the 20 % sampler makes it random
+//   - CI_RENDER_HA=1 (the 3-node group, issue #2657): Redis and its sentinels at 3 pods spread
+//     over the nodes (DoNotSchedule) and JOURNAL_MIN_REPLICAS=1, as the production overlay
 //   - suspends the CronJobs: a cluster kept after the test must not run the
 //     nightly backup on the host disk (the drill starts its job by hand)
 // Usage: kubectl kustomize ... | node tests/k8s/ci-render.mjs > out.yaml
@@ -50,25 +52,26 @@ stringData:
   MYSQL_EXPORTER_PASSWORD: dev-mysql-exporter
   # Read only by release N-1 (development carries #822) until ADR-0065 ships; drop with the N-1 that lacks it.
   MYSQL_SPIRE_PASSWORD: dev-mysql-spire
+  # Read only by release N-1 (message-manager, dlq-service, mongo-dlq); drop once N-1 is the release after #1241.
   DLQ_AUTH_HMAC_SECRET: dev-dlq-hmac-0123456789abcdef0123456789abcdef
+  REDIS_MESSAGE_MANAGER_PASSWORD: dev-redis-message-manager-password
+  REDIS_DLQ_PASSWORD: dev-redis-dlq-password
+  MONGO_DLQ_PASSWORD: dev-mongo-dlq-password
+  MONGO_DLQ_KEYFILE: devMongoDlqKeyfile0123456789abcdefghijkl
   GRAFANA_PASSWORD: dev-grafana
   REDIS_INTERNAL_PASSWORD: dev-redis-internal-password
   REDIS_DISCOVERY_PASSWORD: dev-redis-discovery-password
-  REDIS_MESSAGE_MANAGER_PASSWORD: dev-redis-message-manager-password
-  REDIS_DLQ_PASSWORD: dev-redis-dlq-password
   REDIS_AUDIT_LOGGER_PASSWORD: dev-redis-audit-logger-password
-  REDIS_TRADER_TRAINER_PASSWORD: dev-redis-trader-trainer-password
-  REDIS_MODEL_EVALUATOR_PASSWORD: dev-redis-model-evaluator-password
   REDIS_RISK_EXECUTION_PASSWORD: dev-redis-risk-execution-password
   REDIS_DECISION_CONSUMER_PASSWORD: dev-redis-decision-consumer-password
+  REDIS_TRADER_TRAINER_PASSWORD: dev-redis-trader-trainer-password
+  REDIS_MODEL_EVALUATOR_PASSWORD: dev-redis-model-evaluator-password
   REDIS_EXPORTER_PASSWORD: dev-redis-exporter-password
   MONGO_ROOT_PASSWORD: dev-mongo-root-password
   MONGO_EXPORTER_PASSWORD: dev-mongo-exporter-password
   MONGO_BACKUP_PASSWORD: dev-mongo-backup-password
   MONGO_AUDIT_PASSWORD: dev-mongo-audit-password
-  MONGO_DLQ_PASSWORD: dev-mongo-dlq-password
   MONGO_AUDIT_KEYFILE: devMongoAuditKeyfile0123456789abcdefghij
-  MONGO_DLQ_KEYFILE: devMongoDlqKeyfile0123456789abcdefghijkl
 `;
 
 // `--secret`: that Secret alone, the stand-in for the SealedSecret file deploy.yml
@@ -125,7 +128,31 @@ const documents = readFileSync(0, "utf8")
 	.filter((doc) => !DROPPED_KINDS.test(doc))
 	.map((doc) => (/^kind: SealedSecret$/m.test(doc) ? `
 ${TEST_SECRET}` : doc))
+	.map((doc) => (process.env.CI_RENDER_HA === "1" ? haPatch(doc) : doc))
 	.map((doc) => (/^kind: CronJob$/m.test(doc) ? doc.replace(/^spec:\n/m, "spec:\n  suspend: true\n") : doc));
+// shortcut: textual patch of the rendered YAML, like adapt(); the staging overlay pins these to 1.
+function haPatch(doc) {
+	if (/^kind: StatefulSet$/m.test(doc) && /^ {2}name: redis(-sentinel)?$/m.test(doc)) {
+		const component = doc.match(/^ {2}name: (redis(?:-sentinel)?)$/m)[1];
+		return doc
+			.replace(/^( {2}replicas:) 1$/m, "$1 3")
+			.replace(
+				/^( {6})terminationGracePeriodSeconds:/m,
+				`$1topologySpreadConstraints:
+$1  - maxSkew: 1
+$1    topologyKey: kubernetes.io/hostname
+$1    whenUnsatisfiable: DoNotSchedule
+$1    labelSelector:
+$1      matchLabels:
+$1        app.kubernetes.io/component: ${component}
+$1terminationGracePeriodSeconds:`
+			);
+	}
+	return /^ {2}name: (message-manager|audit-logger|trader-trainer|model-evaluator)-config-/m.test(doc)
+		? doc.replace(/^ {2}JOURNAL_MIN_REPLICAS: .*\n/m, "").replace(/^data:\n/m, 'data:\n  JOURNAL_MIN_REPLICAS: "1"\n')
+		: doc;
+}
+
 const rendered = adapt(documents.join("---"));
 if (!rendered.includes(STUB_URL) || /BINANCE_BASE_URL: "?https:/.test(rendered)) {
 	process.stderr.write("ci-render: BINANCE_BASE_URL not pointed at the stub\n");

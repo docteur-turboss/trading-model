@@ -51,15 +51,3 @@ if grep -q '^staging: risk-execution-config sets EXECUTION_MODE=live outside pro
 else
   echo "  ✗ unexpected failure:"; echo "$out"; exit 1
 fi
-# Issue #1931: a bus user sent to the partitioned redis-0, which lacks its ACL user.
-rm -r "$TMP/deploy" && cp -r "$ROOT/deploy" "$TMP/deploy"
-# risk-execution: a bus user staging-local's redis-0 does not have (BUS_ON_PARTITIONED_REDIS), sent through the library.
-sed -i 's/^        value: http$/        value: library/' "$TMP/deploy/k8s/overlays/staging-local/kustomization.yaml"
-if out="$(cd "$TMP" && node "$ROOT/tests/k8s/check-overlays.mjs" 2>&1)"; then
-  echo "  ✗ bus user on partitioned redis accepted"; exit 1
-fi
-if grep -q '^staging-local: risk-execution-config-[a-z0-9]* sends bus user risk-execution to the partitioned redis' <<<"$out"; then
-  echo "  ✓ bus user on partitioned redis refused"
-else
-  echo "  ✗ unexpected failure:"; echo "$out"; exit 1
-fi

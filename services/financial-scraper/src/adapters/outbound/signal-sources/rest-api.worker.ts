@@ -119,7 +119,7 @@ function remember(
 export function createRestApiWorker(userAgent: string): ProtocolWorker {
 	const validators = new Map<string, Record<string, string>>();
 	const pending = new Map<string, Record<string, string>>();
-	const worker: ProtocolWorker = async (request, auth, body) => {
+	const worker: ProtocolWorker = async (request, auth, body, signal) => {
 		const url = new URL(request.url);
 		const format = body?.format ?? "json";
 		const headers: Record<string, string> = {
@@ -142,7 +142,10 @@ export function createRestApiWorker(userAgent: string): ProtocolWorker {
 		for (let attempt = 1; !response; attempt++) {
 			response = await fetch(url, {
 				headers,
-				signal: AbortSignal.timeout(TIMEOUT_MS),
+				signal: AbortSignal.any([
+					...(signal ? [signal] : []),
+					AbortSignal.timeout(TIMEOUT_MS),
+				]),
 			}).catch((err: unknown): undefined => {
 				const { name } = normalizeError(err);
 				if (name === "TimeoutError" && attempt < MAX_ATTEMPTS) {

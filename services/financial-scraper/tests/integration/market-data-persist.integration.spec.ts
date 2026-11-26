@@ -7,10 +7,6 @@ jest.mock(
 	() => ({ insertCandles: jest.fn<(...args: any[]) => any>() })
 );
 jest.mock(
-	"../../src/adapters/outbound/persistence/schema/trades.schema",
-	() => ({ insertTrades: jest.fn<(...args: any[]) => any>() })
-);
-jest.mock(
 	"../../src/adapters/outbound/persistence/schema/order-book.schema",
 	() => ({ insertOrderBook: jest.fn<(...args: any[]) => any>() })
 );
@@ -22,12 +18,10 @@ jest.mock(
 import { insertCandles } from "../../src/adapters/outbound/persistence/schema/candles.schema";
 import { insertOrderBook } from "../../src/adapters/outbound/persistence/schema/order-book.schema";
 import { insertTicker } from "../../src/adapters/outbound/persistence/schema/ticker24h.schema";
-import { insertTrades } from "../../src/adapters/outbound/persistence/schema/trades.schema";
 import { MarketDataPersister } from "../../src/config/container";
 
 describe("MarketDataPersister — persist integration", () => {
 	const mockCandles = [{ symbol: "BTCUSDT", interval: CandleInterval.Min1 }];
-	const mockTrades = [{ tradeId: 1n, symbol: "BTCUSDT" }];
 	const mockOrderBook = { symbol: "BTCUSDT" };
 	const mockTicker24h = [{ symbol: "BTCUSDT" }];
 
@@ -35,25 +29,22 @@ describe("MarketDataPersister — persist integration", () => {
 		jest.clearAllMocks();
 	});
 
-	it("should persist candles, trades, orderBook and ticker when all present", async () => {
+	it("should persist candles, orderBook and ticker when all present", async () => {
 		await MarketDataPersister.persist({
 			candles: mockCandles as never,
-			recentTrades: mockTrades as never,
 			orderBook: mockOrderBook as never,
 			ticker24h: mockTicker24h as never,
 			fetchedAt: Date.now(),
 		});
 
 		expect((insertCandles as Mock).mock.calls[0][0]).toBe(mockCandles);
-		expect((insertTrades as Mock).mock.calls[0][0]).toBe(mockTrades);
 		expect((insertOrderBook as Mock).mock.calls[0][0]).toEqual([mockOrderBook]);
 		expect((insertTicker as Mock).mock.calls[0][0]).toBe(mockTicker24h);
 	});
 
-	it("should only persist which is truthy candles trades ticker", async () => {
+	it("should only persist which is truthy candles ticker", async () => {
 		await MarketDataPersister.persist({
 			candles: mockCandles as never,
-			recentTrades: mockTrades as never,
 			ticker24h: mockTicker24h as never,
 			fetchedAt: Date.now(),
 		});
@@ -65,12 +56,10 @@ describe("MarketDataPersister — persist integration", () => {
 	it("should skip empty arrays", async () => {
 		await MarketDataPersister.persist({
 			candles: [],
-			recentTrades: [],
 			fetchedAt: Date.now(),
 		});
 
 		expect(insertCandles).not.toHaveBeenCalled();
-		expect(insertTrades).not.toHaveBeenCalled();
 	});
 
 	it("should handle empty payload gracefully", async () => {
@@ -79,7 +68,6 @@ describe("MarketDataPersister — persist integration", () => {
 		});
 
 		expect(insertCandles).not.toHaveBeenCalled();
-		expect(insertTrades).not.toHaveBeenCalled();
 		expect(insertOrderBook).not.toHaveBeenCalled();
 		expect(insertTicker).not.toHaveBeenCalled();
 	});
@@ -91,10 +79,6 @@ describe("MarketDataPersister — persist integration", () => {
 			order.push("candles");
 			return Promise.resolve();
 		});
-		(insertTrades as Mock).mockImplementation(() => {
-			order.push("trades");
-			return Promise.resolve();
-		});
 		(insertTicker as Mock).mockImplementation(() => {
 			order.push("ticker");
 			return Promise.resolve();
@@ -102,13 +86,11 @@ describe("MarketDataPersister — persist integration", () => {
 
 		await MarketDataPersister.persist({
 			candles: mockCandles as never,
-			recentTrades: mockTrades as never,
 			ticker24h: mockTicker24h as never,
 			fetchedAt: Date.now(),
 		});
 
 		expect(order).toContain("candles");
-		expect(order).toContain("trades");
 		expect(order).toContain("ticker");
 	});
 });

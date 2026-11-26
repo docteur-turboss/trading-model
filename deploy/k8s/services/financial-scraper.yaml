@@ -154,34 +154,24 @@ spec:
               mountPath: /etc/signal-registry
               readOnly: true
           livenessProbe:
-            exec:
-              command:
-                - node
-                - -e
-                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
-                - https://localhost:3000/ping
-            initialDelaySeconds: 20
+            httpGet:
+              path: /ping
+              port: 3001
             periodSeconds: 15
             timeoutSeconds: 10
             failureThreshold: 3
           readinessProbe:
-            exec:
-              command:
-                - node
-                - -e
-                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
-                - https://localhost:3000/health/ready
+            httpGet:
+              path: /health/ready
+              port: 3001
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 10
             successThreshold: 1
           startupProbe:
-            exec:
-              command:
-                - node
-                - -e
-                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
-                - https://localhost:3000/ping
+            httpGet:
+              path: /ping
+              port: 3001
             initialDelaySeconds: 30
             periodSeconds: 5
             failureThreshold: 12
@@ -403,34 +393,24 @@ spec:
               mountPath: /etc/signal-registry
               readOnly: true
           livenessProbe:
-            exec:
-              command:
-                - node
-                - -e
-                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
-                - https://localhost:3000/ping
-            initialDelaySeconds: 20
+            httpGet:
+              path: /ping
+              port: 3001
             periodSeconds: 15
             timeoutSeconds: 10
             failureThreshold: 3
           readinessProbe:
-            exec:
-              command:
-                - node
-                - -e
-                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
-                - https://localhost:3000/health/ready
+            httpGet:
+              path: /health/ready
+              port: 3001
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 10
             successThreshold: 1
           startupProbe:
-            exec:
-              command:
-                - node
-                - -e
-                - 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))'
-                - https://localhost:3000/ping
+            httpGet:
+              path: /ping
+              port: 3001
             initialDelaySeconds: 30
             periodSeconds: 5
             failureThreshold: 12

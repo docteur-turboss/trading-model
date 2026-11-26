@@ -51,7 +51,6 @@ function previousSnapshot() {
 		}
 	}
 	console.log("contracts:compat: no release tag with a snapshot, nothing to compare");
-	return undefined;
 }
 
 if (mode === "--write") {

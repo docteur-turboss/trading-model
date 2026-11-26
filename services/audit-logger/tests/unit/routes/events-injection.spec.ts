@@ -29,7 +29,7 @@ const PARAMS = [
 	"correlationId",
 	"startDate",
 	"endDate",
-	"page",
+	"before",
 	"limit",
 ];
 const OPERATORS = [
@@ -73,7 +73,7 @@ describe("audit-logger public routes: operator injection", () => {
 		auditRepo.query.mockResolvedValue({
 			docs: [],
 			total: 0,
-			page: 1,
+			nextCursor: null,
 			limit: 10,
 		});
 		auditRepo.findById.mockResolvedValue(null);

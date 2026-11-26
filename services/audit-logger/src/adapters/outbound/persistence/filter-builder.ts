@@ -40,8 +40,12 @@ interface AuditFilter {
 	correlationId?: CorrelationId;
 }
 
-export interface AuditEventQuery extends QueryEnvelope, AuditFilter {
-	/** `false` skips the count (`total` absent); default: counted. */
+export interface AuditEventQuery
+	extends Pick<QueryEnvelope, "limit" | "dateRange">,
+		AuditFilter {
+	/** Keyset cursor: only events with a `chainSequence` below it. */
+	before?: number;
+	/** `true` adds the count (`total`); default: no count. */
 	withTotal?: boolean;
 }
 

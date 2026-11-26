@@ -3,7 +3,7 @@
 > **Version:** 1.0  
 > **Effective:** 2026-06  
 > **Review:** Annual (tabletop exercise)  
-> **Regulatory alignment:** GDPR Art. 33, DORA Art. 9-10, NIST SP 800-61 Rev. 2
+> **Regulatory alignment:** GDPR Art. 33, NIST SP 800-61 Rev. 2
 
 ## 1. Policy Statement
 
@@ -82,7 +82,6 @@ Within 5 business days of L1-L2 incidents, a post-mortem document shall be produ
 | Regulation | Trigger | Notification Period | Notify |
 |---|---|---|---|
 | **GDPR Art. 33** | Personal data breach | 72 hours | Supervisory authority (CNIL); every breach is also recorded in the [breach register](breach-register.md) |
-| **DORA Art. 10** | Major ICT incident | 24 hours | Competent authority (ACPR/ECB) |
 | **MiFID II Art. 72** | Record-keeping failure | Immediate internal escalation | Maintainer |
 
 **Important:** The personal data is the truncated caller IP in the edge-proxy access logs (31 days, register activity 6) and operator data (register activity 8). A breach of those logs is unlikely to result in a risk to individuals (Art. 33(1)): record it in the internal breach register (Art. 33(5), template: [breach-register.md](breach-register.md)); notify the CNIL only if the assessment concludes otherwise.
@@ -121,8 +120,8 @@ All incidents are logged with the audit-logger for traceability and compliance:
   "correlationId": "inc-20260615-001",
   "eventType": "INCIDENT_DETECTED",
   "severity": "HIGH",
-  "affectedService": "message-manager",
-  "summary": "SVID renewal failure for message-manager",
+  "affectedService": "audit-logger",
+  "summary": "SVID renewal failure for audit-logger",
   "detectedAt": "2026-06-15T10:30:00Z",
   "containedAt": "2026-06-15T10:45:00Z",
   "resolvedAt": "2026-06-15T11:00:00Z",

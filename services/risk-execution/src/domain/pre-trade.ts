@@ -21,6 +21,8 @@ export interface PreTradeContext {
 	halted: readonly string[];
 	/** The service's own price of the intent symbol, read for this intent; absent when the read failed or found none. */
 	price?: MarketPrice;
+	/** Bar length of the intent's model: its price is stale after 2 bars (`haltAgeMs` when absent). */
+	barMs?: number;
 	/** Operator reduction (`POST /v1/admin/reduce`, policy §4.1): a sell that alone passes the kill switch. */
 	operator?: boolean;
 }
@@ -35,7 +37,10 @@ export function preTradeReject(ctx: PreTradeContext): string | null {
 		return gate;
 	}
 	const { price } = ctx;
-	if (!price || ctx.now - price.at > ctx.limits.haltAgeMs) {
+	if (
+		!price ||
+		ctx.now - price.at > (ctx.barMs ? 2 * ctx.barMs : ctx.limits.haltAgeMs)
+	) {
 		return "stale_price";
 	}
 	const priced = { ...ctx, market: price.price };
@@ -48,8 +53,16 @@ export function preTradeReject(ctx: PreTradeContext): string | null {
 	);
 }
 
-const orderPrice = ({ intent, market }: PricedContext): number =>
-	intent.limitPrice ?? market;
+/** The limit an order without one is sent with: marketable, at the far end of the price band (ADR-0064 §2). */
+export const marketableLimit = (
+	side: Intent["side"],
+	market: number,
+	limits: RiskLimits
+): number =>
+	market * (side === "buy" ? 1 + limits.priceBandPct : 1 - limits.priceBandPct);
+
+const orderPrice = ({ intent, market, limits }: PricedContext): number =>
+	intent.limitPrice ?? marketableLimit(intent.side, market, limits);
 
 /** Clock skew accepted on a timestamp pushed by a caller. */
 const CLOCK_SKEW_MS = 5000;

@@ -50,17 +50,20 @@ export class TradeExecutor {
 			return false;
 		}
 		const price = validFillPrice(fillPrice);
-		const newPosition = Volume.of(
-			this._config.roundValue(this._state.position + amt)
+		// Reduce a buy to what the exposure cap allows at the fill price; refuse when nothing is left.
+		const maxPosition =
+			(this._config.maxExposureFraction * this._config.initialCash) / price;
+		const bought = this._config.roundValue(
+			Math.min(amt, maxPosition - this._state.position)
 		);
-		// Refuse (not reduce) a buy whose position value at the fill price exceeds the exposure cap.
-		const maxValue =
-			this._config.maxExposureFraction * this._config.initialCash;
-		if (newPosition * price > maxValue) {
+		if (bought <= 0) {
 			return false;
 		}
+		const newPosition = Volume.of(
+			this._config.roundValue(this._state.position + bought)
+		);
 		const { totalCost, fee, executionCost } = this._config.computeBuyCosts(
-			amount,
+			Volume.of(bought),
 			price
 		);
 		if (Cash.gt(totalCost, this._state.cash)) {

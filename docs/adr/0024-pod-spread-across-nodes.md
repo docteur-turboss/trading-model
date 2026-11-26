@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-10
-**Related:** [ADR-0023](./0023-discovery-registry-in-redis.md) (discovery replicas now share their registry), [ADR-0019](./0019-message-broker-as-built.md)
+**Related:** ADR-0023 (deleted) (discovery replicas now share their registry), ADR-0019 (deleted)
 **Verified by:** `tests/k8s/check-overlays.mjs`
 
 ## Context

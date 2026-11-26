@@ -135,6 +135,18 @@ describe("RedisMessageJournal — real Redis", () => {
 		expect(await replica().xlen(stream())).toBe(0);
 	});
 
+	it("should keep a refused entry when the caller resends the same messageId", async () => {
+		await expect(
+			journalOn(replica(), 1).append(
+				createMockMessage("m1"),
+				[GROUP.service],
+				undefined,
+				true
+			)
+		).rejects.toThrow("held by 0 of 1 replicas");
+		expect(await replica().xlen(stream())).toBe(1);
+	});
+
 	it("should drop a pending entry trimmed from the stream, whatever the Redis version", async () => {
 		const journal = journalOn(replica());
 		await journal.append(createMockMessage("m1"), [GROUP.service]);

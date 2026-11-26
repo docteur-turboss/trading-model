@@ -3,7 +3,6 @@ import { ServiceId } from "@trading-model/primitives/primitives";
 import type { Application } from "express";
 
 import { FINANCIAL_ROUTES } from "../adapters/inbound/http/routes";
-import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
 import { DATABASE } from "../config/db";
 import { metricsHandler } from "../config/metrics";
 import { ENV } from "../infrastructure/config/env";
@@ -11,13 +10,11 @@ import { ENV } from "../infrastructure/config/env";
 function _registerScraperRoutes(app: Application): void {
 	app.use("/", FINANCIAL_ROUTES());
 	app.get("/metrics", metricsHandler);
-	ADDRESS_MANAGER_ROUTES(app);
 }
 
 /**
  * Secure Express server: financial routes, address manager, metrics. The
- * scraper subscribes to nothing, so it mounts no broker callback (`POST /message`):
- * message-manager never delivers to it.
+ * scraper subscribes to nothing and publishes nothing, so it mounts no bus route.
  */
 export function createServer() {
 	return createServiceServer({

@@ -12,9 +12,8 @@ import {
 	UnixTimestamp,
 	Volume,
 } from "@trading-model/primitives/primitives";
+import { DAY_MS } from "../features/feature-builder";
 import type { SignalHistoryPort } from "./scraper-signal-history";
-
-const DAY_MS = 86_400_000;
 
 /** Calendar days read per bar asked: weekends and holidays leave about 5 bars in 7 days. */
 const CALENDAR_DAYS_PER_BAR = 1.5;
@@ -70,7 +69,7 @@ export class SignalBarHistory {
 				continue;
 			}
 			const metrics = days.get(day) ?? new Map<string, number>();
-			// Newest observation of a metric wins (a restated price).
+			// One row per day and metric: the store replaces a restated price (source `restated`).
 			const observed = Date.parse(signal.observedAt);
 			const key = `${day}:${signal.payload.metric}`;
 			if (observed >= (seenAt.get(key) ?? 0)) {
