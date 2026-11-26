@@ -12,6 +12,7 @@
     "./agent/input-mask": "./dist/agent/input-mask.js",
     "./agent/state-manager": "./dist/agent/state-manager.js",
     "./agent/trading-agent": "./dist/agent/trading-agent.js",
+    "./env/multi-asset-wallet": "./dist/env/multi-asset-wallet.js",
     "./env/wallet-config": "./dist/env/wallet-config.js",
     "./env/wallet-manager": "./dist/env/wallet-manager.js",
     "./episode-scores": "./dist/episode-scores.js",
