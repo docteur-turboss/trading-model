@@ -931,8 +931,9 @@ credentials of the cloud account (not the ones stored in the cluster);
 
 3. **Access to the buckets from the new region.** The off-site backup bucket
    and the audit anchor bucket are S3 or S3-compatible. Their data is only
-   reachable if the provider still serves them. The backup bucket has an
-   optional second copy at another provider (`BACKUP_S3_SECONDARY_*`, ADR-0033):
+   reachable if the provider still serves them. The backup bucket has a second
+   copy at another provider (`BACKUP_S3_SECONDARY_*`, ADR-0033; required in
+   production, optional elsewhere):
    fetch from it by setting `BACKUP_S3_BUCKET` and the `AWS_*` / `RCLONE_S3_*`
    variables of `scripts/fetch-offsite.sh` to its values. The anchor bucket has
    no replica.
@@ -943,8 +944,8 @@ credentials of the cloud account (not the ones stored in the cluster);
    > production environment yet. Losing that store together with the cluster
    > loses every restorable backup. A second MinIO on the same host would not
    > cover this, so none is run. The second Object Lock bucket at another
-   > provider is postponed to the production launch: reopen #1943 then, and
-   > fill `BACKUP_S3_SECONDARY_*` before the first production deploy
+   > provider is postponed to the production launch (issue #1148): fill
+   > `BACKUP_S3_SECONDARY_*` before the first production deploy
    > (enforced by `scripts/backup-config-check.sh`, issue #2599).
 
    If reachable:
