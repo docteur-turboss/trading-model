@@ -173,6 +173,25 @@ function _maybeMutateNormalization(
 		: genome.network.normalization;
 }
 
+/** FEATURE_TOPOLOGY_GENES (ADR-0076 §4): fixed, written bounds of the depth and width genes. */
+export const TOPOLOGY_BOUNDS = {
+	minLayers: 1,
+	maxLayers: 4,
+	minNeurons: 8,
+	maxNeurons: 128,
+} as const;
+
+function _boundTopology(layers: LayerGenome[]): LayerGenome[] {
+	const { maxLayers, minNeurons, maxNeurons } = TOPOLOGY_BOUNDS;
+	return layers.slice(0, maxLayers).map((layer) => ({
+		...layer,
+		neurons: Math.min(
+			maxNeurons,
+			Math.max(minNeurons, layer.neurons)
+		) as PositiveInt,
+	}));
+}
+
 interface MutateNetworkContext {
 	genome: LamarckGenome;
 	mutationConfig: MutationGenome;
@@ -211,7 +230,9 @@ export function mutateNetworkStructure(
 			actionSet,
 			outputDim: ACTION_SETS[actionSet].length as PositiveInt,
 		}),
-		hiddenLayers: layers,
+		hiddenLayers: genome.gaControl.topologyGene
+			? _boundTopology(layers)
+			: layers,
 		normalization: _maybeMutateNormalization(genome, mutationConfig, rng),
 		...(genome.network.inputMask && {
 			inputMask: mutateInputMask(genome.network.inputMask, rng),

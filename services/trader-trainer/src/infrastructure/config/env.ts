@@ -90,6 +90,7 @@ const TRAINER_ENV_SHAPE = {
 	FEATURE_RISK_ADJUSTED_FITNESS: featureFlag(true),
 	/** Feature flag (ADR-0039): true lets the GA choose the action space (partial order sizes). */
 	FEATURE_ACTION_SPACE_GENE: featureFlag(false),
+	FEATURE_TOPOLOGY_GENES: featureFlag(false),
 	/** Feature flag (ADR-0039): true makes the agent decide on market events, not every bar (ADR-0076 §5). */
 	FEATURE_EVENT_DRIVEN_DECISIONS: featureFlag(false),
 	/** Show the agent its position; false to measure what it is worth (ADR-0025). */
