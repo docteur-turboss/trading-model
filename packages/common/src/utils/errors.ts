@@ -1,7 +1,6 @@
 export {
 	type AppError,
 	type AppErrorData,
-	authenticationError,
 	configurationError,
 	createAppError,
 	ErrorCode,
