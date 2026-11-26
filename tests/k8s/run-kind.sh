@@ -918,8 +918,7 @@ verify_ha() {
 		sentinel replicas mymaster || true
 		return 1
 	}
-	[ "$($K -n "$NS" get pod -l app.kubernetes.io/component=redis -o jsonpath='{range .items[*]}{.spec.nodeName}{"
-"}{end}' | sort -u | wc -l)" -eq 3 ] || {
+	[ "$($K -n "$NS" get pod -l app.kubernetes.io/component=redis -o jsonpath='{range .items[*]}{.spec.nodeName}{"\n"}{end}' | sort -u | wc -l)" -eq 3 ] || {
 		log "the 3 Redis pods are not on 3 nodes"
 		return 1
 	}
