@@ -248,5 +248,5 @@ Compose runs the same datasources as K8s, each one fed:
 
 Prometheus runs without `--web.enable-lifecycle` (issue #850): `POST /-/reload` and `/-/quit` answer 403/404 for any network client.
 
-- K8s: the Prometheus container checksums `/etc/prometheus` every 20 s and sends itself `SIGHUP` (PID 1) when it changed. After `kubectl apply`, the new rules are live within about a minute (kubelet ConfigMap sync included).
+- K8s: `prometheus-config` is hash-suffixed, so a changed rule file changes the pod template and `kubectl apply` rolls the StatefulSet (issue #2825); no in-pod reload.
 - Compose: `docker kill --signal=HUP trading-prometheus` after editing `observability/*.yml`.
