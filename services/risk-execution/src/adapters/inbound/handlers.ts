@@ -84,8 +84,8 @@ type Handler<Key extends keyof typeof RISK_API> = ApiRouteHandler<
 >;
 
 /**
- * @param decisionConsumers identities allowed to send intents: none until the
- * decision consumer exists, with its own identity and ACL entry (ADR-0049 §1.3).
+ * @param decisionConsumers identities allowed to send intents (the container
+ * passes decision-consumer), each with its own identity and ACL entry (ADR-0049 §1.3).
  */
 export function createHandlers(
 	risk: RiskExecution,
