@@ -14,7 +14,6 @@ describe("AddressManagerEnvSchema", () => {
 	it("uses defaults for optional fields", () => {
 		const result = AddressManagerEnvSchema.parse(baseEnv);
 		expect(result.APP_VERSION).toBe("1.0.0");
-		expect(result.MESSAGE_CALLBACK_PATH).toBe("message");
 		expect(result.DNS_NAME_MAP).toEqual({});
 	});
 

@@ -92,8 +92,9 @@ receivers:
 
 inhibit_rules:
   # Same job only; `job=~".+"` keeps job-less alerts (backups, audit chain) out.
+  # Risk* warnings are the causes KillSwitchEngaged asks the operator to check: never inhibited.
   - source_matchers: ['severity="critical"', 'job=~".+"']
-    target_matchers: ['severity="warning"', 'job=~".+"']
+    target_matchers: ['severity="warning"', 'job=~".+"', 'alertname!~"Risk.*"']
     equal: ['job']
   - source_matchers: ['alertname="ServiceDown"']
     target_matchers: ['alertname=~"SLO.*"']

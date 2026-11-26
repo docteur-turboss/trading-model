@@ -391,6 +391,13 @@ describe("parseSignalRegistry", () => {
 		expect(() => parseSignalRegistry(file)).toThrow(message);
 	});
 
+	it("accepts {year} in a template as in a request", () => {
+		const file = registry();
+		sourceOf(file, "wikipedia-pageviews").templates[0].url += "?y={year}";
+
+		expect(() => parseSignalRegistry(file)).not.toThrow();
+	});
+
 	it("reports several template problems together", () => {
 		const file = registry();
 		delete assetOf(file, "AAPL").aliases.wikipedia;

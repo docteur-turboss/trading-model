@@ -1,4 +1,3 @@
-import type { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import type {
 	DurationMs,
 	UnixTimestamp,
@@ -7,5 +6,4 @@ import type {
 export interface DeliveryParams {
 	ttl: DurationMs;
 	emittedAt: UnixTimestamp;
-	deliveryMode: DeliveryMode;
 }

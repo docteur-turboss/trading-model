@@ -139,7 +139,7 @@ export class GenerationProcessor {
 		const newCtrl = this._adaptControl(ctrl);
 		const trackResult = this._stagnationTracker.track(
 			paretoResult.popWithMeta,
-			paretoResult.avgEff
+			paretoResult.avgFit
 		);
 		this._evolvePopulation({ result: paretoResult, newCtrl, ctrl, rng });
 		const ctx = this._buildContext({
@@ -216,7 +216,7 @@ export class GenerationProcessor {
 	}
 
 	private _buildContext(params: {
-		result: { avgFit: number; avgEff: number; popWithMeta: PopMember[] };
+		result: { avgFit: number; popWithMeta: PopMember[] };
 		trackResult: TrackResult | undefined;
 		newCtrl: DeepReadonly<GAControlGenome>;
 		startTime?: number;
@@ -227,12 +227,8 @@ export class GenerationProcessor {
 			population: this._population,
 			archive: this._archive.members,
 			bestFitness: this._stagnationTracker.bestFitness,
-			bestGenome:
-				trackResult?.genome ??
-				(this._population[0] as DeepReadonly<LamarckGenome>),
 			bestFitnessMeta: trackResult?.meta,
 			avgFitness: result.avgFit,
-			efficiencyScore: result.avgEff,
 			elapsedMs: Date.now() - (startTime ?? Date.now()),
 			stagnation: this._stagnationTracker.stagnation,
 			gaControl: newCtrl,

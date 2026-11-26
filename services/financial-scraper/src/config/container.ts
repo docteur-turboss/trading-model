@@ -15,7 +15,6 @@ import {
 } from "../adapters/outbound/persistence/schema/candles.schema";
 import { insertOrderBook } from "../adapters/outbound/persistence/schema/order-book.schema";
 import { insertTicker } from "../adapters/outbound/persistence/schema/ticker24h.schema";
-import { insertTrades } from "../adapters/outbound/persistence/schema/trades.schema";
 import { MySqlSignalStore } from "../adapters/outbound/persistence/signal-store";
 import { createProtocolWorkers } from "../adapters/outbound/signal-sources/protocol-workers";
 import { SOURCE_ADAPTERS } from "../adapters/outbound/signal-sources/source-adapters";
@@ -40,7 +39,6 @@ const QUARANTINE_RESTORE_RETRY_MS = 2000;
 /** Market data persistence use case backed by the MySQL repository. */
 export const MarketDataPersister = createMarketDataPersister({
 	insertCandles,
-	insertTrades,
 	insertOrderBook: (data) => insertOrderBook([data]),
 	insertTicker,
 });
@@ -256,10 +254,11 @@ export async function createCollector(
 	}
 	let leaseApi: LeaseApi | undefined;
 	let store: QuarantineStore | undefined;
-	if (settings.COLLECTOR_LEASE_NAME) {
-		const { kubernetesLeaseApi, leaseAnnotation } = await import(
-			"@trading-model/reliability/kubernetes-lease"
-		);
+	const leaseModule = settings.COLLECTOR_LEASE_NAME
+		? await import("@trading-model/reliability/kubernetes-lease")
+		: undefined;
+	if (leaseModule) {
+		const { kubernetesLeaseApi, leaseAnnotation } = leaseModule;
 		leaseApi = kubernetesLeaseApi(settings.COLLECTOR_LEASE_NAME);
 		const annotation = leaseAnnotation(leaseApi, QUARANTINE_ANNOTATION);
 		store = {
@@ -285,15 +284,15 @@ export async function createCollector(
 		},
 	};
 	let lease: ConstructorParameters<typeof Leadership>[0] = SOLE_INSTANCE_LEASE;
-	if (settings.COLLECTOR_LEASE_NAME) {
+	if (leaseModule) {
 		logger.info("Collector leader election enabled", {
 			lease: settings.COLLECTOR_LEASE_NAME,
 			identity: settings.INSTANCE_ID,
 		});
-		const { KubernetesLease } = await import(
-			"@trading-model/reliability/kubernetes-lease"
+		lease = new leaseModule.KubernetesLease(
+			settings.INSTANCE_ID,
+			leaseApi as LeaseApi
 		);
-		lease = new KubernetesLease(settings.INSTANCE_ID, leaseApi as LeaseApi);
 	}
 	return new Leadership(
 		lease,

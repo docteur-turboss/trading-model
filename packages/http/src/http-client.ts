@@ -13,7 +13,10 @@ import {
 	getDefaultCircuitRecorder,
 	type ServiceRoute,
 } from "./circuit-recorder";
-import { createHttpClientTimeoutError } from "./http-client-errors";
+import {
+	createHttpClientTimeoutError,
+	isHttpClientError,
+} from "./http-client-errors";
 import {
 	isConnectionRefused,
 	isTargetAnswer,
@@ -112,16 +115,22 @@ export class HttpClient {
 	private async _request<TResponse>(
 		context: RequestContext<TResponse>
 	): Promise<TResponse | undefined> {
-		const route = this._circuitRecorder.checkPreconditions(
+		let route = this._circuitRecorder.checkPreconditions(
 			context.urlStr,
 			context.options
 		);
-		// Re-read key/cert/bundle on every request so SVID rotation (SPIFFE,
-		// ADR-0011) is picked up as soon as spiffe-helper rewrites the files.
+		// key/cert/bundle come from loadTlsPemBundleSync: cached, files re-stat'd every 5 s (SVID rotation, ADR-0011).
 		const tls = loadTlsPemBundleSync(this._tlsPaths);
 		const retryCount = context.options?.retryCount ?? DEFAULT_RETRY_COUNT;
 
 		for (let attempt = 0; attempt <= retryCount; attempt++) {
+			if (attempt > 0) {
+				// Every failed attempt counts in the circuit: stop once it opens.
+				route = this._circuitRecorder.checkPreconditions(
+					context.urlStr,
+					context.options
+				);
+			}
 			try {
 				const result = await this._send(context, tls);
 				this._circuitRecorder.recordSuccess(route);
@@ -134,14 +143,17 @@ export class HttpClient {
 				}
 				const idempotent =
 					context.options?.idempotent ?? context.method !== "POST";
-				const retryable = idempotent
-					? shouldRetry(lastError)
-					: isConnectionRefused(lastError);
+				// A 429 is never retried: Retry-After is not honoured, so the caller backs off.
+				const retryable =
+					!(isHttpClientError(lastError) && lastError.statusCode === 429) &&
+					(idempotent
+						? shouldRetry(lastError)
+						: isConnectionRefused(lastError));
+				this._recordFailure(route, lastError);
 				if (attempt < retryCount && retryable) {
 					await sleep(computeRetryDelay(attempt));
 					continue;
 				}
-				this._recordFailure(route, lastError);
 				throw lastError;
 			}
 		}

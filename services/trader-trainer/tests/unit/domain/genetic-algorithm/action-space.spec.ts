@@ -112,7 +112,7 @@ describe("action space gene", () => {
 		expect("actionSet" in same).toBe(false);
 	});
 
-	test("orders never exceed the cap (a buy too dear at the fill price is refused) or the position", () => {
+	test("orders never exceed the cap (a buy too dear at the fill price is reduced) or the position", () => {
 		const sellAll = agentWith(0);
 		sellAll.step(x);
 		expect(position(sellAll)).toBe(0);
@@ -125,7 +125,7 @@ describe("action space gene", () => {
 
 		const dearFill = agentWith(0.99);
 		dearFill.step(x, Price.of(100), Price.of(110));
-		// sized on the close (5 units); the simulator refuses it at 110 (550 > 500)
-		expect(position(dearFill)).toBe(0);
+		// sized on the close (5 units); the simulator reduces it to the cap at 110 (500 / 110)
+		expect(position(dearFill)).toBeCloseTo(500 / 110, 6);
 	});
 });

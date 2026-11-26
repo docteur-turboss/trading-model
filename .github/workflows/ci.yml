@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    # edited: a corrected or degraded PR title is checked again (it becomes the squash message).
+    # edited: only the pr-title job runs (gate and security skip it, so every other job is skipped).
     types: [opened, synchronize, reopened, edited]
   # Merge commits to main get verified too, not only at release time.
   # development: the push of a PR merge made by GitHub is skipped (its PR already ran pull_request,
@@ -26,12 +26,17 @@ jobs:
   # k8s jobs are worth running: always, except on a pull request touching nothing they deploy or test.
   gate:
     # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
+    if: ${{ github.event.action != 'edited' && (startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub'))) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       k8s: ${{ steps.changes.outputs.k8s }}
     steps:
+      # The free CI minutes hold only while the repository is public; a private one is allowed, not silent.
+      - if: ${{ github.event.repository.private }}
+        env:
+          PRIVATE: ${{ github.event.repository.private }}
+        run: echo "::warning::Repository private=$PRIVATE, Actions minutes are billed (docs/deployment/KUBERNETES.md)"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -47,10 +52,10 @@ jobs:
           # deploy/: manifests, tool images, migrate; tests/k8s/: the kind runner; scripts/: the deploy, migration,
           # backup/restore (incl. verify-restore-k8s.sh) and sealed-secrets scripts the jobs call; tests/backup/: audit-chain.js and
           # drill-timings.sh of the restore drill (same filter as the drill step); tests/e2e/binance-stub/: the stub run-kind.sh
-          # loads in the cluster; services/*/Dockerfile: the images kind builds;
+          # loads in the cluster; Dockerfile: the images kind builds;
           # ci.yml: this job definition. services/*/src and packages/*/src alone: unit/e2e jobs cover them.
           if [ "$EVENT" = pull_request ] && ! git diff --name-only "$BASE...$GITHUB_SHA" |
-            grep -qE '^(deploy/|tests/k8s/|scripts/[^/]*(deploy-|backup|restore|migrat|fetch-offsite|retention|sealed-secrets|split-cluster)|tests/(backup|e2e/binance-stub)/|services/[^/]+/Dockerfile$|.github/workflows/ci.yml$)'; then
+            grep -qE '^(deploy/|tests/k8s/|scripts/[^/]*(deploy-|backup|restore|migrat|fetch-offsite|retention|sealed-secrets|split-cluster)|tests/(backup|e2e/binance-stub)/|Dockerfile$|.github/workflows/ci.yml$)'; then
             k8s=false
           fi
           echo "k8s=$k8s" >> "$GITHUB_OUTPUT"
@@ -59,9 +64,6 @@ jobs:
     needs: gate
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    permissions:
-      contents: read
-      pull-requests: read # PR title step: reads the title at run time
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -76,15 +78,6 @@ jobs:
           restore-keys: bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
       - run: bun run lint
-      # The PR title becomes the squash message: release.mjs reads its gitmoji. Dependabot titles ("Bump x") have none.
-      # Title read at run time, not from the event: a re-run replays the original payload, so a PR renamed after
-      # its run (Dependabot title fixed by an agent) stayed red on every re-run (#2543).
-      - name: PR title follows commitlint
-        if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
-        run: gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .title | bunx --no commitlint --config commitlint.config.mjs
       - run: bun run deps:check
       - run: bun run deps:third-party
       - run: bun run api:check
@@ -104,15 +97,41 @@ jobs:
           echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $RUNNER_TEMP/actionlint.tgz" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/actionlint.tgz" -C "$RUNNER_TEMP" actionlint
           "$RUNNER_TEMP/actionlint" .github/workflows/*.yml
+      # Warning level: the info/style notes (SC2015, SC2016, SC1091) are idioms the scripts use on purpose (#2751).
+      - name: Shell scripts (shellcheck, warnings and errors)
+        run: git ls-files 'scripts/*.sh' 'deploy/**/*.sh' | xargs shellcheck -S warning
       # actionlint accepts arithmetic in timeout-minutes; GitHub refuses the file (run without jobs, #2111).
       - name: No arithmetic in timeout-minutes expressions
         run: |
           if grep -hE '^\s*timeout-minutes:.*\$\{\{' .github/workflows/*.yml | sed -E "s/'[^']*'//g" | grep -E '[*+/%]|[0-9] - | - [0-9]'; then exit 1; fi
 
+  pr-title:
+    if: ${{ github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read # reads the title at run time
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+      - run: bun install --frozen-lockfile
+      # The PR title becomes the squash message: release.mjs reads its gitmoji. Dependabot titles ("Bump x") have none.
+      # Title read at run time, not from the event: a re-run replays the original payload, so a PR renamed after
+      # its run (Dependabot title fixed by an agent) stayed red on every re-run (#2543).
+      - name: PR title follows commitlint
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .title | bunx --no commitlint --config commitlint.config.mjs
   security:
     # Not in pre-push: bun audit needs the network, gitleaks the full history (every push, PR merge to development
     # included, so a leak or a broken allowlist shows before the release tag; PRs scan their commits).
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)') }}
+    if: ${{ github.event.action != 'edited' && (startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -273,6 +292,8 @@ jobs:
         run: bash tests/k8s/run-migrations.test.sh
       - name: Test the release steps (deploy-release.sh)
         run: bash tests/k8s/deploy-release.test.sh
+      - name: Test the risk-admin operator script (JSON escaping, scope)
+        run: bash tests/ops/risk-admin.test.sh
 
   contract:
     needs: gate
@@ -332,9 +353,6 @@ jobs:
       MONGO_EXPORTER_PASSWORD: ci-mongo-exporter
       MONGO_BACKUP_PASSWORD: ci-mongo-backup
       MONGO_AUDIT_PASSWORD: ci-mongo-audit
-      MONGO_DLQ_PASSWORD: ci-mongo-dlq
-      DLQ_AUTH_HMAC_SECRET: test-hmac-secret-for-e2e-0123456789
-      DLQ_ALLOWED_SERVICES: message-manager,admin,e2e-test-runner
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -381,8 +399,8 @@ jobs:
         run: >-
           docker compose -f docker-compose.yml -f docker-compose.build.yml -f tests/e2e/docker-compose.e2e.yml
           up -d --wait --wait-timeout 600
-          message-manager financial-scraper trader-trainer
-          api-gateway audit-logger dlq-service model-evaluator risk-execution decision-consumer edge-proxy
+          financial-scraper trader-trainer
+          api-gateway audit-logger model-evaluator risk-execution decision-consumer edge-proxy
       # Issue #844: no container of the started stack may publish on every interface.
       - name: "No port published on 0.0.0.0 or ::"
         run: |
@@ -426,7 +444,7 @@ jobs:
           name: zap-baseline-report
           path: zap-out/zap-report.html
           if-no-files-found: warn
-      # Last: restarts message-manager to check the mesh heals.
+      # Last: restarts the scraper to check the mesh heals.
       - name: Resilience (service restarts)
         run: bun run test:e2e -- resilience
       - name: Dump service logs
@@ -599,7 +617,7 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # A failing git diff must run the drill, never skip it.
             changed=$(git diff --name-only HEAD^1 HEAD) || changed='?'
-            if ! printf '%s\n' "$changed" | grep -qE '^(\?|scripts/[^/]*(backup|restore|sealed-secrets|fetch-offsite|retention|migrat)|deploy/(backup|mongo|spire|compose/spire|k8s/jobs|k8s/spire|k8s/scripts|migrate)/|deploy/k8s/infra/(mongo|mysql)|services/(audit-logger|dlq-service)/|tests/(backup|k8s)/|\.github/workflows/(ci|backup-test))'; then
+            if ! printf '%s\n' "$changed" | grep -qE '^(\?|scripts/[^/]*(backup|restore|sealed-secrets|fetch-offsite|retention|migrat)|deploy/(backup|mongo|spire|compose/spire|k8s/jobs|k8s/spire|k8s/scripts|migrate)/|deploy/k8s/infra/(mongo|mysql)|services/audit-logger/|tests/(backup|k8s)/|\.github/workflows/(ci|backup-test))'; then
               echo "skip=true" >> "$GITHUB_OUTPUT"
             fi
           fi
@@ -624,7 +642,7 @@ jobs:
   # name: renaming it breaks the rulesets. A skipped k8s matrix reports "k8s (${{ matrix.group }})",
   # never "k8s (network)", so a required matrix name would wait forever on a PR the gate spares from kind.
   k8s-result:
-    needs: [gate, lint, security, typecheck, test, db-integration, observability, k8s-overlays, contract, e2e, k8s-images, k8s]
+    needs: [gate, pr-title, lint, security, typecheck, test, db-integration, observability, k8s-overlays, contract, e2e, k8s-images, k8s]
     if: ${{ always() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -632,5 +650,5 @@ jobs:
       - env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
-          echo "gate, lint, security, typecheck, test, db-integration, observability, k8s-overlays, contract, e2e, k8s-images, k8s: $RESULTS"
+          echo "gate, pr-title, lint, security, typecheck, test, db-integration, observability, k8s-overlays, contract, e2e, k8s-images, k8s: $RESULTS"
           case " $RESULTS " in *" failure "* | *" cancelled "*) exit 1 ;; esac

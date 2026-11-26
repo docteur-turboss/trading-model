@@ -4,7 +4,7 @@ How to change one service and see it run. Supported method: **rebuild that servi
 
 ## Why `bun run dev` does not work alone
 
-Checked by running `bun run dev` in `services/message-manager` without Compose:
+Checked by running `bun run dev` in `services/audit-logger` without Compose:
 
 1. Env validation fails first: `TLS_KEY_PATH`, `TLS_CERT_PATH`, `TLS_CA_PATH`, `APP_NAME`, `SERVICE_NAME`, `INSTANCE_ID` are `Invalid input: expected string, received undefined`. These variables are set by `docker-compose.yml`, not by any file read by `bun run dev`.
 2. With them set to the Compose values (`/run/spire/svid/svid_key.pem`, `svid.pem`, `bundle.pem`), startup stops with `Failed to read TLS CA certificate from "/run/spire/svid/bundle.pem": ENOENT` (`packages/http/src/http-tls-loader.ts`).

@@ -47,7 +47,7 @@ const LAG_EVERY_MS = 15_000;
 export interface BusConsumerOptions {
 	journal: RedisMessageJournal;
 	deadStreams: DeadStreams;
-	/** Consumer group: the subscriber service, shared with message-manager's workers. */
+	/** Consumer group: the subscriber service, one group per service. */
 	service: string;
 	/** Name of this replica in the group. */
 	consumer?: string;
@@ -65,7 +65,7 @@ export interface BusConsumerOptions {
 /**
  * In-process consumer of the journal (ADR-0073): one loop per topic,
  * `XREADGROUP` for new entries, `XPENDING` + `XCLAIM` for retries that are
- * due (same backoff and limits as message-manager), `XACK` on success.
+ * due (backoff and limits of ADR-0048), `XACK` on success.
  * Replicas of a service share the group: one of them gets each entry.
  */
 export class BusConsumer {
@@ -219,34 +219,29 @@ export class BusConsumer {
 			service: group.service,
 			entryId: entry.id,
 		};
+		const deadLetter = async (reason: string): Promise<void> => {
+			const id = await deadStreams.deadLetter(
+				group,
+				entry.id,
+				entry.message,
+				reason,
+				entry.deliveries
+			);
+			MESSAGES_DLQ_TOTAL.inc({ topic: group.topic, reason });
+			onDeadLetter?.(group, entry.message, reason, id);
+		};
 		try {
 			const publisher = entry.message?.metadata?.publisher?.serviceName;
 			if (typeof publisher !== "string") {
 				const reason =
 					"invalid envelope: metadata.publisher.serviceName missing";
-				const id = await deadStreams.deadLetter(
-					group,
-					entry.id,
-					entry.message,
-					reason,
-					entry.deliveries
-				);
-				MESSAGES_DLQ_TOTAL.inc({ topic: group.topic, reason });
-				onDeadLetter?.(group, entry.message, reason, id);
+				await deadLetter(reason);
 				return;
 			}
 			// Only a crash gets here past the limit: the classifier below never saw those deliveries.
 			if (entry.deliveries > MAX_RETRIES) {
 				const reason = DlqReason.MaxRetriesExceeded;
-				const id = await deadStreams.deadLetter(
-					group,
-					entry.id,
-					entry.message,
-					reason,
-					entry.deliveries
-				);
-				MESSAGES_DLQ_TOTAL.inc({ topic: group.topic, reason });
-				onDeadLetter?.(group, entry.message, reason, id);
+				await deadLetter(reason);
 				return;
 			}
 			if (!isExpectedPublisher(group.topic, publisher)) {
@@ -290,17 +285,7 @@ export class BusConsumer {
 					extractDeliveryParams(entry.message)
 				);
 				if (action.action === ErrorActionType.DLQ) {
-					const id = await deadStreams.deadLetter(
-						group,
-						entry.id,
-						entry.message,
-						action.reason,
-						entry.deliveries
-					);
-					MESSAGES_DLQ_TOTAL.inc({ topic: group.topic, reason: action.reason });
-					onDeadLetter?.(group, entry.message, action.reason, id);
-				} else if (action.action === ErrorActionType.SWALLOW) {
-					await journal.ack(group, entry.id);
+					await deadLetter(action.reason);
 				}
 				// RETRY: left pending, due again after the backoff.
 				return;

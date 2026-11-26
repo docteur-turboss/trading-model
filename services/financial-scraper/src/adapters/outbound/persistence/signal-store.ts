@@ -24,6 +24,9 @@ const COLUMNS =
 /** A signal already stored keeps its row: a replayed collection changes nothing. */
 const INSERT_SQL = `INSERT INTO signals (${COLUMNS}) VALUES ? ON DUPLICATE KEY UPDATE id = id`;
 
+/** A restated observation (split-adjusted price) replaces the stored value; `ingested_at` moves with it, so the history stays point-in-time. */
+const RESTATE_SQL = `INSERT INTO signals (${COLUMNS}) VALUES ? AS new ON DUPLICATE KEY UPDATE payload = new.payload, ingested_at = new.ingested_at, confidence_score = new.confidence_score`;
+
 const SELECT_FOR_ASSET_SQL = `SELECT ${COLUMNS} FROM signals
 	WHERE (asset_id = ? OR (asset_id IS NULL AND sector = ?) OR area IN (?))
 		AND dimension IN (?)
@@ -61,7 +64,7 @@ function _toSignal(row: SignalRow): Signal {
 
 /** Signals on the MySQL `signals` table (migrations 006, 009). */
 export const MySqlSignalStore: SignalStorePort = {
-	async save(signals) {
+	async save(signals, restate = false) {
 		if (signals.length === 0) {
 			return;
 		}
@@ -78,7 +81,7 @@ export const MySqlSignalStore: SignalStorePort = {
 			signal.confidenceScore,
 			JSON.stringify(signal.payload),
 		]);
-		await DATABASE.promise().query(INSERT_SQL, [rows]);
+		await DATABASE.promise().query(restate ? RESTATE_SQL : INSERT_SQL, [rows]);
 	},
 
 	async newestBySource() {

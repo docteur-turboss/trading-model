@@ -3,8 +3,8 @@
 **Status:** Accepted
 **Date:** 2026-10
 **Supersedes:** ADR-0003 (deleted), ADR-0004 (deleted)
-**Related:** [ADR-0011](./0011-spiffe-spire-workload-identity.md) (SPIRE datastore in MySQL until [ADR-0065](./0065-spire-datastore-sqlite-and-4h-svid-ttl.md)), [ADR-0019](./0019-message-broker-as-built.md)
-**Verified by:** manual review 2026-10-28 (`deploy/k8s/infra/mysql.yaml`, `deploy/k8s/infra/mongodb.yaml`, `deploy/k8s/infra/mongo-audit.yaml`, `docker-compose.yml`); `tests/k8s/run-kind.sh` and `bun run test:db` exercise single-node instances only
+**Related:** [ADR-0011](./0011-spiffe-spire-workload-identity.md) (SPIRE datastore in MySQL until [ADR-0065](./0065-spire-datastore-sqlite-and-4h-svid-ttl.md)), ADR-0019 (deleted)
+**Verified by:** manual review 2026-10-28 (`deploy/k8s/infra/mysql.yaml`, `deploy/k8s/infra/mongo-audit.yaml`, `docker-compose.yml`); `tests/k8s/run-kind.sh` and `bun run test:db` exercise single-node instances only
 
 ## Context
 

@@ -131,7 +131,7 @@ spec:
                 optional: true
           env:
             - name: NODE_OPTIONS
-              value: --max-old-space-size=192
+              value: --max-old-space-size=128
             - name: MONGO_USERNAME
               value: audit-logger
             - name: MONGO_PASSWORD
@@ -177,7 +177,6 @@ spec:
                 - node
                 - /app/probe.js
                 - https://localhost:3000/ping
-            initialDelaySeconds: 20
             periodSeconds: 15
             timeoutSeconds: 10
             failureThreshold: 3

@@ -19,14 +19,12 @@ import {
 } from "@jest/globals";
 import type { CandleData } from "@trading-model/contracts/market-data.types";
 import { DAY_MS } from "@trading-model/model-runtime/features/feature-builder";
+import { ModelManifest } from "@trading-model/model-runtime/model-manifest";
 import { replayModel } from "@trading-model/model-runtime/replay";
 import { FileEvaluationStore } from "../../src/adapters/outbound/file-evaluation-store";
 import { createEvaluateModel } from "../../src/application/evaluate-model";
 import { MODEL_REPLAY_SHARPE_GAP } from "../../src/config/metrics";
-import {
-	ModelManifest,
-	PublishedModel,
-} from "../../src/domain/model-evaluation";
+import { PublishedModel } from "../../src/domain/model-evaluation";
 
 const WEIGHTS = new Float32Array([0.5, -1, 2]);
 const BYTES = Buffer.from(WEIGHTS.buffer);
@@ -373,7 +371,7 @@ describe("evaluate a published model", () => {
 				weights: async () => ({ bytes: BYTES, sha256: SHA }),
 			},
 		});
-		await expect(other(EVENT)).rejects.toThrow(/not the published/);
+		await expect(other(EVENT)).rejects.toThrow(/not the expected/);
 		const short = createEvaluateModel({
 			store: new FileEvaluationStore(dir),
 			scraper: NO_CANDLES,
@@ -410,6 +408,27 @@ describe("evaluate a published model", () => {
 		await expect(
 			store.create({ symbol: "BTCUSDT" } as never)
 		).rejects.toThrow();
+	});
+
+	it("publishes no final file when the sync fails", async () => {
+		const fsp =
+			jest.requireActual<typeof import("node:fs/promises")>("node:fs/promises");
+		const open = fsp.open;
+		jest.spyOn(fsp, "open").mockImplementationOnce((async (...a: any[]) => {
+			const handle = await (open as any)(...a);
+			handle.sync = async () => {
+				throw new Error("EIO");
+			};
+			return handle;
+		}) as never);
+		await expect(
+			new FileEvaluationStore(dir).create({
+				symbol: "BTCUSDT",
+				version: "v1",
+			} as never)
+		).rejects.toThrow("EIO");
+		expect(await readdir(join(dir, "BTCUSDT"))).toEqual([]);
+		jest.restoreAllMocks();
 	});
 
 	it("creates once under concurrency and ignores orphan temporaries", async () => {

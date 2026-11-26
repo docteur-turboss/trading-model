@@ -15,10 +15,6 @@ import {
 } from "@trading-model/http/api-route/api-route";
 import express from "express";
 
-const selectTradesBy = {
-	symbol: jest.fn<(...args: any[]) => any>(),
-	timestamp: jest.fn<(...args: any[]) => any>(),
-};
 const selectTickerBy = {
 	symbol: jest.fn<(...args: any[]) => any>(),
 	timestamp: jest.fn<(...args: any[]) => any>(),
@@ -28,10 +24,6 @@ const selectCandlesBy = {
 	timestamp: { after: jest.fn<(...args: any[]) => any>() },
 };
 
-jest.mock(
-	"../../../../../src/adapters/outbound/persistence/schema/trades.schema",
-	() => ({ selectTradesBy })
-);
 jest.mock(
 	"../../../../../src/adapters/outbound/persistence/schema/ticker24h.schema",
 	() => ({ selectTickerBy })
@@ -63,16 +55,7 @@ import { SIGNAL_REGISTRY } from "../../../../../src/config/signal-registry";
 const AT = new Date("2026-10-28T12:00:00.000Z");
 const MARKET = { symbol: "BTCUSDT", market: "crypto", source: "binance" };
 
-/** Rows as the MySQL repositories return them (Dates, BIGINT as bigint, internal id). */
-const TRADE = {
-	id: 1,
-	...MARKET,
-	side: "buy",
-	price: 67000.5,
-	quantity: 0.25,
-	tradeId: 9_007_199_254_740_993n,
-	timestamp: AT,
-};
+/** Rows as the MySQL repositories return them (Dates, internal id). */
 const TICKER = {
 	id: 1,
 	...MARKET,
@@ -127,44 +110,6 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 		return { status: res.status, body };
 	}
 
-	describe("trades", () => {
-		it("sends BIGINT trade ids as exact decimal strings", async () => {
-			selectTradesBy.symbol.mockResolvedValue([TRADE]);
-
-			const { status, body } = await get(
-				SCRAPER_API.tradesBySymbol,
-				"/trade/symbols/BTCUSDT"
-			);
-
-			expect(status).toBe(200);
-			const { id: _id, ...row } = TRADE;
-			expect(body).toEqual({
-				rows: [
-					{
-						...row,
-						tradeId: "9007199254740993",
-						timestamp: AT.toISOString(),
-					},
-				],
-				nextCursor: null,
-				truncated: false,
-			});
-			expect(selectTradesBy.symbol).toHaveBeenCalledWith("BTCUSDT", {
-				limit: DEFAULT_PAGE_LIMIT + 1,
-			});
-		});
-
-		it("queries an exact instant given as an ISO date-time", async () => {
-			selectTradesBy.timestamp.mockResolvedValue([]);
-
-			await get(SCRAPER_API.tradesAt, `/trade/timestamp/${AT.toISOString()}`);
-
-			expect(selectTradesBy.timestamp).toHaveBeenCalledWith(AT.getTime(), {
-				limit: DEFAULT_PAGE_LIMIT + 1,
-			});
-		});
-	});
-
 	describe("tickers", () => {
 		it.each([
 			[SCRAPER_API.tickersBySymbol, "/ticker/symbols/BTCUSDT", "symbol"],
@@ -202,7 +147,23 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			expect(status).toBe(200);
 			expect(selectLatestClosedCandles).toHaveBeenCalledWith(
 				["BTCUSDT", "ETHUSDT"],
-				expect.any(Date)
+				expect.any(Date),
+				expect.anything()
+			);
+		});
+
+		it("passes the source and interval filters of the latest candle", async () => {
+			selectLatestClosedCandles.mockResolvedValue([]);
+
+			await get(
+				SCRAPER_API.candlesLatest,
+				"/candles/latest?symbols=BTCUSDT&source=binance&interval=1d"
+			);
+
+			expect(selectLatestClosedCandles).toHaveBeenLastCalledWith(
+				["BTCUSDT"],
+				expect.any(Date),
+				expect.objectContaining({ source: "binance", interval: "1d" })
 			);
 		});
 
@@ -215,19 +176,32 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			expect(status).toBe(400);
 		});
 
-		it("queries the candles after a date", async () => {
+		it("queries the candles after a date, within the window", async () => {
 			selectCandlesBy.timestamp.after.mockResolvedValue([CANDLE]);
 
-			await get(SCRAPER_API.candlesSince, "/candles/timestamp/2026-10-28");
+			await get(
+				SCRAPER_API.candlesSince,
+				"/candles/timestamp/2026-10-28?to=2026-11-04"
+			);
 
 			expect(selectCandlesBy.timestamp.after).toHaveBeenCalledWith(
 				Date.parse("2026-10-28"),
-				{ limit: DEFAULT_PAGE_LIMIT + 1 }
+				{ limit: DEFAULT_PAGE_LIMIT + 1, to: Date.parse("2026-11-04") }
 			);
+		});
+
+		it.each([
+			"/candles/timestamp/2026-10-28",
+			"/candles/timestamp/2026-10-28?to=2026-11-05",
+		])("%s: refuses a missing or too wide `to` with a 400", async (path) => {
+			const { status } = await get(SCRAPER_API.candlesSince, path);
+
+			expect(status).toBe(400);
+			expect(selectCandlesBy.timestamp.after).not.toHaveBeenCalled();
 		});
 	});
 
-	describe("pages of trades, tickers and candles (ADR-0054)", () => {
+	describe("pages of tickers and candles (ADR-0054)", () => {
 		/** `count` rows, one millisecond apart, ids 1..count. */
 		const rows = <T extends object>(row: T, count: number) =>
 			Array.from({ length: count }, (_, i) => ({
@@ -237,13 +211,6 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			}));
 
 		it.each([
-			[
-				"trades",
-				SCRAPER_API.tradesBySymbol,
-				"/trade/symbols/BTCUSDT",
-				() => selectTradesBy.symbol,
-				TRADE,
-			],
 			[
 				"tickers",
 				SCRAPER_API.tickersBySymbol,
@@ -279,15 +246,15 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 		);
 
 		it("resumes after the cursor, within the window", async () => {
-			selectTradesBy.symbol.mockResolvedValue(rows(TRADE, 2));
+			selectTickerBy.symbol.mockResolvedValue(rows(TICKER, 2));
 			const cursor = encodeCursor({ timestamp: AT.getTime(), id: 9 });
 
 			const { body } = await get(
-				SCRAPER_API.tradesBySymbol,
-				`/trade/symbols/BTCUSDT?limit=2&after=${cursor}&from=2026-10-28&to=2026-10-29`
+				SCRAPER_API.tickersBySymbol,
+				`/ticker/symbols/BTCUSDT?limit=2&after=${cursor}&from=2026-10-28&to=2026-10-29`
 			);
 
-			expect(selectTradesBy.symbol).toHaveBeenCalledWith("BTCUSDT", {
+			expect(selectTickerBy.symbol).toHaveBeenCalledWith("BTCUSDT", {
 				limit: 3,
 				after: { timestamp: AT.getTime(), id: 9 },
 				from: Date.parse("2026-10-28"),
@@ -544,8 +511,8 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 
 	describe("invalid parameters: 400 before any query", () => {
 		it.each([
-			[SCRAPER_API.tradesAt, "/trade/timestamp/yesterday"],
-			[SCRAPER_API.tradesAt, "/trade/timestamp/1761652800000"],
+			[SCRAPER_API.tickersAt, "/ticker/timestamp/yesterday"],
+			[SCRAPER_API.tickersAt, "/ticker/timestamp/1761652800000"],
 			[SCRAPER_API.candlesSince, "/candles/timestamp/1960-01-01"],
 		] as const)("%#: %s", async (route, path) => {
 			const { status, body } = await get(route, path);

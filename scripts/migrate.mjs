@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import mysql from 'mysql2/promise';
 
@@ -202,7 +202,7 @@ async function finish(connection, id, direction, checksum, duration) {
 function getDbConfig() {
   return {
     host: process.env.DB_HOST,
-    port: parseInt(process.env.DB_PORT || '3306', 10),
+    port: Number.parseInt(process.env.DB_PORT || '3306', 10),
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
@@ -343,7 +343,7 @@ async function migrate(connection) {
         ? rawCount === 'all'
           ? appliedSorted.length
           : 1
-        : parseInt(rawCount, 10);
+        : Number.parseInt(rawCount, 10);
     const limit =
       Number.isInteger(count) && count > 0
         ? Math.min(count, appliedSorted.length)

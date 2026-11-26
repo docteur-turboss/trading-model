@@ -215,7 +215,7 @@ spec:
           protocol: TCP
 ---
 # otel-collector exports to Jaeger (4317); blackbox-exporter probes the
-# services' /ping (3000).
+# services' /ping (3000) and the edge-proxy's (8080).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -237,6 +237,8 @@ spec:
         - port: 3000
           protocol: TCP
         - port: 4317
+          protocol: TCP
+        - port: 8080
           protocol: TCP
 ---
 # kube-state-metrics lists objects on the API server. The backup CronJobs

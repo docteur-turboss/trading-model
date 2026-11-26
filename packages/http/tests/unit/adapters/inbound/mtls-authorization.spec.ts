@@ -47,7 +47,7 @@ describe("MTLSAuthorizationMiddleware", () => {
 		): NextFunction {
 			const middleware = MTLSAuthorizationMiddleware(
 				ServiceId.of("trader-trainer"),
-				[ServiceId.of("message-manager")]
+				[ServiceId.of("audit-logger")]
 			);
 			const req = { clientIdentity, method, path } as Request;
 			const next = jest.fn<(...args: any[]) => any>() as NextFunction;

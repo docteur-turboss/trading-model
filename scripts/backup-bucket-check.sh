@@ -26,7 +26,7 @@
 #      it is still one of the backups a restore relies on;
 #    - the default retention is longer than --max-days (expiry of the
 #      `daily/` lifecycle rule, default 31, ADR-0032): the daily copies of
-#      the DLQ, checkpoints and SPIRE CA keys would outlive their 31 days
+#      the checkpoints and SPIRE CA keys would outlive their 31 days
 #      off-site (data minimisation), and the lifecycle rules could not expire
 #      them on time;
 #    - the bucket's region (`aws s3api get-bucket-location`; `null` is
@@ -152,7 +152,7 @@ fi
 [ "$retention" -ge "$MIN_DAYS" ] ||
 	problem "Bucket ${name} locks files ${retention} days, less than the ${MIN_DAYS} days the backups are kept (RETENTION_DAYS)"
 [ "$retention" -le "$MAX_DAYS" ] ||
-	problem "Bucket ${name} locks files ${retention} days, more than the ${MAX_DAYS} days of the daily/ lifecycle rule: daily copies (DLQ, checkpoints, SPIRE CA keys) would outlive their retention (ADR-0032)"
+	problem "Bucket ${name} locks files ${retention} days, more than the ${MAX_DAYS} days of the daily/ lifecycle rule: daily copies (checkpoints, SPIRE CA keys) would outlive their retention (ADR-0032)"
 
 if ! location="$(aws "${endpoint[@]}" s3api get-bucket-location --bucket "$name" --output json 2>"$err")"; then
 	problem "Region of bucket ${name} not readable, cannot check it is in the allowed list (${ALLOWED_REGIONS}): $(tr '\n' ' ' <"$err")"

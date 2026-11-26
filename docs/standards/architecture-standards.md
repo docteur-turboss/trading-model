@@ -21,15 +21,13 @@ trading-model/
 │   ├── address-manager/     # @trading-model/address-manager
 │   └── broker-message/      # @trading-model/broker-message
 ├── services/           # Microservices
-│   ├── message-manager/
 │   ├── financial-scraper/
 │   ├── trader-trainer/
 │   ├── api-gateway/
 │   ├── audit-logger/
 │   ├── model-evaluator/
 │   ├── risk-execution/
-│   ├── decision-consumer/
-│   └── dlq-service/
+│   └── decision-consumer/
 ├── .github/workflows/  # CI/CD
 ├── docs/               # Centralized documentation
 ├── scripts/            # Utilities (commit, release, migrations)
@@ -61,7 +59,7 @@ All developers contributing to the codebase. Every architectural decision aims t
 | API          | Express.js                                           |
 | Frontend     | None for now (ADR-0018)                              |
 | Security     | mTLS (all services)                                  |
-| Database     | MongoDB (audit-logger, dlq-service), MySQL (financial-scraper), SQLite (SPIRE datastore, ADR-0065), Redis (message-manager subscriptions, dlq-service) |
+| Database     | MongoDB (audit-logger), MySQL (financial-scraper), SQLite (SPIRE datastore, ADR-0065), Redis (message bus journal and dead streams) |
 | Validation   | Zod                                                  |
 | Scheduling   | node-cron                                            |
 | Formatting   | Biome                                                |
@@ -81,12 +79,10 @@ Services and their `@trading-model/*` dependencies (the `dependencies` of each `
 | --- | --- |
 | api-gateway | common, contracts, http, primitives |
 | audit-logger | address-manager, broker-message, common, contracts, http, persistence, primitives |
-| dlq-service | address-manager, broker-message, common, contracts, crypto, http, persistence, primitives, reliability |
 | model-evaluator | address-manager, broker-message, common, contracts, http, model-runtime, persistence, primitives |
 | risk-execution | address-manager, broker-message, common, contracts, http, model-runtime, persistence, primitives |
 | decision-consumer | address-manager, broker-message, common, contracts, http, model-runtime, persistence, primitives |
 | financial-scraper | address-manager, common, contracts, crypto, http, persistence, primitives, reliability |
-| message-manager | address-manager, broker-message, common, contracts, http, persistence, primitives, reliability |
 | trader-trainer | address-manager, broker-message, common, contracts, crypto, http, model-runtime, persistence, primitives, reliability |
 
 There is no frontend workspace: `admin-interface` was removed until a new one is specified ([ADR-0018](../adr/0018-temporary-frontend-removal.md)). A future frontend talks to the backend only through the **api-gateway**.
@@ -109,11 +105,9 @@ Each service exposes an HTTPS server with mTLS enabled. The internal container p
 
 | Service           | Host port (dev) | Container port | Notes         |
 | ----------------- | --------------- | -------------- | ------------- |
-| message-manager   | 8444            | 3000           |               |
 | financial-scraper | 8445            | 3000           |               |
 | trader-trainer    | 8446            | 3000           |               |
 | audit-logger      | 8450            | 3000           |               |
-| dlq-service       | 8452            | 3000           |               |
 | model-evaluator   | 8453            | 3000           |               |
 | risk-execution    | 8454            | 3000           |               |
 | decision-consumer | none            | 3000           | no host port  |
@@ -195,7 +189,7 @@ import { env } from '../config/env';
 export function createServer() {
   return createServiceServer({
     env,
-    serviceId: ServiceId.of('message-manager'),
+    serviceId: ServiceId.of('trader-trainer'),
     routes: app => {
       app.use('/', messageRoutes());
     },
@@ -242,4 +236,4 @@ See [How to Add a New Service](../contributing/adding-a-service.md) for a step-b
 ## Known Technical Debt
 
 1. **Legacy path aliases**: Some service tsconfigs still define `paths` aliases (`config/*`, `infra/*`, `clients/*`, `job/*`, `types/*`, `utils/*`) that should be replaced with `node16` resolution.
-2. **Transitional re-export shims**: Some refactor-introduced barrel files (`export * from`) preserve old import paths while modules move to the new architectural layers. This notably includes `http/src/infrastructure/logger.ts` (re-exporting the logger pipeline now living in `http/src/application/services/logger.ts` — 100+ consumers still import the legacy sub-path). The `common` split (ADR-0007, extended 2026-10) used **hard migration** — no re-export shims were retained in `common`.
+2. **Transitional re-export shims**: Some refactor-introduced barrel files (`export * from`) preserve old import paths while modules move to the new architectural layers. The `common` split (ADR-0007, extended 2026-10) used **hard migration** — no re-export shims were retained in `common`.

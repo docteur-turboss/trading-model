@@ -37,12 +37,14 @@ import { runInProcess } from "../src/application/training-session";
 import { evalPhase } from "../src/domain/genetic-algorithm/evaluation-phase";
 import type { MarketStep } from "../src/domain/genetic-algorithm/genome";
 import { FitnessType } from "../src/domain/genetic-algorithm/genome-control";
-import { makeSeededBackendFactory } from "../src/domain/genetic-algorithm/rl-backend";
+import {
+	makeSeededBackendFactory,
+	SIMULATOR_PARAMS,
+} from "../src/domain/genetic-algorithm/rl-backend";
 import { EMBARGO_STEPS } from "../src/domain/market-data/window-splitter";
 import { MarketDataBuffer } from "../src/domain/market-data-buffer";
 import { ADMISSION_THRESHOLDS } from "../src/domain/model-admission";
-
-const INITIAL_CASH = 1000;
+import { arg, mean, splitTrainValidation } from "./common";
 
 /** ADR-0030 success criteria: all must hold. */
 const CRITERIA = {
@@ -97,27 +99,23 @@ interface SegmentResult {
 }
 
 function parseArgs(argv: string[]): Options {
-	const arg = (name: string, fallback?: string): string => {
-		const idx = argv.indexOf(`--${name}`);
-		const value = idx >= 0 ? argv[idx + 1] : fallback;
-		if (value === undefined) {
-			throw new Error(`missing --${name}`);
-		}
-		return value;
-	};
-	const merge = argv.includes("--merge") ? arg("merge").split(",") : undefined;
+	const merge = argv.includes("--merge")
+		? arg("merge", undefined, argv).split(",")
+		: undefined;
 	return {
-		data: merge ? [] : arg("data").split(","),
-		out: merge ? "" : arg("out"),
-		segments: Number(arg("segments", "12")),
-		window: Number(arg("window", "500")),
-		test: Number(arg("test", "100")),
-		population: Number(arg("population", "20")),
-		generations: Number(arg("generations", "30")),
-		fitness: arg("fitness", FitnessType.TotalPnl).split(",") as FitnessType[],
-		variants: arg("variants", "shown").split(","),
-		seeds: Number(arg("seeds", "3")),
-		seedBase: Number(arg("seed-base", "0")),
+		data: merge ? [] : arg("data", undefined, argv).split(","),
+		out: merge ? "" : arg("out", undefined, argv),
+		segments: Number(arg("segments", "12", argv)),
+		window: Number(arg("window", "500", argv)),
+		test: Number(arg("test", "100", argv)),
+		population: Number(arg("population", "20", argv)),
+		generations: Number(arg("generations", "30", argv)),
+		fitness: arg("fitness", FitnessType.TotalPnl, argv).split(
+			","
+		) as FitnessType[],
+		variants: arg("variants", "shown", argv).split(","),
+		seeds: Number(arg("seeds", "3", argv)),
+		seedBase: Number(arg("seed-base", "0", argv)),
 		merge,
 	};
 }
@@ -181,15 +179,13 @@ async function runSegment(
 		throw new Error(`test must exceed the ${EMBARGO_STEPS}-step embargo`);
 	}
 	const test = steps.slice(-opts.test + EMBARGO_STEPS);
-	const split = Math.floor(trainSteps.length * 0.8);
 
 	const t0 = Date.now();
 	const { bestGenome } = await runInProcess(
 		[
 			{
 				id: `${symbol}-${run.segment}`,
-				train: trainSteps.slice(0, split),
-				validation: trainSteps.slice(split + EMBARGO_STEPS),
+				...splitTrainValidation(trainSteps),
 			},
 		],
 		{
@@ -221,19 +217,13 @@ async function runSegment(
 		...run,
 		testFrom: new Date(Number(test[0].timestamp)).toISOString(),
 		testTo: new Date(Number(test[test.length - 1].timestamp)).toISOString(),
-		returnPct: (100 * mean(episodePnl)) / INITIAL_CASH,
+		returnPct: (100 * mean(episodePnl)) / SIMULATOR_PARAMS.initialCash,
 		buyAndHoldPct: (100 * (closes[closes.length - 1] - closes[0])) / closes[0],
 		barPnl: meanBarPnl(pnlCurve, test.length),
 		closes,
 		barsPerYear: barsPerYear(test) ?? 1,
 		trainSeconds,
 	};
-}
-
-function mean(values: number[]): number {
-	return values.length === 0
-		? 0
-		: values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
 function std(values: number[]): number {
@@ -258,8 +248,11 @@ function trackRecord(barPnl: number[], perYear: number): TrackRecord {
 	const curve = new EpisodeScores(barPnl);
 	const scale = Math.sqrt(perYear);
 	const annualReturnPct =
-		(100 * curve.total() * perYear) / barPnl.length / INITIAL_CASH;
-	const maxDrawdownPct = (100 * curve.maxDrawdown()) / INITIAL_CASH;
+		(100 * curve.total() * perYear) /
+		barPnl.length /
+		SIMULATOR_PARAMS.initialCash;
+	const maxDrawdownPct =
+		(100 * curve.maxDrawdown()) / SIMULATOR_PARAMS.initialCash;
 	return {
 		sharpe: curve.sharpe() * scale,
 		sortino: curve.sortino() * scale,
@@ -277,7 +270,9 @@ function trackRecord(barPnl: number[], perYear: number): TrackRecord {
 /** Buy and hold of the whole initial cash over the same test bars. */
 function buyAndHoldPnl(closes: number[]): number[] {
 	return closes.map((close, bar) =>
-		bar === 0 ? 0 : (INITIAL_CASH * (close - closes[bar - 1])) / closes[0]
+		bar === 0
+			? 0
+			: (SIMULATOR_PARAMS.initialCash * (close - closes[bar - 1])) / closes[0]
 	);
 }
 

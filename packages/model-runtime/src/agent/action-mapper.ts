@@ -64,6 +64,9 @@ export function actionLabels(id: ActionSetId): string[] {
 }
 
 function _greedyAction(output: Float32Array): number {
+	if (output.some((value) => !Number.isFinite(value))) {
+		throw new Error("Q-values are not finite: the network diverged");
+	}
 	let idx = 0;
 	for (let i = 1; i < output.length; i++) {
 		if (output[i] > output[idx]) {

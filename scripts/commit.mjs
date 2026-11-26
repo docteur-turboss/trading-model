@@ -1,8 +1,8 @@
 import { execSync } from 'node:child_process';
-import { tmpdir } from 'node:os';
 import { writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { cursorTo, clearScreenDown } from 'node:readline';
+import { clearScreenDown, cursorTo } from 'node:readline';
 import { SCOPES } from './gitmoji-scopes.mjs';
 
 const GITMOJIS = [
@@ -353,4 +353,7 @@ async function main() {
   process.exit(0);
 }
 
-main();
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

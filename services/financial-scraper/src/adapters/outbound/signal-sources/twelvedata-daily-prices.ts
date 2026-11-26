@@ -23,7 +23,7 @@ const TimeSeries = z.object({
 	),
 });
 
-/** Twelve Data reports a quota overrun as HTTP 200 with `code: 429` in the body. */
+/** Twelve Data reports quota (429), key (401/403) and "no data" (400) errors as HTTP 200 with `code` in the body. */
 const ErrorBody = z.object({
 	code: z.number(),
 	message: z.string().optional(),
@@ -31,19 +31,27 @@ const ErrorBody = z.object({
 
 /**
  * Daily prices of one equity or ETF from Twelve Data (free key, internal use,
- * ADR-0078): sessions as `market` signals, `period` = the session day.
+ * ADR-0080): sessions as `market` signals, `period` = the session day.
  * The API gives no release time: live and backfill bars alike are dated 21:00
  * UTC of their day, after the US close all year, so a point-in-time read sees
  * a bar no earlier than the session ended and one bar has one id. `close` is
  * split-adjusted by the API; there is no separate adjusted close. A missing or
- * non-numeric field, or an error answer, throws.
+ * non-numeric field, or an error answer, throws; a "no data" answer is an
+ * empty page.
  */
 export const TWELVEDATA_DAILY_PRICES: SourceAdapter = {
 	dimensions: ["market"],
 	normalize(payload) {
 		const error = ErrorBody.safeParse(payload);
-		if (error.success && error.data.code === 429) {
-			throw new HttpStatusError(error.data.message ?? "rate limited", 429);
+		if (error.success) {
+			const { code, message } = error.data;
+			// No session in the window (a weekend page): an empty page, not a failure.
+			if (code === 400 && /no data/i.test(message ?? "")) {
+				return [];
+			}
+			if ([401, 403, 429].includes(code)) {
+				throw new HttpStatusError(message ?? `error ${code}`, code);
+			}
 		}
 		return TimeSeries.parse(payload).values.flatMap((row) => {
 			const day = row.datetime.slice(0, 10);

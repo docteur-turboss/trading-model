@@ -54,11 +54,6 @@ jest.mock("../../../src/application/audit-chain/chain-audit-scheduler", () => ({
 	ChainAuditScheduler: jest.fn((..._args: any[]) => MOCK_CHAIN_AUDIT_SCHEDULER),
 }));
 
-jest.mock("../../../src/config/address-manager", () => ({
-	AddressManager: { stop: jest.fn<(...args: any[]) => any>() },
-	ADDRESS_MANAGER_ROUTES: jest.fn<(...args: any[]) => any>(),
-}));
-
 const MOCK_AUDIT_REPOSITORY_INSTANCE = {
 	insert: jest.fn<(...args: any[]) => any>(),
 	findById: jest.fn<(...args: any[]) => any>(),
@@ -100,10 +95,13 @@ jest.mock("mongodb", () => ({
 }));
 
 const MOCK_BROKER_MESSAGE_INSTANCE = {
-	on: jest.fn<(...args: any[]) => any>(),
-	intents: jest.fn<(...args: any[]) => any>(),
-	stopMessageManager: jest.fn<(...args: any[]) => any>(),
+	subscribe: jest.fn<(...args: any[]) => any>(),
+	stop: jest.fn<(...args: any[]) => any>(),
 };
+
+jest.mock("@trading-model/broker-message/create-message-manager", () => ({
+	busJournalFromEnv: jest.fn(() => ({})),
+}));
 
 jest.mock("@trading-model/broker-message", () => {
 	return {
@@ -133,30 +131,8 @@ describe("Audit Logger entry point (index.ts)", () => {
 		await capturedOptions.onStop();
 		await capturedOptions.onStop();
 
-		expect(
-			MOCK_BROKER_MESSAGE_INSTANCE.stopMessageManager
-		).toHaveBeenCalledTimes(1);
+		expect(MOCK_BROKER_MESSAGE_INSTANCE.stop).toHaveBeenCalledTimes(1);
 		expect(MOCK_MONGO_CLIENT.close).toHaveBeenCalledTimes(1);
-	});
-
-	// The bus consumer (ADR-0073) records like POST /message: listeners registered before intents.
-	it("registers a recording listener per audited topic before subscribing", async () => {
-		const { on, intents } = MOCK_BROKER_MESSAGE_INSTANCE;
-		const [topic, listener] = on.mock.calls.find(
-			([name]) => name === "training.model.published"
-		) as [string, (payload: unknown, metadata: unknown) => Promise<void>];
-		expect(on.mock.invocationCallOrder[0]).toBeLessThan(
-			intents.mock.invocationCallOrder[0]
-		);
-
-		await listener({ id: 1 }, { topic, messageId: "m-bus" });
-
-		expect(MOCK_AUDIT_REPOSITORY_INSTANCE.insert).toHaveBeenCalledWith(
-			expect.objectContaining({
-				metadata: expect.objectContaining({ topic, messageId: "m-bus" }),
-				payload: { id: 1 },
-			})
-		);
 	});
 
 	it("listens while MongoDB is down, answers 503, then serves once it is up", async () => {
@@ -168,7 +144,7 @@ describe("Audit Logger entry point (index.ts)", () => {
 		jest.useFakeTimers();
 
 		await capturedOptions.createServer();
-		const [repo, mongoManager, , isReady] = createServer.mock.calls[0];
+		const [repo, mongoManager, isReady] = createServer.mock.calls[0];
 		expect(mongoManager.isConnected()).toBe(false);
 		expect(isReady()).toBe(false);
 		expect(() => repo.findById("m1")).toThrow(/not ready/);

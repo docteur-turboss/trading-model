@@ -12,7 +12,7 @@ import {
 	createTraderTrainerContainer,
 	createTrainingLeadership,
 } from "../config/container";
-import { MessageManager } from "../config/message-manager";
+import { busClient } from "../config/message-manager";
 import { ENV } from "../infrastructure/config/env";
 import { createServer } from "./server";
 
@@ -57,7 +57,7 @@ createBootstrap({
 		// Before leaving discovery: the model of the session ended early is
 		// published on the bus. Then the Lease goes to the successor.
 		await leadership?.stop();
-		await MessageManager.stopMessageManager();
+		await busClient.stop();
 		await shutdownTelemetry();
 	},
 });

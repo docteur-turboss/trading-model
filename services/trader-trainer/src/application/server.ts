@@ -7,7 +7,6 @@ import {
 	TRAINER_ROUTES,
 	type TrainerRoutesOptions,
 } from "../adapters/inbound/http/routes";
-import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
 import { metricsHandler } from "../config/metrics";
 import { ENV } from "../infrastructure/config/env";
 import type { Trainer } from "./trainer";
@@ -20,8 +19,6 @@ export function createServer(trainer: Trainer, models: TrainerRoutesOptions) {
 		routes: (app) => {
 			app.use(TRAINER_ROUTES(trainer, models));
 			app.get("/metrics", metricsHandler);
-
-			ADDRESS_MANAGER_ROUTES(app);
 		},
 		readiness: [svidReadinessCheck(ENV), redisReadinessCheck(ENV)],
 	});

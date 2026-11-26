@@ -11,7 +11,6 @@ database host.
 | --- | --- | --- |
 | MySQL (market data) | StatefulSet `mysql`, Service `mysql-primary` pinned to pod `mysql-0` | **none** |
 | SPIRE server (SQLite datastore + CA keys, [ADR-0065](../../adr/0065-spire-datastore-sqlite-and-4h-svid-ttl.md)) | Deployment `spire-server`, 1 replica, PVC `spire-server-data` | **none** (SVIDs stay valid about 2 h after it stops) |
-| MongoDB DLQ | StatefulSet `mongo-dlq`, replica set `rs0`, database `dlq` | automatic (replica set) |
 | MongoDB audit trail | StatefulSet `mongo-audit`, replica set `rs0-audit`, database `audit` | automatic (replica set) |
 | Redis | StatefulSets `redis` + `redis-sentinel` | automatic (Sentinel) |
 
@@ -176,25 +175,21 @@ recovery window. Pods started meanwhile get no identity.
    recreates the entries and the agents bootstrap again; restart the
    workloads that keep failing mTLS.
 
-## MongoDB (DLQ and audit trail)
+## MongoDB (audit trail)
 
-**Alerts:** `ServiceDown` on `dlq-service` or `audit-logger`,
+**Alerts:** `ServiceDown` on `audit-logger`,
 `AuditChainBroken` after a restore  
 **Severity:** L1
 
-Two separate replica sets: `mongo-dlq-*` (dlq-service) and `mongo-audit-*`
-(audit-logger). Losing one member is absorbed by the election.
+One replica set: `mongo-audit-*` (audit-logger). Losing one member is absorbed by the election.
 
 ### Symptom check
 
 ```bash
-# Replace mongo-dlq by mongo-audit for the audit trail
-kubectl exec -n trading-model mongo-dlq-0 -c mongodb -- mongosh --quiet --eval "rs.status().members.map(m => m.name + ' ' + m.stateStr)"
-kubectl exec -n trading-model mongo-dlq-0 -c mongodb -- mongosh --quiet --eval "db.hello().primary"
+kubectl exec -n trading-model mongo-audit-0 -c mongodb -- mongosh --quiet --eval "rs.status().members.map(m => m.name + ' ' + m.stateStr)"
+kubectl exec -n trading-model mongo-audit-0 -c mongodb -- mongosh --quiet --eval "db.hello().primary"
 
 # Services see their database (client SVID)
-kubectl exec -n trading-model deployment/dlq-service -c dlq-service -- \
-  node -e "$SVID_GET" https://localhost:3000/health/ready
 kubectl exec -n trading-model deployment/audit-logger -c audit-logger -- \
   node -e "$SVID_GET" https://localhost:3000/health/ready
 ```
@@ -203,44 +198,15 @@ kubectl exec -n trading-model deployment/audit-logger -c audit-logger -- \
 
 ```bash
 # Ask the current primary to step down
-kubectl exec -n trading-model mongo-dlq-0 -c mongodb -- mongosh --quiet --eval "rs.stepDown()"
+kubectl exec -n trading-model mongo-audit-0 -c mongodb -- mongosh --quiet --eval "rs.stepDown()"
 
 # A member that will not come back: remove it; once rebuilt, its pod adds
 # itself back at start (mongodb-bootstrap sidecar, issue #2197)
-kubectl exec -n trading-model mongo-dlq-0 -c mongodb -- mongosh --quiet --eval "rs.remove('mongo-dlq-2.mongo-dlq-headless:27017')"
+kubectl exec -n trading-model mongo-audit-0 -c mongodb -- mongosh --quiet --eval "rs.remove('mongo-audit-2.mongo-audit-headless:27017')"
 ```
 
 Run these against the primary (or, with no primary, a member that sees the
-majority). Same commands for `mongo-audit-*` with `mongo-audit-headless`.
-
-### Full data loss: DLQ
-
-1. Stop the writer: `kubectl scale deployment -n trading-model dlq-service --replicas=0`.
-   message-manager keeps the dead letters it cannot send in its local file
-   ([runbook-message-bus-outage](runbook-message-bus-outage.md)): do not
-   delete its pods meanwhile.
-2. Restore the `dlq` database only (component `mongodb` holds both replica
-   sets; `--ns` leaves the audit trail untouched):
-   ```bash
-   BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-key.txt \
-     bash scripts/restore-k8s.sh --components mongodb --ns 'dlq.*'
-   ```
-   `--ns` skips the oplog replay (data as of the start of the dump) and is
-   refused with `--until`. To restore one collection without overwriting
-   healthy writes, or into a scratch database, see
-   [BACKUP_DR.md, Restoring part of MongoDB](../../deployment/BACKUP_DR.md#restoring-part-of-mongodb---ns---into-scratch).
-   There is no point-in-time restore of the DLQ alone: `--until` with
-   component `mongodb` also rewinds the audit trail and loses every audit
-   event written after the instant. Never use it for a DLQ loss; if the
-   audit trail is lost too, follow the audit section below.
-3. Scale dlq-service back, then list the dead letters (`/dlq` needs the
-   HMAC signature on top of mTLS: `examples/manage-dlq.sh` signs it and goes
-   through the edge-proxy, which calls the gateway with its SVID):
-   ```bash
-   kubectl port-forward -n trading-model svc/edge-proxy 8449:8080 &
-   API_GATEWAY=http://localhost:8449 ADMIN_TOKEN=<AUTH_TOKENS value> \
-     DLQ_AUTH_HMAC_SECRET=<dlq-service secret> bash examples/manage-dlq.sh
-   ```
+majority).
 
 ### Full data loss: audit trail (`mongo-audit`)
 
@@ -277,20 +243,21 @@ Exit 1 on any KO
 
 ## Redis Failover
 
-**Alert:** Multiple services showing degraded performance  
+**Alerts:** `RedisDown`, `RedisSentinelQuorumLost` (critical), or several services degraded  
 **Severity:** L1-L2
 
 ### Symptom Check
 
 ```bash
+# The default user is off: authenticate as ACL user `ha` (REDIS_INTERNAL_PASSWORD is in the pod env)
 # Any pod of the Redis HA group can be master: find the current one
 REDIS_MASTER=$(for p in redis-0 redis-1 redis-2; do
-  [ "$(kubectl exec -n trading-model "$p" -- redis-cli --raw ROLE | head -n 1)" = master ] && echo "$p"
+  [ "$(kubectl exec -n trading-model "$p" -c redis -- sh -c 'REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli --user ha --raw ROLE' | head -n 1)" = master ] && echo "$p"
 done)
-kubectl exec -n trading-model "$REDIS_MASTER" -- redis-cli ping
+kubectl exec -n trading-model "$REDIS_MASTER" -c redis -- sh -c 'REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli --user ha ping'
 
-# Check sentinel status
-kubectl exec -n trading-model redis-sentinel-0 -- redis-cli -p 26379 sentinel masters
+# Check sentinel status (a sentinel takes the password only, no --user)
+kubectl exec -n trading-model redis-sentinel-0 -c sentinel -- sh -c 'REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli -p 26379 sentinel masters'
 ```
 
 ### Recovery
@@ -299,7 +266,7 @@ Redis Sentinel should auto-failover. If not:
 
 ```bash
 # Force sentinel failover
-kubectl exec -n trading-model redis-sentinel-0 -- redis-cli -p 26379 sentinel failover mymaster
+kubectl exec -n trading-model redis-sentinel-0 -c sentinel -- sh -c 'REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli -p 26379 sentinel failover mymaster'
 ```
 
 ### Full Redis data loss
@@ -307,12 +274,14 @@ kubectl exec -n trading-model redis-sentinel-0 -- redis-cli -p 26379 sentinel fa
 Redis is not backed up. Registrations and the DLQ queue rebuild by themselves; the message journal does not: if master and replicas are all lost, accepted messages not yet delivered are gone (RPO in [BACKUP_DR.md](../../deployment/BACKUP_DR.md)). `mm_journal_oldest_pending_age_seconds` gives only the age (not the count) of the oldest pending entry and vanishes with the data: read it before the wipe for an upper bound, then republish from the source. Redis restarts from AOF/RDB.
 If persistence is corrupted:
 
-1. Clear Redis data:
+1. Clear Redis data. No ACL user may run `FLUSHALL` (`default` is off, `ha` is `-@all`): drop the volumes instead.
    ```bash
-   kubectl exec -n trading-model "$REDIS_MASTER" -- redis-cli FLUSHALL
+   kubectl scale statefulset redis -n trading-model --replicas=0
+   kubectl delete pvc -n trading-model redis-data-redis-0 redis-data-redis-1 redis-data-redis-2
+   kubectl scale statefulset redis -n trading-model --replicas=3
    ```
 2. Services will reconnect and rebuild cache
-3. Monitor message-manager for backpressure during rebuild
+3. Watch `BusDeadLetters` and the consumer lag during rebuild
 
 ## Total outage or lost cluster
 

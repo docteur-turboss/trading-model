@@ -13,7 +13,6 @@
     "./utils/anonymize-ip": "./dist/utils/anonymize-ip.js",
     "./utils/backoff-config": "./dist/utils/backoff-config.js",
     "./utils/comma-separated": "./dist/utils/comma-separated.js",
-    "./utils/deterministic-stringify": "./dist/utils/deterministic-stringify.js",
     "./utils/errors": "./dist/utils/errors.js",
     "./utils/run-cli": "./dist/utils/run-cli.js",
     "./utils/retry": "./dist/utils/retry.js",

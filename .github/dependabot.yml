@@ -8,6 +8,8 @@ updates:
     target-branch: "development"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 3
     ignore:
       # TypeScript 7 (native compiler) has no JS compiler API yet: ts-jest
       # (peer typescript <7) and typedoc (peer <=6.0.x) cannot run on it.
@@ -20,39 +22,11 @@ updates:
     target-branch: "development"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 3
 
   - package-ecosystem: "docker"
-    directory: "/services/financial-scraper"
-    target-branch: "development"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/services/message-manager"
-    target-branch: "development"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/services/trader-trainer"
-    target-branch: "development"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/services/api-gateway"
-    target-branch: "development"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/services/audit-logger"
-    target-branch: "development"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/services/dlq-service"
+    directory: "/"
     target-branch: "development"
     schedule:
       interval: "weekly"
@@ -84,6 +58,8 @@ updates:
     target-branch: "development"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 3
 
   - package-ecosystem: "docker-compose"
     directory: "/"
@@ -109,18 +85,6 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "mysql"
         update-types: ["version-update:semver-major"]
-
-  - package-ecosystem: "docker"
-    directory: "/services/model-evaluator"
-    target-branch: "development"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/services/risk-execution"
-    target-branch: "development"
-    schedule:
-      interval: "weekly"
 
   - package-ecosystem: "docker"
     directory: "/deploy/k8s/services"

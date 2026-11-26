@@ -23,12 +23,10 @@ This directory documents every package and service in the **trading-model** mono
 
 | Service               | Path                              | Documentation                                      |
 | --------------------- | --------------------------------- | -------------------------------------------------- |
-| message-manager       | `services/message-manager/`       | [message-manager.md](./message-manager.md)         |
 | financial-scraper     | `services/financial-scraper/`     | [financial-scraper.md](./financial-scraper.md)     |
 | trader-trainer        | `services/trader-trainer/`        | [trader-trainer.md](./trader-trainer.md)           |
 | api-gateway           | `services/api-gateway/`           | [api-gateway.md](./api-gateway.md)                 |
 | audit-logger          | `services/audit-logger/`          | [audit-logger.md](./audit-logger.md)               |
-| dlq-service           | `services/dlq-service/`           | [dlq-service.md](./dlq-service.md)                 |
 | model-evaluator       | `services/model-evaluator/`       | [model-evaluator.md](./model-evaluator.md)         |
 | decision-consumer     | `services/decision-consumer/`     | [decision-consumer.md](./decision-consumer.md)     |
 | risk-execution        | `services/risk-execution/`        | [risk-execution.md](./risk-execution.md)           |

@@ -58,7 +58,7 @@ function boot(broker?: BrokerPort) {
 		limits: LIMITS,
 		broker: broker ?? ledger,
 		store: new JsonFile<RiskState>(join(dir, "state.json")),
-		admission: { isAdmissible: async () => true },
+		admission: { admission: async () => ({ admissible: true }) },
 		prices: {
 			latest: async (symbols) =>
 				Object.fromEntries(

@@ -132,7 +132,11 @@ export function barsSinceInput(barsSince?: number): number | undefined {
 export function playEpisode<Step extends MarketStep>(
 	steps: readonly Step[],
 	horizon: HorizonGenome,
-	agent: { step(step: Step, barsSince?: number): void; pnl(): number },
+	agent: {
+		step(step: Step, barsSince?: number): void;
+		/** PnL of the wallet, marked to `mark`'s price when given. */
+		pnl(mark?: Step): number;
+	},
 	pnlCurve: number[]
 ): { pnl: number; decisions: number } {
 	const eventDriven = isEventDriven(horizon);
@@ -142,7 +146,11 @@ export function playEpisode<Step extends MarketStep>(
 	let lastPnl = startPnl;
 	for (let index = 0; index < steps.length; index++) {
 		if (bars[rank] !== index) {
-			pnlCurve.push(0);
+			// The last bar marks the wallet to its close even without a decision.
+			const pnl =
+				index === steps.length - 1 ? agent.pnl(steps[index]) : lastPnl;
+			pnlCurve.push(pnl - lastPnl);
+			lastPnl = pnl;
 			continue;
 		}
 		agent.step(

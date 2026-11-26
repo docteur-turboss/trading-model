@@ -104,7 +104,7 @@ spec:
                 name: decision-consumer-config
           env:
             - name: NODE_OPTIONS
-              value: --max-old-space-size=192
+              value: --max-old-space-size=128
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -140,7 +140,6 @@ spec:
                 - node
                 - /app/probe.js
                 - https://localhost:3000/ping
-            initialDelaySeconds: 20
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 3
@@ -213,7 +212,7 @@ spec:
         - port: 3000
           protocol: TCP
   egress:
-    # message-manager, trader-trainer, financial-scraper and risk-execution (HTTPS on 3000), Redis and its sentinels (bus, ADR-0073).
+    # trader-trainer, financial-scraper and risk-execution (HTTPS on 3000), Redis and its sentinels (bus, ADR-0073).
     - to:
         - podSelector: {}
       ports:
@@ -222,6 +221,11 @@ spec:
         - port: 6379
           protocol: TCP
         - port: 26379
+          protocol: TCP
+        # TLS listeners (REDIS_TLS_MODE, ADR-0047).
+        - port: 6380
+          protocol: TCP
+        - port: 26380
           protocol: TCP
 ---
 apiVersion: v1

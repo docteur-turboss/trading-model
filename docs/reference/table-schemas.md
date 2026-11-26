@@ -66,7 +66,7 @@ interface CandleData extends BaseMarketData {
 
 ### `market_trades` — Individual trade data
 
-Sample of the last 100 trades per symbol per minute. Purged by `db-retention` on `timestamp` after `RETENTION_TRADES_DAYS` (180 in K8s).
+No longer collected or read since issue #2693 (it held a sample of 100 trades per minute, not the trades); the table is dropped in the release after. Purged by `db-retention` on `timestamp` after `RETENTION_TRADES_DAYS` (180 in K8s).
 
 | Column | Type | Constraints | Description |
 | ------ | ---- | ----------- | ----------- |
@@ -99,16 +99,7 @@ CREATE TABLE `market_trades` (
 ) ENGINE=InnoDB;
 ```
 
-**TS entity interface** (`@trading-model/contracts` — `contracts/market-data.types`, re-exporting `contracts/market-data/trade.types`):
-
-```ts
-interface TradeData extends BaseMarketData {
-  price: number;
-  tradeId: bigint;
-  quantity: number;
-  side: 'buy' | 'sell';
-}
-```
+No TS entity: the `TradeData` contract type was removed with the collection (#2693).
 
 ### `market_tickers` — 24-hour ticker statistics
 

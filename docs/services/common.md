@@ -32,8 +32,6 @@ Roles and build order: [AGENTS.md](../../AGENTS.md#build-order-dependency-chain)
 | File | Purpose |
 |------|---------|
 | `services.types.ts` | Re-exports `ServiceInstanceName`, `ALL_SERVICE_NAMES`, `parseServiceName` (canonical definitions live in `@trading-model/primitives/service-instance-name`) |
-| `delivery-mode.types.ts` | `DeliveryMode` enum: `AtMostOnce`, `AtLeastOnce`, `ExactlyOnce` |
-| `event.types.ts` | **Deprecated** facade — re-exports per-context types from `@trading-model/contracts`. Import directly from `contracts` for new code (see [Event Types](#event-types)) |
 | `db-connection-config.ts` | `createDbConfigFromEnv()` — builds `DbConnectionConfig` from `DB_HOST`/`DB_PORT`/`DB_USER`/`DB_PASSWORD`/`DB_NAME` |
 | `tls-paths.ts` | `TlsPaths`, `TlsEnvVars`, `TlsConfig`, `TlsPemBundle`, Zod `TlsEnvVarsSchema`, and helpers (`buildTlsFromEnv`, `resolveSecureContextOptions`, …) |
 | `workload-identity.ts` | SPIFFE workload-identity primitives (ADR-0011): trust domain, SPIFFE ID scheme, canonical service identities, `parseSpiffeId`, `extractServiceName` |
@@ -51,7 +49,6 @@ Roles and build order: [AGENTS.md](../../AGENTS.md#build-order-dependency-chain)
 | `cache.ts` | `SyncCachePort<T>` — cache abstraction (get/set/delete/clear/has/invalidate with TTL) |
 | `sanitize.ts` | `sanitizeForLog()` — strips PEM blocks and secrets before logging |
 | `safe-stringify.ts` | Cycle-safe JSON stringification |
-| `deterministic-stringify.ts` | Deterministic JSON serialization for cryptographic signing (recursively sorts object keys) |
 | `anonymize-ip.ts` | IP anonymization for privacy-safe logging |
 | `comma-separated.ts` | Parse comma-separated env strings into arrays |
 | `timer-handle.ts` | Timer handle abstraction (clear-safe timers) |
@@ -108,7 +105,7 @@ The combined helpers live in `@trading-model/contracts/event-map`:
 ## Service Types & Delivery Modes
 
 - **Service names**: `@trading-model/common/config/services.types` (re-exports `ServiceInstanceName` from `@trading-model/primitives/service-instance-name`)
-- **Delivery modes**: `@trading-model/common/config/delivery-mode.types` — `DeliveryMode.AT_MOST_ONCE | AT_LEAST_ONCE | EXACTLY_ONCE`
+- **Delivery modes**: `@trading-model/contracts` (`packages/contracts/src/delivery-mode.ts`)
 
 ## SPIFFE Workload Identity
 
@@ -126,11 +123,10 @@ Provides the platform's SPIFFE trust domain, ID scheme, canonical service identi
 
 ```ts
 import { sleep } from '@trading-model/common/utils/sleep';
-import { deterministicStringify } from '@trading-model/common/utils/deterministic-stringify';
 import { sanitizeForLog } from '@trading-model/common/utils/sanitize';
 ```
 
-`deterministicStringify` produces deterministic JSON for cryptographic signing (recursively sorts object keys; preserves array order; handles primitives, nulls, nested objects). `sanitizeForLog` strips PEM blocks and secrets before logging.
+`sanitizeForLog` strips PEM blocks and secrets before logging.
 
 ## Moved-Out Modules (Where They Are Now)
 

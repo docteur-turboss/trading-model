@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import {
-	authenticationError,
 	configurationError,
 	ErrorCode,
 	makeErrorCode,
@@ -8,6 +7,7 @@ import {
 import { logger } from "@trading-model/http/logger";
 import { ResponseProtocol } from "@trading-model/http/response-protocol";
 
+const authenticationError = makeErrorCode(ErrorCode.Authentication, 498);
 const addressManagerError = makeErrorCode(ErrorCode.AddressManager, 503);
 const serviceNotFoundError = makeErrorCode(ErrorCode.Agent, 404);
 const serviceUnreachableError = makeErrorCode(ErrorCode.DlqCapacity, 410);

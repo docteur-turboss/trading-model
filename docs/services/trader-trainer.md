@@ -26,7 +26,6 @@ Training service for trading agents using genetic algorithms and neural networks
 | `/v1/models/:symbol`          | GET    | Stored model versions of a symbol, newest first     |
 | `/v1/models/:symbol/:version` | GET    | Manifest of a model version (no weights)            |
 | `/models/:symbol/:version/weights` | GET | Weights: service-to-service only, `MODEL_DOWNLOAD_CALLERS` |
-| `/status`                  | GET    | Address-manager metrics snapshot                    |
 | `/metrics`                 | GET    | Prometheus metrics                                  |
 
 ### `GET /ping`
