@@ -13,6 +13,11 @@ const PORT = Number(process.env.PORT ?? 8080);
 const MINUTE = 60_000;
 const BASE_PRICE = { BTCUSDT: 80_000, ETHUSDT: 3_000 };
 
+// Klines rise 10 per minute from the stub start (same value on every fetch of a bar): a flat
+// history makes the trained model hold forever, so the decision-to-position E2E never opens one.
+const START_MINUTE = Math.floor(Date.now() / MINUTE);
+const trend = (openTime) => (openTime / MINUTE - START_MINUTE) * 10;
+
 const price = (symbol, delta = 0) => ((BASE_PRICE[symbol] ?? 100) + delta).toFixed(8);
 
 function symbolsParam(url) {
@@ -40,16 +45,16 @@ function klines(symbol, limit, startTime) {
     const openTime = firstOpen + i * MINUTE;
     return [
       openTime,
-      price(symbol),
-      price(symbol, 10),
-      price(symbol, -10),
-      price(symbol, 5),
+      price(symbol, trend(openTime)),
+      price(symbol, trend(openTime) + 10),
+      price(symbol, trend(openTime) - 10),
+      price(symbol, trend(openTime) + 5),
       '1.00000000',
       openTime + MINUTE - 1,
-      price(symbol),
+      price(symbol, trend(openTime)),
       42,
       '0.50000000',
-      price(symbol),
+      price(symbol, trend(openTime)),
       '0',
     ];
   });
