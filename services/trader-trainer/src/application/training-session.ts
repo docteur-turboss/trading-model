@@ -179,6 +179,7 @@ class TrainingSession {
 			},
 			fitnessType: this._settings.fitnessType,
 			...(this._settings.actionSpaceGene && { actionSetGene: true }),
+			...(this._settings.topologyGenes && { topologyGene: true }),
 		};
 	}
 

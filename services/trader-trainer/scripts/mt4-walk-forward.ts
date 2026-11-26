@@ -198,6 +198,7 @@ async function runSegment(
 			episodesPerIndividual: 10,
 			fitnessType: run.fitness,
 			observePosition,
+			topologyGenes: run.variant === "topology",
 			seedOffset: run.seed,
 		}
 	);
