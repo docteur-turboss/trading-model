@@ -63,7 +63,7 @@ jest.mock("../../src/adapters/inbound/auth", () => ({
 		require("../../src/adapters/inbound/auth").AUTH_MIDDLEWARE,
 	// Every scope unless the request sets its own.
 	authOf: (req: any) => ({
-		apiKeyScopes: req.apiKeyScopes ?? ["read"],
+		apiKeyScopes: req.apiKeyScopes ?? ["read", "audit:read"],
 	}),
 }));
 

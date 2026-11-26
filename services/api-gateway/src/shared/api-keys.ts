@@ -1,8 +1,9 @@
 /**
  * Scopes of an API key (ADR-0059): `read` for the GET routes of
- * `PUBLIC_ROUTES`, `risk:admin` for the risk-execution kill switch (engage, re-arm).
+ * `PUBLIC_ROUTES`, `audit:read` for the audit trail, `risk:admin` to engage the
+ * risk-execution kill switch, `risk:rearm` to re-arm it.
  */
-const API_SCOPES = ["read", "risk:admin"] as const;
+const API_SCOPES = ["read", "audit:read", "risk:admin", "risk:rearm"] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 
 /**
@@ -63,7 +64,24 @@ export function hasRetiredScope(entries: readonly string[]): boolean {
 	);
 }
 
-/** Scope a public route needs: `read` for GET, `risk:admin` otherwise (the kill switch is the only public write). */
-export function requiredScope(method: string): ApiScope {
+/** Scope a public route (`PUBLIC_ROUTES` pattern path) needs: `audit:read` for the audit trail, `risk:rearm` for the re-arm, `risk:admin` for the other writes, `read` otherwise. */
+export function requiredScope(method: string, path: string): ApiScope {
+	if (path.startsWith("/v1/audit-logger/")) {
+		return "audit:read";
+	}
+	if (path.endsWith("/rearm")) {
+		return "risk:rearm";
+	}
 	return method === "GET" ? "read" : "risk:admin";
+}
+
+/** Whether the key scopes grant `scope`; `risk:admin` implies `risk:rearm` for one release (N-1 keys, expand/contract: remove the implication in N+1). */
+export function hasScope(
+	scopes: readonly ApiScope[],
+	scope: ApiScope
+): boolean {
+	return (
+		scopes.includes(scope) ||
+		(scope === "risk:rearm" && scopes.includes("risk:admin"))
+	);
 }
