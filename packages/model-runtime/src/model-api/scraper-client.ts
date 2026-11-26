@@ -7,11 +7,11 @@ import {
 import { HttpClient } from "@trading-model/http/http-client";
 import { TradingSymbol } from "@trading-model/primitives/primitives";
 import { HostPort } from "@trading-model/primitives/service-identity";
+import { DAY_MS } from "../features/feature-builder";
 import { fetchCandlePages } from "../signals/candle-pages";
 import { ScraperSignalHistory } from "../signals/scraper-signal-history";
 import { SignalBarHistory } from "../signals/signal-bar-history";
 
-const DAY_MS = 86_400_000;
 const PAGE_LIMIT = 5000;
 
 /**
