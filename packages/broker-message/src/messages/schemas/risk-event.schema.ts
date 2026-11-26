@@ -15,6 +15,7 @@ export const RISK_EVENT_VALIDATORS = {
 		symbol: z.string().min(1),
 		status: z.string().min(1),
 		reason: z.string().nullish(),
+		actor: z.string().min(1).optional(),
 	}),
 	[RiskEvent.KillSwitchEngaged]: z.object({
 		eventId: EVENT_ID,

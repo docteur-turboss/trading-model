@@ -18,7 +18,7 @@ const Scope = z.object({
 
 /**
  * Service-to-service API of risk-execution. `intents` and `cancel` never go in
- * PUBLIC_ROUTES (ADR-0064 §1); `adminEngage` and `adminRearm` do, scope `risk:admin`, and the
+ * PUBLIC_ROUTES (ADR-0064 §1); `adminEngage`, `adminRearm` and `adminReduce` do, scope `risk:admin`, and the
  * actor is the API key name the gateway sets in `x-actor` (ADR-0059). `adminStatus`: the pod.
  */
 export const RISK_API = {
@@ -84,5 +84,13 @@ export const RISK_API = {
 			400: ErrorResponse,
 			403: ErrorResponse,
 		},
+	}),
+	adminReduce: defineRoute({
+		method: "POST",
+		path: "/v1/admin/reduce",
+		summary:
+			"Sell at most the position net of open sells: the only order the kill switch lets through (policy §4.1)",
+		body: Intent.pick({ symbol: true, quantity: true, limitPrice: true }),
+		responses: { 200: Result, 400: ErrorResponse, 403: ErrorResponse },
 	}),
 } as const;

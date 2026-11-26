@@ -485,6 +485,68 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
           $ref: "#/components/responses/NotFound"
+  /v1/risk-execution/admin/reduce:
+    post:
+      operationId: "postV1RiskExecutionAdminReduce"
+      tags:
+        - "risk-execution"
+      summary: "Sell at most the position net of open sells: the only order the kill switch lets through (policy §4.1)"
+      x-registry-entry: "adminReduce"
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: "object"
+              properties:
+                symbol:
+                  type: "string"
+                  minLength: 1
+                quantity:
+                  type: "number"
+                  minimum: 0
+                  exclusiveMinimum: true
+                limitPrice:
+                  type: "number"
+                  minimum: 0
+                  exclusiveMinimum: true
+              required:
+                - "symbol"
+                - "quantity"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  status:
+                    type: "string"
+                  clientOrderId:
+                    type: "string"
+                  reason:
+                    type: "string"
+                required:
+                  - "status"
+                  - "clientOrderId"
+                additionalProperties: false
+        "400":
+          description: "Invalid request"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "Caller not allowed"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /v1/trader-trainer/best-agent:
     get:
       operationId: "getV1TraderTrainerBestAgent"

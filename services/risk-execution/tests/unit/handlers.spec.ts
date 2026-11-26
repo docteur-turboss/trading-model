@@ -35,6 +35,10 @@ function build() {
 		})),
 		engage: jest.fn<(...args: any[]) => any>(async () => undefined),
 		rearm: jest.fn<(...args: any[]) => any>(async () => undefined),
+		reduce: jest.fn<(...args: any[]) => any>(async () => ({
+			status: "filled",
+			clientOrderId: "rx-reduce-1",
+		})),
 	};
 	const metrics = jest.fn<(outcome: string) => void>();
 	return {
@@ -97,6 +101,21 @@ describe("risk-execution routes: each caller only reaches its own routes (ADR-00
 			(await h.adminEngage(input(engage), viaGateway("alice"))).status
 		).toBe(200);
 		expect(risk.engage).toHaveBeenCalledWith({ scope: "global" }, "x", "alice");
+		const reduce = { symbol: "BTCUSDT", quantity: 0.1 };
+		expect(
+			(await h.adminReduce(input(reduce), as("decision-consumer"))).status
+		).toBe(403);
+		expect((await h.adminReduce(input(reduce), viaGateway())).status).toBe(403);
+		expect(risk.reduce).not.toHaveBeenCalled();
+		expect(
+			(await h.adminReduce(input(reduce), viaGateway("alice"))).status
+		).toBe(200);
+		expect(risk.reduce).toHaveBeenCalledWith(
+			"BTCUSDT",
+			0.1,
+			"alice",
+			undefined
+		);
 	});
 
 	it("a symbol scope needs a symbol, and a refused re-arming is a 403", async () => {

@@ -12,6 +12,7 @@ import {
 } from "../../src/application/risk-execution";
 import {
 	applyFill,
+	type KillTarget,
 	limitBreaches,
 	reconciliationDiffs,
 	rollDay,
@@ -829,6 +830,60 @@ describe("order lifecycle (ADR-0064 §3)", () => {
 });
 
 describe("kill switch and limits (ADR-0064 §5, policy §3-§4)", () => {
+	it.each<KillTarget>([
+		{ scope: "global" },
+		{ scope: "symbol", symbol: "ETHUSDT" },
+	])(
+		"under the %o switch only an operator sell within the position passes, every other check applies (policy §4.1)",
+		async (target) => {
+			const emitted: Record<string, unknown>[] = [];
+			const ctx = build({
+				emit: (e, f) => e === "order.transition" && emitted.push(f),
+			});
+			await ctx.svc.start();
+			const eth = (over: Partial<Intent>) =>
+				intent({
+					symbol: "ETHUSDT",
+					quantity: 1,
+					referencePrice: 3_000,
+					model: { symbol: "ETHUSDT", version: "v1" },
+					...over,
+				});
+			expect((await ctx.svc.submitIntent(eth({}))).status).toBe("filled");
+			await ctx.svc.engage(target, "incident", "ops");
+			for (const side of ["buy", "sell"] as const) {
+				expect(
+					await ctx.svc.submitIntent(eth({ side, quantity: 0.5 }))
+				).toMatchObject({ reason: "kill_switch" });
+			}
+			expect(await ctx.svc.reduce("ETHUSDT", 1.5, "ops")).toMatchObject({
+				reason: "short_selling",
+			});
+			expect(await ctx.svc.reduce("ETHUSDT", 0.5, "ops", 3_300)).toMatchObject({
+				reason: "price_band",
+			});
+			marketAt = clock - LIMITS.haltAgeMs - 1;
+			expect(await ctx.svc.reduce("ETHUSDT", 0.5, "ops")).toMatchObject({
+				reason: "stale_price",
+			});
+			marketAt = null;
+			expect((await ctx.svc.reduce("ETHUSDT", 0.5, "ops")).status).toBe(
+				"filled"
+			);
+			expect(ctx.svc.status().positions.ETHUSDT).toBeCloseTo(0.5);
+			expect(emitted[emitted.length - 1]).toMatchObject({
+				status: "filled",
+				actor: "ops",
+			});
+			for (const quantity of [0.01, 0.02, 0.03]) {
+				await ctx.svc.reduce("ETHUSDT", quantity, "ops");
+			}
+			expect(await ctx.svc.reduce("ETHUSDT", 0.04, "ops")).toMatchObject({
+				reason: "rate_symbol",
+			});
+		}
+	);
+
 	it("engages on the daily loss, cancels open orders, survives a restart, re-arms by hand only", async () => {
 		const ctx = build();
 		await ctx.svc.start();

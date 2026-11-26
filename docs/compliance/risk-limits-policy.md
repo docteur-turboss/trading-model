@@ -52,7 +52,7 @@ This cap is set here because it bounds the loss once the kill switch is on (§6)
 | Global | No new order on any symbol. Open orders are cancelled. Positions are kept unless the operator explicitly asks to close them. |
 | Per symbol | Same, limited to one symbol. Other symbols keep trading within their limits. |
 
-Closing positions is a separate, explicit operator action, never automatic: a forced market close in a fast or illiquid market can lose more than holding. Cancelling orders stays possible while the switch is on.
+Closing positions is a separate, explicit operator action, never automatic: a forced market close in a fast or illiquid market can lose more than holding. Cancelling orders stays possible while the switch is on. The operator closes through the service, not at the broker (a close outside the system is a reconciliation mismatch that engages the global switch): `scripts/risk-admin.sh reduce --symbol <S> --quantity <N>` (gateway, scope `risk:admin`, the API key name is the actor in the audit trail, issue #2801) sells at most the position net of open sells, under the switch too. Every other pre-trade check applies to it (stale price, price band, order size and notional, order rate); a buy and every intent of the decision consumer stay rejected.
 
 ### 4.2 Manual triggers
 
@@ -93,6 +93,8 @@ The automatic triggers stop new orders and cancel open orders; they do not close
 The stale data, reconciliation and reject triggers cover the cases where the loss cannot be measured. If the Risk/Execution service itself is down, no new order is sent (it is the only holder of the broker keys), but open positions stay exposed the same way: the service must therefore hold no resting order without an expiry, and its down alert pages an operator (§2).
 
 **Decision (project owner, 2026-11-23, issue #2194): option C, no automatic reduction, global exposure cap lowered to 10 % for the first live tier.** Positions are still never closed automatically (§4.1, ADR-0064 §5 unchanged), so the worst case of an unattended period is **about 20 % of the allocated capital** (10 % drawdown stop plus 10 % of positions, plus slippage and fees), 2 000 USDT with the 10 000 of `RISK_ALLOCATED_CAPITAL`; against the high-water mark it stays without a fixed percentage. Stop orders resting at the exchange or a forced close on the drawdown stop were not chosen: they would change §4.1 and ADR-0064 §5. Raising the cap above 10 % is a limit change (§3) that must recompute this section.
+
+**Operator present (issue #2801).** The reduction of §4.1 bounds the loss of the positions to the market move until the operator acts, plus at most the price band (1 %, ceiling 5 %) and fees on the value sold. With the 10 % cap and the 5 % order notional, a symbol at the cap closes in two orders, within the order rate. The unattended worst case above is unchanged.
 
 ## 7. Drill
 
