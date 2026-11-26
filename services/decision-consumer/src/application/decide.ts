@@ -2,7 +2,8 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import type { CandleData } from "@trading-model/contracts/market-data.types";
 import type { Intent } from "@trading-model/contracts/order-intent";
-import { AGENT_STATE_FIELDS } from "@trading-model/model-runtime/agent/agent-state";
+import { AGENT_STATE_DIM } from "@trading-model/model-runtime/agent/agent-state";
+import { isEventDriven } from "@trading-model/model-runtime/agent/decision-events";
 import { DEFAULT_MAX_EXPOSURE_FRACTION } from "@trading-model/model-runtime/env/wallet-config";
 import { FEATURE_DIM } from "@trading-model/model-runtime/feature-vector-codec";
 import {
@@ -123,8 +124,13 @@ export function createDecisionTick(deps: {
 			refuse("unsupported-interval");
 			return undefined;
 		}
-		// The decider feeds market inputs then the agent state, no signal inputs (a signal-trained model has more).
-		if (manifest.features.fields[FEATURE_DIM] !== AGENT_STATE_FIELDS[0]) {
+		// The decider feeds market inputs, the agent state and the event input, no signal inputs (a signal-trained model has more).
+		const { network } = manifest.genome;
+		const expectedDim =
+			FEATURE_DIM +
+			AGENT_STATE_DIM +
+			(isEventDriven(manifest.genome.rl.horizon) ? 1 : 0);
+		if (network.inputDim !== expectedDim) {
 			refuse("incompatible-features");
 			return undefined;
 		}

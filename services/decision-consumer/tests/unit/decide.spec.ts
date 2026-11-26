@@ -7,8 +7,8 @@ jest.mock("@trading-model/contracts/logger-registry", () => ({
 	getLogger: () => ({ warn: jest.fn(), error: jest.fn(), info: jest.fn() }),
 }));
 
-import { AGENT_STATE_FIELDS } from "@trading-model/model-runtime/agent/agent-state";
-import { FEATURE_LAYOUT } from "@trading-model/model-runtime/feature-vector-codec";
+import { AGENT_STATE_DIM } from "@trading-model/model-runtime/agent/agent-state";
+import { FEATURE_DIM } from "@trading-model/model-runtime/feature-vector-codec";
 import { verifyModel } from "@trading-model/model-runtime/model-manifest";
 import { createDecisionTick } from "../../src/application/decide";
 import { DECISION_INTENTS_TOTAL } from "../../src/config/metrics";
@@ -22,17 +22,14 @@ const SHA = createHash("sha256").update(WEIGHTS).digest("hex");
 const MODEL = { symbol: "BTCUSDT", version: "v1" };
 
 function manifest(admissible: boolean, intervalMs = 60_000, signals = 0) {
-	const fields = [
-		...FEATURE_LAYOUT.fields,
-		...Array.from({ length: signals }, (_, i) => `Signal${i}`),
-		...AGENT_STATE_FIELDS,
-	];
 	return {
 		symbol: "BTCUSDT",
 		version: "v1",
-		features: { dim: fields.length, fields },
 		weights: { sha256: SHA, length: 2 },
-		genome: {},
+		genome: {
+			network: { inputDim: FEATURE_DIM + AGENT_STATE_DIM + signals },
+			rl: { horizon: {} },
+		},
 		admission: { admissible },
 		replay: { intervalMs, simulator: { initialCash: 1_000_000 } },
 	} as never;
