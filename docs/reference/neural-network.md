@@ -73,7 +73,7 @@ Standard backpropagation via chain rule:
 
 ---
 
-### `Agent` (`agent.ts`)
+### `AgentExperienceHandler` (`domain/neural-network/agent-experience-handler.ts`)
 
 Pairs a `NeuralNetwork` (`agent.nn`) with its experience replay pool (`agent.experience`):
 
@@ -149,7 +149,7 @@ Mean squared error: `mean((t - o)²)`, gradient `2 (o - t) / n`. Output and targ
 
 ---
 
-### Normalization Strategies (`normalize.ts`)
+### Normalization Strategies (`normalizers.ts`)
 
 | Strategy | Method |
 | ------------------- | ----------------------------------- | --- | --- |
