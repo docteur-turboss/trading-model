@@ -52,6 +52,7 @@ TARGETS=(
   "market_tickers timestamp ${RETENTION_DAYS}"
   "market_order_books timestamp ${RETENTION_ORDER_BOOKS_DAYS}"
   "signals observed_at ${RETENTION_SIGNALS_DAYS}"
+  "signal_documents first_seen_at 90" # ADR-0084: no body, derived signals keep the numbers
 )
 
 # Prints the rows deleted by one batch.
