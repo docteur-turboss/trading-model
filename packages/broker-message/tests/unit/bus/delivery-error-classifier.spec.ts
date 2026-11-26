@@ -62,30 +62,6 @@ describe("classifyDeliveryError", () => {
 			reason: DlqReason.MaxRetriesExceeded,
 		});
 	});
-
-	it("should swallow an at-most-once failure", () => {
-		expect(
-			classifyDeliveryError(
-				transient,
-				1 as SequenceNumber,
-				params(DeliveryMode.AtMostOnce)
-			)
-		).toEqual({ action: ErrorActionType.SWALLOW });
-	});
-
-	// A retry could deliver it twice; a silent drop would lose it.
-	it("should dead-letter an exactly-once failure without retrying", () => {
-		expect(
-			classifyDeliveryError(
-				transient,
-				1 as SequenceNumber,
-				params(DeliveryMode.ExactlyOnce)
-			)
-		).toEqual({
-			action: ErrorActionType.DLQ,
-			reason: DlqReason.SingleAttemptFailed,
-		});
-	});
 });
 
 describe("isDeliveryExhausted", () => {

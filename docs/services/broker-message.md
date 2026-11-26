@@ -17,7 +17,7 @@ Every microservice uses this package to send and receive typed, validated messag
 | `publisher` — `publishToBus` | `XADD` into the topic stream; rejects when Redis refuses the write or when `delivery.requireSubscriber` is set and nobody subscribes |
 | `consumer` — `BusConsumer` | One loop per topic, `XREADGROUP` + `XCLAIM` retries, `XACK` on success; one consumer group per subscriber service |
 | `redis-journal`, `journal.port` | Journal over Redis Streams (`RedisMessageJournal`, `MessageJournalPort`) |
-| `dead-streams` — `DeadStreams` | Entries over the delivery limit (10 for `at-least-once`) expired TTL, failed `exactly-once` attempt, or rejected with a `DeadLetterError` are copied to `trading-model:message-manager:dead:<topic>`, entries older than 7 days trimmed on each new dead letter (`DEAD_LETTER_RETENTION_MS`) |
+| `dead-streams` — `DeadStreams` | Entries over the delivery limit (10 for `at-least-once`) expired TTL, or rejected with a `DeadLetterError` are copied to `trading-model:message-manager:dead:<topic>`, entries older than 7 days trimmed on each new dead letter (`DEAD_LETTER_RETENTION_MS`) |
 | `metrics` | `mm_messages_delivered_total`, `mm_messages_dlq_total`, `mm_journal_*`, `bus_dead_letters`, `bus_publisher_rejected_total` |
 | `backoff`, `delivery-error-classifier`, `delivery-metadata-extractor`, `message-factory` | Retry delay, error classification, delivery metadata, message construction |
 
