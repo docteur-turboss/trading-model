@@ -3,9 +3,8 @@
 **Alert:** `HttpCircuitBreakerRejecting` (warning):
 `sum by (job, target, kind) (rate(http_circuit_breaker_rejections_total[5m])) > 0` for 10 minutes.
 
-The address-manager breaker per target instance (alert `CircuitBreakerOpen`)
-is gone: services reach each other by DNS name since ADR-0072, so there is no
-instance to pick or skip.
+The address-manager breaker per target instance is gone: services reach each
+other by DNS name since ADR-0072, so there is no instance to pick or skip.
 
 ## Symptom
 
