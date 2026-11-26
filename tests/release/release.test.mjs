@@ -137,3 +137,36 @@ test('--publish exits 1 with the failing command when the push fails (no remote)
   assert.match(out, /Command failed: git push/);
   assert.doesNotMatch(out, /published/);
 });
+
+test('--prepare refuses main, development, a dirty release/* tree, and --publish / --version / --dry-run', () => {
+  const head = git('rev-parse', 'HEAD');
+  const refusals = [['main'], ['development'], ['release/v3.1.0', true]];
+  for (const [branch, dirty] of refusals) {
+    git('checkout', '-q', '-B', branch);
+    if (dirty) writeFileSync(join(repo, 'dirty.txt'), 'x');
+    const { status, out } = release('--prepare');
+    if (dirty) rmSync(join(repo, 'dirty.txt'));
+    assert.equal(status, 1, `${branch}: ${out}`);
+    assert.match(out, dirty ? /--prepare requires a clean working tree/ : /--prepare requires being on a release\/\* branch/);
+  }
+  for (const args of [['--publish'], ['--version', '3.1.0'], ['--dry-run']]) {
+    const { status, out } = release('--prepare', ...args);
+    assert.equal(status, 1, `${args.join(' ')}: ${out}`);
+    assert.match(out, /--prepare cannot be combined/);
+  }
+  assert.equal(git('rev-parse', 'HEAD'), head);
+});
+
+test('--prepare on release/*: one release commit, no tag, no merge, last line version=vX.Y.Z', () => {
+  for (const [args, expected] of [[['--prerelease', 'rc'], 'v3.1.0-rc.10'], [[], 'v3.1.0']]) {
+    git('checkout', '-q', '-B', 'release/v3.1.0', 'main');
+    const tags = git('tag', '--list');
+    const { status, out } = release('--prepare', ...args);
+    assert.equal(status, 0, out);
+    assert.equal(out.trim().split('\n').at(-1), `version=${expected}`);
+    assert.equal(git('log', '-1', '--format=%s'), `:rocket:(release): ${expected}\n`);
+    assert.equal(git('rev-parse', 'HEAD~1'), git('rev-parse', 'main'));
+    assert.equal(git('tag', '--list'), tags);
+    assert.equal(version('.'), expected.slice(1));
+  }
+});

@@ -196,9 +196,9 @@ const TYPE_ORDER = [
 ];
 
 function parseArgs() {
-  const args = { dryRun: false, bump: null, version: null, publish: false, prerelease: null };
+  const args = { dryRun: false, bump: null, version: null, publish: false, prepare: false, prerelease: null };
   const argv = process.argv.slice(2);
-  const BOOLEAN_FLAGS = { '--dry-run': 'dryRun', '--publish': 'publish' };
+  const BOOLEAN_FLAGS = { '--dry-run': 'dryRun', '--publish': 'publish', '--prepare': 'prepare' };
   const VALUE_FLAGS = { '--bump': 'bump', '--version': 'version', '--prerelease': 'prerelease' };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
@@ -230,6 +230,10 @@ function parseArgs() {
     console.error('  --publish cannot be combined with --version (it would merge and publish nothing).');
     process.exit(1);
   }
+  if (args.prepare && (args.publish || args.version || args.dryRun)) {
+    console.error('  --prepare cannot be combined with --publish, --version or --dry-run.');
+    process.exit(1);
+  }
   if (args.bump && !['major', 'minor', 'patch'].includes(args.bump)) {
     console.error(`  Invalid bump type: "${args.bump}". Use major, minor, or patch.`);
     process.exit(1);
@@ -242,17 +246,20 @@ function parseArgs() {
 }
 
 function handlePublishMerge(args) {
-  if (!args.publish || args.dryRun) return;
+  if (!(args.publish || args.prepare) || args.dryRun) return;
+  const flag = args.prepare ? '--prepare' : '--publish';
   const branch = run('git rev-parse --abbrev-ref HEAD');
-  if (branch !== 'main') {
-    console.error(`  --publish requires being on main branch (currently on ${branch}).\n`);
+  if (args.prepare ? !branch.startsWith('release/') : branch !== 'main') {
+    console.error(`  ${flag} requires being on ${args.prepare ? 'a release/* branch' : 'main branch'} (currently on ${branch}).\n`);
     process.exit(1);
   }
   // publishRelease runs `git add -A`: a dirty tree would end up in the release commit.
   if (runOrDie('git status --porcelain')) {
-    console.error('  --publish requires a clean working tree (commit or remove your changes).\n');
+    console.error(`  ${flag} requires a clean working tree (commit or remove your changes).\n`);
     process.exit(1);
   }
+  // --prepare: the release/* branch already comes from development; merge and tag happen through its PR to main.
+  if (args.prepare) return;
   console.log('\n  → Merging development into main...');
   const mergeOut = run('git merge development --no-edit');
   if (mergeOut === '' && run('git diff --name-only --diff-filter=U')) {
@@ -399,13 +406,17 @@ function printSummary(bumps, oldRootVer, newVersion, rootBump, dryRun) {
 }
 
 function publishRelease(newVersion, args) {
-  if (!args.publish || args.dryRun) return;
-  console.log('\n  ── Publishing release ──\n');
+  if (!(args.publish || args.prepare) || args.dryRun) return;
+  console.log(`\n  ── ${args.prepare ? 'Preparing' : 'Publishing'} release ──\n`);
   console.log('  → Staging files...');
   runOrDie('git add -A');
   const commitMsg = `:rocket:(release): v${newVersion}`;
   console.log(`  → Committing: ${commitMsg}`);
   runOrDie(`git commit --no-verify -m "${commitMsg}"`);
+  if (args.prepare) {
+    console.log(`version=v${newVersion}`); // last line, read by the orchestrator
+    return;
+  }
   console.log(`  → Tagging v${newVersion}...`);
   runOrDie(`git tag -a v${newVersion} -m "${commitMsg}"`);
   console.log('  → Pushing commits and tags...');
