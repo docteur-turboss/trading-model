@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 import {
 	hasRetiredScope,
+	hasScope,
 	parseApiKey,
 	requiredScope,
 } from "../../src/shared/api-keys";
@@ -58,9 +59,21 @@ describe("parseApiKey", () => {
 });
 
 describe("requiredScope", () => {
-	it("needs read for GET and risk:admin otherwise", () => {
-		expect(requiredScope("GET")).toBe("read");
-		expect(requiredScope("POST")).toBe("risk:admin");
+	it("needs a scope per route family", () => {
+		expect(requiredScope("GET", "/v1/trader-trainer/best-agent")).toBe("read");
+		expect(requiredScope("GET", "/v1/audit-logger/events")).toBe("audit:read");
+		expect(requiredScope("POST", "/v1/risk-execution/admin/kill-switch")).toBe(
+			"risk:admin"
+		);
+		expect(
+			requiredScope("POST", "/v1/risk-execution/admin/kill-switch/rearm")
+		).toBe("risk:rearm");
+	});
+
+	it("lets risk:admin re-arm but not read the audit", () => {
+		expect(hasScope(["risk:admin"], "risk:rearm")).toBe(true);
+		expect(hasScope(["risk:rearm"], "risk:admin")).toBe(false);
+		expect(hasScope(["read"], "audit:read")).toBe(false);
 	});
 
 	it("only kill switch routes are public writes", () => {
