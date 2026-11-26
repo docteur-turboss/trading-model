@@ -146,7 +146,6 @@ spec:
                 - node
                 - /app/probe.js
                 - https://localhost:3000/ping
-            initialDelaySeconds: 15
             periodSeconds: 15
             timeoutSeconds: 10
             failureThreshold: 3
