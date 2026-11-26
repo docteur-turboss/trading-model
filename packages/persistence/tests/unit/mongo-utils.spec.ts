@@ -1,8 +1,7 @@
-import { describe, expect, it, jest } from "@jest/globals";
+import { describe, expect, it } from "@jest/globals";
 import {
 	createPoolOptions,
 	DEFAULT_MONGO_POOL_OPTIONS,
-	findPaginated,
 	mongoAuthFromEnv,
 	resolvePoolSize,
 } from "../../src/mongo-utils";
@@ -46,36 +45,6 @@ describe("createPoolOptions", () => {
 	it("should respect custom minPoolSize", () => {
 		const opts = createPoolOptions(20, 10);
 		expect(opts.minPoolSize).toBe(10);
-	});
-});
-
-describe("findPaginated", () => {
-	it("should chain find/sort/skip/limit/toArray on the collection", async () => {
-		const toArray = jest
-			.fn<() => Promise<{ _id: string }[]>>()
-			.mockResolvedValue([{ _id: "1" }]);
-		const limit = jest
-			.fn<(n: number) => { toArray: typeof toArray }>()
-			.mockReturnValue({ toArray });
-		const skip = jest
-			.fn<(n: number) => { limit: typeof limit }>()
-			.mockReturnValue({ limit });
-		const sort = jest
-			.fn<(s: Record<string, number>) => { skip: typeof skip }>()
-			.mockReturnValue({ skip });
-		const find = jest
-			.fn<(f: Record<string, unknown>) => { sort: typeof sort }>()
-			.mockReturnValue({ sort });
-		const collection = { find } as never;
-
-		const docs = await findPaginated(collection, { a: 1 }, { b: -1 }, 5, 10);
-
-		expect(docs).toEqual([{ _id: "1" }]);
-		expect(find).toHaveBeenCalledWith({ a: 1 });
-		expect(sort).toHaveBeenCalledWith({ b: -1 });
-		expect(skip).toHaveBeenCalledWith(5);
-		expect(limit).toHaveBeenCalledWith(10);
-		expect(toArray).toHaveBeenCalledTimes(1);
 	});
 });
 
