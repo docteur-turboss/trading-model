@@ -6,9 +6,10 @@ The jobs, steps and versions live in `.github/workflows/*.yml`: read the file, n
 
 | Workflow | File | Trigger | Jobs |
 | -------- | ---- | ------- | ---- |
-| CI | `ci.yml` | `pull_request`, `push` to `main` / `development`, `workflow_call` (Release) | `gate`, `lint`, `security`, `typecheck`, `test`, `db-integration`, `observability`, `k8s-overlays`, `contract`, `e2e`, `k8s-images`, `k8s`, `k8s-result` |
-| Release | `release.yml` | push of a `v*` tag | `version`, `ci`, `scan-services` + `scan-tools` (one build per image, Trivy by digest), `sign` (promotes the scanned digest to `X.Y.Z`, signs it), `verify-images` (after `sign`) |
-| Image scan | `image-scan.yml` | `pull_request` to `development` touching a Dockerfile, `deploy/**`, `bun.lock` or `.trivyignore.yaml`; `push` to `development`; daily cron; manual | `images` (services from `deploy.yml` `IMAGES`, tools from the `release.yml` `scan-tools` matrix), `scan-services` + `scan-tools`: local build (no push) and the same Trivy gate as the release, so a base image CVE shows up before the tag; not part of `k8s-result` |
+| CI | `ci.yml` | `pull_request`, `push` to `main` / `development` | `gate`, `lint`, `security`, `typecheck`, `test`, `db-integration`, `observability`, `k8s-overlays`, `contract`, `e2e`, `k8s-images`, `k8s`, `k8s-result` |
+| Release candidate | `release-candidate.yml` | `pull_request` `release/*` → `main` from this repository (never a fork); manual | `images`, `scan-services` + `scan-tools` (one build per image pushed as `candidate-<short head sha>`, Trivy by digest), `release-candidate` (result) |
+| Release | `release.yml` | push of a `v*` tag | `version`, `candidate` (newest `release-candidate.yml` run of the tag's tree, must be green), `sign` (promotes the candidate digest to `X.Y.Z`, signs it), `verify-images` (after `sign`); builds nothing |
+| Image scan | `image-scan.yml` | `pull_request` to `development` touching a Dockerfile, `deploy/**`, `bun.lock` or `.trivyignore.yaml`; `push` to `development`; daily cron; manual | `images` (services from `deploy.yml` `IMAGES`, tools from the `release-candidate.yml` `scan-tools` matrix), `scan-services` + `scan-tools`: local build (no push) and the same Trivy gate as the release, so a base image CVE shows up before the tag; not part of `k8s-result` |
 | Deploy | `deploy.yml` | manual | Staging / production deploy by digest (optional canary, smoke test, auto rollback) |
 | Deploy compose | `deploy-compose.yml` | manual (release tag) | Compose stack deploy by digest on the self-hosted runner (ADR-0086) |
 | Backup Restore Test | `backup-test.yml` | weekly cron, pull request touching backup scripts, manual | Backup / restore scripts, dry-run restore |

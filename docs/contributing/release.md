@@ -23,12 +23,12 @@ Prerelease tags never serve as a base. `X.Y.Z` is computed from the last **stabl
 ## 2. Workflow "Release"
 
 1. `version`: the tag must match `vX.Y.Z` or `vX.Y.Z-prerelease`, else the run fails. Image tag is `X.Y.Z` (no `v`). `latest` is set only for a stable tag that is the highest stable `v*` tag on `origin`: a prerelease or a backport patch never takes it.
-2. `ci`: the whole `ci.yml` runs again on the tagged commit (reusable workflow). No image is pushed if a gate fails.
-3. `scan-services` and `scan-tools` (one build of each of the 13 images pushed as `scan-<run id>`, Trivy by digest), then `sign` promotes the scanned digest to `:X.Y.Z` (+ `:latest`) and signs it to `IMAGE_REGISTRY` (repository variable, default `ghcr.io/<owner>`).
+2. `candidate`: the images were built before the tag. `release-candidate.yml` runs on the pull request `release/*` → `main` (from this repository, never a fork; or by hand, `workflow_dispatch`): one build of each of the 13 images pushed as `candidate-<short head sha>`, Trivy by digest, check `release-candidate`. `candidate` takes the newest run of that workflow whose commit has the same tree as the tag (`commit.tree.sha`); no run, or a newest run that is not green, fails the release before any publication. A tag pushed without a release pull request (`release:publish`): run `release-candidate.yml` by hand on `main`, then re-run the failed release.
+3. After the `release` approval, `sign` promotes each candidate digest to `:X.Y.Z` (+ `:latest`) and signs it in `IMAGE_REGISTRY` (repository variable, default `ghcr.io/<owner>`).
 4. `verify-images`: reads `env.IMAGES` from `deploy.yml` and resolves each `<registry>/<image>:X.Y.Z` with `docker buildx imagetools inspect`, the same loop as the deploy step "Resolve image digests". It fails with the list of missing images.
 5. `sign` (before `verify-images`): signs the digest of each image with cosign (keyless, ADR-0038). `deploy.yml` refuses any digest without this signature.
 
-A green run therefore means `deploy.yml` can resolve **and** verify every image of this tag. `tests/k8s/check-overlays.mjs` (CI) fails earlier when an `IMAGES` entry is not built by this workflow, or when the `sign` matrix differs from `IMAGES`.
+A green run therefore means `deploy.yml` can resolve **and** verify every image of this tag. `tests/k8s/check-overlays.mjs` (CI) fails earlier when an `IMAGES` entry is not built by `release-candidate.yml`, or when the `sign` matrix differs from `IMAGES`.
 
 ## 3. Deploy
 
