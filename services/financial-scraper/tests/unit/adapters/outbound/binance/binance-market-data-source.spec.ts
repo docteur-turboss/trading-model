@@ -238,7 +238,7 @@ describe("BinanceMarketDataSource", () => {
 				jest.useRealTimers();
 			});
 
-			it.each([429, 418, 451])(
+			it.each([429, 418, 451, 403])(
 				"makes no call after a %i until the backoff ends, then probes",
 				async (status) => {
 					const banned = new BinanceMarketDataSource();
