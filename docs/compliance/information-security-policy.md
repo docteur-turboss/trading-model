@@ -158,7 +158,6 @@ See [Incident Response Policy](incident-response-policy.md) for detailed procedu
 - Report all security incidents immediately to the maintainer
 - Document every incident with correlation ID via audit-logger
 - Apply forensic containment (scale to zero / isolate service) before root cause analysis
-- Regulatory notification within 24 hours for reportable incidents (financial regulations)
 
 ## 12. Business Continuity
 
@@ -170,7 +169,7 @@ The platform is designed to comply with:
 - **GDPR** — Zero personal data architecture; IP anonymization + context sanitization (see [DPIA](dpia.md))
 - **MiFID II** — Record-keeping Art. 72 (see [Algorithmic Trading Compliance](algorithmic-trading-compliance.md))
 - **MAR** — Market abuse prevention Art. 16
-- **DORA** — Digital operational resilience (see [Compliance Framework](compliance-framework.md))
+- **DORA** — good-practice reference only, not binding (see [Compliance Framework](compliance-framework.md))
 
 ## 14. Policy Review & Enforcement
 
