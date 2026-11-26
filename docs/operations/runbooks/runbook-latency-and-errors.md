@@ -15,8 +15,8 @@ All of them read the shared HTTP middleware metrics of every service
 | --- | --- |
 | `SLOLatencyFastBurn` | P95 of a job above 5 s over 5 min, for 2 min |
 | `SLOLatencySlowBurn` | P95 above 3 s over 1 h, for 10 min |
-| `SLOAvailabilityFastBurn` | 5xx ratio above 1.44% over 1 h **and** 5 min, for 2 min |
-| `SLOAvailabilitySlowBurn` | 5xx ratio above 0.6% over 6 h **and** 30 min, for 15 min |
+| `SLOAvailabilityFastBurn` | 5xx ratio above 14.4% over 1 h **and** 5 min, for 2 min |
+| `SLOAvailabilitySlowBurn` | 5xx ratio above 6% over 6 h **and** 30 min, for 15 min |
 
 `/ping`, `/health/ready` and `/metrics` are excluded from the SLO ratios and from the latency P95.
 
@@ -125,7 +125,7 @@ message instead of raising the threshold.
 ### Symptom
 
 `SLOErrorBudgetLow`: less than 20% of the 30-day availability error budget
-(99.9%) remains for a job. Budget remaining = `(1 - error ratio / 0.001) * 100`,
+(99%) remains for a job. Budget remaining = `(1 - error ratio / 0.01) * 100`,
 from the recording rule `slo:sli_error:ratio_rate30d` (Grafana: SLO dashboard,
 "Error Budget Remaining").
 

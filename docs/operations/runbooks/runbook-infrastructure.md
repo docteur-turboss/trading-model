@@ -1,7 +1,7 @@
 # Runbook: Infrastructure (pods, nodes, volumes, databases)
 
 **Alerts:** `KubePodCrashLooping`, `KubeContainerOOMKilled`,
-`KubePodPending`, `KubePersistentVolumeFillingUp`, `NodeFilesystemAlmostFull`
+`KubeContainerMemoryNearLimit`, `KubePodPending`, `KubePersistentVolumeFillingUp`, `NodeFilesystemAlmostFull`
 (warning); `RedisMemoryHigh` (warning); `KubeWorkloadUnavailable`, `MySQLDown`, `RedisDown`, `RedisSentinelQuorumLost`, `MongoDBDown`,
 `MongoDBReplicaSetNoPrimary` (critical); `RedisReplicasMissing`,
 `MongoDBReplicaSetMemberUnhealthy` (warning).
@@ -13,7 +13,7 @@ ADR-0056. Prometheus scrapes, in K8s:
 | Job | Source | Metrics |
 | --- | --- | --- |
 | `kube-state-metrics` | Deployment `kube-state-metrics`, own namespace only (Role) | `kube_pod_*`, `kube_statefulset_*`, `kube_deployment_*`, `kube_persistentvolumeclaim_*` |
-| `kubelet`, `cadvisor` | kubelet of each node, port 10250 (ClusterRole `prometheus-nodes`: `nodes/metrics`) | `kubelet_volume_stats_*`, `container_cpu_usage_seconds_total`, `container_memory_working_set_bytes`, `container_spec_memory_limit_bytes`, `container_oom_events_total` |
+| `kubelet`, `cadvisor` | kubelet of each node, port 10250 (ClusterRole `prometheus-nodes`: `nodes/metrics`) | `kubelet_volume_stats_*`, `container_cpu_usage_seconds_total`, `container_cpu_cfs_(throttled_)periods_total`, `container_memory_working_set_bytes`, `container_spec_memory_limit_bytes`, `container_oom_events_total` |
 | `node-exporter` | DaemonSet in `trading-model-node`, port 9100 of each node | `node_*` |
 | `mysql`, `mongo-audit`, `redis`, `redis-sentinel` | exporter sidecar of each database pod (port `metrics`) | `mysql_*`, `mongodb_*`, `redis_*` |
 
@@ -105,7 +105,8 @@ kubectl -n $NS describe pod <pod> | sed -n '/Events/,$p'
 ## KubeContainerOOMKilled
 
 A container was killed for exceeding its memory limit and restarted in the
-last 15 minutes. `HighMemoryUsage` only sees the V8 heap of the services: a
+last 15 minutes (`KubeContainerMemoryNearLimit`: its working set has stayed
+above 90% of the limit for 5 minutes, the kill is close). `HighMemoryUsage` only sees the V8 heap of the services: a
 database, an exporter or native memory shows up here only.
 
 ```bash

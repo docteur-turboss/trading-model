@@ -55,9 +55,9 @@ tests:
       - series: 'http_requests_total{job="api-gateway",instance="a",method="GET",path="/b",status="500"}'
         values: '0+1x40'
       - series: 'http_requests_total{job="model-evaluator",instance="d",method="GET",path="/c",status="200"}'
-        values: '0+90x40'
+        values: '0+80x40'
       - series: 'http_requests_total{job="model-evaluator",instance="d",method="GET",path="/c",status="503"}'
-        values: '0+10x40'
+        values: '0+20x40'
     alert_rule_test:
       - eval_time: 20m
         alertname: SLOAvailabilityFastBurn
@@ -65,12 +65,12 @@ tests:
           - exp_labels: {severity: critical, slo: availability, job: model-evaluator}
             exp_annotations:
               summary: 'Availability SLO fast burn rate exceeded'
-              description: '5xx ratio > 1.44% over both 1h and 5m (14.4x the 0.1% budget of the 99.9% SLO). Probes (/ping, /health/ready, /metrics) are not counted.'
+              description: '5xx ratio > 14.4% over both 1h and 5m (14.4x the 1% budget of the 99% SLO). Probes (/ping, /health/ready, /metrics) are not counted.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
   # Multi-window burn rate. "steady": 20% of 5xx for 7 h, long and short
   # windows over every threshold: all four fire. "spike": 5xx only during the
-  # last 5 min, the 1h window stays under 1.44%: nothing fires. "probes": the
+  # last 5 min, the 1h and 6h windows stay under 14.4% and 6%: nothing fires. "probes": the
   # only 5xx are on /ping and /health/ready, which the SLI ignores.
   - name: burn rate needs both windows and ignores probes
     interval: 1m
@@ -82,7 +82,7 @@ tests:
       - series: 'http_requests_total{job="spike",path="/a",status="200"}'
         values: '0+100x420'
       - series: 'http_requests_total{job="spike",path="/a",status="500"}'
-        values: '0x415 10+10x4'
+        values: '0x415 50+50x4'
       - series: 'http_requests_total{job="probes",path="/a",status="200"}'
         values: '0+100x420'
       - series: 'http_requests_total{job="probes",path="/ping",status="500"}'
@@ -96,7 +96,7 @@ tests:
           - exp_labels: {severity: critical, slo: availability, job: steady}
             exp_annotations:
               summary: 'Availability SLO fast burn rate exceeded'
-              description: '5xx ratio > 1.44% over both 1h and 5m (14.4x the 0.1% budget of the 99.9% SLO). Probes (/ping, /health/ready, /metrics) are not counted.'
+              description: '5xx ratio > 14.4% over both 1h and 5m (14.4x the 1% budget of the 99% SLO). Probes (/ping, /health/ready, /metrics) are not counted.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
       - eval_time: 419m
         alertname: SLOAvailabilitySlowBurn
@@ -104,9 +104,9 @@ tests:
           - exp_labels: {severity: warning, slo: availability, job: steady}
             exp_annotations:
               summary: 'Availability SLO slow burn rate exceeded'
-              description: '5xx ratio > 0.6% over both 6h and 30m (6x the 0.1% budget of the 99.9% SLO). Probes are not counted.'
+              description: '5xx ratio > 6% over both 6h and 30m (6x the 1% budget of the 99% SLO). Probes are not counted.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
-      # Only "steady" is expected above: "spike" (9% over 5m, 0.8% over 1h) and
+      # Only "steady" is expected above: "spike" (33% over 5m, under 5% over 1h, under 1% over 6h) and
       # "probes" (all 5xx on /ping, /health/ready) must not fire.
 
   # 90% of the requests in < 0.1s, 10% between 5s and 10s: p95 = 7.5s, over
@@ -1506,22 +1506,22 @@ tests:
           - labels: '{job="api-gateway"}'
             value: 1
 
-  # Budget remaining = (1 - error ratio / 0.001) * 100 over the window:
-  # no 5xx = 100% (no alert; 5xx on /ping ignored), 0.09% of 5xx = 10% (fires, with the real job).
+  # Budget remaining = (1 - error ratio / 0.01) * 100 over the window:
+  # no 5xx = 100% (no alert; 5xx on /ping ignored), 0.9% of 5xx = 10% (fires, with the real job).
   - name: error budget alert fires below 20% remaining
     interval: 1m
     input_series:
       - series: 'http_requests_total{job="api-gateway",instance="a",path="/a",status="200"}'
         values: '0+1000x300'
       - series: 'http_requests_total{job="model-evaluator",instance="d",path="/c",status="200"}'
-        values: '0+1000x300'
+        values: '0+991x300'
       # 5xx on a probe path must not move the SLI.
       - series: 'http_requests_total{job="api-gateway",instance="a",path="/ping",status="500"}'
         values: '0+500x300'
       - series: 'http_requests_total{job="model-evaluator",instance="d",path="/c",status="500"}'
-        values: '0+0.9x300'
+        values: '0+9x300'
     promql_expr_test:
-      - expr: round((1 - slo:sli_error:ratio_rate30d / 0.001) * 100)
+      - expr: round((1 - slo:sli_error:ratio_rate30d / 0.01) * 100)
         eval_time: 200m
         exp_samples:
           - labels: '{job="api-gateway"}'
@@ -1535,7 +1535,7 @@ tests:
           - exp_labels: {severity: warning, slo: availability, job: model-evaluator}
             exp_annotations:
               summary: 'Error budget of model-evaluator below 20%'
-              description: 'Less than 20% of the 30d availability error budget (99.9%) remains: full change freeze except critical fixes and rollbacks (slo.md, Error Budget Policy).'
+              description: 'Less than 20% of the 30d availability error budget (99%) remains: full change freeze except critical fixes and rollbacks (slo.md, Error Budget Policy).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slo-error-budget-low'
 
   - name: loki push failures and stale retention
@@ -1738,6 +1738,32 @@ tests:
       - eval_time: 50m
         alertname: KubeContainerOOMKilled
         exp_alerts: []
+
+  # 92% of the limit fires; 80% and a container without limit (0) do not.
+  - name: a container working set above 90% of its limit fires before the OOMKill
+    interval: 1m
+    input_series:
+      - series: 'container_memory_working_set_bytes{job="cadvisor",node="n1",namespace="trading-model",pod="api-gateway-1",container="api-gateway"}'
+        values: '92x10'
+      - series: 'container_spec_memory_limit_bytes{job="cadvisor",node="n1",namespace="trading-model",pod="api-gateway-1",container="api-gateway"}'
+        values: '100x10'
+      - series: 'container_memory_working_set_bytes{job="cadvisor",node="n1",namespace="trading-model",pod="mysql-0",container="mysql"}'
+        values: '80x10'
+      - series: 'container_spec_memory_limit_bytes{job="cadvisor",node="n1",namespace="trading-model",pod="mysql-0",container="mysql"}'
+        values: '100x10'
+      - series: 'container_memory_working_set_bytes{job="cadvisor",node="n1",namespace="trading-model",pod="jaeger-1",container="jaeger"}'
+        values: '500x10'
+      - series: 'container_spec_memory_limit_bytes{job="cadvisor",node="n1",namespace="trading-model",pod="jaeger-1",container="jaeger"}'
+        values: '0x10'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: KubeContainerMemoryNearLimit
+        exp_alerts:
+          - exp_labels: {severity: warning, namespace: trading-model, pod: api-gateway-1, container: api-gateway}
+            exp_annotations:
+              summary: 'api-gateway-1 (api-gateway) is close to its memory limit'
+              description: 'Container api-gateway of api-gateway-1 uses 92% of its memory limit (working set): the kernel kills it at 100%.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubecontaineroomkilled'
 
   - name: a PVC over 80% full is reported with its usage
     interval: 1m
