@@ -29,6 +29,14 @@ x-logging: &default-logging
     max-size: 10m
     max-file: "3"
 
+x-hardening: &hardening
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+  read_only: true
+  tmpfs:
+    - /tmp
+
 x-message-env: &message-env
   <<: *core-env
 
@@ -284,6 +292,7 @@ services:
     # Waits for the running scrape cycle, then hands the collector lease over (ADR-0057).
     stop_grace_period: 1m
     logging: *default-logging
+    <<: *hardening
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/financial-scraper:${IMAGE_TAG:-latest}
     container_name: trading-scraper
     restart: unless-stopped
@@ -343,6 +352,7 @@ services:
   # ---------------------------------------------------------------------------
   trader-trainer:
     logging: *default-logging
+    <<: *hardening
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/trader-trainer:${IMAGE_TAG:-latest}
     container_name: trading-trainer
     stop_grace_period: 2m
@@ -404,6 +414,7 @@ services:
   # ---------------------------------------------------------------------------
   api-gateway:
     logging: *default-logging
+    <<: *hardening
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/api-gateway:${IMAGE_TAG:-latest}
     container_name: trading-gateway
     restart: unless-stopped
@@ -441,6 +452,7 @@ services:
   # ---------------------------------------------------------------------------
   audit-logger:
     logging: *default-logging
+    <<: *hardening
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/audit-logger:${IMAGE_TAG:-latest}
     container_name: trading-audit
     restart: unless-stopped
@@ -480,6 +492,7 @@ services:
   # ---------------------------------------------------------------------------
   model-evaluator:
     logging: *default-logging
+    <<: *hardening
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/model-evaluator:${IMAGE_TAG:-latest}
     container_name: trading-model-evaluator
     restart: unless-stopped
@@ -517,6 +530,7 @@ services:
   # ---------------------------------------------------------------------------
   risk-execution:
     logging: *default-logging
+    <<: *hardening
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/risk-execution:${IMAGE_TAG:-latest}
     container_name: trading-risk-execution
     restart: unless-stopped
@@ -554,6 +568,7 @@ services:
   # ---------------------------------------------------------------------------
   decision-consumer:
     logging: *default-logging
+    <<: *hardening
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/decision-consumer:${IMAGE_TAG:-latest}
     container_name: trading-decision-consumer
     restart: unless-stopped
