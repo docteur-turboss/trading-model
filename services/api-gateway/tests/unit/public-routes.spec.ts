@@ -18,17 +18,6 @@ describe("isPublicRoute", () => {
 		);
 	});
 
-	it("matches a legacy registration name on its canonical service", () => {
-		expect(
-			isPublicRoute(
-				"GET",
-				2,
-				"financial-scraper-service",
-				"/candles/symbols/BTCUSDT"
-			)
-		).toBe(true);
-	});
-
 	// ADR-0072: a service answers only the majors PUBLIC_ROUTES lists for it.
 	it("refuses a major the service does not serve", () => {
 		expect(

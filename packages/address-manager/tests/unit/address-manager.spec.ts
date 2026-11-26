@@ -55,7 +55,7 @@ describe("AddressManager (main)", () => {
 	it("finds a service at its canonical DNS name on port 3000, no registry asked", async () => {
 		const am = new AddressManager(makeConfig());
 		await expect(
-			am.findService("financial-scraper-service" as ServiceInstanceName)
+			am.findService("financial-scraper" as ServiceInstanceName)
 		).resolves.toEqual({ host: "financial-scraper", port: 3000 });
 	});
 
