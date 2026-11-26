@@ -29,6 +29,13 @@ describe("AuditSubscriber", () => {
 	});
 
 	describe("message handling", () => {
+		it("should reject a message without messageId and write nothing", async () => {
+			await expect(handler({ metadata: { topic: "t" } })).rejects.toThrow(
+				"no messageId"
+			);
+			expect(mockRepo.insert).not.toHaveBeenCalled();
+		});
+
 		it("should record a delivered message", async () => {
 			mockRepo.insert.mockResolvedValue(undefined);
 
@@ -73,6 +80,7 @@ describe("AuditSubscriber", () => {
 			const message = {
 				metadata: {
 					topic: "trade.executed",
+					messageId: "m-0",
 					publisher: {
 						serviceName: "trade-service",
 						instanceId: "instance-2",
@@ -101,6 +109,7 @@ describe("AuditSubscriber", () => {
 			const message = {
 				metadata: {
 					topic: "test.topic",
+					messageId: "m-1",
 				},
 				payload: {},
 			};
@@ -125,6 +134,7 @@ describe("AuditSubscriber", () => {
 			const message = {
 				metadata: {
 					topic: "test.topic",
+					messageId: "m-1",
 				},
 				payload: {},
 			};
