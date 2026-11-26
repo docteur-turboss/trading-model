@@ -6,7 +6,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import { acquireToken } from "../../../src/config/rate-limiter";
+import { acquireToken, syncUsedWeight } from "../../../src/config/rate-limiter";
 
 describe("acquireToken", () => {
 	beforeEach(() => {
@@ -26,6 +26,20 @@ describe("acquireToken", () => {
 		await jest.advanceTimersByTimeAsync(2000);
 		await all;
 		expect(served).toEqual([10, 1, 1]);
+	});
+
+	it("lowers the balance to the weight Binance reports as used", async () => {
+		const url = "https://sync.test";
+		syncUsedWeight(url, 1190);
+		let served = false;
+		const waiting = acquireToken(url, 100).then(() => {
+			served = true;
+		});
+		await jest.advanceTimersByTimeAsync(1000);
+		expect(served).toBe(false);
+		await jest.advanceTimersByTimeAsync(4000);
+		await waiting;
+		expect(served).toBe(true);
 	});
 
 	it("rejects a waiting request on abort and lets the next one through", async () => {
