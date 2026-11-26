@@ -29,6 +29,16 @@ x-logging: &default-logging
     max-size: 10m
     max-file: "3"
 
+x-spiffe-helper: &spiffe-helper
+  logging: *default-logging
+  image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+  restart: unless-stopped
+  network_mode: none
+  command: ["-config", "/etc/spiffe-helper/helper.conf"]
+  depends_on:
+    spire-agent:
+      condition: service_healthy
+
 x-hardening: &hardening
   cap_drop: [ALL]
   security_opt:
@@ -606,155 +616,85 @@ services:
   #  to the agent socket: no network, so a service restart cannot strand them.
   # ---------------------------------------------------------------------------
   spiffe-helper-scraper:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-scraper
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-scraper:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
   spiffe-helper-trainer:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-trainer
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-trainer:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
   spiffe-helper-gateway:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-gateway
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-gateway:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
   spiffe-helper-audit:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-audit
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-audit:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
   spiffe-helper-evaluator:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-evaluator
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-evaluator:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
   spiffe-helper-risk:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-risk
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-risk:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
   spiffe-helper-decision:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-decision
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-decision:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
 
   spiffe-helper-edge:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-edge
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-edge:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
   spiffe-helper-prometheus:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-prometheus
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-prometheus:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
   spiffe-helper-blackbox:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-blackbox
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-blackbox:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  Edge proxy — external entry point to the api-gateway (ADR-0018)
