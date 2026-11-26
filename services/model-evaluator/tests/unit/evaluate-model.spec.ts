@@ -410,6 +410,26 @@ describe("evaluate a published model", () => {
 		).rejects.toThrow();
 	});
 
+	it("publishes no final file when the sync fails", async () => {
+		const fsp = jest.requireActual("node:fs/promises");
+		const open = fsp.open;
+		jest.spyOn(fsp, "open").mockImplementationOnce(async (...a: any[]) => {
+			const handle = await open(...a);
+			handle.sync = async () => {
+				throw new Error("EIO");
+			};
+			return handle;
+		});
+		await expect(
+			new FileEvaluationStore(dir).create({
+				symbol: "BTCUSDT",
+				version: "v1",
+			} as never)
+		).rejects.toThrow("EIO");
+		expect(await readdir(join(dir, "BTCUSDT"))).toEqual([]);
+		jest.restoreAllMocks();
+	});
+
 	it("creates once under concurrency and ignores orphan temporaries", async () => {
 		const store = new FileEvaluationStore(dir);
 		const record = { symbol: "BTCUSDT", version: "v1" } as never;
