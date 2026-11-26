@@ -63,7 +63,7 @@ const PROXIED_SERVICES = [
 ];
 
 /** Routes of proxied services that the gateway does not expose (PUBLIC_ROUTES). */
-const INFRASTRUCTURE_PATHS = new Set(["/metrics", "/health", "/health/ready", "/ping", "/status"]);
+const INFRASTRUCTURE_PATHS = new Set(["/metrics", "/health", "/health/ready", "/ping"]);
 const SERVICE_TO_SERVICE = {
 	"risk-execution": ["POST /intents", "POST /orders/:clientOrderId/cancel", "GET /positions/:symbol", "GET /admin/status"],
 	// Model weights: never through the gateway (ADR-0022).
@@ -102,13 +102,6 @@ const ROUTE_PROVIDERS = [
 	{
 		mountedBy: /createServiceServer\(|createSecureServer\(/,
 		files: ["packages/http/src/configure-app.ts"],
-	},
-	{
-		mountedBy: /ADDRESS_MANAGER_ROUTES\(/,
-		files: [
-			"packages/address-manager/src/monitoring/metrics-collector.ts",
-			"packages/address-manager/src/routes/metrics.routes.ts",
-		],
 	},
 ];
 

@@ -71,16 +71,4 @@ describe("AddressManager (main)", () => {
 			am.findService("test-service" as ServiceInstanceName)
 		).resolves.toEqual({ host: "127.0.0.1", port: 3000 });
 	});
-
-	it("should listen on express app", () => {
-		const am = new AddressManager(makeConfig());
-		const app = {
-			use: jest.fn<(...args: any[]) => any>(),
-			get: jest.fn<(...args: any[]) => any>(),
-			locals: {} as Record<string, unknown>,
-		};
-		am.metricsCollector.listenExpress(app as any);
-		expect(app.use).toHaveBeenCalled();
-		expect(app.get).toHaveBeenCalledWith("/metrics", expect.any(Function));
-	});
 });

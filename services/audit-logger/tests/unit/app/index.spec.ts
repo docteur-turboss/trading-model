@@ -54,11 +54,6 @@ jest.mock("../../../src/application/audit-chain/chain-audit-scheduler", () => ({
 	ChainAuditScheduler: jest.fn((..._args: any[]) => MOCK_CHAIN_AUDIT_SCHEDULER),
 }));
 
-jest.mock("../../../src/config/address-manager", () => ({
-	AddressManager: { stop: jest.fn<(...args: any[]) => any>() },
-	ADDRESS_MANAGER_ROUTES: jest.fn<(...args: any[]) => any>(),
-}));
-
 const MOCK_AUDIT_REPOSITORY_INSTANCE = {
 	insert: jest.fn<(...args: any[]) => any>(),
 	findById: jest.fn<(...args: any[]) => any>(),
