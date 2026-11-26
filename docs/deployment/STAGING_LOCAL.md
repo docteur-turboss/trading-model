@@ -61,7 +61,7 @@ that has it (3.0.1 and later); the MySQL wait is in `deploy.yml` itself.
 kind create cluster --config deploy/staging-local/kind.yaml
 docker update --memory 12g --memory-swap 12g --cpus 12 trading-staging-control-plane   # kind has no limit setting (issue #2160)
 docker compose -p trading-staging -f deploy/staging-local/docker-compose.yml --env-file ~/.trading-staging/env up -d minio
-bash deploy/staging-local/bootstrap.sh prereqs      # ingress-nginx, cert-manager, VPA CRD, Sealed Secrets, rwx-csi
+bash deploy/staging-local/bootstrap.sh prereqs      # ingress-nginx, cert-manager, VPA CRD, Sealed Secrets, metrics-server, rwx-csi
 OVERLAY=staging-local bash scripts/init-sealed-secrets.sh   # then commit the overlay's sealed-secrets.yaml
 bash deploy/staging-local/bootstrap.sh identities   # KUBECONFIG_STAGING_APP / _CLUSTER of the environment staging
 ```
