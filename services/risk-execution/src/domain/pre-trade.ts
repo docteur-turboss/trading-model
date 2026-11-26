@@ -23,6 +23,8 @@ export interface PreTradeContext {
 	price?: MarketPrice;
 	/** Bar length of the intent's model: its price is stale after 2 bars (`haltAgeMs` when absent). */
 	barMs?: number;
+	/** Operator reduction (`POST /v1/admin/reduce`, policy §4.1): a sell that alone passes the kill switch. */
+	operator?: boolean;
 }
 
 /** A context whose own price passed its age check: every amount below is valued at `market`. */
@@ -68,7 +70,10 @@ const CLOCK_SKEW_MS = 5000;
 function gateReject(ctx: PreTradeContext): string | null {
 	const { intent, limits, state, now } = ctx;
 	const instrument = limits.instruments[intent.symbol];
-	if (state.killSwitch.global || state.killSwitch.symbols[intent.symbol]) {
+	if (
+		(state.killSwitch.global || state.killSwitch.symbols[intent.symbol]) &&
+		!(ctx.operator && intent.side === "sell")
+	) {
 		return "kill_switch";
 	}
 	if (!ctx.reconciled) {
