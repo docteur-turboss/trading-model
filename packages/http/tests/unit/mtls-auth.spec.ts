@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { MTLSAuthMiddleware } from "@trading-model/http/mtls-auth";
+import { mtlsDenialsTotal } from "@trading-model/http/outbound-metrics";
+import type { NextFunction, Request, Response } from "express";
 
 jest.mock("@trading-model/http/catch-error", () => ({
 	catchSync: jest.fn((fn) => fn),
@@ -6,7 +9,7 @@ jest.mock("@trading-model/http/catch-error", () => ({
 
 jest.mock("@trading-model/http/response-exception", () => ({
 	ResponseException: (data: any) => ({
-		Forbidden: () => {
+		forbidden: () => {
 			throw Object.assign(
 				new Error(JSON.stringify({ error: "mTLS authorization failed", data })),
 				{
@@ -14,7 +17,7 @@ jest.mock("@trading-model/http/response-exception", () => ({
 				}
 			);
 		},
-		Unauthorized: () => {
+		unauthorized: () => {
 			throw Object.assign(
 				new Error(
 					JSON.stringify(data ?? { error: "Client certificate required" })
@@ -26,8 +29,6 @@ jest.mock("@trading-model/http/response-exception", () => ({
 		},
 	}),
 }));
-
-import { MTLSAuthMiddleware } from "@trading-model/http/mtls-auth";
 
 describe("MTLSAuthMiddleware", () => {
 	let req: any;
@@ -107,5 +108,37 @@ describe("MTLSAuthMiddleware", () => {
 
 		expect(() => MTLSAuthMiddleware(req, res, next)).toThrow();
 		expect(next).not.toHaveBeenCalled();
+	});
+});
+
+const countDenial = async (reason: string) =>
+	(await mtlsDenialsTotal.get()).values.find((v) => v.labels.reason === reason)
+		?.value;
+
+describe("mtlsDenialsTotal", () => {
+	it("exposes all 9 reasons at 0 after import", async () => {
+		const values = (await mtlsDenialsTotal.get()).values;
+		expect(values.map((v) => v.labels.reason).sort()).toEqual(
+			[
+				"caller_not_allowed",
+				"caller_unresolved",
+				"identity_unresolved",
+				"no_client_certificate",
+				"no_policy",
+				"non_tls",
+				"publisher_not_allowed",
+				"unauthenticated",
+				"unauthorized_handshake",
+			].sort()
+		);
+	});
+
+	it("counts a non-TLS connection", async () => {
+		const before = (await countDenial("non_tls")) ?? 0;
+		const next = (() => undefined) as NextFunction;
+		expect(() =>
+			MTLSAuthMiddleware({ socket: {} } as Request, {} as Response, next)
+		).toThrow();
+		expect(await countDenial("non_tls")).toBe(before + 1);
 	});
 });
