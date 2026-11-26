@@ -26,11 +26,6 @@ jest.mock("@trading-model/http/logger", () => ({
 	},
 }));
 
-jest.mock("../../src/config/address-manager", () => ({
-	ADDRESS_MANAGER_ROUTES: (_app: any): void => {},
-	AddressManager: { getAddress: (): null => null },
-}));
-
 function createApp() {
 	return configureApp();
 }

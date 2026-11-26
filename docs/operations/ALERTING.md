@@ -176,7 +176,8 @@ file absent from the repository, or on an anchor that matches no heading.
 | `JournalBacklogOld` | warning | [runbook-message-bus-outage#3-backlog-of-a-subscriber](runbooks/runbook-message-bus-outage.md#3-backlog-of-a-subscriber) |
 | `TrainingCompletionRateLow` | warning | [runbook-trainer#trainingcompletionratelow](runbooks/runbook-trainer.md#trainingcompletionratelow) |
 | `TrainingCompletionRateCritical` | critical | [runbook-trainer#trainingcompletionratelow](runbooks/runbook-trainer.md#trainingcompletionratelow) |
-| `TrainerEventLoopLagHigh` | warning | [runbook-trainer#trainereventlooplaghigh](runbooks/runbook-trainer.md#trainereventlooplaghigh) |
+| `EventLoopLagHigh` | warning | [runbook-infrastructure#eventlooplaghigh](runbooks/runbook-infrastructure.md#eventlooplaghigh) |
+| `DbIndexBuildFailed` | warning | [runbook-infrastructure#dbindexbuildfailed](runbooks/runbook-infrastructure.md#dbindexbuildfailed) |
 | `TrainerNoLeader` | warning | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `TrainerNoLeaderProlonged` | warning | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `MarketDataStale` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |

@@ -40,7 +40,7 @@ createBootstrap({
 		}
 		const { brokerMessage, mongoManager, chainAuditScheduler } = _context;
 		chainAuditScheduler.stop();
-		await brokerMessage.stopMessageManager();
+		await brokerMessage.stop();
 		await mongoManager.close();
 		_context = null;
 		await shutdownTelemetry();

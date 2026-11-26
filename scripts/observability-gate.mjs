@@ -29,7 +29,7 @@
 //  Run: bun scripts/observability-gate.mjs
 // =============================================================================
 
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { WORKSPACE_ROOTS, walk as walkFiles } from "./lib/fs.mjs";
 
@@ -65,10 +65,10 @@ for (const service of SERVICES) {
     const content = readFileSync(f, "utf-8");
     return content.includes('"/metrics"') && content.includes("metricsHandler");
   });
-  if (!hasMetricsRoute) {
-    errors.push(`${service}: /metrics route with metricsHandler not found`);
-  } else {
+  if (hasMetricsRoute) {
     info.push(`${service}: /metrics route present`);
+  } else {
+    errors.push(`${service}: /metrics route with metricsHandler not found`);
   }
 
   const definitionFiles = files.filter((f) => f.endsWith("/metrics.ts"));
@@ -318,6 +318,13 @@ let allEmitted = new Set(); // emitted metrics + recording rules, reused by chec
       }
     }
   }
+  // A rule without a promtool case lets a renamed label pass CI.
+  const promtoolCases = readFileSync(join(ROOT, "tests", "alerts", "alerting.test.yml"), "utf-8");
+  for (const name of composeRules.keys()) {
+    if (name !== "Watchdog" && !new RegExp(`alertname:\\s*${name}\\s*$`, "m").test(promtoolCases)) {
+      errors.push(`Alert ${name}: no case in tests/alerts/alerting.test.yml (add an alert_rule_test with alertname: ${name})`);
+    }
+  }
   info.push(`${composeRules.size} alert rules, all on emitted metrics, each with a runbook in the repository`);
 }
 
@@ -376,7 +383,9 @@ let allEmitted = new Set(); // emitted metrics + recording rules, reused by chec
   const dashboardFiles = (dir) => readdirSync(dir).filter((f) => f.endsWith(".json")).sort();
   /** Collects every `expr` of a dashboard (nested rows included) with its panel title. */
   const queries = (node, panel, out) => {
-    if (Array.isArray(node)) node.forEach((child) => queries(child, panel, out));
+    if (Array.isArray(node)) {
+      for (const child of node) queries(child, panel, out);
+    }
     else if (node && typeof node === "object") {
       const title = typeof node.title === "string" ? node.title : panel;
       if (typeof node.expr === "string") out.push({ panel, expr: node.expr });

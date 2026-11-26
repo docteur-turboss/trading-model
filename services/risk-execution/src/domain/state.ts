@@ -1,4 +1,5 @@
 import type { Order } from "@trading-model/contracts/order-intent";
+import { FINAL } from "./order";
 import type { MarketPrice } from "./ports";
 
 export interface RiskState {
@@ -24,7 +25,7 @@ export interface RiskState {
 	};
 }
 
-export const SEEN_HORIZON_MS = 7 * 86_400_000;
+const SEEN_HORIZON_MS = 7 * 86_400_000;
 
 export function newState(capital: number, now: number): RiskState {
 	return {
@@ -89,4 +90,25 @@ export function symbolPnl(state: RiskState, symbol: string): number {
 	const value =
 		(state.positions[symbol] ?? 0) * (state.marks[symbol]?.price ?? 0);
 	return entry ? value + entry.flow - entry.startValue : 0;
+}
+
+/** Moves final orders older than `keepMs` into `seen`, and drops `seen` entries past SEEN_HORIZON_MS. */
+export function pruneFinalOrders(
+	state: RiskState,
+	now: number,
+	keepMs: number
+): void {
+	const seen = state.seen ?? {};
+	state.seen = seen;
+	for (const [id, order] of Object.entries(state.orders)) {
+		if (FINAL.has(order.status) && order.createdAt < now - keepMs) {
+			seen[id] = order.createdAt;
+			delete state.orders[id];
+		}
+	}
+	for (const [id, at] of Object.entries(seen)) {
+		if (at < now - SEEN_HORIZON_MS) {
+			delete seen[id];
+		}
+	}
 }

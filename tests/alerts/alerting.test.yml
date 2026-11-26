@@ -269,37 +269,44 @@ tests:
         alertname: TrainingCompletionRateCritical
         exp_alerts: []
 
-  # Event loop lag outside the GA, constant.
-  - name: trainer event loop lag is high
+  # p99 lag of the gateway above 200 ms for 5 min; a 3 min spike on the trainer stays silent.
+  - name: event loop lag p99 is high on one service
     interval: 1m
     input_series:
-      - series: 'nodejs_eventloop_lag_max_seconds{job="trader-trainer",instance="t"}'
-        values: '30x60'
+      - series: 'nodejs_eventloop_lag_p99_seconds{job="api-gateway",instance="g"}'
+        values: '0.5x30'
+      - series: 'nodejs_eventloop_lag_p99_seconds{job="trader-trainer",instance="t"}'
+        values: '0x10 0.5x3 0x17'
     alert_rule_test:
-      - eval_time: 40m
-        alertname: TrainerEventLoopLagHigh
+      - eval_time: 20m
+        alertname: EventLoopLagHigh
         exp_alerts:
-          - exp_labels: {severity: warning, job: trader-trainer}
+          - exp_labels: {severity: warning, job: api-gateway}
             exp_annotations:
-              summary: 'trader-trainer event loop lag above 10 s'
-              description: 'Trainer event loop lag reached 30s (threshold 10 s) outside or inside GA evaluation. Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventlooplaghigh'
+              summary: 'api-gateway event loop lag p99 above 200 ms'
+              description: 'api-gateway event loop lag p99 is 500ms (threshold 200 ms) for 5 min. Heartbeats and deliveries time out when it grows.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#eventlooplaghigh'
 
-  # Lag above 10 s for 7 minutes only: fires on the 5m rule.
-  - name: trainer event loop lag is a short spike
+  - name: db-index-build job failed
     interval: 1m
     input_series:
-      - series: 'nodejs_eventloop_lag_max_seconds{job="trader-trainer",instance="t"}'
-        values: '0x10 30x7 0x43'
+      - series: 'kube_job_failed{job="kube-state-metrics",namespace="trading-model",job_name="db-index-build",condition="true"}'
+        values: '0x5 1x10'
+      # one failed pod retried by backoffLimit, Job then succeeds: condition never true
+      - series: 'kube_job_status_failed{job="kube-state-metrics",namespace="trading-model",job_name="db-index-build"}'
+        values: '0x5 1x10'
     alert_rule_test:
-      - eval_time: 16m
-        alertname: TrainerEventLoopLagHigh
+      - eval_time: 3m
+        alertname: DbIndexBuildFailed
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: DbIndexBuildFailed
         exp_alerts:
-          - exp_labels: {severity: warning, job: trader-trainer}
+          - exp_labels: {severity: warning}
             exp_annotations:
-              summary: 'trader-trainer event loop lag above 10 s'
-              description: 'Trainer event loop lag reached 30s (threshold 10 s) outside or inside GA evaluation. Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventlooplaghigh'
+              summary: 'Job db-index-build failed'
+              description: 'The paged-read index build failed: reads by symbol use the old idx_*_symbol index and a sort until it succeeds (ADR-0088).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#dbindexbuildfailed'
 
   # No session ever succeeds: the `success` series does not exist.
   - name: every training session fails
@@ -2258,3 +2265,62 @@ tests:
               summary: 'audit-logger gave up appending an event after repeated chain collisions'
               description: 'Retries on the chain sequence ran out (writers contend for the head, ADR-0050): the event was not appended.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-audit-chain-broken.md#auditchaincollisionsexhausted'
+
+  - name: slow latency burn, stale or failed or unencrypted backups and failing rule evaluation fire
+    interval: 5m
+    input_series:
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",instance="a",path="/v1/x",le="1"}'
+        values: '0x400'
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",instance="a",path="/v1/x",le="5"}'
+        values: '0+500x400'
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",instance="a",path="/v1/x",le="+Inf"}'
+        values: '0+500x400'
+      - series: 'backup_last_success_timestamp'
+        values: '0x400'
+      - series: 'backup_last_run_timestamp'
+        values: '0x400'
+      - series: 'backup_encrypted'
+        values: '0x400'
+      - series: 'prometheus_rule_evaluation_failures_total'
+        values: '0+1x400'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: SLOLatencySlowBurn
+        exp_alerts:
+          - exp_labels: {severity: warning, slo: latency, job: api-gateway}
+            exp_annotations:
+              summary: 'Latency SLO: p95 latency above 3 s'
+              description: 'P95 latency > 3s over 1h — approaching 2s SLO target breach.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#which-alert-tells-what'
+      - eval_time: 28h
+        alertname: BackupFailed
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: 'Database backup failed or too old'
+              description: 'Last successful backup was more than 25 hours ago — check backup job.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+      - eval_time: 28h
+        alertname: BackupJobStale
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: 'Backup job has not run for more than 26 hours'
+              description: 'The db-backup CronJob stopped running (suspended, failing to start or stuck): no new backup is being taken.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+      - eval_time: 10m
+        alertname: BackupUnencrypted
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: 'Backups are not encrypted'
+              description: 'No age recipient configured (BACKUP_AGE_RECIPIENTS; ConfigMap backup-encryption in K8s), or fewer distinct recipients than BACKUP_MIN_RECIPIENTS (2 in production): backups are refused or written in clear.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+      - eval_time: 30m
+        alertname: PrometheusRuleEvaluationFailures
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: 'Prometheus fails to evaluate alert rules'
+              description: 'Some alert rules cannot be evaluated: alerts may be silently missing.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#alerts-on-the-alerting-path'

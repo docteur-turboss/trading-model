@@ -240,6 +240,32 @@ stable id, a restart of the StatefulSet clears them
 authentication, ADR-0056). The `mongod` container is down, restarting or
 stuck: [runbook-database-failover#mongodb-audit-trail](runbook-database-failover.md#mongodb-audit-trail).
 
+## EventLoopLagHigh
+
+`nodejs_eventloop_lag_p99_seconds` of a service above 200 ms for 5 min. A
+blocked loop delays heartbeats (15 s) and deliveries (10 s timeout). Find the
+service in the alert's `job` label, then its CPU throttling, GC and logs.
+
+```bash
+kubectl -n $NS top pod -l app.kubernetes.io/name=<job>
+```
+
+Causes: CPU limit, JSON parsing, GC, memory pressure. Trainer: see
+[runbook-trainer](runbook-trainer.md#eventlooplaghigh-trainer).
+
+## DbIndexBuildFailed
+
+Job `db-index-build` (ADR-0088) failed. Paged reads by symbol use the old
+`idx_*_symbol` index and a sort until it succeeds.
+
+```bash
+kubectl -n $NS logs job/db-index-build
+```
+
+The build is idempotent: fix the cause (error 1205 lock wait, disk), delete the
+failed Job and rerun `bun scripts/migrate.mjs index-build` through
+`deploy/k8s/jobs/index-build-job.yaml`.
+
 ## StatefulSetStuckOnOldRevision
 
 `status.currentRevision` differs from `status.updateRevision` for 24 hours: the

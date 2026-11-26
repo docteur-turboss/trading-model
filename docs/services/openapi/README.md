@@ -20,7 +20,7 @@ bun run api:write   # regenerate after adding, renaming or removing a route
 bun run api:check   # CI + pre-push: fails when the committed spec is stale
 ```
 
-Infrastructure routes (`/metrics`, `/health`, `/health/ready`, `/ping`, `/status`)
+Infrastructure routes (`/metrics`, `/health`, `/health/ready`, `/ping`)
 and service-to-service routes (broker
 callbacks and subscriptions) are left out of the public spec; only the latter
 are published, per service, in `internal/`. The lists live at the top of the

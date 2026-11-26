@@ -320,6 +320,23 @@
 	},
 	"overrides": [
 		{
+			"includes": ["**/*.mjs", "**/*.cjs"],
+			"formatter": { "enabled": false },
+			"linter": {
+				"rules": {
+					"complexity": {
+						"noExcessiveCognitiveComplexity": "off",
+						"noUselessStringConcat": "off",
+						"useSimplifiedLogicExpression": "off"
+					},
+					"style": {
+						"useBlockStatements": "off",
+						"useNamingConvention": "off"
+					}
+				}
+			}
+		},
+		{
 			"includes": ["**/tests/**"],
 			"linter": {
 				"rules": {
@@ -340,6 +357,6 @@
 	],
 	"files": {
 		"ignoreUnknown": true,
-		"includes": ["**/*.ts", "**/*.tsx"]
+		"includes": ["**/*.ts", "**/*.tsx", "**/*.mjs", "**/*.cjs"]
 	}
 }

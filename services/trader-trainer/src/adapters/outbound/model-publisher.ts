@@ -10,7 +10,7 @@ import {
 	ServiceId,
 	Topic,
 } from "@trading-model/primitives/primitives";
-import type { MessageManager } from "../../config/message-manager";
+import type { busClient } from "../../config/message-manager";
 import type { TradingSymbol } from "../../domain/market-data-types";
 import type {
 	ModelPublisherPort,
@@ -43,7 +43,7 @@ function buildMetadata(ctx: PublishContext): MessageMetadata {
 
 export class ModelPublisher implements ModelPublisherPort {
 	constructor(
-		private readonly _messageManager: typeof MessageManager,
+		private readonly _bus: typeof busClient,
 		private readonly _ctx: PublishContext
 	) {}
 
@@ -91,6 +91,6 @@ export class ModelPublisher implements ModelPublisherPort {
 		};
 
 		const metadata = buildMetadata(this._ctx);
-		await this._messageManager.post.indirect(payload, metadata);
+		await this._bus.publish(payload, metadata);
 	}
 }

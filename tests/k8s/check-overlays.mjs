@@ -151,10 +151,10 @@ const RESOURCES = {
 /** "group/resource" pairs of a flow-style rules file (deploy/k8s/deploy-identity). */
 function grantedResources(file) {
 	const granted = new Set();
-	const text = readFileSync("deploy/k8s/deploy-identity/" + file, "utf8");
+	const text = readFileSync(`deploy/k8s/deploy-identity/${file}`, "utf8");
 	for (const [, groups, resources] of text.matchAll(/apiGroups: \[([^\]]*)\]\n\s+(?:resourceNames: \[[^\]]*\]\n\s+)?resources: \[([^\]]*)\]/g)) {
 		for (const g of groups.split(",")) {
-			for (const r of resources.split(",")) granted.add(g.trim().replace(/"/g, "") + "/" + r.trim());
+			for (const r of resources.split(",")) granted.add(`${g.trim().replace(/"/g, "")}/${r.trim()}`);
 		}
 	}
 	return granted;
@@ -167,8 +167,8 @@ function uncoveredKinds(docs, namespacedFile) {
 	const missing = new Set();
 	for (const { kind } of docs.filter((d) => d.kind)) {
 		const [group, resource] = RESOURCES[kind] ?? [];
-		if (!resource) missing.add(kind + " (unknown kind: add it to RESOURCES)");
-		else if (!(CLUSTER_KINDS.has(kind) ? cluster : namespaced).has(group + "/" + resource)) missing.add(kind);
+		if (!resource) missing.add(`${kind} (unknown kind: add it to RESOURCES)`);
+		else if (!(CLUSTER_KINDS.has(kind) ? cluster : namespaced).has(`${group}/${resource}`)) missing.add(kind);
 	}
 	return [...missing];
 }
@@ -297,7 +297,7 @@ for (const env of OVERLAYS) {
 
 	for (const [dir, file, text] of [[`deploy/k8s/overlays/${env}`, "app-role.yaml", app], [`deploy/k8s/overlays/${env}/node-agents`, "node-role.yaml", nodeAgents]]) {
 		for (const kind of uncoveredKinds(documents(text), file)) {
-			errors.push(env + ": " + kind + " of " + dir + " is not covered by deploy/k8s/deploy-identity/" + file + " (or cluster-role.yaml): the deploy identity could not apply it");
+			errors.push(`${env}: ${kind} of ${dir} is not covered by deploy/k8s/deploy-identity/${file} (or cluster-role.yaml): the deploy identity could not apply it`);
 		}
 	}
 
