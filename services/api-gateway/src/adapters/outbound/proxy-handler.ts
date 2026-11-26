@@ -4,9 +4,9 @@ import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { logger } from "@trading-model/http/logger";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import {
+	ProxyOverloadedError,
 	type ProxyRequestOptions,
 	type ProxyResult,
-	ProxyOverloadedError,
 	UpstreamResponseTooLargeError,
 	UpstreamTimeoutError,
 } from "../../domain/ports/gateway.port";
