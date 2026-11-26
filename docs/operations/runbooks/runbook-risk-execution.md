@@ -53,9 +53,10 @@ More than 50% of the intents were rejected over 15 min (no alert without traffic
 Three or more intents of the decision consumer rejected in an hour with the same `reason` label (`decision_intents_total{outcome="rejected"}`; the reasons are those of risk-execution, `risk_orders_total`). The consumer decides once per closed bar, so this is a pattern, not noise.
 
 1. Read the `Intent rejected by risk-execution` log lines of `decision-consumer` (symbol, model, reason).
-2. `price_band`, `price_gap`, `stale_intent`: the bar read from financial-scraper is far from the price risk-execution reads, or old; check the feed ([runbook-market-data-stale](runbook-market-data-stale.md)).
-3. A rejected buy (`instrument_exposure`, `global_exposure`) is a finding: the consumer bounds buys and sales on the real position (`GET /positions/:symbol`, ADR-0087 §3), so risk-execution limits tighter than the model's cap are the usual cause.
-4. `instrument_exposure`, `global_exposure`, `max_quantity`: the size of the model exceeds a limit of risk-execution; the limit stays, lower `PROMOTED_MODELS` by a PR if the model is the cause.
+2. `price_band`, `price_gap`: the bar read from financial-scraper is far from the price risk-execution reads; check the feed ([runbook-market-data-stale](runbook-market-data-stale.md)).
+3. `stale_intent`: the intent is dated at its decision time, so the call decision-consumer → risk-execution took more than 1 min, or the decision-consumer clock is more than 5 s ahead of (or 1 min behind) the risk-execution clock; check the latency and the node clocks, not the feed.
+4. A rejected buy (`instrument_exposure`, `global_exposure`) is a finding: the consumer bounds buys and sales on the real position (`GET /positions/:symbol`, ADR-0087 §3), so risk-execution limits tighter than the model's cap are the usual cause.
+5. `instrument_exposure`, `global_exposure`, `max_quantity`: the size of the model exceeds a limit of risk-execution; the limit stays, lower `PROMOTED_MODELS` by a PR if the model is the cause.
 
 ## DecisionPassFailing
 

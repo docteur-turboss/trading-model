@@ -73,7 +73,7 @@ Closing positions is a separate, explicit operator action, never automatic: a fo
 | Unreadable switch state | The service cannot read its stored state: it counts as on (fail closed, ADR-0064 §5) | Global |
 | Missing switch state | No stored state at start (first install or lost volume): it counts as on until an operator re-arms (ADR-0064 §5) | Global |
 
-Below the stale data threshold, an intent decided on a price older than 1 min (value of this policy for the maximum age of ADR-0064 §7) is rejected without engaging the switch.
+Below the stale data threshold, an intent older than 1 min (its decision time; value of this policy for the maximum age of ADR-0064 §7) is rejected without engaging the switch. Price freshness is checked by `stale_price` and `price_gap`.
 
 ### 4.4 Re-arming
 

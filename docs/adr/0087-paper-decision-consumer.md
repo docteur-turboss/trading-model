@@ -2,6 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-11
+**Amended (issue #2689):** the intent is dated at the decision time, no longer at the bar close time (§5), so a daily model passes the 1 min maximum age of ADR-0064 §7.
 **Related:** [ADR-0049](./0049-downstream-context-for-models-and-signals.md) (option C), [ADR-0064](./0064-risk-and-execution-context-before-order-flow.md) (Risk/Execution), [ADR-0069](./0069-model-admission-verdict-on-the-test-segment.md) (admissible), [ADR-0027](./0027-audit-chain-verification-and-anchoring.md) (audit), [ADR-0030](./0030-mt4-point-in-time-features-and-success-criteria.md) (point-in-time), [ADR-0079](./0079-replay-window-in-the-model-manifest.md) (replay)
 **Verified by:** `services/decision-consumer/tests/unit/decide.spec.ts` (non-admissible or non-promoted model: no intent; same bar and model: same decision id and decision time; rejection counted by reason), `packages/model-runtime/tests/replay.spec.ts` (last-bar decision, frameSkip cadence in absolute time), `tests/contract/decision-consumer-routes.spec.ts` (real client against the real intents route, other identities 403, daily model accepted at 01:45 UTC for the bar of the day before), `services/risk-execution/tests/unit/handlers.spec.ts`, `packages/http/tests/unit/adapters/inbound/acl-config.spec.ts`, `tests/alerts/alerting.test.yml`, `packages/model-runtime/tests/unit/model-api/model-clients.spec.ts` (shared trainer and scraper clients), `bun run api:check`
 
