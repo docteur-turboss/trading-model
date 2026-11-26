@@ -1,5 +1,5 @@
 import http from "node:http";
-import { configureApp } from "../../src/configure-app";
+import { configureApp, createHealthApp } from "../../src/configure-app";
 
 function makeRequest(
 	app: http.RequestListener,
@@ -93,5 +93,21 @@ describe("configureApp", () => {
 		const app = configureApp();
 
 		expect(app.get("trust proxy")).toBeFalsy();
+	});
+});
+
+describe("createHealthApp", () => {
+	it("serves /ping and /health/ready only", async () => {
+		const app = createHealthApp([{ name: "svid", check: () => true }]);
+
+		expect((await makeRequest(app as never, "GET", "/ping")).statusCode).toBe(
+			200
+		);
+		expect(
+			(await makeRequest(app as never, "GET", "/health/ready")).statusCode
+		).toBe(200);
+		expect(
+			(await makeRequest(app as never, "GET", "/metrics")).statusCode
+		).toBe(404);
 	});
 });
