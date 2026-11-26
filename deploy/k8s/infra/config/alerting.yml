@@ -5,25 +5,25 @@ groups:
 
       # ── Burn Rate Alerts (SLO-based) ─────────────────────────────
       - alert: SLOAvailabilityFastBurn
-        expr: slo:sli_error:ratio_rate1h > 0.0144 and slo:sli_error:ratio_rate5m > 0.0144
+        expr: slo:sli_error:ratio_rate1h > 0.144 and slo:sli_error:ratio_rate5m > 0.144
         for: 2m
         labels:
           severity: critical
           slo: availability
         annotations:
           summary: 'Availability SLO fast burn rate exceeded'
-          description: '5xx ratio > 1.44% over both 1h and 5m (14.4x the 0.1% budget of the 99.9% SLO). Probes (/ping, /health/ready, /metrics) are not counted.'
+          description: '5xx ratio > 14.4% over both 1h and 5m (14.4x the 1% budget of the 99% SLO). Probes (/ping, /health/ready, /metrics) are not counted.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
       - alert: SLOAvailabilitySlowBurn
-        expr: slo:sli_error:ratio_rate6h > 0.006 and slo:sli_error:ratio_rate30m > 0.006
+        expr: slo:sli_error:ratio_rate6h > 0.06 and slo:sli_error:ratio_rate30m > 0.06
         for: 15m
         labels:
           severity: warning
           slo: availability
         annotations:
           summary: 'Availability SLO slow burn rate exceeded'
-          description: '5xx ratio > 0.6% over both 6h and 30m (6x the 0.1% budget of the 99.9% SLO). Probes are not counted.'
+          description: '5xx ratio > 6% over both 6h and 30m (6x the 1% budget of the 99% SLO). Probes are not counted.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
       - alert: SLOLatencyFastBurn
@@ -827,7 +827,7 @@ groups:
           description: 'Always firing. Routed to the dead man''s switch (ALERTMANAGER_DEADMAN_URL): when it stops arriving, Prometheus, Alertmanager or the notification path is down.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#dead-mans-switch'
 
-  # ── Error budget (slo.md: 99.9% over 30d) ────────────────────
+  # ── Error budget (slo.md: 99% over 30d, issue #2735) ────────────────────
   - name: trading-model-slo-recording
     interval: 1m
     rules:
@@ -847,14 +847,14 @@ groups:
       - record: slo:sli_error:ratio_rate30d
         expr: avg_over_time(slo:sli_error:ratio_rate1h[30d])
       - alert: SLOErrorBudgetLow
-        expr: (1 - slo:sli_error:ratio_rate30d / 0.001) * 100 < 20
+        expr: (1 - slo:sli_error:ratio_rate30d / 0.01) * 100 < 20
         for: 1h
         labels:
           severity: warning
           slo: availability
         annotations:
           summary: 'Error budget of {{ $labels.job }} below 20%'
-          description: 'Less than 20% of the 30d availability error budget (99.9%) remains: full change freeze except critical fixes and rollbacks (slo.md, Error Budget Policy).'
+          description: 'Less than 20% of the 30d availability error budget (99%) remains: full change freeze except critical fixes and rollbacks (slo.md, Error Budget Policy).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slo-error-budget-low'
 
   # ── Infrastructure (issue #601, ADR-0056): exporters, kubelet ──────────
