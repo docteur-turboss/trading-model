@@ -8,6 +8,7 @@ import {
 } from "./shared/barrel/message.schema";
 
 // One warning per topic and process; the counter carries the volume.
+// shortcut: unbounded, topics come from internal producers; cap it if a producer can mint topics.
 const unknownTopicsWarned = new Set<string>();
 
 /** Delivered `messageId`s remembered per process: bounds the memory of the dedup. */
@@ -37,7 +38,7 @@ export async function deliverToHandler(
 	signal?: AbortSignal
 ): Promise<boolean> {
 	// Expand/contract (ADR-0040): a topic added by release N is not dead-lettered at an N-1 subscriber.
-	if (!(metadata.topic in EVENT_VALIDATORS)) {
+	if (!Object.hasOwn(EVENT_VALIDATORS, metadata.topic)) {
 		MESSAGES_UNKNOWN_TOPIC_TOTAL.inc({ topic: metadata.topic });
 		if (!unknownTopicsWarned.has(metadata.topic)) {
 			unknownTopicsWarned.add(metadata.topic);

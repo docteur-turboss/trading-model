@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { getCorrelationId } from "@trading-model/http/correlation-id";
 
+import { MESSAGES_UNKNOWN_TOPIC_TOTAL } from "../../src/bus/metrics";
 import {
 	type DeliveredMessage,
 	deliverToHandler,
@@ -22,15 +23,24 @@ describe("deliverToHandler", () => {
 		expect(handle).not.toHaveBeenCalled();
 	});
 
-	it("should acknowledge a topic it does not know, without calling the handler", async () => {
-		const handle = jest.fn<(message: DeliveredMessage) => Promise<void>>();
-		const ok = await deliverToHandler(
-			{ metadata: { topic: "future.topic" }, payload: { a: 1 } },
-			handle
-		);
-		expect(ok).toBe(true);
-		expect(handle).not.toHaveBeenCalled();
-	});
+	it.each(["future.topic", "constructor"])(
+		"should acknowledge and count the unknown topic %s, without calling the handler",
+		async (topic) => {
+			const count = async () =>
+				(await MESSAGES_UNKNOWN_TOPIC_TOTAL.get()).values.find(
+					(v) => v.labels.topic === topic
+				)?.value ?? 0;
+			const before = await count();
+			const handle = jest.fn<(message: DeliveredMessage) => Promise<void>>();
+			const ok = await deliverToHandler(
+				{ metadata: { topic }, payload: { a: 1 } },
+				handle
+			);
+			expect(ok).toBe(true);
+			expect(handle).not.toHaveBeenCalled();
+			expect(await count()).toBe(before + 1);
+		}
+	);
 
 	it("should handle a messageId once, in its correlation context", async () => {
 		const seen: (string | undefined)[] = [];
