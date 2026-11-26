@@ -2,6 +2,7 @@ import "./telemetry";
 import { createBootstrap } from "@trading-model/http/bootstrap";
 import { logger } from "@trading-model/http/logger";
 import { shutdownTelemetry } from "@trading-model/http/telemetry";
+import { DurationMs } from "@trading-model/primitives/primitives";
 import { type AuditLoggerApp, createAuditLoggerApp } from "../config/container";
 import { ENV } from "../infrastructure/config/env";
 
@@ -26,6 +27,11 @@ createBootstrap({
 				mongoUri: ENV.MONGODB_URI,
 			},
 		});
+	},
+	// Grace 30 s: preStop 10 s, 5 s forced exit.
+	shutdown: {
+		onStopTimeoutMs: DurationMs.of(10_000),
+		deadlineMs: DurationMs.of(14_000),
 	},
 	onStop: async () => {
 		if (!_context) {
