@@ -7,7 +7,7 @@ import {
 	trace,
 } from "@opentelemetry/api";
 import type { Message } from "@trading-model/contracts/message-types";
-import { DurationMs } from "@trading-model/primitives/primitives";
+import { DurationMs, ServiceId } from "@trading-model/primitives/primitives";
 import * as backoff from "../../../src/bus/backoff";
 import { BusConsumer } from "../../../src/bus/consumer";
 import { DeadStreams } from "../../../src/bus/dead-streams";
@@ -31,10 +31,10 @@ const {
 	emittedAt: _at,
 	...BASE
 } = createMockMessage("x").metadata;
-const METADATA = {
+const METADATA: typeof BASE = {
 	...BASE,
-	topic: TOPIC,
-	publisher: { ...BASE.publisher, serviceName: "trader-trainer" },
+	topic: TOPIC as typeof BASE.topic,
+	publisher: { ...BASE.publisher, serviceName: ServiceId.of("trader-trainer") },
 };
 
 function bus() {
