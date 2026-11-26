@@ -8,8 +8,9 @@
 #              the staging-local overlay and kind lacks: ingress-nginx (kind
 #              provider), cert-manager + the self-signed ClusterIssuer
 #              `selfsigned-local`, the VPA CRD, the Sealed Secrets controller
-#              (namespace sealed-secrets, ADR-0035), the `rwx-csi` StorageClass
-#              and the volume of tests/k8s/kind-fixtures.yaml.
+#              (namespace sealed-secrets, ADR-0035), metrics-server (read by
+#              the HPAs), the `rwx-csi` StorageClass and the volume of
+#              tests/k8s/kind-fixtures.yaml.
 #  identities  creates deploy-app / deploy-cluster (ADR-0041) with the API
 #              server address the runner container sees on the `kind` network,
 #              and stores both kubeconfigs in the GitHub environment `staging`.
@@ -27,6 +28,7 @@ SERVER="https://trading-staging-control-plane:6443"
 INGRESS_NGINX="controller-v1.15.1"
 CERT_MANAGER="v1.21.3"
 VPA="vertical-pod-autoscaler-1.8.1"
+METRICS_SERVER="v0.9.1"
 
 kubectl config use-context "$CONTEXT" >/dev/null
 
@@ -35,6 +37,10 @@ prereqs() {
 	kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/${CERT_MANAGER}/cert-manager.yaml"
 	kubectl apply -f "https://raw.githubusercontent.com/kubernetes/autoscaler/${VPA}/vertical-pod-autoscaler/deploy/vpa-v1-crd-gen.yaml"
 	bash "$ROOT/scripts/install-sealed-secrets.sh"
+	# kind kubelets serve a self-signed certificate: metrics-server cannot verify it.
+	curl -fsSL "https://github.com/kubernetes-sigs/metrics-server/releases/download/${METRICS_SERVER}/components.yaml" |
+		sed -E 's#^( *)- --cert-dir=/tmp$#&
+- --kubelet-insecure-tls#' | kubectl apply -f -
 	# hostPath dirs are root:root and fsGroup skips hostPath: the trainer (uid 10001) must write (#1246).
 	docker exec trading-staging-control-plane install -d -o 10001 -g 10001 /var/local/kind-rwx/trainer-checkpoints
 	kubectl apply -f "$ROOT/tests/k8s/kind-fixtures.yaml"
@@ -45,6 +51,7 @@ prereqs() {
 		-p '{"data":{"disable-access-log":"true"}}'
 	kubectl -n ingress-nginx rollout status deployment/ingress-nginx-controller --timeout=300s
 	kubectl -n cert-manager rollout status deployment/cert-manager-webhook --timeout=300s
+	kubectl wait --for=condition=Available apiservice/v1beta1.metrics.k8s.io --timeout=300s
 	kubectl apply -f - <<'EOF'
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer

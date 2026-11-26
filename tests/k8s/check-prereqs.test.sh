@@ -99,4 +99,9 @@ for env in staging production; do
 	out=$(run "$ALL_CRDS" "$ALL_HAVE" "$r")
 	[[ $out == *"present"* ]] && ok "$env overlay passes with the documented prerequisites" || ko "$env overlay: $out"
 done
+# staging-local: what deploy/staging-local/bootstrap.sh prereqs installs, metrics-server included
+r=$(PATH="${PATH#"$WORK/bin:"}" kubectl kustomize --load-restrictor LoadRestrictionsNone "$ROOT/deploy/k8s/overlays/staging-local"; PATH="${PATH#"$WORK/bin:"}" kubectl kustomize "$ROOT/deploy/k8s/overlays/staging-local/node-agents")
+grep -q 'metrics-server/releases/download/.*components.yaml' "$ROOT/deploy/staging-local/bootstrap.sh" && ok "bootstrap.sh prereqs installs metrics-server" || ko "bootstrap.sh prereqs lacks metrics-server"
+out=$(run "$ALL_CRDS" 'storageclass/rwx-csi ingressclass/nginx clusterissuer/selfsigned-local' "$r")
+[[ $out == *"present"* ]] && ok "staging-local overlay passes with what bootstrap.sh prereqs installs" || ko "staging-local overlay: $out"
 exit $FAILED
