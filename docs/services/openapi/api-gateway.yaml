@@ -1060,6 +1060,28 @@ paths:
                           - "criteria"
                           - "thresholds"
                         additionalProperties: false
+                      role:
+                        type: "string"
+                        enum:
+                          - "asset"
+                          - "sector"
+                      components:
+                        type: "array"
+                        items:
+                          type: "object"
+                          properties:
+                            symbol:
+                              type: "string"
+                            version:
+                              type: "string"
+                          required:
+                            - "version"
+                          additionalProperties: {}
+                      pooling:
+                        type: "string"
+                        enum:
+                          - "mean"
+                          - "mean+max"
                       replay:
                         type: "object"
                         properties:
