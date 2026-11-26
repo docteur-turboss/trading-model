@@ -10,7 +10,6 @@ export interface BinanceQueryParams {
 	symbol: TradingSymbol;
 	limit?: number | PositiveInt;
 	startTime?: UnixTimestamp;
-	endTime?: UnixTimestamp;
 }
 
 /** All-optional variant used for URL building. */
