@@ -27,8 +27,8 @@ export function buildProxyOptions(
 
 /**
  * Loads the gateway's own SVID for the outbound leg so downstream services
- * can authenticate it via mTLS/ACL (ADR-0011). Cached, and its files are
- * stat-checked every 5 s, so spiffe-helper rotation lands within 5 s. SVIDs carry only a
+ * can authenticate it via mTLS/ACL (ADR-0011). Read through the TLS loader cache,
+ * so spiffe-helper rotation is picked up within 5 s. SVIDs carry only a
  * `spiffe://` URI SAN, so hostname verification is disabled in favour of
  * the SPIFFE trust bundle.
  */
