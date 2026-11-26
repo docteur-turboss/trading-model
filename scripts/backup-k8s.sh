@@ -45,6 +45,7 @@ backup_mongodb() {
 
   # One dump of the audit replica set, from its primary: every member holds the same data.
   local label primary
+  # shellcheck disable=SC2043 # one-element list kept so a second replica set is a one-word change
   for label in mongodb-audit; do
     if ! primary=$(mongo_primary "$label"); then
       fail "No writable MongoDB primary for ${label}"

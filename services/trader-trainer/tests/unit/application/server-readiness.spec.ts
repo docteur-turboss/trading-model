@@ -7,9 +7,7 @@ jest.mock("@trading-model/http/service-server-factory", () => ({
 jest.mock("../../../src/adapters/inbound/http/routes", () => ({
 	TRAINER_ROUTES: jest.fn(),
 }));
-jest.mock("../../../src/config/address-manager", () => ({
-	ADDRESS_MANAGER_ROUTES: jest.fn(),
-}));
+jest.mock("../../../src/config/address-manager", () => ({}));
 jest.mock("../../../src/config/metrics", () => ({ metricsHandler: jest.fn() }));
 jest.mock("../../../src/infrastructure/config/env", () => ({
 	ENV: { REDIS_URL: "redis://redis:6379" },

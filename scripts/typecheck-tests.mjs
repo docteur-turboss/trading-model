@@ -11,8 +11,8 @@
  * Usage: node scripts/typecheck-tests.mjs
  */
 import { spawnSync } from 'node:child_process';
-import { createRequire } from 'node:module';
 import { existsSync, readdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 

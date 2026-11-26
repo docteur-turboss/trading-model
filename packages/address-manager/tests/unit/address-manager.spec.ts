@@ -55,7 +55,7 @@ describe("AddressManager (main)", () => {
 	it("finds a service at its canonical DNS name on port 3000, no registry asked", async () => {
 		const am = new AddressManager(makeConfig());
 		await expect(
-			am.findService("financial-scraper-service" as ServiceInstanceName)
+			am.findService("financial-scraper" as ServiceInstanceName)
 		).resolves.toEqual({ host: "financial-scraper", port: 3000 });
 	});
 
@@ -70,17 +70,5 @@ describe("AddressManager (main)", () => {
 		await expect(
 			am.findService("test-service" as ServiceInstanceName)
 		).resolves.toEqual({ host: "127.0.0.1", port: 3000 });
-	});
-
-	it("should listen on express app", () => {
-		const am = new AddressManager(makeConfig());
-		const app = {
-			use: jest.fn<(...args: any[]) => any>(),
-			get: jest.fn<(...args: any[]) => any>(),
-			locals: {} as Record<string, unknown>,
-		};
-		am.metricsCollector.listenExpress(app as any);
-		expect(app.use).toHaveBeenCalled();
-		expect(app.get).toHaveBeenCalledWith("/metrics", expect.any(Function));
 	});
 });

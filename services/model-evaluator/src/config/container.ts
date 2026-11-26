@@ -1,4 +1,4 @@
-import BrokerMessage from "@trading-model/broker-message";
+import BusClient from "@trading-model/broker-message";
 import { busJournalFromEnv } from "@trading-model/broker-message/create-message-manager";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
@@ -32,12 +32,12 @@ export async function createModelEvaluatorApp() {
 		scraper: new ScraperClient(tls, FIND_A_SERVICE),
 	});
 	const server = await createServer();
-	const brokerMessage = new BrokerMessage({
+	const brokerMessage = new BusClient({
 		journal: busJournalFromEnv(ENV),
 		instanceId: InstanceId.of(ENV.INSTANCE_ID),
 		serviceName: ServiceInstanceName.ModelEvaluatorService,
 	});
-	await brokerMessage.intents(
+	await brokerMessage.subscribe(
 		[...(EVENT_SUBSCRIBERS[ServiceInstanceName.ModelEvaluatorService] ?? [])],
 		createMessageHandler(evaluate)
 	);

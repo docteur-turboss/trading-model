@@ -18,7 +18,6 @@ import { assertExecutionLock } from "../domain/execution-mode";
 import { RiskLimits } from "../domain/limits";
 import type { RiskState } from "../domain/state";
 import { ENV } from "../infrastructure/config/env";
-import { ADDRESS_MANAGER_ROUTES } from "./address-manager";
 import { createRiskOutbox, publishRiskEvent } from "./audit";
 import {
 	metricsHandler,
@@ -142,7 +141,6 @@ export async function createRiskExecutionApp() {
 			mountRoute(router, RISK_API.adminRearm, handlers.adminRearm);
 			app.use(router);
 			app.get("/metrics", metricsHandler);
-			ADDRESS_MANAGER_ROUTES(app);
 		},
 		readiness: [{ name: "reconciliation", check: () => risk.isReady() }],
 	});

@@ -63,12 +63,6 @@ describe("workload-identity", () => {
 	});
 
 	describe("normalizeServiceName", () => {
-		it("should map legacy registration names onto canonical names", () => {
-			expect(normalizeServiceName("audit-logger-service")).toBe(
-				ServiceId.of("audit-logger")
-			);
-		});
-
 		it("should pass through canonical and unknown names", () => {
 			expect(normalizeServiceName("api-gateway")).toBe(
 				ServiceId.of("api-gateway")

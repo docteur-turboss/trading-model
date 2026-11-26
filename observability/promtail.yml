@@ -29,6 +29,10 @@ scrape_configs:
         regex: '/(.*)'
         target_label: container
     pipeline_stages:
+      # Grafana's context logger writes the caller IP: never store it in Loki.
+      - replace:
+          expression: 'remote_addr=(\S+)'
+          replace: anonymized
       - json:
           expressions:
             level: level

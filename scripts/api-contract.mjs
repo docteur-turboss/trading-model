@@ -63,7 +63,7 @@ const PROXIED_SERVICES = [
 ];
 
 /** Routes of proxied services that the gateway does not expose (PUBLIC_ROUTES). */
-const INFRASTRUCTURE_PATHS = new Set(["/metrics", "/health", "/health/ready", "/ping", "/status"]);
+const INFRASTRUCTURE_PATHS = new Set(["/metrics", "/health", "/health/ready", "/ping"]);
 const SERVICE_TO_SERVICE = {
 	"risk-execution": ["POST /intents", "POST /orders/:clientOrderId/cancel", "GET /positions/:symbol", "GET /admin/status"],
 	// Model weights: never through the gateway (ADR-0022).
@@ -102,13 +102,6 @@ const ROUTE_PROVIDERS = [
 	{
 		mountedBy: /createServiceServer\(|createSecureServer\(/,
 		files: ["packages/http/src/configure-app.ts"],
-	},
-	{
-		mountedBy: /ADDRESS_MANAGER_ROUTES\(/,
-		files: [
-			"packages/address-manager/src/monitoring/metrics-collector.ts",
-			"packages/address-manager/src/routes/metrics.routes.ts",
-		],
 	},
 ];
 
@@ -789,7 +782,7 @@ function buildInternalSpecs(routesByService) {
 
 // ── Gateway path resolution ──────────────────────────────────────────────────
 
-/** Canonical names and legacy aliases the gateway resolves (registryNamesFor). */
+/** Canonical service names the gateway resolves. */
 function resolvableServiceNames() {
 	const names = new Map();
 	visit(parse(IDENTITY_PATH), (node) => {
@@ -798,13 +791,6 @@ function resolvableServiceNames() {
 		while (ts.isAsExpression(init) || ts.isSatisfiesExpression?.(init)) init = init.expression;
 		if (node.name.getText() === "PLATFORM_SERVICES" && ts.isArrayLiteralExpression(init)) {
 			for (const el of init.elements) if (ts.isStringLiteralLike(el)) names.set(el.text, el.text);
-		}
-		if (node.name.getText() === "LEGACY_SERVICE_NAME_ALIASES" && ts.isObjectLiteralExpression(init)) {
-			for (const prop of init.properties) {
-				if (ts.isPropertyAssignment(prop) && ts.isStringLiteralLike(prop.initializer)) {
-					names.set(prop.name.text ?? prop.name.getText(), prop.initializer.text);
-				}
-			}
 		}
 	});
 	if (names.size === 0) errors.push(`${rel(IDENTITY_PATH)}: service names not found`);

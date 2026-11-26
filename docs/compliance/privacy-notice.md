@@ -26,4 +26,11 @@ A truncated address is pseudonymized, not anonymous, so this notice applies.
 
 You may ask for access, rectification, erasure, restriction, or object to the processing (Art. 15-21). A truncated address cannot be linked to you, so Art. 11 applies: we do not collect more data to identify you, unless you give us elements that let us find your entries. Write to the privacy contact named in the register.
 
+**Procedure.** Send the request to that contact. We answer within one month (Art. 12(3)), extended by two months for a complex request, and tell you why. We check your identity before acting: for operators, the Grafana login or API key name; for API callers, the correlation IDs or the time window and truncated address of your calls. Operators then:
+
+1. Search: LogQL `{job="edge-proxy"} |= "<correlation ID>"` in Grafana Explore (access logs, activity 6).
+2. Erase: `curl -X POST "http://loki:3100/loki/api/v1/delete?query=%7Bjob%3D%22edge-proxy%22%7D%20%7C%3D%20%22<correlation ID>%22&start=<unix seconds>&end=<unix seconds>"` (Loki has no tenant header, `auth_enabled: false`). The compactor (`delete_request_store: filesystem`) applies it. List with `GET /loki/api/v1/delete`.
+3. Delete the Grafana account (Administration, Users).
+4. Destroy the `actor` mapping kept outside the system: see [activity 8](data-processing-register.md). The audit chain is never edited.
+
 You may also lodge a complaint with the CNIL (<https://www.cnil.fr>) or the supervisory authority of your Member State.
