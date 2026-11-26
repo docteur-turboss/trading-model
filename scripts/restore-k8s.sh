@@ -146,6 +146,7 @@ if [ -n "$RESTORE_UNTIL" ]; then
   UNTIL_STAMP="$(date -u -d "@${UNTIL_EPOCH}" +%Y-%m-%d_%H%M%S)"
   UNTIL_SQL="$(date -u -d "@${UNTIL_EPOCH}" '+%Y-%m-%d %H:%M:%S')"
   # resolve_backup (backup-lib.sh) skips the runs taken after the instant.
+  # shellcheck disable=SC2034 # read by resolve_backup in backup-lib.sh
   RESTORE_NOT_AFTER="$UNTIL_STAMP"
 fi
 

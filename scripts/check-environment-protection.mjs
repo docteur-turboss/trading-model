@@ -41,7 +41,7 @@ const FALLBACK = { reviewer: 'strict', policies: [] };
  * @returns {string[]} problems, empty when compliant
  */
 export function checkEnvironment(env, policies, rule = RULES.production) {
-  if (!env) return [`the environment does not exist (GitHub would create it unprotected on first use)`];
+  if (!env) return ["the environment does not exist (GitHub would create it unprotected on first use)"];
   const problems = [];
   if (rule.reviewer) {
     const reviewers = (env.protection_rules ?? []).find((r) => r.type === 'required_reviewers');

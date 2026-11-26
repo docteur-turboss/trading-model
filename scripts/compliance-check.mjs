@@ -33,7 +33,7 @@ const promDays = [
   if (a !== b) throw new Error(`Prometheus retention differs: compose ${a}d, k8s ${b}d`);
   return a;
 });
-const lokiDays = parseInt(lokiHours, 10) / 24;
+const lokiDays = Number.parseInt(lokiHours, 10) / 24;
 const POLICY = 'docs/compliance/information-security-policy.md';
 const journalH = grab('packages/broker-message/src/bus/journal.port.ts', /JOURNAL_RETENTION_MS = (\d+) \* 60 \* 60 \* 1000/)[1];
 const mysqlDays = grab('scripts/retention-mysql.sh', /RETENTION_DAYS="\$\{RETENTION_DAYS:-(\d+)\}"/)[1];
@@ -60,7 +60,7 @@ const CHECKS = [
 const TLS_CLAIMS = 'plain TCP (in|inside) the cluster|not toward databases|mTLS everywhere|[|] TLS connection [|]|All inter-service communication|TLS offered, not yet required|TLS offered but not yet required';
 const FORBIDDEN = new RegExp(`message-manager memory|not bounded|pino|in-memory dispatch|triple-layer|quadruple-layer|SecureKeyStore|AES-256-GCM|${TLS_CLAIMS}`, 'i');
 // The README is prose: only the database TLS claims apply to it.
-const README_FORBIDDEN = new RegExp('mTLS everywhere|[|] TLS connection [|]', 'i');
+const README_FORBIDDEN = /mTLS everywhere|[|] TLS connection [|]/i;
 
 const errors = [];
 for (const [file, text] of CHECKS) {

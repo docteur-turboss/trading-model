@@ -121,6 +121,7 @@ rotate_secret() {
   # Restarting before the controller decrypts would reload the old value.
   b64=$(printf '%s' "$new_value" | base64 | tr -d '\n')
   local i live=""
+  # shellcheck disable=SC2034 # loop counter only bounds the retries
   for i in $(seq 1 "$WAIT_TRIES"); do
     live=$(kubectl get secret trading-model-secrets -n "$NAMESPACE" -o "jsonpath={.data.${key}}")
     [ "$live" = "$b64" ] && break
@@ -160,6 +161,7 @@ if [ $# -gt 0 ]; then
   COMPONENT="$2"
 fi
 
+# shellcheck disable=SC2043 # one-element list kept so a second component is a one-word change
 case "$COMPONENT" in
   tokens | mysql | migrator | retention) rotate_component "$COMPONENT" ;;
   all) for c in tokens; do rotate_component "$c"; done ;;

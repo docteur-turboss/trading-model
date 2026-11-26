@@ -1111,6 +1111,7 @@ MYSQL_DUMP_SH="dbs=\$(mysql --user=root -N -e \"SELECT schema_name FROM informat
 # empty instance matches `_migrations` and never touches live rows.
 MYSQL_CORE_EXCLUDED_TABLES="financial_scraper.market_trades financial_scraper.market_candles financial_scraper.market_order_books"
 # shellcheck disable=SC2086 # one --ignore-table per table
+# shellcheck disable=SC2034 # expanded by the scripts that source this library
 MYSQL_CORE_DUMP_SH="${MYSQL_DUMP_SH/exec /}$(printf ' --ignore-table=%s' $MYSQL_CORE_EXCLUDED_TABLES) && echo 'USE \`financial_scraper\`;' && exec mysqldump --user=root --no-data --skip-add-drop-table --set-gtid-purged=OFF financial_scraper ${MYSQL_CORE_EXCLUDED_TABLES//financial_scraper./}"
 
 # Filter of the core dump: CREATE TABLE IF NOT EXISTS, so the structure of an

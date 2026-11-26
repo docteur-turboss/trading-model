@@ -25,7 +25,7 @@ function needs(args) {
 		case "wait": return [[type(pos[0]), "get"], [type(pos[0]), "watch"]];
 		case "logs": return [["pods", "get"], ["pods/log", "get"]];
 		case "exec": return [["pods/exec", "create"]];
-		case "scale": return [[type(pos[0]) + "/scale", "get"], [type(pos[0]) + "/scale", "update"]];
+		case "scale": return [[`${type(pos[0])}/scale`, "get"], [`${type(pos[0])}/scale`, "update"]];
 		case "annotate": case "set": return [[type(pos[verb === "set" ? 1 : 0]), "patch"]];
 		case "create": return pos[0] === "token" ? [] : [[type(pos[0]), "create"]];
 		case "rollout": return pos[0] === "undo" || pos[0] === "restart"
