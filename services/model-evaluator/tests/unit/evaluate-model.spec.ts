@@ -411,15 +411,16 @@ describe("evaluate a published model", () => {
 	});
 
 	it("publishes no final file when the sync fails", async () => {
-		const fsp = jest.requireActual("node:fs/promises");
+		const fsp =
+			jest.requireActual<typeof import("node:fs/promises")>("node:fs/promises");
 		const open = fsp.open;
-		jest.spyOn(fsp, "open").mockImplementationOnce(async (...a: any[]) => {
-			const handle = await open(...a);
+		jest.spyOn(fsp, "open").mockImplementationOnce((async (...a: any[]) => {
+			const handle = await (open as any)(...a);
 			handle.sync = async () => {
 				throw new Error("EIO");
 			};
 			return handle;
-		});
+		}) as never);
 		await expect(
 			new FileEvaluationStore(dir).create({
 				symbol: "BTCUSDT",
