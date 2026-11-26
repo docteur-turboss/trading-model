@@ -621,14 +621,13 @@ release_checks_once() {
   # Alerts already firing before the deploy (deploy.yml records them in
   # VERIFY_BASELINE_FILE) are reported, not blocking: a rollback cannot clear them.
   if [[ -n "$critical" && -s "${VERIFY_BASELINE_FILE:-}" ]]; then
-    local before baseline
-    # `run` names the backup job (daily/incremental) that saw the alert, not its
-    # target: compare without it on both sides, every other label still counts.
-    baseline="$(jq -cS 'del(.run)' "$VERIFY_BASELINE_FILE")" || return 1
-    critical="$(jq -cS 'del(.run)' <<<"$critical")" || return 1
-    before="$(grep -xFf <(printf '%s\n' "$baseline") <<<"$critical" | alert_names)"
-    [[ -n "$before" ]] && log "  - firing before the deploy, not blocking: ${before}"
-    critical="$(grep -vxFf <(printf '%s\n' "$baseline") <<<"$critical" || true)"
+    local before keys
+    # Same alert = same alertname and job (missing job = ""): an infrastructure alert
+    # often comes back with other labels (run 45097230002: run=, component=).
+    keys="$(jq -cs 'map([.alertname, .job // ""])' "$VERIFY_BASELINE_FILE")" || return 1
+    before="$(jq -c --argjson k "$keys" 'select([.alertname, .job // ""] | IN($k[]))' <<<"$critical")" || return 1
+    [[ -n "$before" ]] && log "  - firing before the deploy, not blocking: $(alert_names <<<"$before")"
+    critical="$(jq -c --argjson k "$keys" 'select([.alertname, .job // ""] | IN($k[]) | not)' <<<"$critical")" || return 1
   fi
   if [[ -n "$critical" ]]; then
     err "  ✗ critical alert(s) firing: $(alert_names <<<"$critical")"
