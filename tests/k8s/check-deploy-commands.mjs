@@ -10,9 +10,10 @@ import { readFileSync } from "node:fs";
 const ALIAS = { deployment: "deployments", deploy: "deployments", statefulset: "statefulsets", service: "services", svc: "services", secret: "secrets", configmap: "configmaps", pod: "pods", pods: "pods", hpa: "horizontalpodautoscalers", pdb: "poddisruptionbudgets", ingress: "ingresses", job: "jobs", cronjob: "cronjobs", endpointslice: "endpointslices", certificate: "certificates", controllerrevision: "controllerrevisions", vpa: "verticalpodautoscalers" };
 const norm = (r) => ALIAS[r] ?? r;
 
-const rules = [...readFileSync("deploy/k8s/deploy-identity/app-role.yaml", "utf8").matchAll(/resources: \[([^\]]*)\]\n\s+verbs: \[([^\]]*)\]/g)]
-	.map(([, r, v]) => [r.split(",").map((x) => x.trim()), v.split(",").map((x) => x.trim())]);
-const allowed = (res, verb) => rules.some(([r, v]) => r.includes(res) && v.includes(verb));
+const rules = [...readFileSync("deploy/k8s/deploy-identity/app-role.yaml", "utf8").matchAll(/resources: \[([^\]]*)\]\n(?:\s+resourceNames: \[([^\]]*)\]\n)?\s+verbs: \[([^\]]*)\]/g)]
+	.map(([, r, n, v]) => [r.split(",").map((x) => x.trim()), v.split(",").map((x) => x.trim()), n?.split(",").map((x) => x.trim())]);
+// A rule limited by resourceNames only covers those names; a variable name (`"$s"`) is not checked.
+const allowed = (res, verb, name) => rules.some(([r, v, n]) => r.includes(res) && v.includes(verb) && (!n || !name || name.includes("$") || n.includes(name)));
 
 /** [resource, verb] pairs one kubectl segment needs. */
 function needs(args) {
@@ -20,8 +21,14 @@ function needs(args) {
 	const pos = rest.filter((a) => !a.startsWith("-"));
 	const type = (a) => norm((a ?? "").replace(/"/g, "").split("/")[0].split(",")[0]);
 	switch (verb) {
-		case "get": return type(pos[0]) ? [[type(pos[0]), "get"], [type(pos[0]), "list"]] : [];
-		case "delete": return pos[0] && !rest.includes("-f") ? [[type(pos[0]), "delete"]] : [];
+		case "get": {
+			if (!type(pos[0])) return [];
+			// `get secret NAME` needs `get` on that name only; a bare `get secrets` needs list.
+			const name = pos[0].includes("/") ? pos[0].split("/")[1] : pos[1];
+			return type(pos[0]) === "secrets" && name ? [["secrets", "get", name.replace(/"/g, "")]] : [[type(pos[0]), "get"], [type(pos[0]), "list"]];
+		}
+		case "patch": return type(pos[0]) === "secrets" ? [["secrets", "patch", pos[1]]] : [[type(pos[0]), "patch"]];
+		case "delete": return pos[0] && !rest.includes("-f") ? [[type(pos[0]), "delete", type(pos[0]) === "secrets" ? pos[1] : undefined]] : [];
 		case "wait": return [[type(pos[0]), "get"], [type(pos[0]), "watch"]];
 		case "logs": return [["pods", "get"], ["pods/log", "get"]];
 		case "exec": return [["pods/exec", "create"]];
@@ -49,8 +56,8 @@ for (const [file, keep] of SOURCES) {
 		for (const [, cmd] of line.matchAll(/\bkubectl\s+((?:(?!\||&&|;|>|\)).)+)/g)) {
 			const args = cmd.trim().split(/\s+/).filter((a, i, all) => !(a === "-n" || all[i - 1] === "-n"));
 			// A resource held in a variable (`$target`) is unknown to this parser.
-			for (const [res, verb] of needs(args).filter(([r]) => !r.includes("$"))) {
-				if (!allowed(res, verb)) errors.push(`${file}: \`kubectl ${args.slice(0, 3).join(" ")}\` needs ${verb} ${res}, missing from app-role.yaml`);
+			for (const [res, verb, name] of needs(args).filter(([r]) => !r.includes("$"))) {
+				if (!allowed(res, verb, name)) errors.push(`${file}: \`kubectl ${args.slice(0, 3).join(" ")}\` needs ${verb} ${res}${name ? ` ${name}` : ""}, missing from app-role.yaml`);
 			}
 		}
 	}

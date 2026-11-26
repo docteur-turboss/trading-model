@@ -1275,6 +1275,8 @@ verify_mysql_tls() {
 
 # Runs deploy-k8s.sh against the kind cluster, as deploy.yml does.
 deploy_script() {
+	# As the "Configure gateway canary key" step of deploy.yml: written by the admin, read by deploy-app (issue #2791).
+	$K -n "$NS" create secret generic gateway-canary-key --from-literal=GATEWAY_CANARY_KEY="$API_KEY" --dry-run=client -o yaml | $K apply -f - >/dev/null
 	(cd "$ROOT" && use_kube &&
 		K8S_NAMESPACE="$NS" bash deploy/k8s/scripts/deploy-k8s.sh "$@")
 }
