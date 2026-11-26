@@ -21,6 +21,8 @@ export interface PreTradeContext {
 	halted: readonly string[];
 	/** The service's own price of the intent symbol, read for this intent; absent when the read failed or found none. */
 	price?: MarketPrice;
+	/** Operator reduction (`POST /v1/admin/reduce`, policy §4.1): a sell that alone passes the kill switch. */
+	operator?: boolean;
 }
 
 /** A context whose own price passed its age check: every amount below is valued at `market`. */
@@ -55,7 +57,10 @@ const CLOCK_SKEW_MS = 5000;
 function gateReject(ctx: PreTradeContext): string | null {
 	const { intent, limits, state, now } = ctx;
 	const instrument = limits.instruments[intent.symbol];
-	if (state.killSwitch.global || state.killSwitch.symbols[intent.symbol]) {
+	if (
+		(state.killSwitch.global || state.killSwitch.symbols[intent.symbol]) &&
+		!(ctx.operator && intent.side === "sell")
+	) {
 		return "kill_switch";
 	}
 	if (!ctx.reconciled) {

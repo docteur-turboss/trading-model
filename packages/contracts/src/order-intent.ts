@@ -45,4 +45,6 @@ export interface Order {
 	createdAt: number;
 	reason?: string;
 	mode: "paper" | "live";
+	/** Operator who asked for it (`POST /v1/admin/reduce`); absent for a model intent. */
+	actor?: string;
 }

@@ -10,7 +10,8 @@ out=$(bash "$S" engage --reason "$reason")
 [ "$(sed -n '2,$p' <<<"$out" | jq -r .reason)" = "$reason" ] || { echo "FAIL escaping"; exit 1; }
 [ "$(bash "$S" rearm --reason r | sed 1d | jq -r .scope)" = global ] || { echo "FAIL global"; exit 1; }
 [ "$(bash "$S" rearm --reason r --symbol BTCUSDT | sed 1d | jq -r .symbol)" = BTCUSDT ] || { echo "FAIL symbol"; exit 1; }
-for bad in "engage" "engage --reason" "bogus" ""; do
+[ "$(bash "$S" reduce --symbol BTCUSDT --quantity 0.5 | sed 1d | jq -c .)" = '{"symbol":"BTCUSDT","quantity":0.5}' ] || { echo "FAIL reduce"; exit 1; }
+for bad in "engage" "engage --reason" "bogus" "" "reduce --symbol BTCUSDT" "reduce --symbol BTCUSDT --quantity 1e9x"; do
   # shellcheck disable=SC2086
   if bash "$S" $bad >/dev/null 2>&1; then echo "FAIL usage: $bad"; exit 1; fi
 done

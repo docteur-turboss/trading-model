@@ -136,6 +136,7 @@ export async function createRiskExecutionApp() {
 			mountRoute(router, RISK_API.adminStatus, handlers.adminStatus);
 			mountRoute(router, RISK_API.adminEngage, handlers.adminEngage);
 			mountRoute(router, RISK_API.adminRearm, handlers.adminRearm);
+			mountRoute(router, RISK_API.adminReduce, handlers.adminReduce);
 			app.use(router);
 			app.get("/metrics", metricsHandler);
 			ADDRESS_MANAGER_ROUTES(app);

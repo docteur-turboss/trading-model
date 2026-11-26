@@ -1,7 +1,7 @@
 /**
  * Scopes of an API key (ADR-0059): `read` for the GET routes of
  * `PUBLIC_ROUTES`, `dlq:write` for the other DLQ routes (delete, replay),
- * `risk:admin` for the risk-execution kill switch (engage, re-arm).
+ * `risk:admin` for the risk-execution kill switch (engage, re-arm) and reduce.
  */
 const API_SCOPES = ["read", "dlq:write", "risk:admin"] as const;
 export type ApiScope = (typeof API_SCOPES)[number];

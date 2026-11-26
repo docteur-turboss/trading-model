@@ -16,9 +16,11 @@ bash scripts/risk-admin.sh status
 bash scripts/risk-admin.sh engage --reason "<why>"
 # Re-arm, after checking that the cause is gone:
 bash scripts/risk-admin.sh rearm --reason "<what you checked>"
+# Reduce a position, under the switch too (sell, at most the position net of open sells, policy §4.1):
+bash scripts/risk-admin.sh reduce --symbol BTCUSDT --quantity 0.5
 ```
 
-Service unreachable, last resort: revoke the broker API key at the exchange, or delete the SPIRE entry of `risk-execution` (ADR-0064 §5). Closing positions is never automatic: decide it explicitly.
+Service unreachable, last resort: revoke the broker API key at the exchange, or delete the SPIRE entry of `risk-execution` (ADR-0064 §5). Closing positions is never automatic: decide it explicitly, and use `reduce` rather than the broker (a close at the broker engages the switch on reconciliation).
 
 ## KillSwitchEngaged
 

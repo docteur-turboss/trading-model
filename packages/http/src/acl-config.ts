@@ -54,7 +54,7 @@ export const DEFAULT_ACL: Record<ServiceInstanceName, readonly ServiceId[]> = {
 	[ServiceInstanceName.DecisionConsumerService]: [
 		ServiceId.of("decision-consumer"),
 	],
-	// api-gateway relays the kill switch routes (scope risk:admin, ADR-0059); the operator reads /admin/status from the pod with the service's own SVID. Intents come from the decision consumer only (ADR-0064 §1, ADR-0087).
+	// api-gateway relays the kill switch and reduce routes (scope risk:admin, ADR-0059); the operator reads /admin/status from the pod with the service's own SVID. Intents come from the decision consumer only (ADR-0064 §1, ADR-0087).
 	[ServiceInstanceName.RiskExecutionService]: [
 		ServiceId.of("risk-execution"),
 		ServiceId.of("api-gateway"),

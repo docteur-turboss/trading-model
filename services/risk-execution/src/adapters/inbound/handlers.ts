@@ -53,6 +53,15 @@ const forbidden = (req: Request, ...allowed: string[]) =>
 				HTTP_STATUS.FORBIDDEN
 			);
 
+const notOperator = () =>
+	sendResponse(
+		{
+			error: "Forbidden",
+			reason: "only api-gateway, for a named API key, may call this route",
+		},
+		HTTP_STATUS.FORBIDDEN
+	);
+
 type Handler<Key extends keyof typeof RISK_API> = ApiRouteHandler<
 	(typeof RISK_API)[Key]
 >;
@@ -101,13 +110,7 @@ export function createHandlers(
 	const adminEngage: Handler<"adminEngage"> = async ({ body }, req) => {
 		const actor = actorOf(req);
 		if (!actor) {
-			return sendResponse(
-				{
-					error: "Forbidden",
-					reason: "only api-gateway, for a named API key, may call this route",
-				},
-				HTTP_STATUS.FORBIDDEN
-			);
+			return notOperator();
 		}
 		const target = killTarget(body);
 		if (!target) {
@@ -119,13 +122,7 @@ export function createHandlers(
 	const adminRearm: Handler<"adminRearm"> = async ({ body }, req) => {
 		const actor = actorOf(req);
 		if (!actor) {
-			return sendResponse(
-				{
-					error: "Forbidden",
-					reason: "only api-gateway, for a named API key, may call this route",
-				},
-				HTTP_STATUS.FORBIDDEN
-			);
+			return notOperator();
 		}
 		const target = killTarget(body);
 		if (!target) {
@@ -141,5 +138,29 @@ export function createHandlers(
 		}
 		return sendResponse({ status: "rearmed" as const }, HTTP_STATUS.OK);
 	};
-	return { intent, cancel, position, adminStatus, adminEngage, adminRearm };
+	const adminReduce: Handler<"adminReduce"> = async ({ body }, req) => {
+		const actor = actorOf(req);
+		if (!actor) {
+			return notOperator();
+		}
+		const result = await risk.reduce(
+			body.symbol,
+			body.quantity,
+			actor,
+			body.limitPrice
+		);
+		emitMetrics(
+			result.status === "rejected" ? `rejected:${result.reason}` : result.status
+		);
+		return sendResponse(result, HTTP_STATUS.OK);
+	};
+	return {
+		intent,
+		cancel,
+		position,
+		adminStatus,
+		adminEngage,
+		adminRearm,
+		adminReduce,
+	};
 }

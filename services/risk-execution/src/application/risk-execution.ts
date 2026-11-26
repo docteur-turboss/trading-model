@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { withTimeout } from "@trading-model/common/utils/retry";
 import type { Intent, Order } from "@trading-model/contracts/order-intent";
 import { DurationMs } from "@trading-model/primitives/primitives";
@@ -209,10 +210,46 @@ export class RiskExecution {
 			this._emit("admission.error", { error: String(error) });
 			return false; // fail closed
 		});
+		return this._place(intent, admissible);
+	}
+
+	/**
+	 * Operator reduction (policy §4.1, ADR-0064 §5): a sell of at most the
+	 * position net of open sells, the only order the kill switch lets through.
+	 * Every other pre-trade check applies, priced at the service's own price.
+	 */
+	reduce(
+		symbol: string,
+		quantity: number,
+		actor: string,
+		limitPrice?: number
+	): Promise<IntentResult> {
+		return this._place(
+			{
+				decisionId: `reduce-${randomUUID()}`,
+				symbol,
+				side: "sell",
+				quantity,
+				limitPrice,
+				// Both set from the service's own price when the order is checked.
+				referencePrice: 0,
+				referenceAt: 0,
+				model: { symbol, version: "operator" },
+			},
+			true,
+			actor
+		);
+	}
+
+	private _place(
+		received: Intent,
+		admissible: boolean,
+		actor?: string
+	): Promise<IntentResult> {
 		return this._run(async () => {
 			const now = this._now();
 			rollDay(this._state, now);
-			const clientOrderId = `rx-${intent.decisionId}`;
+			const clientOrderId = `rx-${received.decisionId}`;
 			// First: an existing idempotency key is never rewritten (ADR-0064 §3).
 			if (
 				this._state.orders[clientOrderId] ||
@@ -228,12 +265,15 @@ export class RiskExecution {
 				this._bounded(this._d.broker.haltedSymbols(), "broker").catch(
 					(error) => {
 						this._emit("broker.error", { error: String(error) });
-						return [intent.symbol]; // status unknown: fail closed
+						return [received.symbol]; // status unknown: fail closed
 					}
 				),
-				this._readPrices([intent.symbol]),
+				this._readPrices([received.symbol]),
 			]);
-			const price = read[intent.symbol];
+			const price = read[received.symbol];
+			const intent = actor
+				? { ...received, referencePrice: price?.price ?? 0, referenceAt: now }
+				: received;
 			const reason = preTradeReject({
 				intent,
 				limits: this._d.limits,
@@ -243,6 +283,7 @@ export class RiskExecution {
 				reconciled: this._ready,
 				halted,
 				price,
+				operator: actor !== undefined,
 			});
 			const order: Order = {
 				clientOrderId,
@@ -259,6 +300,7 @@ export class RiskExecution {
 				fee: 0,
 				createdAt: now,
 				mode: this._d.mode,
+				actor,
 			};
 			this._state.orders[clientOrderId] = order;
 			if (reason) {
@@ -378,6 +420,7 @@ export class RiskExecution {
 			symbol: order.symbol,
 			status: to,
 			reason: order.reason,
+			actor: order.actor,
 		});
 	}
 

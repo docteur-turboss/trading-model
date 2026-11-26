@@ -20,6 +20,8 @@ export interface RiskOrderTransitionedPayload {
 	/** Status the order moved to. */
 	status: string;
 	reason?: string | null;
+	/** API key name of the operator who asked for the order (`POST /v1/admin/reduce`); absent for a model intent. */
+	actor?: string;
 }
 
 export interface RiskKillSwitchEngagedPayload {
