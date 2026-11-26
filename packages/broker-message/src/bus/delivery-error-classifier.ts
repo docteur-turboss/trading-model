@@ -1,4 +1,3 @@
-import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import type {
 	DurationMs,
 	PositiveInt,
@@ -27,19 +26,17 @@ export function isDeliveryExhausted(reason: string): boolean {
 
 export enum ErrorActionType {
 	DLQ = "dlq",
-	SWALLOW = "swallow",
 	RETRY = "retry",
 }
 
 export type ErrorAction =
 	| { action: ErrorActionType.DLQ; reason: string }
-	| { action: ErrorActionType.SWALLOW }
 	| { action: ErrorActionType.RETRY };
 
 export function classifyDeliveryError(
 	err: unknown,
 	deliveryAttempt: SequenceNumber,
-	{ ttl, emittedAt, deliveryMode }: DeliveryParams
+	{ ttl, emittedAt }: DeliveryParams
 ): ErrorAction {
 	if (isDeadLetterError(err)) {
 		const reason = err.reason ?? DlqReason.NoReason;
@@ -48,18 +45,6 @@ export function classifyDeliveryError(
 
 	if (isExpired(ttl, emittedAt)) {
 		return { action: ErrorActionType.DLQ, reason: DlqReason.TtlExpired };
-	}
-
-	if (deliveryMode === DeliveryMode.AtMostOnce) {
-		return { action: ErrorActionType.SWALLOW };
-	}
-
-	// No broker retry, so no duplicate; the failed message stays replayable.
-	if (deliveryMode === DeliveryMode.ExactlyOnce) {
-		return {
-			action: ErrorActionType.DLQ,
-			reason: DlqReason.SingleAttemptFailed,
-		};
 	}
 
 	if (deliveryAttempt >= MAX_RETRIES) {
