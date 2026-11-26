@@ -34,10 +34,6 @@ jest.mock("../../../src/adapters/inbound/http/events.routes", () => ({
 	eventsRoutes: jest.fn((..._args: any[]) => MOCK_EVENTS_ROUTES),
 }));
 
-jest.mock("../../../src/config/address-manager", () => ({
-	ADDRESS_MANAGER_ROUTES: jest.fn<(...args: any[]) => any>(),
-}));
-
 import { createServiceServer } from "@trading-model/http/service-server-factory";
 import { eventsRoutes } from "../../../src/adapters/inbound/http/events.routes";
 import { createServer } from "../../../src/application/server";

@@ -5,7 +5,7 @@ import {
 	redisConnectionFromEnv,
 } from "@trading-model/persistence/redis-env";
 import { InstanceId } from "@trading-model/primitives/primitives";
-import BrokerMessage from "./broker-message";
+import BusClient from "./broker-message";
 import { openJournalWriter, RedisMessageJournal } from "./bus/redis-journal";
 
 /** Key prefix of the bus streams, kept from message-manager (ADR-0073: a rename would lose entries). */
@@ -31,21 +31,19 @@ export function busJournalFromEnv(
 	}
 	const redis = createRedisClient(connection);
 	return new RedisMessageJournal({
-		redis: redis as never,
-		openBlockingRedis: () => redis.duplicate() as never,
-		openWriteRedis: () => openJournalWriter(redis as never),
+		redis,
+		openBlockingRedis: () => redis.duplicate(),
+		openWriteRedis: () => openJournalWriter(redis),
 		keyPrefix: BUS_KEY_PREFIX,
 		minReplicas: env.JOURNAL_MIN_REPLICAS,
 	});
 }
 
 /** The bus client of a service, built from its env object. */
-export function createServiceMessageManager(env: ServiceEnv) {
-	return {
-		messageManager: new BrokerMessage({
-			journal: busJournalFromEnv(env),
-			instanceId: InstanceId.of(env.INSTANCE_ID),
-			serviceName: parseServiceName(env.SERVICE_NAME),
-		}),
-	};
+export function createServiceBusClient(env: ServiceEnv): BusClient {
+	return new BusClient({
+		journal: busJournalFromEnv(env),
+		instanceId: InstanceId.of(env.INSTANCE_ID),
+		serviceName: parseServiceName(env.SERVICE_NAME),
+	});
 }

@@ -54,15 +54,6 @@ The trading-model platform is a microservices-based algorithmic trading research
 | **Severity**    | Negligible                                                                                                                   |
 | **Mitigations** | Data transferred is strictly market data (symbols, prices, volumes). No personal identifiers. See third-party DPA assessment |
 
-### Risk 4: Insufficient Audit Trail Retention
-
-| Dimension       | Assessment                                                                                                                        |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| **Likelihood**  | Low — current TTL is 1827 days (5 years)                                                                                          |
-| **Impact**      | Low — financial regulation requires 5 years, currently met                                                                        |
-| **Severity**    | Acceptable                                                                                                                        |
-| **Mitigations** | AUDIT_RETENTION_DAYS defaults to 1827 days (5 years) in code. TTL index auto-expires documents. See action item #1 (completed)   |
-
 ## 4. Data Protection by Design Measures
 
 | Measure                          | Status         | Details                                                |
@@ -72,7 +63,7 @@ The trading-model platform is a microservices-based algorithmic trading research
 | Storage & backup encryption      | ✅ Implemented | LUKS2 data disks unlocked by Clevis/Tang (`deploy/host/`); every backup age-encrypted before it is written or copied off-site |
 | Log redaction                    | ✅ Implemented | `sensitive-data-sanitizer.ts`: 11 sensitive-key patterns (credentials, IP keys) redacted to `[REDACTED]`, plus PEM blocks stripped by `sanitizeForLog`, before persistence |
 | Append-only audit trail          | ✅ Implemented | MongoDB with correlation IDs + gap detection           |
-| Automatic TTL-based retention    | ⚠️ Partial     | MongoDB TTL indexes (1827 days audit), Loki 31 days, Prometheus 30 days, backups 30 days. MySQL market data 1827 days via `db-retention` (action #2, ADR-0051), message journal 24 h |
+| Automatic TTL-based retention    | ✅ Implemented | MongoDB TTL indexes (1827 days audit), Loki 31 days, Prometheus 30 days, backups 30 days. MySQL market data 1827 days via `db-retention` (action #2, ADR-0051), message journal 24 h |
 | RBAC service isolation           | ✅ Implemented | K8s ServiceAccounts, Network Policies                  |
 
 ## 5. DPIA Action Items

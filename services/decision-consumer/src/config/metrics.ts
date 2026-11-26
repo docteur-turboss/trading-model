@@ -14,5 +14,7 @@ export const DECISION_SKIPPED_TOTAL = new promClient.Counter({
 	help: "Passes of a promoted model that decided nothing, by reason",
 	labelNames: ["reason"] as const,
 });
+// Series exists at 0 from start, so increase() sees the first failure after a pod start (DecisionPassFailing).
+DECISION_SKIPPED_TOTAL.inc({ reason: "error" }, 0);
 
 export { metricsHandler };

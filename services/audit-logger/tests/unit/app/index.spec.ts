@@ -54,11 +54,6 @@ jest.mock("../../../src/application/audit-chain/chain-audit-scheduler", () => ({
 	ChainAuditScheduler: jest.fn((..._args: any[]) => MOCK_CHAIN_AUDIT_SCHEDULER),
 }));
 
-jest.mock("../../../src/config/address-manager", () => ({
-	AddressManager: { stop: jest.fn<(...args: any[]) => any>() },
-	ADDRESS_MANAGER_ROUTES: jest.fn<(...args: any[]) => any>(),
-}));
-
 const MOCK_AUDIT_REPOSITORY_INSTANCE = {
 	insert: jest.fn<(...args: any[]) => any>(),
 	findById: jest.fn<(...args: any[]) => any>(),
@@ -100,8 +95,8 @@ jest.mock("mongodb", () => ({
 }));
 
 const MOCK_BROKER_MESSAGE_INSTANCE = {
-	intents: jest.fn<(...args: any[]) => any>(),
-	stopMessageManager: jest.fn<(...args: any[]) => any>(),
+	subscribe: jest.fn<(...args: any[]) => any>(),
+	stop: jest.fn<(...args: any[]) => any>(),
 };
 
 jest.mock("@trading-model/broker-message/create-message-manager", () => ({
@@ -136,9 +131,7 @@ describe("Audit Logger entry point (index.ts)", () => {
 		await capturedOptions.onStop();
 		await capturedOptions.onStop();
 
-		expect(
-			MOCK_BROKER_MESSAGE_INSTANCE.stopMessageManager
-		).toHaveBeenCalledTimes(1);
+		expect(MOCK_BROKER_MESSAGE_INSTANCE.stop).toHaveBeenCalledTimes(1);
 		expect(MOCK_MONGO_CLIENT.close).toHaveBeenCalledTimes(1);
 	});
 

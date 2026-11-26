@@ -118,6 +118,7 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `RiskOutboxPending` | order or kill switch events refused by the bus stayed in the risk-execution outbox for 30 min (`risk_outbox_pending`) | [runbook-risk-execution#riskoutboxpending](runbooks/runbook-risk-execution.md#riskoutboxpending) |
 | `ReconciliationMismatch` | risk-execution found a position, open order or balance difference with the broker (ADR-0064 §4) | [runbook-risk-execution#reconciliationmismatch](runbooks/runbook-risk-execution.md#reconciliationmismatch) |
 | `RiskRejectRatioHigh` | risk-execution rejected over 50% of the order intents for 15 min (`risk_orders_total`) | [runbook-risk-execution#riskrejectratiohigh](runbooks/runbook-risk-execution.md#riskrejectratiohigh) |
+| `DecisionPassFailing` | a decision pass or a promoted model of decision-consumer failed in the last hour (`decision_skipped_total{reason="error"}`) | [runbook-risk-execution#decisionpassfailing](runbooks/runbook-risk-execution.md#decisionpassfailing) |
 | `DecisionIntentsRejected` | risk-execution rejected 3 or more intents of the decision consumer in 1 h with the same reason (`decision_intents_total`) | [runbook-risk-execution#decisionintentsrejected](runbooks/runbook-risk-execution.md#decisionintentsrejected) |
 | `RiskMarketDataStale` | the newest reference price of an allowed instrument is older than 15 min (ADR-0064 §7) | [runbook-risk-execution#riskmarketdatastale](runbooks/runbook-risk-execution.md#riskmarketdatastale) |
 | `RetentionFailed` | warning | [BACKUP_DR#retention-job](../deployment/BACKUP_DR.md#retention-job) |
@@ -176,7 +177,8 @@ file absent from the repository, or on an anchor that matches no heading.
 | `JournalBacklogOld` | warning | [runbook-message-bus-outage#3-backlog-of-a-subscriber](runbooks/runbook-message-bus-outage.md#3-backlog-of-a-subscriber) |
 | `TrainingCompletionRateLow` | warning | [runbook-trainer#trainingcompletionratelow](runbooks/runbook-trainer.md#trainingcompletionratelow) |
 | `TrainingCompletionRateCritical` | critical | [runbook-trainer#trainingcompletionratelow](runbooks/runbook-trainer.md#trainingcompletionratelow) |
-| `TrainerEventLoopLagHigh` | warning | [runbook-trainer#trainereventlooplaghigh](runbooks/runbook-trainer.md#trainereventlooplaghigh) |
+| `EventLoopLagHigh` | warning | [runbook-infrastructure#eventlooplaghigh](runbooks/runbook-infrastructure.md#eventlooplaghigh) |
+| `DbIndexBuildFailed` | warning | [runbook-infrastructure#dbindexbuildfailed](runbooks/runbook-infrastructure.md#dbindexbuildfailed) |
 | `TrainerNoLeader` | warning | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `TrainerNoLeaderProlonged` | warning | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `MarketDataStale` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |

@@ -35,7 +35,7 @@ import {
 	symbolsPerGeneration,
 	type TrainingSettings,
 } from "../domain/training-settings";
-import { MessageManager } from "./message-manager";
+import { busClient } from "./message-manager";
 import {
 	CURRENT_GENERATION,
 	DAILY_BAR_ISSUES_TOTAL,
@@ -106,7 +106,7 @@ class ApplicationContainer {
 		this.dataBuffer = new MarketDataBuffer(bufferConfig);
 
 		const { instanceId } = config;
-		const publisher = new ModelPublisher(MessageManager, {
+		const publisher = new ModelPublisher(busClient, {
 			trainerId: "trader-trainer",
 			instanceId,
 		});

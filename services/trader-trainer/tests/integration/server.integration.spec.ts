@@ -52,15 +52,14 @@ jest.mock<{
 }));
 
 jest.mock("../../src/config/address-manager", () => ({
-	ADDRESS_MANAGER_ROUTES: (): void => {},
 	AddressManager: { getAddress: (): null => null },
 }));
 
 jest.mock("../../src/config/message-manager", () => ({
-	MessageManager: {
+	busClient: {
 		on: (): void => {},
-		intents: (): Promise<void> => Promise.resolve(),
-		stopMessageManager: (): Promise<void> => Promise.resolve(),
+		subscribe: (): Promise<void> => Promise.resolve(),
+		stop: (): Promise<void> => Promise.resolve(),
 	},
 	MessageManagerListenExpress: (): void => {},
 }));

@@ -1,3 +1,4 @@
+#!/bin/sh
 # Rewrites the AOF of a stopped Redis node offline, run by `sh -s` inside a
 # throwaway redis:7.4.11 container that mounts the node's data at /data
 # (docs/deployment/DEPLOY.md, "Upgrading from 3.0.x"; issue #2407). Redis 8.10.3

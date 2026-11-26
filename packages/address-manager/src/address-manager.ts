@@ -6,14 +6,12 @@ import {
 	type ServiceId,
 } from "@trading-model/primitives/primitives";
 import type { HostPort } from "@trading-model/primitives/service-identity";
-import { MetricsCollector } from "./monitoring/metrics-collector";
 
 /** Every service listens on HTTPS port 3000 behind its DNS name (compose service, K8s Service). */
 const SERVICE_PORT = Port.of(3000);
 
-/** Address manager facade: where the other services are, and the service metrics routes. */
+/** Address manager facade: where the other services are. */
 export default class AddressManager {
-	public readonly metricsCollector = new MetricsCollector();
 	private readonly _dnsNameMap: Partial<Record<ServiceId, IPAddress>>;
 
 	constructor(config: { dnsNameMap?: Record<ServiceId, IPAddress> }) {
