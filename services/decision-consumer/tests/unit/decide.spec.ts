@@ -160,6 +160,7 @@ describe("decision tick", () => {
 				side: "buy",
 				quantity: 0.01234567,
 				referencePrice: 60_000,
+				referenceAt: NOW,
 			})
 		);
 		expect(scraper.candles).toHaveBeenCalledWith(

@@ -174,7 +174,8 @@ export function createDecisionTick(deps: {
 				side: decision.order.side,
 				quantity,
 				referencePrice: decision.price,
-				referenceAt: bar + intervalMs,
+				// Decision time, not the bar close: a daily bar lands ~1 h 30 after its close (ADR-0087 §5).
+				referenceAt: now(),
 				model,
 			});
 			DECISION_INTENTS_TOTAL.inc({
