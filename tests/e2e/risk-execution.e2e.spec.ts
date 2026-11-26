@@ -17,8 +17,12 @@ import {
  */
 
 const RISK = "trading-risk-execution";
+const DECIDER = "trading-decision-consumer";
 const URL = "https://risk-execution:3000";
 const RESTART_TIMEOUT_MS = 90_000;
+const TRAINING_TIMEOUT_MS = 240_000;
+const DECISION_TIMEOUT_MS = 180_000;
+const SYMBOL = "BTCUSDT";
 const SCOPE = { scope: "global", reason: "e2e" };
 
 /** The API key name is the actor (ADR-0059): the overlay names it `e2e`. */
@@ -29,7 +33,7 @@ const admin = (path: string) =>
 		headers: { "x-api-key": GATEWAY_API_KEY },
 	});
 
-jest.setTimeout(RESTART_TIMEOUT_MS + 60_000);
+jest.setTimeout(TRAINING_TIMEOUT_MS + DECISION_TIMEOUT_MS + 60_000);
 
 interface Status {
 	code: number;
@@ -37,7 +41,7 @@ interface Status {
 	ready: boolean;
 	killSwitch: { global: string | null };
 	openOrders: number;
-	positions: unknown;
+	positions: Record<string, number>;
 }
 
 const status = (): Status => {
@@ -103,5 +107,64 @@ describe("risk-execution E2E", () => {
 		const after = status();
 		expect(after.openOrders).toBe(before.openOrders);
 		expect(after.positions).toEqual(before.positions);
+	});
+
+	// ADR-0090: no hand-made intent. The model published by the trainer is promoted by recreating
+	// decision-consumer (same compose project and files) with its `symbol@version`.
+	it("opens a paper position from a promoted model", async () => {
+		await admin("kill-switch/rearm");
+		let version: string | undefined;
+		const deadline = Date.now() + TRAINING_TIMEOUT_MS;
+		while (!version && Date.now() < deadline) {
+			const res = await externalRequest(`/v1/trader-trainer/models/${SYMBOL}`, {
+				headers: { "x-api-key": GATEWAY_API_KEY },
+			});
+			version =
+				res.status === 200
+					? (JSON.parse(res.body) as { data: { version: string }[] }).data[0]
+							?.version
+					: undefined;
+			if (!version) {
+				await new Promise((resolve) => setTimeout(resolve, 5_000));
+			}
+		}
+		expect(version).toBeDefined();
+
+		const label = (key: string) =>
+			execFileSync(
+				"docker",
+				["inspect", "--format", `{{index .Config.Labels "${key}"}}`, DECIDER],
+				{ encoding: "utf8" }
+			).trim();
+		const files = label("com.docker.compose.project.config_files")
+			.split(",")
+			.flatMap((file) => ["-f", file]);
+		execFileSync(
+			"docker",
+			[
+				"compose",
+				"-p",
+				label("com.docker.compose.project"),
+				"--project-directory",
+				label("com.docker.compose.project.working_dir"),
+				...files,
+				"up",
+				"-d",
+				"--no-deps",
+				"--force-recreate",
+				"decision-consumer",
+			],
+			{
+				stdio: "ignore",
+				env: { ...process.env, PROMOTED_MODELS: `${SYMBOL}@${version}` },
+			}
+		);
+
+		const held = await eventually(
+			"a paper position opened by the promoted model",
+			() => status().positions[SYMBOL] || undefined,
+			{ timeoutMs: DECISION_TIMEOUT_MS, intervalMs: 5_000 }
+		);
+		expect(held).not.toBe(0);
 	});
 });

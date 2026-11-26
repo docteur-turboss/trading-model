@@ -88,6 +88,8 @@ export function createDecisionTick(deps: {
 	audit: Audit;
 	/** Bars of the window the model decides on (features normalise from its first bar). */
 	windowBars: number;
+	/** E2E only (ADR-0090): load a model whose manifest is not `admissible`. */
+	skipAdmission?: boolean;
 	now?: () => number;
 }) {
 	const now = deps.now ?? Date.now;
@@ -103,7 +105,7 @@ export function createDecisionTick(deps: {
 		}
 		const manifest = await deps.trainer.manifest(model.symbol, model.version);
 		// Eligible only: a promotion of a non-admissible model decides nothing (ADR-0069, ADR-0049 §1.4).
-		if (manifest.admission?.admissible !== true) {
+		if (!deps.skipAdmission && manifest.admission?.admissible !== true) {
 			skip(model, "not-admissible");
 			return undefined;
 		}

@@ -24,6 +24,7 @@ export async function createDecisionConsumerApp() {
 		risk: new RiskClient(tls),
 		audit: new PromotionAudit(InstanceId.of(ENV.INSTANCE_ID)),
 		windowBars: ENV.DECISION_WINDOW_BARS,
+		skipAdmission: ENV.DECISION_SKIP_ADMISSION,
 	});
 	let running = false;
 	const timer = setInterval(() => {
