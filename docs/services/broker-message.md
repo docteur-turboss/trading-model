@@ -10,7 +10,7 @@ Every microservice uses this package to send and receive typed, validated messag
 
 ## Bus library (`src/bus/`)
 
-`busJournalFromEnv(env)` (`@trading-model/broker-message/create-message-manager`) returns a `RedisMessageJournal` and throws without Redis settings (`REDIS_URL` or `REDIS_SENTINELS`, `REDIS_SENTINEL_MASTER_NAME`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_SENTINEL_PASSWORD`, `REDIS_TLS_MODE`, `REDIS_TLS_CA`, `REDIS_TLS_SERVERNAME`, plus `JOURNAL_MIN_REPLICAS`). `createServiceMessageManager` passes it to `BrokerMessage`. Keys keep the prefix `trading-model:message-manager`.
+`busJournalFromEnv(env)` (`@trading-model/broker-message/create-message-manager`) returns a `RedisMessageJournal` and throws without Redis settings (`REDIS_URL` or `REDIS_SENTINELS`, `REDIS_SENTINEL_MASTER_NAME`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_SENTINEL_PASSWORD`, `REDIS_TLS_MODE`, `REDIS_TLS_CA`, `REDIS_TLS_SERVERNAME`, plus `JOURNAL_MIN_REPLICAS`). `createServiceBusClient` passes it to `BusClient`. Keys keep the prefix `trading-model:message-manager`.
 
 | Export (`@trading-model/broker-message/bus/…`) | Role |
 | ---------------------------------------------- | ---- |
@@ -36,10 +36,10 @@ Dead letters are read, replayed and deleted with the `audit-dlq` CLI of audit-lo
 ## Main Class
 
 - **Import**: `@trading-model/broker-message`
-- **Default export**: class `BrokerMessage`
+- **Default export**: class `BusClient`
 
 ```ts
-import BrokerMessage from '@trading-model/broker-message';
+import BusClient from '@trading-model/broker-message';
 ```
 
 ### Constructor
@@ -56,20 +56,20 @@ constructor({
 })
 ```
 
-> Prefer `createServiceMessageManager(env)` (`@trading-model/broker-message/create-message-manager`), which reads `INSTANCE_ID`, `SERVICE_NAME` and the Redis settings from the service env.
+> Prefer `createServiceBusClient(env)` (`@trading-model/broker-message/create-message-manager`), which reads `INSTANCE_ID`, `SERVICE_NAME` and the Redis settings from the service env.
 
 ### Public Methods
 
 | Method                          | Description                                                                                          |
 | ------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `intents(topics, handle)`       | Consumes the topics in this process; each message is schema-checked, deduplicated by `messageId`, then passed to `handle`. A throw retries, then dead-letters |
-| `stopMessageManager()`          | Stops the consumer loops                                                                             |
-| `post.indirect(payload, meta)`  | Publishes with an `XADD`; resolves once the entry is durable                                         |
+| `subscribe(topics, handle)`     | Consumes the topics in this process; each message is schema-checked, deduplicated by `messageId`, then passed to `handle`. A throw retries, then dead-letters |
+| `stop()`          | Stops the consumer loops                                                                             |
+| `publish(payload, meta)`  | Publishes with an `XADD`; resolves once the entry is durable                                         |
 
 ### Publishing
 
 ```ts
-await broker.post.indirect(payload, metadata);
+await broker.publish(payload, metadata);
 ```
 
 ## MetadataBuilder
@@ -80,7 +80,7 @@ Fluent builder for message metadata.
 - **Access**: `HELPER.metadataBuilder`
 
 ```ts
-import BrokerMessage, { HELPER } from '@trading-model/broker-message';
+import BusClient, { HELPER } from '@trading-model/broker-message';
 
 const metadata = new HELPER.metadataBuilder('training.model.published', 'training.model.published', publisher)
   .setDelivery({ mode: 'at-least-once' })
@@ -152,23 +152,23 @@ interface Message<T = unknown> {
 ## Usage Example
 
 ```typescript
-import BrokerMessage, { HELPER } from '@trading-model/broker-message';
+import BusClient, { HELPER } from '@trading-model/broker-message';
 import { busJournalFromEnv } from '@trading-model/broker-message/create-message-manager';
 
-const broker = new BrokerMessage({
+const broker = new BusClient({
   journal: busJournalFromEnv(ENV),
   instanceId: 'instance-1',
   serviceName: 'audit-logger',
 });
 
-await broker.intents(['training.model.published'], async ({ metadata, payload }) => {
+await broker.subscribe(['training.model.published'], async ({ metadata, payload }) => {
   console.log(metadata.topic, payload);
 });
 
 const metadata = new HELPER.metadataBuilder('training.model.published', 'training.model.published', publisher).toJSON();
 
-await broker.post.indirect({ price: 50000 }, metadata);
-await broker.stopMessageManager();
+await broker.publish({ price: 50000 }, metadata);
+await broker.stop();
 ```
 
 Dead letters wait in the dead stream of their topic; the audit-logger `dlq-cli` lists, replays and deletes them.

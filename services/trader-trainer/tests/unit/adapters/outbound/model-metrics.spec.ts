@@ -67,11 +67,9 @@ async function publishedMessage(scores?: number[], version = STORED.version) {
 	const posted: { payload: Record<string, unknown>; metadata: any }[] = [];
 	const publisher = new ModelPublisher(
 		{
-			post: {
-				indirect: (payload: Record<string, unknown>, metadata: unknown) => {
-					posted.push({ payload, metadata });
-					return Promise.resolve();
-				},
+			publish: (payload: Record<string, unknown>, metadata: unknown) => {
+				posted.push({ payload, metadata });
+				return Promise.resolve();
 			},
 		} as never,
 		{ trainerId: "trader-trainer", instanceId: "trader-trainer-1" }

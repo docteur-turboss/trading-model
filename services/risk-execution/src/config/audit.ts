@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
+import type BusClient from "@trading-model/broker-message";
 import { HELPER } from "@trading-model/broker-message";
-import { createServiceMessageManager } from "@trading-model/broker-message/create-message-manager";
+import { createServiceBusClient } from "@trading-model/broker-message/create-message-manager";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import { getLogger } from "@trading-model/contracts/logger-registry";
@@ -22,15 +23,13 @@ const BUS_EVENTS: Record<string, RiskEvent> = {
 	"kill_switch.rearmed": RiskEvent.KillSwitchRearmed,
 };
 
-type MessageManager = ReturnType<
-	typeof createServiceMessageManager
->["messageManager"];
+type MessageManager = BusClient;
 
 let messageManager: MessageManager | undefined;
 
 /** Built on first use: the bus journal in Redis (ADR-0073), with the service's ACL user. */
 function _messageManager(): MessageManager {
-	messageManager ??= createServiceMessageManager(ENV).messageManager;
+	messageManager ??= createServiceBusClient(ENV);
 	return messageManager;
 }
 
@@ -63,7 +62,7 @@ async function _send({ topic, fields }: Pending): Promise<void> {
 	})
 		.setDelivery({ mode: DeliveryMode.AtLeastOnce })
 		.toJSON();
-	await _messageManager().post.indirect(fields, metadata);
+	await _messageManager().publish(fields, metadata);
 }
 
 async function _drain(): Promise<void> {

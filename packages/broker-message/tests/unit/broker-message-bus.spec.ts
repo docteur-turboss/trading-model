@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-import BrokerMessage, { HELPER } from "../../src/broker-message";
+import BusClient, { HELPER } from "../../src/broker-message";
 import { RedisMessageJournal } from "../../src/bus/redis-journal";
 import { StreamRedis } from "../fixtures/stream-redis";
 
@@ -9,18 +9,18 @@ const REDIS = new StreamRedis();
 
 function broker() {
 	const journal = new RedisMessageJournal({ redis: REDIS, keyPrefix: "p" });
-	return new BrokerMessage({
+	return new BusClient({
 		journal,
 		instanceId: "i-1" as never,
 		serviceName: "trader-trainer" as never,
 	});
 }
 
-describe("BrokerMessage on the bus (ADR-0073)", () => {
+describe("BusClient on the bus (ADR-0073)", () => {
 	it("should publish with an XADD and consume what it subscribed to", async () => {
 		const bus = broker();
 		const received: unknown[] = [];
-		await bus.intents([TOPIC] as never, async ({ payload }) => {
+		await bus.subscribe([TOPIC] as never, async ({ payload }) => {
 			received.push(payload);
 		});
 
@@ -33,28 +33,28 @@ describe("BrokerMessage on the bus (ADR-0073)", () => {
 			} as never
 		).toJSON();
 		// Payload of this topic is validated by its schema: an invalid one is rejected, not delivered.
-		await bus.post.indirect({ not: "a candle series" }, metadata);
+		await bus.publish({ not: "a candle series" }, metadata);
 		await new Promise((resolve) => setTimeout(resolve, 100));
-		await bus.stopMessageManager();
+		await bus.stop();
 
 		expect(received).toEqual([]);
 		expect([...REDIS.streams.keys()]).toContain(`p:journal:${TOPIC}`);
 	});
 
-	it("should not block intents() while Redis refuses the service's user", async () => {
+	it("should not block subscribe() while Redis refuses the service's user", async () => {
 		const topic = "dlq.entry.added";
 		const journal = new RedisMessageJournal({ redis: REDIS, keyPrefix: "q" });
 		jest
 			.spyOn(journal, "register")
 			.mockRejectedValue(new Error("WRONGPASS invalid username-password pair"));
-		const bus = new BrokerMessage({
+		const bus = new BusClient({
 			journal,
 			instanceId: "i-1" as never,
 			serviceName: "model-evaluator" as never,
 		});
 		await expect(
-			bus.intents([topic] as never, async () => undefined)
+			bus.subscribe([topic] as never, async () => undefined)
 		).resolves.toBeUndefined();
-		await bus.stopMessageManager();
+		await bus.stop();
 	});
 });
