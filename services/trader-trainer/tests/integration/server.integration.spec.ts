@@ -56,10 +56,10 @@ jest.mock("../../src/config/address-manager", () => ({
 }));
 
 jest.mock("../../src/config/message-manager", () => ({
-	MessageManager: {
+	busClient: {
 		on: (): void => {},
-		intents: (): Promise<void> => Promise.resolve(),
-		stopMessageManager: (): Promise<void> => Promise.resolve(),
+		subscribe: (): Promise<void> => Promise.resolve(),
+		stop: (): Promise<void> => Promise.resolve(),
 	},
 	MessageManagerListenExpress: (): void => {},
 }));

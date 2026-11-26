@@ -95,8 +95,8 @@ jest.mock("mongodb", () => ({
 }));
 
 const MOCK_BROKER_MESSAGE_INSTANCE = {
-	intents: jest.fn<(...args: any[]) => any>(),
-	stopMessageManager: jest.fn<(...args: any[]) => any>(),
+	subscribe: jest.fn<(...args: any[]) => any>(),
+	stop: jest.fn<(...args: any[]) => any>(),
 };
 
 jest.mock("@trading-model/broker-message/create-message-manager", () => ({
@@ -131,9 +131,7 @@ describe("Audit Logger entry point (index.ts)", () => {
 		await capturedOptions.onStop();
 		await capturedOptions.onStop();
 
-		expect(
-			MOCK_BROKER_MESSAGE_INSTANCE.stopMessageManager
-		).toHaveBeenCalledTimes(1);
+		expect(MOCK_BROKER_MESSAGE_INSTANCE.stop).toHaveBeenCalledTimes(1);
 		expect(MOCK_MONGO_CLIENT.close).toHaveBeenCalledTimes(1);
 	});
 

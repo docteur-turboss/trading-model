@@ -22,7 +22,7 @@ createBootstrap({
 		deadlineMs: DurationMs.of(100_000),
 	},
 	onStop: async () => {
-		await _brokerMessage?.stopMessageManager();
+		await _brokerMessage?.stop();
 		await shutdownTelemetry();
 	},
 });

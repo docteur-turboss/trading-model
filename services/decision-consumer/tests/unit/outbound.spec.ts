@@ -11,8 +11,8 @@ jest.mock("../../src/config/address-manager", () => ({
 jest.mock("../../src/infrastructure/config/env", () => ({ ENV: {} }));
 const postIndirect = jest.fn<(...args: any[]) => any>();
 jest.mock("@trading-model/broker-message/create-message-manager", () => ({
-	createServiceMessageManager: () => ({
-		messageManager: { post: { indirect: postIndirect } },
+	createServiceBusClient: () => ({
+		publish: postIndirect,
 	}),
 }));
 
