@@ -535,6 +535,8 @@ jobs:
       KIND_VERSION: v0.27.0
       KIND_SHA256: a6875aaea358acf0ac07786b1a6755d08fd640f4c79b7a2e46681cc13f49a04b
       KIND: ./kind
+      # The network group runs on 3 nodes with the production Redis HA and spread patches (#2657, run-kind.sh verify_ha).
+      KIND_NODES: ${{ matrix.group == 'network' && '3' || '1' }}
       # Restore drill timings (tests/backup/drill-timings.sh): JSON uploaded
       # below, table in the job summary. RESTORE_DRILL_BUDGET_SECONDS (default
       # 1200 s, about 5 times the 252 s of the first CI run; disaster to checks) and RESTORE_DRILL_BUDGET_MODE (fail or

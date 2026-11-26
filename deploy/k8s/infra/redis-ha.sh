@@ -293,7 +293,9 @@ ACL
 
 start_sentinel() {
 	waited=0
-	until master=$(master_from_sentinels) || master=$(master_from_nodes); do
+	# A master that does not answer (pod just died, failover pending) is never monitored: a sentinel
+	# started on that address sees no peer through it and stays blind after the failover.
+	until { master=$(master_from_sentinels) || master=$(master_from_nodes); } && answers "$master"; do
 		give_up_after_wait
 	done
 	# A stable id per pod: when a restarted sentinel comes back with a new IP,
