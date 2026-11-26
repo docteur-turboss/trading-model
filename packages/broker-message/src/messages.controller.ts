@@ -38,7 +38,7 @@ export async function deliverToHandler(
 	signal?: AbortSignal
 ): Promise<boolean> {
 	// Expand/contract (ADR-0040): a topic added by release N is not dead-lettered at an N-1 subscriber.
-	if (!Object.hasOwn(EVENT_VALIDATORS, metadata.topic)) {
+	if (!Object.keys(EVENT_VALIDATORS).includes(metadata.topic)) {
 		MESSAGES_UNKNOWN_TOPIC_TOTAL.inc({ topic: metadata.topic });
 		if (!unknownTopicsWarned.has(metadata.topic)) {
 			unknownTopicsWarned.add(metadata.topic);
