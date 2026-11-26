@@ -149,7 +149,7 @@ spec:
                   fieldPath: metadata.name
           resources:
             requests:
-              cpu: 500m
+              cpu: 100m
               memory: 512Mi
             limits:
               cpu: "1"
