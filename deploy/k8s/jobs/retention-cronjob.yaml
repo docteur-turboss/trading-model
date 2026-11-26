@@ -57,6 +57,7 @@ spec:
               securityContext:
                 runAsNonRoot: true
                 allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
                 capabilities:
                   drop:
                     - ALL
@@ -69,6 +70,8 @@ spec:
                   set -eu
                   exec bash /scripts/retention-mysql.sh
               env:
+                - name: HOME
+                  value: /tmp
                 - name: MYSQL_HOST
                   value: mysql-primary
                 - name: MYSQL_USER
@@ -93,6 +96,8 @@ spec:
                 - name: METRICS_FILE
                   value: /backups/metrics/retention.prom
               volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
                 - name: scripts
                   mountPath: /scripts
                   readOnly: true
@@ -112,6 +117,8 @@ spec:
                   cpu: 500m
                   memory: 256Mi
           volumes:
+            - name: tmp
+              emptyDir: {}
             - name: scripts
               configMap:
                 name: backup-scripts
