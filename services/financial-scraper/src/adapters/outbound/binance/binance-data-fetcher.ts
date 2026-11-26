@@ -34,14 +34,15 @@ export interface RawBinanceData {
 	ticker24hRaw?: Awaited<ReturnType<typeof get24hrTickerStats>>;
 }
 
-/** HTTP status and `Retry-After` of a 429 (weight limit), 418 (IP ban) or 451 (restricted location) error, else undefined: each further call extends a ban. */
+/** HTTP status and `Retry-After` of a 429 (weight limit), 418 (IP ban), 403 (WAF block) or 451 (restricted location) error, else undefined: each further call extends a ban. */
 export function banOf(
 	error: unknown
 ): { status: number; retryAfter?: string } | undefined {
 	const response = (error as AxiosError | undefined)?.response;
 	return response?.status === 429 ||
 		response?.status === 418 ||
-		response?.status === 451
+		response?.status === 451 ||
+		response?.status === 403
 		? { status: response.status, retryAfter: response.headers?.["retry-after"] }
 		: undefined;
 }
@@ -92,7 +93,7 @@ const PART_OF: Record<RawKey, SnapshotPart> = {
  * Fetches the three endpoints of one symbol. A failed endpoint only leaves its
  * part out of the snapshot (logged, counted): an order book error must not
  * cost the candles. Rejects when every endpoint failed, with the first error
- * (a 429, 418 or 451 wins over the others). `onBan` is called on a 429, 418 or 451
+ * (a 429, 418, 403 or 451 wins over the others). `onBan` is called on a 429, 418, 403 or 451
  * from any endpoint, so a partial snapshot still opens the quarantine.
  */
 export async function fetchAllRawData(
