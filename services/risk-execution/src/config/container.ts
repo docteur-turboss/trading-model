@@ -32,7 +32,6 @@ import {
 	RISK_RECONCILIATION_MISMATCH,
 	RISK_TICK_FAILURES,
 } from "./metrics";
-import { runTick } from "./run-tick";
 
 export type RiskExecutionApp = Awaited<
 	ReturnType<typeof createRiskExecutionApp>
@@ -106,20 +105,19 @@ export async function createRiskExecutionApp() {
 	RISK_TICK_FAILURES.inc({ mode }, 0);
 	const timer = setInterval(() => {
 		void outbox.replay();
-		void runTick(
-			() =>
-				runJob(
-					"risk-execution.tick",
-					() => risk.tick(),
-					(error) => {
-						const { message, stack } = normalizeError(error);
-						getLogger().error("risk tick failed", { error: message, stack });
-						RISK_TICK_FAILURES.inc({ mode });
-					}
-				),
-			publish,
-			() => undefined
-		);
+		// The switch may engage in memory during a failed tick: republish the gauges either way.
+		// biome-ignore lint/plugin: onError below already logs and counts the failure
+		void runJob(
+			"risk-execution.tick",
+			() => risk.tick(),
+			(error) => {
+				const { message, stack } = normalizeError(error);
+				getLogger().error("risk tick failed", { error: message, stack });
+				RISK_TICK_FAILURES.inc({ mode });
+			}
+		)
+			.catch(() => undefined)
+			.then(publish);
 	}, ENV.RISK_TICK_MS);
 	timer.unref();
 
