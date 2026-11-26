@@ -73,7 +73,7 @@ Standard backpropagation via chain rule:
 
 ---
 
-### `Agent` (`agent.ts`)
+### `AgentExperienceHandler` (`domain/neural-network/agent-experience-handler.ts`)
 
 Pairs a `NeuralNetwork` (`agent.nn`) with its experience replay pool (`agent.experience`):
 
