@@ -8,6 +8,7 @@ import {
 	reconciliationDiffs,
 	rollDay,
 } from "../domain/accounting";
+import { engages } from "../domain/kill-switch";
 import type { RiskLimits } from "../domain/limits";
 import { FINAL, transition } from "../domain/order";
 import type {
@@ -29,8 +30,8 @@ import {
 	exposure,
 	isOpen,
 	newState,
+	pruneFinalOrders,
 	type RiskState,
-	SEEN_HORIZON_MS,
 } from "../domain/state";
 
 export interface RiskExecutionDeps {
@@ -82,6 +83,8 @@ export interface StatusReport {
 	mismatch: boolean;
 	killSwitch: RiskState["killSwitch"];
 	equity: number;
+	/** Drawdown from the high-water mark over its limit (drawdownPct × allocatedCapital): 1 = limit. */
+	drawdownRatio: number;
 	exposureRatio: number;
 	dailyLoss: number;
 	openOrders: number;
@@ -90,6 +93,9 @@ export interface StatusReport {
 }
 
 /** The Risk/Execution context of ADR-0064: the only owner of the order flow. */
+/** A business refusal of `rearm` (answered 403), as opposed to a failure (5xx). */
+export class RearmRefusedError extends Error {}
+
 export class RiskExecution {
 	private _state!: RiskState;
 	private _ready = false;
@@ -191,6 +197,9 @@ export class RiskExecution {
 			mismatch: this._mismatch,
 			killSwitch: state.killSwitch,
 			equity: equity(state),
+			drawdownRatio:
+				Math.max(0, state.hwm - equity(state)) /
+				(this._d.limits.drawdownPct * this._d.limits.allocatedCapital),
 			exposureRatio: exposure(state) / this._d.limits.allocatedCapital,
 			dailyLoss: dailyLoss(state),
 			openOrders: Object.values(state.orders).filter(isOpen).length,
@@ -206,16 +215,15 @@ export class RiskExecution {
 
 	async submitIntent(intent: Intent): Promise<IntentResult> {
 		// Network call outside the queue: a slow trainer never delays an engage, a cancel or a tick.
-		const admissible = await this._bounded(
-			this._d.admission.isAdmissible(intent.model.symbol, intent.model.version),
+		const { admissible, barMs } = await this._bounded(
+			this._d.admission.admission(intent.model.symbol, intent.model.version),
 			"admission"
 		).catch((error) => {
 			this._emit("admission.error", { error: String(error) });
-			return false; // fail closed
+			return { admissible: false, barMs: undefined }; // fail closed
 		});
 		return this._run(async () => {
 			const now = this._now();
-			rollDay(this._state, now);
 			const clientOrderId = `rx-${intent.decisionId}`;
 			// First: an existing idempotency key is never rewritten (ADR-0064 §3).
 			if (
@@ -235,8 +243,9 @@ export class RiskExecution {
 						return [intent.symbol]; // status unknown: fail closed
 					}
 				),
-				this._readPrices([intent.symbol]),
+				this._readPrices([intent.symbol], barMs),
 			]);
+			rollDay(this._state, now, this._d.limits.haltAgeMs);
 			const price = read[intent.symbol];
 			const reason = preTradeReject({
 				intent,
@@ -244,6 +253,7 @@ export class RiskExecution {
 				state: this._state,
 				now,
 				admissible,
+				barMs,
 				reconciled: this._ready,
 				halted,
 				price,
@@ -291,8 +301,8 @@ export class RiskExecution {
 
 	private async _tick(): Promise<void> {
 		const now = this._now();
-		rollDay(this._state, now);
 		await this._readPrices(Object.keys(this._d.limits.instruments));
+		rollDay(this._state, now, this._d.limits.haltAgeMs);
 		for (const order of Object.values(this._state.orders).filter(isOpen)) {
 			if (order.status !== "accepted") {
 				await this._resolve(order);
@@ -327,14 +337,25 @@ export class RiskExecution {
 		const symbol = target.scope === "symbol" ? target.symbol : undefined;
 		return this._run(async () => {
 			if (this._broken) {
-				throw new Error(
+				throw new RearmRefusedError(
 					"Kill switch state is unreadable: restore the state file, then restart"
 				);
 			}
 			const ks = this._state.killSwitch;
 			const current = symbol === undefined ? ks.global : ks.symbols[symbol];
+			const { allocatedCapital, cumulativeLossPct } = this._d.limits;
+			if (
+				symbol === undefined &&
+				equity(this._state) < (1 - cumulativeLossPct) * allocatedCapital
+			) {
+				throw new RearmRefusedError(
+					"Equity is under the cumulative loss floor: lower RISK_ALLOCATED_CAPITAL (the persisted cash is kept) and restart"
+				);
+			}
 			if (current === "drawdown" && actor !== this._d.ownerActor) {
-				throw new Error("Only the owner re-arms after the drawdown stop");
+				throw new RearmRefusedError(
+					"Only the owner re-arms after the drawdown stop"
+				);
 			}
 			// Without this the drawdown (hwm - equity) is still over the limit and the switch re-engages at the next tick.
 			const previousHwm = this._state.hwm;
@@ -346,6 +367,18 @@ export class RiskExecution {
 			} else {
 				delete ks.symbols[symbol];
 			}
+			try {
+				await this._save();
+			} catch (error) {
+				// Not durable: stay engaged in memory, as after a restart, and emit nothing.
+				this._state.hwm = previousHwm;
+				if (symbol === undefined) {
+					ks.global = current ?? null;
+				} else if (current) {
+					ks.symbols[symbol] = current;
+				}
+				throw error;
+			}
 			this._emit("kill_switch.rearmed", {
 				scope: target.scope,
 				symbol,
@@ -356,7 +389,6 @@ export class RiskExecution {
 					hwm: this._state.hwm,
 				}),
 			});
-			await this._save();
 		});
 	}
 
@@ -402,20 +434,7 @@ export class RiskExecution {
 		if (!this._broken) {
 			// Final orders older than the longest window read by the pre-trade checks (rate: 60 s, duplicates).
 			const keepMs = Math.max(60_000, this._d.limits.duplicateWindowMs);
-			const cutoff = this._now() - keepMs;
-			const seen = this._state.seen ?? {};
-			this._state.seen = seen;
-			for (const [id, order] of Object.entries(this._state.orders)) {
-				if (FINAL.has(order.status) && order.createdAt < cutoff) {
-					seen[id] = order.createdAt;
-					delete this._state.orders[id];
-				}
-			}
-			for (const [id, at] of Object.entries(seen)) {
-				if (at < this._now() - SEEN_HORIZON_MS) {
-					delete seen[id];
-				}
-			}
+			pruneFinalOrders(this._state, this._now(), keepMs);
 			await this._d.store.save(this._state);
 		}
 	}
@@ -494,12 +513,20 @@ export class RiskExecution {
 		if (order.status !== "cancel_requested") {
 			this._move(order, "cancel_requested");
 		}
+		await this._brokerCancel(order, () => true);
+	}
+
+	/** Cancels at the broker and applies its fill view when `wanted`; a broker error is emitted, not thrown. */
+	private async _brokerCancel(
+		order: Order,
+		wanted: (view: BrokerOrderView) => boolean
+	): Promise<void> {
 		try {
 			const view = await this._bounded(
 				this._d.broker.cancel(order.clientOrderId),
 				"broker"
 			);
-			if (view) {
+			if (view && wanted(view)) {
 				await this._apply(order, view);
 			}
 		} catch (error) {
@@ -511,17 +538,7 @@ export class RiskExecution {
 		if (order.status === "accepted") {
 			return this._move(order, "expired");
 		}
-		try {
-			const view = await this._bounded(
-				this._d.broker.cancel(order.clientOrderId),
-				"broker"
-			);
-			if (view && view.filledQty > order.filledQty) {
-				await this._apply(order, view);
-			}
-		} catch (error) {
-			this._emitBrokerError(order, error);
-		}
+		await this._brokerCancel(order, (view) => view.filledQty > order.filledQty);
 		if (!FINAL.has(order.status)) {
 			this._move(order, "expired");
 		}
@@ -541,13 +558,7 @@ export class RiskExecution {
 	private _flag(symbol: string | null, reason: string, actor: string): boolean {
 		const ks = this._state.killSwitch;
 		const current = symbol === null ? ks.global : ks.symbols[symbol];
-		// drawdown overrides any other reason: it keeps re-arm owner-only (policy §4.4)
-		if (
-			current &&
-			(reason !== "drawdown" ||
-				current === "drawdown" ||
-				current === "state_unreadable")
-		) {
+		if (!engages(current, reason)) {
 			return false;
 		}
 		if (symbol === null) {
@@ -592,7 +603,9 @@ export class RiskExecution {
 	private async _checkStale(now: number): Promise<void> {
 		const priced = this._pricedSymbols();
 		const stale = priced.filter(
-			(sym) => now - this._state.marks[sym].at > this._d.limits.haltAgeMs
+			(sym) =>
+				now - this._state.marks[sym].at >
+				(this._state.marks[sym].maxAgeMs ?? this._d.limits.haltAgeMs)
 		);
 		for (const sym of stale) {
 			await this._engage(sym, "stale_data");
@@ -602,18 +615,21 @@ export class RiskExecution {
 		}
 	}
 
-	/** Marks the symbols at the prices read (never older than the mark); none when the read failed. */
+	/** Marks the symbols at the prices read (never older than the mark; aged by `barMs` when given); none when the read failed. */
 	private async _readPrices(
-		symbols: string[]
+		symbols: string[],
+		barMs?: number
 	): Promise<Record<string, MarketPrice>> {
 		try {
 			const read = await this._bounded(
-				this._d.prices.latest(symbols),
+				this._d.prices.latest(symbols, barMs),
 				"price read"
 			);
 			for (const [symbol, mark] of Object.entries(read)) {
 				if (mark.at >= (this._state.marks[symbol]?.at ?? 0)) {
-					this._state.marks[symbol] = mark;
+					this._state.marks[symbol] = barMs
+						? { ...mark, maxAgeMs: 2 * barMs }
+						: mark;
 				}
 			}
 			return read;

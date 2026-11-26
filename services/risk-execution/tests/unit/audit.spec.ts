@@ -1,23 +1,36 @@
-import { describe, expect, it, jest } from "@jest/globals";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import promClient from "prom-client";
 
 const POST = jest.fn<(...args: any[]) => Promise<void>>();
 const CREATE = jest.fn<(...args: any[]) => unknown>();
 
 jest.mock("@trading-model/broker-message/create-message-manager", () => ({
-	createServiceMessageManager: (...args: any[]) => CREATE(...args),
+	createServiceBusClient: (...args: any[]) => CREATE(...args),
 }));
 jest.mock("../../src/infrastructure/config/env", () => ({
 	ENV: { INSTANCE_ID: "risk-execution-1", SERVICE_NAME: "risk-execution" },
 }));
 
 import {
-	initRiskOutbox,
-	publishRiskEvent,
-	replayRiskEvents,
+	createRiskOutbox,
+	publishRiskEvent as publish,
 } from "../../src/config/audit";
 
+const empty = {
+	load: async () => [] as any[],
+	save: async (_doc: any[]): Promise<void> => undefined,
+};
+let outbox: Awaited<ReturnType<typeof createRiskOutbox>>;
+const publishRiskEvent = (event: string, fields: Record<string, unknown>) =>
+	publish(outbox, event, fields);
+const replayRiskEvents = () => outbox.replay();
+const initRiskOutbox = async (store: typeof empty) => {
+	outbox = await createRiskOutbox(store);
+};
+
 describe("publishRiskEvent", () => {
+	beforeEach(() => initRiskOutbox(empty));
+
 	it("does not throw when the bus client cannot be built", () => {
 		CREATE.mockImplementationOnce(() => {
 			throw new Error("REDIS_URL or REDIS_SENTINELS is required by the bus");
@@ -30,7 +43,7 @@ describe("publishRiskEvent", () => {
 		["kill_switch.engaged", "risk.kill-switch.engaged"],
 		["kill_switch.rearmed", "risk.kill-switch.rearmed"],
 	])("publishes %s as %s with its payload", (event, topic) => {
-		CREATE.mockReturnValue({ messageManager: { post: { indirect: POST } } });
+		CREATE.mockReturnValue({ publish: POST });
 		POST.mockResolvedValue();
 		publishRiskEvent(event, { mode: "paper" });
 		const [payload, metadata] =
@@ -45,7 +58,7 @@ describe("publishRiskEvent", () => {
 	});
 
 	it("keeps a refused event in the file, replays it once, then empties the file", async () => {
-		CREATE.mockReturnValue({ messageManager: { post: { indirect: POST } } });
+		CREATE.mockReturnValue({ publish: POST });
 		let saved: unknown[] = [];
 		const store = {
 			load: async () => [] as any[],
@@ -73,7 +86,7 @@ describe("publishRiskEvent", () => {
 	});
 
 	it("counts the oldest event dropped when the outbox is full and tracks the depth", async () => {
-		CREATE.mockReturnValue({ messageManager: { post: { indirect: POST } } });
+		CREATE.mockReturnValue({ publish: POST });
 		const full = Array.from({ length: 1000 }, () => ({
 			topic: "risk.order.transitioned",
 			fields: {},
@@ -100,7 +113,7 @@ describe("publishRiskEvent", () => {
 		"WRONGPASS invalid username-password pair or user is disabled.",
 		"NOPERM User risk-execution has no permissions to run the 'xadd' command",
 	])("keeps an event refused by Redis auth in the file: %s", async (reply) => {
-		CREATE.mockReturnValue({ messageManager: { post: { indirect: POST } } });
+		CREATE.mockReturnValue({ publish: POST });
 		let saved: unknown[] = [];
 		await initRiskOutbox({
 			load: async () => [] as any[],

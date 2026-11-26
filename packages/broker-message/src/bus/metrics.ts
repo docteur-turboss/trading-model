@@ -20,6 +20,13 @@ export const MESSAGES_UNROUTED_TOTAL = new promClient.Counter({
 	labelNames: ["topic"] as const,
 });
 
+/** Entries of a topic this subscriber does not know (added by a newer release), acknowledged and ignored. */
+export const MESSAGES_UNKNOWN_TOPIC_TOTAL = new promClient.Counter({
+	name: "mm_messages_unknown_topic_total",
+	help: "Total number of entries acknowledged and ignored because their topic is unknown to this subscriber",
+	labelNames: ["topic"] as const,
+});
+
 export const JOURNAL_TRIMMED_PENDING_TOTAL = new promClient.Counter({
 	name: "mm_journal_trimmed_pending_total",
 	help: "Journal entries trimmed (24 h) before their service received them: messages lost",

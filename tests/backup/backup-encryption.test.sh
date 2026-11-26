@@ -88,6 +88,18 @@ echo "off-site copy required"
 ) && pass "BACKUP_REQUIRE_OFFSITE=true without bucket fails the run" ||
 	failed "a run without off-site copy passed despite BACKUP_REQUIRE_OFFSITE=true"
 
+echo "off-site bucket size"
+mkdir -p "$WORK/bin"
+printf '#!/bin/sh\necho "{\\"count\\":3,\\"bytes\\":123456}"\n' >"$WORK/bin/rclone"
+chmod +x "$WORK/bin/rclone"
+(
+	PATH="$WORK/bin:$PATH" METRICS_FILE="$WORK/size.prom" BACKUP_S3_BUCKET="s3://b" _METRICS_TMP=""
+	: >"$WORK/size.prom.tmp"
+	_METRICS_TMP="$WORK/size.prom.tmp"
+	write_offsite_size 2>/dev/null
+	grep -qx 'backup_offsite_bytes 123456' "$_METRICS_TMP"
+) && pass "backup_offsite_bytes published from rclone size" || failed "backup_offsite_bytes missing"
+
 echo "restore scripts find *.age backups (through the run manifest)"
 BACKUPS="$WORK/backups"
 mkdir -p "$BACKUPS/mysql" "$BACKUPS/spire" "$BACKUPS/checkpoints"

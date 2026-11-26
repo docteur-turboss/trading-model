@@ -146,6 +146,7 @@ if [ -n "$RESTORE_UNTIL" ]; then
   UNTIL_STAMP="$(date -u -d "@${UNTIL_EPOCH}" +%Y-%m-%d_%H%M%S)"
   UNTIL_SQL="$(date -u -d "@${UNTIL_EPOCH}" '+%Y-%m-%d %H:%M:%S')"
   # resolve_backup (backup-lib.sh) skips the runs taken after the instant.
+  # shellcheck disable=SC2034 # read by resolve_backup in backup-lib.sh
   RESTORE_NOT_AFTER="$UNTIL_STAMP"
 fi
 
@@ -337,7 +338,7 @@ purge_expired_rows() {
   fi
   # `user-only` on an empty volume ran before these tables existed: the retention user has no grant yet.
   local t
-  for t in market_candles market_trades market_tickers market_order_books signals; do
+  for t in market_candles market_trades market_tickers market_order_books signals signal_documents; do
     echo "GRANT SELECT, DELETE ON financial_scraper.${t} TO 'retention'@'%';"
   done | mysql_root_sh "$(mysql_primary_pod)" 'mysql --user=root' ||
     warn "Retention grants not applied (no retention user?): the purge below may be denied"

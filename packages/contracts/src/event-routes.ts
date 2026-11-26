@@ -38,10 +38,10 @@ export const EVENT_SUBSCRIBERS: Partial<
 	[ServiceInstanceName.ModelEvaluatorService]: [TrainingEvent.ModelPublished],
 };
 
-/** False only for a known topic published under a name outside its publishers. */
+/** False for a topic absent from `EVENT_PUBLISHERS` and for a publisher outside its list. */
 export function isExpectedPublisher(topic: string, publisher: string): boolean {
 	const allowed = EVENT_PUBLISHERS[topic as EventEnumMap] as
 		| readonly string[]
 		| undefined;
-	return !allowed || allowed.includes(publisher);
+	return Boolean(allowed?.includes(publisher));
 }

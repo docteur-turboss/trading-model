@@ -1,6 +1,6 @@
 # Compliance
 
-Regulatory compliance documentation covering GDPR, MiFID II, MAR, and DORA.
+Regulatory compliance documentation covering GDPR, MiFID II and MAR, with DORA as a good-practice reference (not binding).
 
 | Document | Content |
 | -------- | ------- |

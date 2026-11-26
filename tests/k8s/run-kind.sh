@@ -175,7 +175,7 @@ previous_checkout() {
 # resolves them in the registry. `kind load` imports images under their tag
 # only: a reference by digest is added, so pods pinned by digest find them.
 node_digests() {
-	local node="${CLUSTER}-control-plane" img ref digest
+	local node="${CLUSTER}-control-plane" img ref digest n
 	for img in $IMAGES${2:+ $2}; do
 		ref="ghcr.io/trading-model/$img"
 		digest="$(docker exec "$node" ctr -n k8s.io images ls "name==$ref:$1" | awk 'NR == 2 {print $3}')"
@@ -183,7 +183,9 @@ node_digests() {
 			log "$ref:$1 is not in the kind node"
 			return 1
 		}
-		docker exec "$node" ctr -n k8s.io images tag --force "$ref:$1" "$ref@$digest" >/dev/null
+		for n in $("$KIND" get nodes --name "$CLUSTER"); do # every node: a pod may land on a worker (KIND_NODES=3)
+			docker exec "$n" ctr -n k8s.io images tag --force "$ref:$1" "$ref@$digest" >/dev/null
+		done
 		echo "$img $digest"
 	done
 }
@@ -267,7 +269,10 @@ cluster() {
 		log "cluster $CLUSTER already exists"
 	else
 		# A failed create (kindest/node pull) leaves a half-made cluster: drop it between attempts.
-		retry 3 bash -c '"$0" delete cluster --name "$1" >/dev/null 2>&1; "$0" create cluster --name "$1" --wait 180s' "$KIND" "$CLUSTER"
+		# KIND_NODES=3: the group that proves the production topology (tests/k8s/kind-three-nodes.yaml, #2657).
+		local config=()
+		[ "${KIND_NODES:-1}" != 3 ] || { config=(--config "$ROOT/tests/k8s/kind-three-nodes.yaml"); mkdir -p /tmp/kind-rwx; }
+		retry 3 bash -c '"$0" delete cluster --name "$1" >/dev/null 2>&1; "$0" create cluster --name "$1" --wait 180s "${@:2}"' "$KIND" "$CLUSTER" "${config[@]}"
 	fi
 	# Prerequisite of mysql-tls.yaml (ADR-0060), as on a real cluster (deploy/staging-local/bootstrap.sh).
 	kubectl config use-context "kind-${CLUSTER}" >/dev/null
@@ -740,11 +745,24 @@ upgrade() {
 		mysql_root "INSERT /*+ SET_VAR(cte_max_recursion_depth = 500000) */ INTO financial_scraper.market_trades (symbol, market, source, trade_id, price, quantity, side, timestamp) WITH RECURSIVE n (i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 500000) SELECT 'FILLUSDT', 'crypto', 'binance', $chunk * 500000 + i, 1, 1, 'buy', UTC_TIMESTAMP(3) - INTERVAL 1 DAY FROM n" || return 1
 	done
 
+	# As staging-local (issue #2882): redis-0 held on N-1 by `partition: 1`; redis-last must
+	# bring it the users of N through Sentinel failovers, without losing a journal entry.
+	$K -n "$NS" patch statefulset redis -p '{"spec":{"updateStrategy":{"rollingUpdate":{"partition":1}}}}'
+	local journal_before journal_after
+	journal_before="$(journal_len)" || return 1
 	log "upgrade N-1 → N, availability probed through edge-proxy"
 	verify_collection_gap "upgrade N-1 → N" release_under_probe || {
 		log "the upgrade to release N failed, dropped requests, or stopped the market data 30 s or more"
 		return 1
 	}
+	[ "$($K -n "$NS" get pod redis-0 -o jsonpath='{.metadata.labels.controller-revision-hash}')" = \
+		"$($K -n "$NS" get statefulset redis -o jsonpath='{.status.updateRevision}')" ] &&
+		journal_after="$(journal_len)" && [ "$journal_after" -ge "$journal_before" ] &&
+		wait_for 300 '[ "$(risk_outbox_len)" = 0 ]' || {
+		log "partitioned redis-0 not on the template of N, journal entries lost (${journal_after:-?} after $journal_before) or risk-execution outbox not drained"
+		return 1
+	}
+	log "  partitioned redis-0 on the template of N, journal $journal_before entries before, $journal_after after, risk-execution outbox empty"
 	local widened
 	widened="$(mysql_root "SELECT CONCAT(COLUMN_TYPE, ' ', (SELECT COUNT(*) FROM financial_scraper.market_trades WHERE symbol = 'FILLUSDT'), ' ', (SELECT COUNT(*) FROM financial_scraper._migrations WHERE id = '$widen')) FROM information_schema.columns WHERE table_schema = 'financial_scraper' AND table_name = 'market_trades' AND column_name = 'id'" | tr -d '\r')"
 	[ "$widened" = "bigint unsigned 3000000 1" ] || {
@@ -876,6 +894,7 @@ verify_network() {
 	verify_mysql_tls
 	verify_redis_tls
 	verify_bus
+	[ "${KIND_NODES:-1}" != 3 ] || verify_ha
 
 	log "external path: edge-proxy → api-gateway → trader-trainer"
 	$K -n "$NS" port-forward svc/edge-proxy 18449:8080 >/dev/null 2>&1 &
@@ -889,6 +908,72 @@ verify_network() {
 	}
 	wait_for 120 "curl -sf -o /dev/null -H 'x-api-key: $API_KEY' $url"
 	log "  training status: $(curl -s -H "x-api-key: $API_KEY" "$url")"
+}
+
+# Production topology on 3 nodes (KIND_NODES=3, ci-render.mjs CI_RENDER_HA): Redis master + 2
+# replicas on 3 nodes, a journal write held by a replica (WAIT 1, JOURNAL_MIN_REPLICAS=1), a
+# Sentinel failover, a rolling restart of a 3-replica Deployment that never drops below 2 ready.
+verify_ha() {
+	log "Redis HA: 3 pods on 3 nodes, WAIT 1, Sentinel failover"
+	# After the upgrade and rollback drills (Redis at 1 pod there): release N again with the HA patches of ci-render.mjs.
+	local redis="$K -n $NS exec redis-sentinel-0 -c sentinel --" tls="--tls --cacert /etc/redis-tls/ca.crt --sni redis"
+	sentinel() {
+		$redis sh -c "REDISCLI_AUTH=\$REDIS_INTERNAL_PASSWORD redis-cli $tls -p 26380 --raw SENTINEL $*"
+	}
+	# Scale first, without a template change: the HA render rolls redis-0 (the master) seconds after the
+	# replicas are Ready, before the sentinels know them and each other, and no failover can follow.
+	$K -n "$NS" scale statefulset/redis statefulset/redis-sentinel --replicas=3 || return 1
+	$K -n "$NS" rollout status statefulset/redis --timeout=300s || return 1
+	$K -n "$NS" rollout status statefulset/redis-sentinel --timeout=300s || return 1
+	wait_for 120 '[ "$(sentinel replicas mymaster | grep -c "^ip$")" -ge 2 ] && sentinel ckquorum mymaster | grep -q "3 usable"' || return 1
+	CI_RENDER_HA=1 apply_release "$ROOT" "$WORK/digests-current" || return 1
+	release_script redis-last "$NS" <"$WORK/app.yaml" || {
+		$K -n "$NS" get pod,pvc -o wide || true
+		$K -n "$NS" get events --field-selector type=Warning --sort-by=.lastTimestamp | tail -20 || true
+		$K -n "$NS" logs redis-0 -c redis --tail=30 || true
+		$K -n "$NS" logs redis-0 -c redis --previous --tail=30 || true
+		for s in 0 1 2; do $K -n "$NS" logs "redis-sentinel-$s" -c sentinel --tail=25 || true; done
+		sentinel masters || true
+		sentinel replicas mymaster || true
+		return 1
+	}
+	[ "$($K -n "$NS" get pod -l app.kubernetes.io/component=redis -o jsonpath='{range .items[*]}{.spec.nodeName}{"\n"}{end}' | sort -u | wc -l)" -eq 3 ] || {
+		log "the 3 Redis pods are not on 3 nodes"
+		return 1
+	}
+	master() {
+		local ip
+		ip="$($redis sh -c "REDISCLI_AUTH=\$REDIS_INTERNAL_PASSWORD redis-cli $tls -p 26380 --raw SENTINEL get-master-addr-by-name mymaster" | head -n 1)"
+		$K -n "$NS" get pod -l app.kubernetes.io/component=redis -o jsonpath="{range .items[?(@.status.podIP==\"$ip\")]}{.metadata.name}{end}"
+	}
+	local old new
+	old="$(master)"
+	[ -n "$old" ] || { log "Sentinel names no Redis master"; return 1; }
+	# message-manager's ACL user: HSET under its prefix, then the replicas that hold it.
+	# shortcut: that user is kept one release only (redis-ha.sh, expand/contract); move the probe to a bus user when it goes.
+	[ "$($K -n "$NS" exec "$old" -c redis -- sh -c "c() { REDISCLI_AUTH=\$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli $tls -p 6380 --user message-manager --raw \"\$@\"; }; c HSET trading-model:message-manager:ha-probe a 1 >/dev/null && c WAIT 1 5000")" -ge 1 ] || {
+		log "WAIT 1 on $old: no replica acknowledged"
+		return 1
+	}
+	$K -n "$NS" delete pod "$old" --wait=false
+	wait_for 180 '[ -n "$(master)" ] && [ "$(master)" != "'"$old"'" ]' || { log "Sentinel did not elect another master than $old"; return 1; }
+	new="$(master)"
+	$K -n "$NS" rollout status statefulset/redis --timeout=300s
+	log "  master $old -> $new, 3 pods back"
+
+	# api-gateway: HPA in production (no HPA in CI, so back to 1 replica after), spread DoNotSchedule on 3 nodes.
+	log "rolling restart of api-gateway (3 replicas): at least 2 ready throughout"
+	$K -n "$NS" scale deployment/api-gateway --replicas=3
+	$K -n "$NS" rollout status deployment/api-gateway --timeout=300s
+	$K -n "$NS" rollout restart deployment/api-gateway
+	local low=3 ready
+	until $K -n "$NS" rollout status deployment/api-gateway --timeout=5s >/dev/null 2>&1; do
+		ready="$($K -n "$NS" get deployment api-gateway -o jsonpath='{.status.readyReplicas}')"
+		[ "${ready:-0}" -ge "$low" ] || low="${ready:-0}"
+	done
+	[ "$low" -ge 2 ] || { log "api-gateway fell to $low ready pods during the rolling restart"; return 1; }
+	log "  never below $low ready pods"
+	$K -n "$NS" scale deployment/api-gateway --replicas=1
 }
 
 verify_observability() {
@@ -1128,6 +1213,19 @@ verify_redis_tls() {
 	log "  REDIS_TLS_MODE=$mode, TLS session verified on the data node and the sentinel"
 }
 
+# Entries of journal streams audit-logger reads in N-1 and N, summed (on redis-0, as audit-logger).
+journal_len() {
+	# shellcheck disable=SC2016 # expanded in the pod
+	$K -n "$NS" exec redis-0 -c redis -- sh -c 'for t in audit.heartbeat training.model.published risk.order.transitioned; do
+		REDISCLI_AUTH=$REDIS_AUDIT_LOGGER_PASSWORD redis-cli --user audit-logger XLEN "trading-model:message-manager:journal:$t"; done' |
+		awk '!/^[0-9]+$/ { bad = 1 } { s += $1 } END { if (bad || NR != 3) exit 1; print s }'
+}
+
+# Events risk-execution keeps in its outbox file until the bus accepts them (config/audit.ts).
+risk_outbox_len() {
+	$K -n "$NS" exec deployment/risk-execution -c risk-execution -- node -e 'const f="/data/risk-execution/risk-event-outbox.json",s=require("fs");console.log(s.existsSync(f)?JSON.parse(s.readFileSync(f)).length:0)'
+}
+
 # Bus library (ADR-0073, issue #1835): model-evaluator reads its topic in process
 # (consumer model-evaluator-<uuid>) with its own ACL user, and the audit-dlq CLI
 # reaches the dead streams. Wait until the trainer's publications have given at
@@ -1137,7 +1235,12 @@ verify_bus() {
 	log "bus: BusConsumer of model-evaluator, audit-dlq in audit-logger"
 	wait_for 120 "$K -n $NS exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=\$REDIS_MODEL_EVALUATOR_PASSWORD redis-cli --user model-evaluator XINFO CONSUMERS $key model-evaluator' | grep -q '^model-evaluator-'"
 	# Release N-1 workers may have read the entry first: assert on the group (read, nothing pending, no lag), not on this pod's counter.
-	wait_for 600 "$K -n $NS exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=\$REDIS_MODEL_EVALUATOR_PASSWORD redis-cli --user model-evaluator XINFO GROUPS $key' | awk 'prev==\"name\"{g=(\$0==\"model-evaluator\")} g&&prev==\"entries-read\"{r=\$0} g&&prev==\"pending\"{p=\$0} g&&prev==\"lag\"{l=\$0} {prev=\$0} END{exit !(r>=1 && p==0 && l==0)}'"
+	wait_for 600 "$K -n $NS exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=\$REDIS_MODEL_EVALUATOR_PASSWORD redis-cli --user model-evaluator XINFO GROUPS $key' | awk 'prev==\"name\"{g=(\$0==\"model-evaluator\")} g&&prev==\"entries-read\"{r=\$0} g&&prev==\"pending\"{p=\$0} g&&prev==\"lag\"{l=\$0} {prev=\$0} END{exit !(r>=1 && p==0 && l==0)}'" || {
+		$K -n "$NS" exec redis-0 -c redis -- sh -c "REDISCLI_AUTH=\$REDIS_MODEL_EVALUATOR_PASSWORD redis-cli --user model-evaluator XINFO GROUPS $key" 2>&1 | tail -40
+		$K -n "$NS" get pods -o wide | grep -E 'redis|model-evaluator|trader-trainer'
+		$K -n "$NS" logs deploy/trader-trainer -c trader-trainer --tail=60 2>&1 | grep -iE "train|publish|error" | grep -v ENOTFOUND | tail -30
+		return 1
+	}
 	$K -n "$NS" exec deploy/audit-logger -c audit-logger -- node services/audit-logger/dist/application/dlq-cli.js kind list training.model.published
 }
 

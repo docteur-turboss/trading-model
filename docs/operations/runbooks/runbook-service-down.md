@@ -129,3 +129,14 @@ kubectl describe pod -n trading-model -l app.kubernetes.io/component=<job>      
 ```
 
 Compose: `docker compose ps <job>`. Also check the scrape config and `/targets` in Prometheus for the job.
+
+## Edge-proxy probe failing
+
+**Alert:** `EdgeProxyProbeFailing` (critical, 2 min). The edge-proxy is scraped by no job, so only the blackbox `/ping` probe (`http://edge-proxy:8080/ping`) sees it down. The cause of 502/504/429 is in its access log (`upstream_status`, `upstream_connect_time`).
+
+```bash
+kubectl get deploy,pods -n trading-model -l app.kubernetes.io/component=edge-proxy
+kubectl logs -n trading-model -l app.kubernetes.io/component=edge-proxy --tail=50
+```
+
+Compose: `docker compose ps edge-proxy`.

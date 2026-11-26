@@ -1,7 +1,5 @@
 export {
-	AuthToken,
 	ClientIdentity,
-	Environment,
 	Role,
 	Subject,
 } from "./auth-ids";

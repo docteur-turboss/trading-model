@@ -29,7 +29,7 @@
  *
  * Usage: node scripts/config-flags-check.mjs [--list]
  */
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WORKSPACE_ROOTS, walk } from './lib/fs.mjs';
@@ -46,7 +46,7 @@ const ALLOWED_UNSET = {
   MONGO_DLQ_USERNAME: "same one-off import",
   BROKER_API_KEY: "live keys exist in the production Secret only and no live adapter ships yet (ADR-0064 §6): the code refuses to start paper mode when they are present",
   BROKER_API_SECRET: "same as BROKER_API_KEY",
-  DECISION_SKIP_ADMISSION: "test waiver set only by tests/e2e/docker-compose.e2e.yml, never by a deployment; refused when NODE_ENV=production (ADR-0090)",
+  DECISION_SKIP_ADMISSION: "test waiver set only by tests/e2e/docker-compose.e2e.yml, never by a deployment; refused when NODE_ENV=production (ADR-0092)",
 };
 
 /** Profiles: what a real deployment can set. Tests and docs are not profiles. */
@@ -154,10 +154,10 @@ for (const [name, files] of [...parsedReads].sort(([a], [b]) => a.localeCompare(
     errors.push(`${name}: read from a parsed env but declared by no schema — always undefined (${[...files].join(', ')})`);
   }
 }
-// `cp .env.example .env` must be enough for compose: every `${X:?}` needs an uncommented, non-empty `X=` line.
+// Every `${X:?}` needs an uncommented `X=` line in .env.example (it may be empty: secrets are left blank so a raw copy is refused by compose).
 const envExample = readFileSync(join(ROOT, '.env.example'), 'utf8');
 for (const [, name] of readFileSync(join(ROOT, 'docker-compose.yml'), 'utf8').matchAll(/\$\{([A-Z0-9_]+):\?/g)) {
-  if (!new RegExp(`^${name}=\\S`, 'm').test(envExample)) errors.push(`${name}: required by docker-compose.yml but has no uncommented, non-empty line in .env.example`);
+  if (!new RegExp(`^${name}=`, 'm').test(envExample)) errors.push(`${name}: required by docker-compose.yml but has no uncommented line in .env.example`);
 }
 for (const name of Object.keys(ALLOWED_UNSET)) {
   if (!read.has(name)) errors.push(`${name}: in ALLOWED_UNSET but no code reads it`);
@@ -173,7 +173,8 @@ if (errors.length) {
   );
   process.exit(1);
 }
-const counts = rows.reduce((acc, row) => ({ ...acc, [row.kind]: (acc[row.kind] ?? 0) + 1 }), {});
+const counts = {};
+for (const row of rows) counts[row.kind] = (counts[row.kind] ?? 0) + 1;
 console.log(
   `config-flags OK: ${rows.length} variables read (${counts.required ?? 0} required, ${counts.default ?? 0} with default, ${counts.optional ?? 0} optional, ${counts.off ?? 0} off by default), ${profileFiles.length} profile files`,
 );

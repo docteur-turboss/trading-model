@@ -37,7 +37,7 @@ services:
   # External E2E traffic authenticates with this key (tests/e2e/helpers.ts).
   api-gateway:
     environment:
-      AUTH_TOKENS: e2e:read+risk:admin:e2e-api-key-0123456789abcdef0123456789abcdef
+      AUTH_TOKENS: e2e:read+audit:read+risk:admin:e2e-api-key-0123456789abcdef0123456789abcdef
       # The k6 smoke sends ~240 req/min from one IP; the default 100/min would answer 429.
       # Scenarios and stress need more: tests/load/README.md, "Rate limit".
       RATE_LIMIT_MAX: '2000'
@@ -64,7 +64,7 @@ services:
       # trainer ACL) is deliberately not listed, to prove the 403.
       MODEL_DOWNLOAD_CALLERS: api-gateway,model-evaluator,decision-consumer
 
-  # ADR-0090: the stub history cannot pass the admission gate (43 200 test bars), so the E2E
+  # ADR-0092: the stub history cannot pass the admission gate (43 200 test bars), so the E2E
   # waives it here and nowhere else; both services refuse the waiver when NODE_ENV=production.
   # PROMOTED_MODELS is set by risk-execution.e2e.spec.ts once the model version is known.
   decision-consumer:

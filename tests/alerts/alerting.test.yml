@@ -55,9 +55,9 @@ tests:
       - series: 'http_requests_total{job="api-gateway",instance="a",method="GET",path="/b",status="500"}'
         values: '0+1x40'
       - series: 'http_requests_total{job="model-evaluator",instance="d",method="GET",path="/c",status="200"}'
-        values: '0+90x40'
+        values: '0+80x40'
       - series: 'http_requests_total{job="model-evaluator",instance="d",method="GET",path="/c",status="503"}'
-        values: '0+10x40'
+        values: '0+20x40'
     alert_rule_test:
       - eval_time: 20m
         alertname: SLOAvailabilityFastBurn
@@ -65,12 +65,12 @@ tests:
           - exp_labels: {severity: critical, slo: availability, job: model-evaluator}
             exp_annotations:
               summary: 'Availability SLO fast burn rate exceeded'
-              description: '5xx ratio > 1.44% over both 1h and 5m (14.4x the 0.1% budget of the 99.9% SLO). Probes (/ping, /health/ready, /metrics) are not counted.'
+              description: '5xx ratio > 14.4% over both 1h and 5m (14.4x the 1% budget of the 99% SLO). Probes (/ping, /health/ready, /metrics) are not counted.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
   # Multi-window burn rate. "steady": 20% of 5xx for 7 h, long and short
   # windows over every threshold: all four fire. "spike": 5xx only during the
-  # last 5 min, the 1h window stays under 1.44%: nothing fires. "probes": the
+  # last 5 min, the 1h and 6h windows stay under 14.4% and 6%: nothing fires. "probes": the
   # only 5xx are on /ping and /health/ready, which the SLI ignores.
   - name: burn rate needs both windows and ignores probes
     interval: 1m
@@ -82,7 +82,7 @@ tests:
       - series: 'http_requests_total{job="spike",path="/a",status="200"}'
         values: '0+100x420'
       - series: 'http_requests_total{job="spike",path="/a",status="500"}'
-        values: '0x415 10+10x4'
+        values: '0x415 50+50x4'
       - series: 'http_requests_total{job="probes",path="/a",status="200"}'
         values: '0+100x420'
       - series: 'http_requests_total{job="probes",path="/ping",status="500"}'
@@ -96,7 +96,7 @@ tests:
           - exp_labels: {severity: critical, slo: availability, job: steady}
             exp_annotations:
               summary: 'Availability SLO fast burn rate exceeded'
-              description: '5xx ratio > 1.44% over both 1h and 5m (14.4x the 0.1% budget of the 99.9% SLO). Probes (/ping, /health/ready, /metrics) are not counted.'
+              description: '5xx ratio > 14.4% over both 1h and 5m (14.4x the 1% budget of the 99% SLO). Probes (/ping, /health/ready, /metrics) are not counted.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
       - eval_time: 419m
         alertname: SLOAvailabilitySlowBurn
@@ -104,9 +104,9 @@ tests:
           - exp_labels: {severity: warning, slo: availability, job: steady}
             exp_annotations:
               summary: 'Availability SLO slow burn rate exceeded'
-              description: '5xx ratio > 0.6% over both 6h and 30m (6x the 0.1% budget of the 99.9% SLO). Probes are not counted.'
+              description: '5xx ratio > 6% over both 6h and 30m (6x the 1% budget of the 99% SLO). Probes are not counted.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
-      # Only "steady" is expected above: "spike" (9% over 5m, 0.8% over 1h) and
+      # Only "steady" is expected above: "spike" (33% over 5m, under 5% over 1h, under 1% over 6h) and
       # "probes" (all 5xx on /ping, /health/ready) must not fire.
 
   # 90% of the requests in < 0.1s, 10% between 5s and 10s: p95 = 7.5s, over
@@ -269,37 +269,44 @@ tests:
         alertname: TrainingCompletionRateCritical
         exp_alerts: []
 
-  # Event loop lag outside the GA, constant.
-  - name: trainer event loop lag is high
+  # p99 lag of the gateway above 200 ms for 5 min; a 3 min spike on the trainer stays silent.
+  - name: event loop lag p99 is high on one service
     interval: 1m
     input_series:
-      - series: 'nodejs_eventloop_lag_max_seconds{job="trader-trainer",instance="t"}'
-        values: '30x60'
+      - series: 'nodejs_eventloop_lag_p99_seconds{job="api-gateway",instance="g"}'
+        values: '0.5x30'
+      - series: 'nodejs_eventloop_lag_p99_seconds{job="trader-trainer",instance="t"}'
+        values: '0x10 0.5x3 0x17'
     alert_rule_test:
-      - eval_time: 40m
-        alertname: TrainerEventLoopLagHigh
+      - eval_time: 20m
+        alertname: EventLoopLagHigh
         exp_alerts:
-          - exp_labels: {severity: warning, job: trader-trainer}
+          - exp_labels: {severity: warning, job: api-gateway}
             exp_annotations:
-              summary: 'trader-trainer event loop lag above 10 s'
-              description: 'Trainer event loop lag reached 30s (threshold 10 s) outside or inside GA evaluation. Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventlooplaghigh'
+              summary: 'api-gateway event loop lag p99 above 200 ms'
+              description: 'api-gateway event loop lag p99 is 500ms (threshold 200 ms) for 5 min. Heartbeats and deliveries time out when it grows.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#eventlooplaghigh'
 
-  # Lag above 10 s for 7 minutes only: fires on the 5m rule.
-  - name: trainer event loop lag is a short spike
+  - name: db-index-build job failed
     interval: 1m
     input_series:
-      - series: 'nodejs_eventloop_lag_max_seconds{job="trader-trainer",instance="t"}'
-        values: '0x10 30x7 0x43'
+      - series: 'kube_job_failed{job="kube-state-metrics",namespace="trading-model",job_name="db-index-build",condition="true"}'
+        values: '0x5 1x10'
+      # one failed pod retried by backoffLimit, Job then succeeds: condition never true
+      - series: 'kube_job_status_failed{job="kube-state-metrics",namespace="trading-model",job_name="db-index-build"}'
+        values: '0x5 1x10'
     alert_rule_test:
-      - eval_time: 16m
-        alertname: TrainerEventLoopLagHigh
+      - eval_time: 3m
+        alertname: DbIndexBuildFailed
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: DbIndexBuildFailed
         exp_alerts:
-          - exp_labels: {severity: warning, job: trader-trainer}
+          - exp_labels: {severity: warning}
             exp_annotations:
-              summary: 'trader-trainer event loop lag above 10 s'
-              description: 'Trainer event loop lag reached 30s (threshold 10 s) outside or inside GA evaluation. Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventlooplaghigh'
+              summary: 'Job db-index-build failed'
+              description: 'The paged-read index build failed: reads by symbol use the old idx_*_symbol index and a sort until it succeeds (ADR-0088).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#dbindexbuildfailed'
 
   # No session ever succeeds: the `success` series does not exist.
   - name: every training session fails
@@ -384,6 +391,25 @@ tests:
       - eval_time: 25m
         alertname: ServiceDown
         exp_alerts: []
+
+  # No `up` series for the edge-proxy: only its blackbox probe sees it down.
+  - name: edge-proxy probe failing for 2 minutes
+    interval: 1m
+    input_series:
+      - series: 'probe_success{job="blackbox-edge-proxy",service="edge-proxy",instance="http://edge-proxy:8080/ping"}'
+        values: '1x3 0x10'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: EdgeProxyProbeFailing
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: EdgeProxyProbeFailing
+        exp_alerts:
+          - exp_labels: {severity: critical, job: blackbox-edge-proxy, service: edge-proxy, instance: 'http://edge-proxy:8080/ping'}
+            exp_annotations:
+              summary: 'edge-proxy /ping probe fails'
+              description: 'The blackbox-exporter has not got a 200 from the edge-proxy /ping for 2 minutes: the API is unreachable from outside while the server-side SLO can stay green.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#edge-proxy-probe-failing'
 
   # ADR-0057: the HTTP replica reports 0, the collector 1 until it loses the
   # Lease at 10m and nobody takes it. A rollout handover (one minute without
@@ -470,6 +496,8 @@ tests:
         values: '1x10'
       - series: 'up{job="risk-execution",instance="i"}'
         values: '1x10'
+      - series: 'up{job="decision-consumer",instance="i"}'
+        values: '1x10'
     alert_rule_test:
       - eval_time: 10m
         alertname: ServiceTargetsMissing
@@ -488,6 +516,11 @@ tests:
       - eval_time: 10m
         alertname: ServiceTargetsMissing
         exp_alerts:
+          - exp_labels: {severity: critical, job: decision-consumer}
+            exp_annotations:
+              summary: 'decision-consumer has no scrape target'
+              description: 'Prometheus has had no up series for decision-consumer for 5 minutes: no pod or container is registered (0 replicas, Pending pods, broken scrape config). ServiceDown cannot fire without a series.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md#no-scrape-target'
           - exp_labels: {severity: critical, job: model-evaluator}
             exp_annotations:
               summary: 'model-evaluator has no scrape target'
@@ -1391,6 +1424,27 @@ tests:
               description: 'The backup-data PVC (100Gi) is filling up: dumps grow with the market data. Check the retention (RETENTION_DAYS) or grow the volume before a night of backups fails.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
+  # 120 GB fires after 1 h; 50 GB and an absent metric stay quiet.
+  - name: an off-site bucket over 100 GB warns
+    interval: 1m
+    input_series:
+      - series: 'backup_offsite_bytes{job="backup-metrics"}'
+        values: '128849018880x90'
+      - series: 'backup_offsite_bytes{job="other"}'
+        values: '53687091200x90'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: BackupOffsiteBucketLarge
+        exp_alerts: []
+      - eval_time: 70m
+        alertname: BackupOffsiteBucketLarge
+        exp_alerts:
+          - exp_labels: {severity: warning, job: backup-metrics}
+            exp_annotations:
+              summary: 'Off-site backup bucket is over 100 GB'
+              description: 'The Object Lock bucket (compliance mode) only grows: locked objects cannot be deleted. Check dump sizes and the monthly tier before the bill does.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+
   # Retention (ADR-0051): a failed run alerts after 5 m; no success for 36 h
   # alerts after one more hour.
   - name: a failed retention run and a stale one warn
@@ -1452,22 +1506,22 @@ tests:
           - labels: '{job="api-gateway"}'
             value: 1
 
-  # Budget remaining = (1 - error ratio / 0.001) * 100 over the window:
-  # no 5xx = 100% (no alert; 5xx on /ping ignored), 0.09% of 5xx = 10% (fires, with the real job).
+  # Budget remaining = (1 - error ratio / 0.01) * 100 over the window:
+  # no 5xx = 100% (no alert; 5xx on /ping ignored), 0.9% of 5xx = 10% (fires, with the real job).
   - name: error budget alert fires below 20% remaining
     interval: 1m
     input_series:
       - series: 'http_requests_total{job="api-gateway",instance="a",path="/a",status="200"}'
         values: '0+1000x300'
       - series: 'http_requests_total{job="model-evaluator",instance="d",path="/c",status="200"}'
-        values: '0+1000x300'
+        values: '0+991x300'
       # 5xx on a probe path must not move the SLI.
       - series: 'http_requests_total{job="api-gateway",instance="a",path="/ping",status="500"}'
         values: '0+500x300'
       - series: 'http_requests_total{job="model-evaluator",instance="d",path="/c",status="500"}'
-        values: '0+0.9x300'
+        values: '0+9x300'
     promql_expr_test:
-      - expr: round((1 - slo:sli_error:ratio_rate30d / 0.001) * 100)
+      - expr: round((1 - slo:sli_error:ratio_rate30d / 0.01) * 100)
         eval_time: 200m
         exp_samples:
           - labels: '{job="api-gateway"}'
@@ -1481,7 +1535,7 @@ tests:
           - exp_labels: {severity: warning, slo: availability, job: model-evaluator}
             exp_annotations:
               summary: 'Error budget of model-evaluator below 20%'
-              description: 'Less than 20% of the 30d availability error budget (99.9%) remains: full change freeze except critical fixes and rollbacks (slo.md, Error Budget Policy).'
+              description: 'Less than 20% of the 30d availability error budget (99%) remains: full change freeze except critical fixes and rollbacks (slo.md, Error Budget Policy).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slo-error-budget-low'
 
   - name: loki push failures and stale retention
@@ -1684,6 +1738,32 @@ tests:
       - eval_time: 50m
         alertname: KubeContainerOOMKilled
         exp_alerts: []
+
+  # 92% of the limit fires; 80% and a container without limit (0) do not.
+  - name: a container working set above 90% of its limit fires before the OOMKill
+    interval: 1m
+    input_series:
+      - series: 'container_memory_working_set_bytes{job="cadvisor",node="n1",namespace="trading-model",pod="api-gateway-1",container="api-gateway"}'
+        values: '92x10'
+      - series: 'container_spec_memory_limit_bytes{job="cadvisor",node="n1",namespace="trading-model",pod="api-gateway-1",container="api-gateway"}'
+        values: '100x10'
+      - series: 'container_memory_working_set_bytes{job="cadvisor",node="n1",namespace="trading-model",pod="mysql-0",container="mysql"}'
+        values: '80x10'
+      - series: 'container_spec_memory_limit_bytes{job="cadvisor",node="n1",namespace="trading-model",pod="mysql-0",container="mysql"}'
+        values: '100x10'
+      - series: 'container_memory_working_set_bytes{job="cadvisor",node="n1",namespace="trading-model",pod="jaeger-1",container="jaeger"}'
+        values: '500x10'
+      - series: 'container_spec_memory_limit_bytes{job="cadvisor",node="n1",namespace="trading-model",pod="jaeger-1",container="jaeger"}'
+        values: '0x10'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: KubeContainerMemoryNearLimit
+        exp_alerts:
+          - exp_labels: {severity: warning, namespace: trading-model, pod: api-gateway-1, container: api-gateway}
+            exp_annotations:
+              summary: 'api-gateway-1 (api-gateway) is close to its memory limit'
+              description: 'Container api-gateway of api-gateway-1 uses 92% of its memory limit (working set): the kernel kills it at 100%.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubecontaineroomkilled'
 
   - name: a PVC over 80% full is reported with its usage
     interval: 1m
@@ -2065,6 +2145,24 @@ tests:
               description: 'An allowed instrument has no price newer than 15 min: its orders halt (kill switch on that symbol, global when every symbol is stale).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskmarketdatastale'
 
+  - name: risk-execution drawdown approaching
+    interval: 1m
+    input_series:
+      - series: 'risk_drawdown_ratio{job="risk-execution",mode="paper"}'
+        values: '0.5 0.8+0x20'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: RiskDrawdownApproaching
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: RiskDrawdownApproaching
+        exp_alerts:
+          - exp_labels: {severity: warning, job: risk-execution, mode: paper}
+            exp_annotations:
+              summary: 'Drawdown above 70 % of its limit (paper)'
+              description: 'The drawdown from the high-water mark has been above 70 % of its limit for 5 min. At 100 % the kill switch engages by itself.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskdrawdownapproaching'
+
   - name: risk-execution tick failures
     interval: 1m
     input_series:
@@ -2158,6 +2256,24 @@ tests:
               description: 'The promoted models decide once per closed bar, so three rejections with the same reason code in an hour are not noise: the consumer sends a price or a size the limits refuse (ADR-0087).'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#decisionintentsrejected'
 
+  - name: a failed decision pass fires DecisionPassFailing
+    interval: 1m
+    input_series:
+      - series: 'decision_skipped_total{job="decision-consumer",reason="error"}'
+        values: '0+0x5 1+0x20'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: DecisionPassFailing
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: DecisionPassFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, job: decision-consumer}
+            exp_annotations:
+              summary: 'decision-consumer decision pass failed in the last hour'
+              description: 'A decision pass or a promoted model failed (decision_skipped_total{reason="error"}): no intent is decided while it keeps failing, so paper trading is stopped.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#decisionpassfailing'
+
   # Deployed with no promoted model: no price ever received, the service publishes age 0 and no switch, so nothing pages.
   - name: risk-execution without a price flow
     interval: 1m
@@ -2173,3 +2289,110 @@ tests:
       - eval_time: 30m
         alertname: RiskMarketDataStale
         exp_alerts: []
+
+  # Loss counters: a series that never incremented stays silent; "retried" collisions do not fire, "exhausted" does.
+  - name: loss counters fire on any increase in an hour
+    interval: 1m
+    input_series:
+      - series: 'bus_publisher_rejected_total{job="decision-consumer",topic="risk",publisher="x"}'
+        values: '0 0 1x80'
+      - series: 'mm_journal_unreadable_total{job="audit-logger",topic="audit"}'
+        values: '0x80'
+      - series: 'tt_model_publish_failures_total{job="trader-trainer",symbol="BTCUSDT"}'
+        values: '0 0 1x80'
+      - series: 'tt_signal_read_errors_total{job="trader-trainer",symbol="BTCUSDT"}'
+        values: '0x80'
+      - series: 'audit_chain_sequence_collisions_total{job="audit-logger",outcome="retried"}'
+        values: '0 0 5x80'
+      - series: 'audit_chain_sequence_collisions_total{job="audit-logger",outcome="exhausted"}'
+        values: '0 0 1x80'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: BusPublisherRejected
+        exp_alerts:
+          - exp_labels: {severity: critical, job: decision-consumer, topic: risk, publisher: x}
+            exp_annotations:
+              summary: 'Bus entries rejected: x may not publish on risk'
+              description: 'A subscriber dropped entries whose publisher is not allowed on the topic (EVENT_PUBLISHERS): a misconfigured service, or a service that spoofs another publisher.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-message-bus-outage.md#7-entries-dropped-unreadable-or-publisher-rejected'
+      - eval_time: 10m
+        alertname: BusJournalUnreadable
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: ModelPublishFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, job: trader-trainer}
+            exp_annotations:
+              summary: 'trader-trainer stored a model but could not publish it'
+              description: 'decision-consumer and model-evaluator never learn about the stored model until the next one is published.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#modelpublishfailing'
+      - eval_time: 10m
+        alertname: TrainerSignalReadErrors
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: AuditChainCollisionsExhausted
+        exp_alerts:
+          - exp_labels: {severity: warning, job: audit-logger}
+            exp_annotations:
+              summary: 'audit-logger gave up appending an event after repeated chain collisions'
+              description: 'Retries on the chain sequence ran out (writers contend for the head, ADR-0050): the event was not appended.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-audit-chain-broken.md#auditchaincollisionsexhausted'
+
+  - name: slow latency burn, stale or failed or unencrypted backups and failing rule evaluation fire
+    interval: 5m
+    input_series:
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",instance="a",path="/v1/x",le="1"}'
+        values: '0x400'
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",instance="a",path="/v1/x",le="5"}'
+        values: '0+500x400'
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",instance="a",path="/v1/x",le="+Inf"}'
+        values: '0+500x400'
+      - series: 'backup_last_success_timestamp'
+        values: '0x400'
+      - series: 'backup_last_run_timestamp'
+        values: '0x400'
+      - series: 'backup_encrypted'
+        values: '0x400'
+      - series: 'prometheus_rule_evaluation_failures_total'
+        values: '0+1x400'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: SLOLatencySlowBurn
+        exp_alerts:
+          - exp_labels: {severity: warning, slo: latency, job: api-gateway}
+            exp_annotations:
+              summary: 'Latency SLO: p95 latency above 3 s'
+              description: 'P95 latency > 3s over 1h — approaching 2s SLO target breach.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#which-alert-tells-what'
+      - eval_time: 28h
+        alertname: BackupFailed
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: 'Database backup failed or too old'
+              description: 'Last successful backup was more than 25 hours ago — check backup job.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+      - eval_time: 28h
+        alertname: BackupJobStale
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: 'Backup job has not run for more than 26 hours'
+              description: 'The db-backup CronJob stopped running (suspended, failing to start or stuck): no new backup is being taken.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+      - eval_time: 10m
+        alertname: BackupUnencrypted
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: 'Backups are not encrypted'
+              description: 'No age recipient configured (BACKUP_AGE_RECIPIENTS; ConfigMap backup-encryption in K8s), or fewer distinct recipients than BACKUP_MIN_RECIPIENTS (2 in production): backups are refused or written in clear.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+      - eval_time: 30m
+        alertname: PrometheusRuleEvaluationFailures
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: 'Prometheus fails to evaluate alert rules'
+              description: 'Some alert rules cannot be evaluated: alerts may be silently missing.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#alerts-on-the-alerting-path'

@@ -21,10 +21,26 @@ new promClient.Gauge({
 	},
 });
 
-function _addPingRoute(app: Application): void {
+function _addHealthRoutes(
+	app: Application,
+	readiness?: ReadinessCheck[]
+): void {
 	app.get(PING_PATH, (_req, res) => {
 		res.json({ status: HEALTH_STATUS_OK });
 	});
+	if (readiness !== undefined) {
+		app.get("/health/ready", createReadinessHandler(readiness));
+	}
+}
+
+/**
+ * App of the plain-HTTP probe listener: `/ping` and `/health/ready` only,
+ * nothing else is mounted (ADR-0091).
+ */
+export function createHealthApp(readiness?: ReadinessCheck[]): Application {
+	const app = express();
+	_addHealthRoutes(app, readiness);
+	return app;
 }
 
 /** Configures the Express app, body parsers, and ping route. */
@@ -39,10 +55,7 @@ export function configureApp(
 	app.use(httpMetricsMiddleware);
 	app.use(express.json({ limit: "1mb" }));
 	app.use(express.urlencoded({ extended: false }));
-	_addPingRoute(app);
-	if (config.readiness !== undefined) {
-		app.get("/health/ready", createReadinessHandler(config.readiness));
-	}
+	_addHealthRoutes(app, config.readiness);
 
 	return app;
 }

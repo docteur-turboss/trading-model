@@ -91,7 +91,7 @@ TLS_CERT_PATH=/run/spire/svid/svid.pem
 TLS_CA_PATH=/run/spire/svid/bundle.pem
 
 # Gateway auth (api-gateway)
-AUTH_TOKENS=ops:read:<secret>
+AUTH_TOKENS=ops:read+audit:read:<secret>
 AUTH_TOKEN_HEADER=x-api-key
 ```
 

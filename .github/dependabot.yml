@@ -8,6 +8,8 @@ updates:
     target-branch: "development"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 3
     ignore:
       # TypeScript 7 (native compiler) has no JS compiler API yet: ts-jest
       # (peer typescript <7) and typedoc (peer <=6.0.x) cannot run on it.
@@ -20,6 +22,8 @@ updates:
     target-branch: "development"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 3
 
   - package-ecosystem: "docker"
     directory: "/"
@@ -54,6 +58,8 @@ updates:
     target-branch: "development"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 3
 
   - package-ecosystem: "docker-compose"
     directory: "/"

@@ -24,6 +24,9 @@ rules:
   - apiGroups: [apps]
     resources: [deployments, statefulsets]
     verbs: [list, watch]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [list, watch]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -71,7 +74,7 @@ spec:
           args:
             # Only what the Role lets it list: any other resource would fail its watch.
             - --namespaces=$(POD_NAMESPACE)
-            - --resources=deployments,persistentvolumeclaims,pods,statefulsets
+            - --resources=deployments,jobs,persistentvolumeclaims,pods,statefulsets
             - --port=8080
             - --telemetry-port=8081
           env:

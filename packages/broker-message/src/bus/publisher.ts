@@ -16,7 +16,7 @@ export async function publishToBus(
 	payload: unknown,
 	metadata: Omit<MessageMetadata, "emittedAt" | "messageId">
 ): Promise<void> {
-	const message = createMessage(payload, withTraceparent(metadata as never));
+	const message = createMessage(payload, withTraceparent(metadata));
 	const { topic, messageId } = message.metadata;
 	if (!(await journal.hasSubscribers(topic))) {
 		if (message.metadata.delivery?.requireSubscriber) {

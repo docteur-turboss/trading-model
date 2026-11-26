@@ -79,7 +79,7 @@ patches:
                   target_label: node
               metric_relabel_configs:
                 - source_labels: [__name__]
-                  regex: 'container_(cpu_usage_seconds_total|memory_working_set_bytes|spec_memory_limit_bytes|oom_events_total)'
+                  regex: 'container_(cpu_usage_seconds_total|cpu_cfs_throttled_periods_total|cpu_cfs_periods_total|memory_working_set_bytes|spec_memory_limit_bytes|oom_events_total)'
                   action: keep
   # Badger outgrew its PVC (#1773), then was OOMKilled every 80 min and re-read
   # ~8 GB of the shared HDD at each start (#2583): staging keeps traces in an

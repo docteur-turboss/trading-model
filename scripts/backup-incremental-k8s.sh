@@ -23,6 +23,7 @@ COMPONENTS="mysql,mongodb-audit"
 INCREMENTAL_RETENTION_HOURS="${INCREMENTAL_RETENTION_HOURS:-72}"
 K8S_NAMESPACE="${K8S_NAMESPACE:-trading-model}"
 METRICS_FILE="${METRICS_FILE:-}"
+# shellcheck disable=SC2034 # read by backup-lib.sh, sourced below
 BACKUP_RUN="incremental"
 
 while [[ $# -gt 0 ]]; do

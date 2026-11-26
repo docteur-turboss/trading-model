@@ -7,7 +7,7 @@ import {
 	SourceId,
 } from "@trading-model/contracts/wire/signals";
 import { z } from "zod";
-import { _field } from "./cron-period";
+import { parseCronField } from "./cron-period";
 
 /** §1.3: how a source is fetched. A protocol enters this list with its worker (`createProtocolWorkers`). */
 export const Protocol = z.enum(["rest_api"]);
@@ -210,9 +210,9 @@ export function dailyRequests(source: {
 	const [seconds = "0", minute = "*", hour = "*"] =
 		fields.length === 6 ? fields : ["0", ...fields];
 	const sizes = [
-		_field(seconds, 0, 59),
-		_field(minute, 0, 59),
-		_field(hour, 0, 23),
+		parseCronField(seconds, 0, 59),
+		parseCronField(minute, 0, 59),
+		parseCronField(hour, 0, 23),
 	].map((values) => values?.size ?? 0);
 	return sizes.reduce(
 		(product, size) => product * size,

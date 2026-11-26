@@ -30,7 +30,7 @@ const RISK_EXECUTION_ENV_SHAPE = {
 	/** Only this actor re-arms after the drawdown stop (policy §4.4). */
 	RISK_OWNER_ACTOR: z.string().min(1).default("owner"),
 	RISK_TICK_MS: z.coerce.number().int().positive().default(10_000),
-	/** E2E overlay only (ADR-0090): every model passes the admission check. Refused in production. */
+	/** E2E overlay only (ADR-0092): every model passes the admission check. Refused in production. */
 	DECISION_SKIP_ADMISSION: z.stringbool().default(false),
 };
 
@@ -41,7 +41,7 @@ export const ENV = validateEnv(
 		.refine(
 			(env) => !(env.DECISION_SKIP_ADMISSION && env.NODE_ENV === "production"),
 			{
-				message: "DECISION_SKIP_ADMISSION is refused in production (ADR-0090)",
+				message: "DECISION_SKIP_ADMISSION is refused in production (ADR-0092)",
 				path: ["DECISION_SKIP_ADMISSION"],
 			}
 		)

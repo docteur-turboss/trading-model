@@ -119,8 +119,7 @@ export class HttpClient {
 			context.urlStr,
 			context.options
 		);
-		// Re-read key/cert/bundle on every request so SVID rotation (SPIFFE,
-		// ADR-0011) is picked up as soon as spiffe-helper rewrites the files.
+		// key/cert/bundle come from loadTlsPemBundleSync: cached, files re-stat'd every 5 s (SVID rotation, ADR-0011).
 		const tls = loadTlsPemBundleSync(this._tlsPaths);
 		const retryCount = context.options?.retryCount ?? DEFAULT_RETRY_COUNT;
 

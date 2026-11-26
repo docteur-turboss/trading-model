@@ -63,6 +63,7 @@ spec:
               securityContext:
                 runAsNonRoot: true
                 allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
                 capabilities:
                   drop:
                     - ALL
@@ -81,6 +82,8 @@ spec:
                     name: trading-model-backup-s3
                     optional: true
               env:
+                - name: HOME
+                  value: /tmp
                 - name: BACKUP_DIR
                   value: /backups
                 - name: METRICS_FILE
@@ -149,6 +152,8 @@ spec:
                       key: S3_PROVIDER
                       optional: true
               volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
                 - name: scripts
                   mountPath: /scripts
                   readOnly: true
@@ -162,6 +167,8 @@ spec:
                   cpu: "1"
                   memory: 512Mi
           volumes:
+            - name: tmp
+              emptyDir: {}
             - name: scripts
               configMap:
                 name: backup-scripts

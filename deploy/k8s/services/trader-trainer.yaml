@@ -149,7 +149,7 @@ spec:
                   fieldPath: metadata.name
           resources:
             requests:
-              cpu: 500m
+              cpu: 100m
               memory: 512Mi
             limits:
               cpu: "1"
@@ -165,31 +165,24 @@ spec:
             - name: trainer-checkpoints
               mountPath: /data/checkpoints
           livenessProbe:
-            exec:
-              command:
-                - node
-                - /app/probe.js
-                - https://localhost:3000/ping
-            initialDelaySeconds: 20
+            httpGet:
+              path: /ping
+              port: 3001
             periodSeconds: 15
             timeoutSeconds: 10
             failureThreshold: 3
           readinessProbe:
-            exec:
-              command:
-                - node
-                - /app/probe.js
-                - https://localhost:3000/health/ready
+            httpGet:
+              path: /health/ready
+              port: 3001
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 10
             successThreshold: 1
           startupProbe:
-            exec:
-              command:
-                - node
-                - /app/probe.js
-                - https://localhost:3000/ping
+            httpGet:
+              path: /ping
+              port: 3001
             initialDelaySeconds: 30
             periodSeconds: 5
             failureThreshold: 12

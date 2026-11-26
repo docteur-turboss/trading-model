@@ -68,7 +68,7 @@ export function createSentinel(
 		// half-dead master keeps waiting on it after Sentinel has failed over.
 		failoverDetector: true,
 		...extraOptions,
-	} as never);
+	} as never); // natMap returns undefined where ioredis types want null; behaviour kept
 	// shortcut: works around an ioredis 6.0.0 race through its private
 	// `connector`, drop it once a release retires the detector itself.
 	// The failover detector of a closed connection outlives it: when its

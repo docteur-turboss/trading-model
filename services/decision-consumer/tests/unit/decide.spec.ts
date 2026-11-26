@@ -7,6 +7,8 @@ jest.mock("@trading-model/contracts/logger-registry", () => ({
 	getLogger: () => ({ warn: jest.fn(), error: jest.fn(), info: jest.fn() }),
 }));
 
+import { AGENT_STATE_DIM } from "@trading-model/model-runtime/agent/agent-state";
+import { FEATURE_DIM } from "@trading-model/model-runtime/feature-vector-codec";
 import { verifyModel } from "@trading-model/model-runtime/model-manifest";
 import { createDecisionTick } from "../../src/application/decide";
 import { DECISION_INTENTS_TOTAL } from "../../src/config/metrics";
@@ -19,12 +21,15 @@ const WEIGHTS = new Uint8Array(8);
 const SHA = createHash("sha256").update(WEIGHTS).digest("hex");
 const MODEL = { symbol: "BTCUSDT", version: "v1" };
 
-function manifest(admissible: boolean, intervalMs = 60_000) {
+function manifest(admissible: boolean, intervalMs = 60_000, signals = 0) {
 	return {
 		symbol: "BTCUSDT",
 		version: "v1",
 		weights: { sha256: SHA, length: 2 },
-		genome: {},
+		genome: {
+			network: { inputDim: FEATURE_DIM + AGENT_STATE_DIM + signals },
+			rl: { horizon: {} },
+		},
 		admission: { admissible },
 		replay: { intervalMs, simulator: { initialCash: 1_000_000 } },
 	} as never;
@@ -98,6 +103,37 @@ describe("decision tick", () => {
 		expect(risk.send).toHaveBeenCalledTimes(1);
 	});
 
+	it("reads a refused model once, and again when a new version is promoted", async () => {
+		const { trainer, risk, audit, scraper } = build();
+		trainer.manifest.mockImplementation(async () => manifest(false));
+		const promoted = [MODEL];
+		const tick = createDecisionTick({
+			promoted,
+			trainer,
+			scraper,
+			risk,
+			audit,
+			windowBars: 50,
+			now: () => NOW,
+		});
+		await tick();
+		await tick();
+		expect(trainer.manifest).toHaveBeenCalledTimes(1);
+		promoted[0] = { ...MODEL, version: "v2" };
+		await tick();
+		expect(trainer.manifest).toHaveBeenCalledTimes(2);
+	});
+
+	it("refuses a manifest with signal inputs without throwing", async () => {
+		const { tick, trainer, risk } = build();
+		trainer.manifest.mockImplementation(async () => manifest(true, 60_000, 2));
+		await tick();
+		await tick();
+		expect(trainer.weights).not.toHaveBeenCalled();
+		expect(trainer.manifest).toHaveBeenCalledTimes(1);
+		expect(risk.send).not.toHaveBeenCalled();
+	});
+
 	it("sends no intent for a model that is not promoted", async () => {
 		const { risk, trainer } = build();
 		const none = createDecisionTick({
@@ -161,6 +197,8 @@ describe("decision tick", () => {
 
 	it("sends one intent per bar with a decision id fixed by model and bar", async () => {
 		const { tick, risk, scraper, setNow } = build();
+		// Off the minute boundary: the bar close time would differ from the decision time.
+		setNow(NOW + 30_000);
 		await tick();
 		await tick();
 		expect(risk.send).toHaveBeenCalledTimes(1);
@@ -170,6 +208,7 @@ describe("decision tick", () => {
 				side: "buy",
 				quantity: 0.01234567,
 				referencePrice: 60_000,
+				referenceAt: NOW + 30_000,
 			})
 		);
 		expect(scraper.candles).toHaveBeenCalledWith(
@@ -192,6 +231,23 @@ describe("decision tick", () => {
 		setNow(NOW + 60_000);
 		await tick();
 		expect(risk.send).toHaveBeenCalledTimes(2);
+	});
+
+	it("counts a duplicate client order id as received, not rejected", async () => {
+		const { tick, risk } = build();
+		risk.send.mockResolvedValueOnce({
+			status: "rejected",
+			reason: "duplicate_client_order_id",
+			clientOrderId: "o1",
+		});
+		await tick();
+		const counts = (await DECISION_INTENTS_TOTAL.get()).values;
+		expect(counts).toEqual([
+			expect.objectContaining({
+				labels: { outcome: "received", reason: "" },
+				value: 1,
+			}),
+		]);
 	});
 
 	it("counts a rejection by its reason and a hold without sending", async () => {

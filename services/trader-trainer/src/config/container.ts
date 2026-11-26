@@ -35,7 +35,7 @@ import {
 	symbolsPerGeneration,
 	type TrainingSettings,
 } from "../domain/training-settings";
-import { MessageManager } from "./message-manager";
+import { busClient } from "./message-manager";
 import {
 	CURRENT_GENERATION,
 	DAILY_BAR_ISSUES_TOTAL,
@@ -106,7 +106,7 @@ class ApplicationContainer {
 		this.dataBuffer = new MarketDataBuffer(bufferConfig);
 
 		const { instanceId } = config;
-		const publisher = new ModelPublisher(MessageManager, {
+		const publisher = new ModelPublisher(busClient, {
 			trainerId: "trader-trainer",
 			instanceId,
 		});
@@ -163,6 +163,7 @@ interface TraderTrainerSettings {
 	TRAINER_OBSERVE_POSITION?: boolean;
 	TRAINER_SEED_OFFSET?: number;
 	FEATURE_ACTION_SPACE_GENE?: boolean;
+	FEATURE_TOPOLOGY_GENES?: boolean;
 	/** Signal metrics fed to the network; read only when FEATURE_SIGNAL_INPUTS is true. */
 	TRAINER_SIGNAL_FEATURES?: string;
 	FEATURE_SIGNAL_INPUTS?: boolean;
@@ -218,6 +219,7 @@ export function createTraderTrainerContainer(
 			fitnessType: effectiveFitnessType(settings),
 			observePosition: settings.TRAINER_OBSERVE_POSITION ?? true,
 			actionSpaceGene: settings.FEATURE_ACTION_SPACE_GENE ?? false,
+			topologyGenes: settings.FEATURE_TOPOLOGY_GENES ?? false,
 			eventDriven: settings.FEATURE_EVENT_DRIVEN_DECISIONS ?? false,
 			seedOffset: settings.TRAINER_SEED_OFFSET ?? 0,
 			inputGroups: settings.FEATURE_INPUT_MASK_GENE

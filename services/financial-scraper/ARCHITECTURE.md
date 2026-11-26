@@ -40,7 +40,7 @@ MarketDataPersister.persist()
 | `endpoints.ts`      | Pure functions that construct Binance REST API URLs                                                                                                              |
 | `weights.ts`        | Pure functions that compute Binance API weight costs for each endpoint                                                                                           |
 | `binance.client.ts` | Async functions (`getOrderBook`, `getCandlestickData`, etc.) each calling the Axios instance with the correct weight                          |
-| `normalizer.ts`     | `BinanceNormalizer` (static methods) converting raw API shapes to internal entity types (`OrderBookEntity`, `CandleEntity`, `TickerEntity`)       |
+| `normalizers/`      | Functions converting raw API shapes to internal entity types (`OrderBookEntity`, `CandleEntity`, `TickerEntity`)       |
 
 ### Scrape cycle (`src/adapters/inbound/cron/`, `src/application/worker-orchestrator.ts`, `src/domain/ports/`)
 

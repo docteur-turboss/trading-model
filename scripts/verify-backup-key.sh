@@ -122,6 +122,7 @@ if [ ! -d "$DIR" ]; then
 	fail "${DIR} is not a directory"
 	exit 1
 fi
+# shellcheck disable=SC2034 # read by backup-lib.sh functions
 BACKUP_DIR="$DIR"
 
 # The run: --timestamp, or else the newest run manifest of DIR.

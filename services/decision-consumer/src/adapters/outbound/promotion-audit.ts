@@ -1,5 +1,6 @@
+import type BusClient from "@trading-model/broker-message";
 import { HELPER } from "@trading-model/broker-message";
-import { createServiceMessageManager } from "@trading-model/broker-message/create-message-manager";
+import { createServiceBusClient } from "@trading-model/broker-message/create-message-manager";
 import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import { RiskEvent } from "@trading-model/contracts/risk-events";
 import {
@@ -15,12 +16,10 @@ import { ENV } from "../../infrastructure/config/env";
  * Goes through the bus journal in Redis (ADR-0073). A refusal throws, and the caller does not decide.
  */
 export class PromotionAudit {
-	private readonly _messages: ReturnType<
-		typeof createServiceMessageManager
-	>["messageManager"];
+	private readonly _messages: BusClient;
 
 	constructor(private readonly _instanceId: InstanceId) {
-		this._messages = createServiceMessageManager(ENV).messageManager;
+		this._messages = createServiceBusClient(ENV);
 	}
 
 	async promotionLoaded(fields: {
@@ -38,6 +37,6 @@ export class PromotionAudit {
 		)
 			.setDelivery({ mode: DeliveryMode.AtLeastOnce })
 			.toJSON();
-		await this._messages.post.indirect(fields, metadata);
+		await this._messages.publish(fields, metadata);
 	}
 }

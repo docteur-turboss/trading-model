@@ -7,7 +7,7 @@ import {
 	trace,
 } from "@opentelemetry/api";
 import type { Message } from "@trading-model/contracts/message-types";
-import { DurationMs } from "@trading-model/primitives/primitives";
+import { DurationMs, ServiceId } from "@trading-model/primitives/primitives";
 import * as backoff from "../../../src/bus/backoff";
 import { BusConsumer } from "../../../src/bus/consumer";
 import { DeadStreams } from "../../../src/bus/dead-streams";
@@ -24,13 +24,18 @@ import { deadLetterError } from "../../../src/shared/errors";
 import { createMockMessage } from "../../fixtures/broker.fixture";
 import { StreamRedis } from "../../fixtures/stream-redis";
 
-const TOPIC = "test.topic";
+const TOPIC = "training.model.published";
 const GROUP = { topic: TOPIC as never, service: "trader-trainer" };
 const {
 	messageId: _id,
 	emittedAt: _at,
-	...METADATA
+	...BASE
 } = createMockMessage("x").metadata;
+const METADATA: typeof BASE = {
+	...BASE,
+	topic: TOPIC as typeof BASE.topic,
+	publisher: { ...BASE.publisher, serviceName: ServiceId.of("trader-trainer") },
+};
 
 function bus() {
 	const redis = new StreamRedis();
