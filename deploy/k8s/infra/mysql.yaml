@@ -299,7 +299,8 @@ metadata:
     app.kubernetes.io/component: mysql
     app.kubernetes.io/part-of: trading-model
 spec:
-  maxUnavailable: 1
+  # ADR-0092: a voluntary drain is refused until the operator forces it.
+  maxUnavailable: 0
   selector:
     matchLabels:
       app.kubernetes.io/component: mysql
