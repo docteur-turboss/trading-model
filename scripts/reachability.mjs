@@ -148,7 +148,7 @@ function phantomSpecs(dir, reached) {
 }
 
 const workspaceDirs = (group) => readdirSync(join(ROOT, group)).map((entry) => join(ROOT, group, entry));
-const services = workspaceDirs('services');
+const services = workspaceDirs('services').filter((dir) => existsSync(join(dir, 'package.json')));
 const reached = reachableFiles(services);
 
 const rows = [];
