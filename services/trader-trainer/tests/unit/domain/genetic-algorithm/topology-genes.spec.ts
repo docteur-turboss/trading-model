@@ -36,7 +36,7 @@ describe("topology genes (FEATURE_TOPOLOGY_GENES)", () => {
 	test("flag off or absent: same genome, no bound; on: clamped", () => {
 		expect(mutate(false)).toEqual(mutate());
 		expect(mutate()).toEqual([500, 500, 500, 500, 500, 2]);
-		expect(mutate(true)).toEqual(Array(4).fill(TOPOLOGY_BOUNDS.maxNeurons));
+		expect(mutate(true)).toEqual(new Array(4).fill(TOPOLOGY_BOUNDS.maxNeurons));
 		expect(mutate(true, [2])).toEqual([TOPOLOGY_BOUNDS.minNeurons]);
 	});
 
