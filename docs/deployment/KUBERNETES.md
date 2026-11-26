@@ -253,8 +253,8 @@ beyond it fails with `exceeded quota`; raise it with any change to the figures b
 
 | Scenario    | CPU requests | Memory requests | CPU limits | Memory limits |
 | ----------- | ------------ | --------------- | ---------- | ------------- |
-| HPA minimum | 5.6 vCPU     | 10.2 GiB        | 26.0 vCPU  | 34.2 GiB      |
-| HPA maximum | 9.7 vCPU     | 15.8 GiB        | 42.3 vCPU  | 45.5 GiB      |
+| HPA minimum | 5.2 vCPU     | 11.5 GiB        | 26.0 vCPU  | 34.2 GiB      |
+| HPA maximum | 9.3 vCPU     | 17.1 GiB        | 42.3 vCPU  | 45.5 GiB      |
 
 Limits are rarely all reached; size nodes on the requests.
 
