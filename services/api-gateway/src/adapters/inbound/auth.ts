@@ -13,7 +13,7 @@ import { type ApiKey, type ApiScope, parseApiKey } from "../../shared/api-keys";
 /** What the auth middleware sets on an authenticated request. */
 export interface AuthenticatedRequest {
 	clientIdentity: ClientIdentity;
-	/** Name of the API key (ADR-0059), null in non-strict mode without keys. */
+	/** Name of the API key (ADR-0059); the middleware answers 503 when no key is configured. */
 	apiKeyName: string | null;
 	apiKeyScopes: readonly ApiScope[];
 }
