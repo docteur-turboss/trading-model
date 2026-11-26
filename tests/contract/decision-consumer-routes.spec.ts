@@ -3,6 +3,8 @@ import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { mountRoute } from "@trading-model/http/api-route/mount-route";
 import { ResponseProtocol } from "@trading-model/http/response-protocol";
+import { AGENT_STATE_DIM } from "@trading-model/model-runtime/agent/agent-state";
+import { FEATURE_DIM } from "@trading-model/model-runtime/feature-vector-codec";
 import { decideOnLastBar } from "@trading-model/model-runtime/replay";
 import express, { Router } from "express";
 import { RiskClient } from "../../services/decision-consumer/src/adapters/outbound/risk-client";
@@ -183,7 +185,10 @@ describe("intent contract: decision-consumer → risk-execution", () => {
 					({
 						...INTENT.model,
 						weights: { sha256, length: 2 },
-						genome: {},
+						genome: {
+							network: { inputDim: FEATURE_DIM + AGENT_STATE_DIM },
+							rl: { horizon: {} },
+						},
 						admission: { admissible: true },
 						replay: {
 							intervalMs: DAY_MS,
