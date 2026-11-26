@@ -1,5 +1,5 @@
 /**
- * Events dlq-service publishes on the bus so the audit trail records what
+ * Events the bus library and the audit-dlq CLI publish on the bus so the audit trail records what
  * happens to undelivered messages (audit-logger subscribes to these topics).
  */
 export enum DlqEvent {
@@ -9,7 +9,7 @@ export enum DlqEvent {
 }
 
 export interface DlqEntryAddedPayload {
-	/** Id of the stored entry (DLQ API). */
+	/** Id of the stored entry (dead stream). */
 	entryId: string;
 	/** Topic of the dead-lettered message, null when unknown. */
 	topic: string | null;

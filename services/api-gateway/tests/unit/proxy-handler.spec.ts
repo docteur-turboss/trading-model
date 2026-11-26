@@ -5,6 +5,7 @@ const ENV: any = {
 	AUTH_TOKEN_HEADER: "x-api-key",
 	PROXY_TIMEOUT_MS: 10000,
 	PROXY_MAX_RESPONSE_BYTES: 16,
+	PROXY_MAX_CONCURRENT: 1,
 	TLS_KEY_PATH: "/k",
 	TLS_CERT_PATH: "/c",
 	TLS_CA_PATH: "/a",
@@ -375,6 +376,22 @@ describe("proxy-handler", () => {
 			forward({ req, target: MOCK_TARGET, path: "/test" })
 		).rejects.toBeInstanceOf(UpstreamResponseTooLargeError);
 		expect(mockRes.destroy).toHaveBeenCalled();
+	});
+
+	it("should refuse a request past PROXY_MAX_CONCURRENT", async () => {
+		const { mockRes, mockReq, events } = createMockResponse(200, "{}");
+		stubUpstream({ mockRes, mockReq, events }, ["{}"]);
+
+		const forward = await loadForward();
+		const {
+			ProxyOverloadedError,
+		} = require("../../src/domain/ports/gateway.port");
+		const req = createReq({ method: "GET" });
+		const first = forward({ req, target: MOCK_TARGET, path: "/a" });
+		await expect(
+			forward({ req, target: MOCK_TARGET, path: "/b" })
+		).rejects.toBeInstanceOf(ProxyOverloadedError);
+		await first;
 	});
 
 	it("should reject when the upstream answer errors mid-body", async () => {

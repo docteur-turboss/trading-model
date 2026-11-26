@@ -2,7 +2,7 @@
 
 **Severity:** L2 (the platform runs, but trades and training work on old data)
 **Alerts:** `CollectorNoLeader`, `MarketDataStale`, `TrainerMarketDataStale`, `ScrapeCyclesFailing`, `SymbolMarketDataStale`, `BinanceRestrictedLocation`, `SignalCollectionFailing`, `SignalSourceStale`
-**Affected:** financial-scraper (collector), message-manager, trader-trainer
+**Affected:** financial-scraper (collector), trader-trainer
 
 The services can all be up and ready while no data flows: readiness checks
 dependencies (MySQL, Redis), not that candles arrive.
@@ -116,7 +116,7 @@ a collector runs.
 
 ## SymbolMarketDataStale
 
-**Severity:** L2 (critical). No candle of one tracked symbol was persisted
+**Severity:** L2 (alert `warning`). No candle of one tracked symbol was persisted
 for 15 minutes while the others may still flow: the cycle counts as `success`
 and `MarketDataStale` (global sum) stays silent, but that symbol gets no new
 data and the trainer stops training it (`TRAINER_MAX_DATA_AGE_MS`). The
@@ -204,9 +204,8 @@ of the source (counted `result="skipped_quarantine"`, so this alert stays on)
 until a deadline: 1 h doubling to 24 h, never before `Retry-After`. One trial
 request follows; a success closes it. Read it: gauge
 `fs_signal_source_quarantined{source}` = 1 and the "Signal source
-quarantined" log (`until`). Force a new trial: restart the collector
-(`kubectl -n $NS rollout restart deploy/financial-scraper-collector`); the
-state is in memory only. Fix the cause first (key, e-mail, rate), or the
+quarantined" log (`until`). A restart does not force a new trial: the
+quarantine is persisted in a Lease and survives it. Fix the cause first (key, e-mail, rate), or the
 trial fails and the quarantine starts again.
 
 A collection that failed is not retried before the next schedule of its

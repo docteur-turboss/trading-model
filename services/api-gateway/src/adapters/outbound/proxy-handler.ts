@@ -4,23 +4,31 @@ import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 import { logger } from "@trading-model/http/logger";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import {
+	ProxyOverloadedError,
+	type ProxyRequestOptions,
+	type ProxyResult,
 	UpstreamResponseTooLargeError,
 	UpstreamTimeoutError,
 } from "../../domain/ports/gateway.port";
 import type { Env } from "../../infrastructure/config/env";
-import type { ProxyRequestOptions } from "./proxy-options-builder";
 import { buildProxyOptions } from "./proxy-options-builder";
 
-export interface ProxyResult {
-	status: HttpStatusCode;
-	body: string;
-	headers: Record<string, string | string[]>;
-}
+let inFlight = 0;
 
 export function forwardRequest(
 	opts: ProxyRequestOptions,
 	env: Env
 ): Promise<ProxyResult> {
+	if (inFlight >= env.PROXY_MAX_CONCURRENT) {
+		return Promise.reject(new ProxyOverloadedError(env.PROXY_MAX_CONCURRENT));
+	}
+	inFlight++;
+	return _forward(opts, env).finally(() => {
+		inFlight--;
+	});
+}
+
+function _forward(opts: ProxyRequestOptions, env: Env): Promise<ProxyResult> {
 	const { req, target, path } = opts;
 	return new Promise((resolve, rejectRaw) => {
 		// Total deadline (send + whole answer): a socket idle timeout never fires

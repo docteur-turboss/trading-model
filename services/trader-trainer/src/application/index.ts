@@ -2,8 +2,8 @@ import "./telemetry";
 import { buildTlsFromEnv } from "@trading-model/common/config/tls-paths";
 import { parseCommaSeparated } from "@trading-model/common/utils/comma-separated";
 import { createBootstrap } from "@trading-model/http/bootstrap";
-import { ScraperSignalHistory } from "@trading-model/http/signals/scraper-signal-history";
 import { shutdownTelemetry } from "@trading-model/http/telemetry";
+import { ScraperSignalHistory } from "@trading-model/model-runtime/signals/scraper-signal-history";
 import { DurationMs } from "@trading-model/primitives/primitives";
 import type { Leadership } from "@trading-model/reliability/leadership";
 import { ScraperCandleHistory } from "../adapters/outbound/scraper-candle-history";
@@ -12,7 +12,7 @@ import {
 	createTraderTrainerContainer,
 	createTrainingLeadership,
 } from "../config/container";
-import { MessageManager } from "../config/message-manager";
+import { busClient } from "../config/message-manager";
 import { ENV } from "../infrastructure/config/env";
 import { createServer } from "./server";
 
@@ -57,7 +57,7 @@ createBootstrap({
 		// Before leaving discovery: the model of the session ended early is
 		// published on the bus. Then the Lease goes to the successor.
 		await leadership?.stop();
-		await MessageManager.stopMessageManager();
+		await busClient.stop();
 		await shutdownTelemetry();
 	},
 });

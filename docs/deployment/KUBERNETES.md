@@ -19,6 +19,7 @@ This guide covers deploying the Trading Model platform on Kubernetes. The K8s ma
   `verticalpodautoscalers.autoscaling.k8s.io` (VPA, recommendations only: `updateMode: "Off"`,
   the HPAs own scaling, on CPU), `sealedsecrets.bitnami.com` (production), cert-manager
   (`ClusterIssuer` `letsencrypt-prod`) and an `IngressClass` named `nginx`
+- metrics-server (APIService `v1beta1.metrics.k8s.io` `Available`), which the CPU HPAs read; checked when the render has an HPA
 - `deploy.yml` derives these from the rendered overlay (`deploy/k8s/scripts/check-prereqs.sh`) and
   refuses, listing what is missing, before the first apply
 - A CNI that enforces NetworkPolicies
@@ -99,7 +100,7 @@ or right after the overlay on a first deploy, when MySQL does not exist yet).
 > ConfigMap `ingress-nginx-controller` set `disable-access-log: "true"` (the
 > default format logs full caller IP, User-Agent and Referer to the node, with a
 > retention and access nobody controls; `deploy/staging-local/bootstrap.sh
-> prereqs` does it) and leave `use-forwarded-headers` unset, so the controller
+> prereqs` does it; `check-prereqs.sh` fails a production deploy otherwise) and leave `use-forwarded-headers` unset, so the controller
 > overwrites any `X-Forwarded-For` sent by the caller. The edge-proxy trusts that
 > header only from the pod CIDR of each overlay (`realip.inc` next to its
 > `kustomization.yaml`, merged into ConfigMap `edge-proxy-nginx`; set the
@@ -227,11 +228,9 @@ HPAs are configured in `deploy/k8s/config/<service>-autoscaling.yaml` (`trader-t
 
 | Service               | Min | Max | Metric                           |
 | --------------------- | --- | --- | -------------------------------- |
-| message-manager       | 3   | 12  | CPU 65%, Memory 70%, Queue depth |
 | api-gateway           | 2   | 8   | CPU 70%, Memory 75%              |
 | financial-scraper     | 2   | 6   | CPU 70%, Memory 75%              |
 | audit-logger          | 2   | 5   | CPU 70%                          |
-| dlq-service           | 2   | 4   | CPU 70%                          |
 | edge-proxy            | 2   | 5   | CPU 70%                          |
 
 ### Manual scaling
@@ -254,8 +253,8 @@ beyond it fails with `exceeded quota`; raise it with any change to the figures b
 
 | Scenario    | CPU requests | Memory requests | CPU limits | Memory limits |
 | ----------- | ------------ | --------------- | ---------- | ------------- |
-| HPA minimum | 5.6 vCPU     | 10.2 GiB        | 26.0 vCPU  | 34.2 GiB      |
-| HPA maximum | 9.7 vCPU     | 15.8 GiB        | 42.3 vCPU  | 45.5 GiB      |
+| HPA minimum | 5.2 vCPU     | 11.5 GiB        | 26.0 vCPU  | 34.2 GiB      |
+| HPA maximum | 9.3 vCPU     | 17.1 GiB        | 42.3 vCPU  | 45.5 GiB      |
 
 Limits are rarely all reached; size nodes on the requests.
 
@@ -311,7 +310,7 @@ The other external dependencies are free under the conditions below.
 
 | Dependency | Free only if | Where |
 | ---------- | ------------ | ----- |
-| GitHub Actions (CI, about 3×10^5 job-minutes per month, measured on 2026-11-22 over 1000 runs (±50 %); re-measure: `gh run list --limit 1000 --json databaseId,createdAt`, then sum the job durations of `gh run view <id> --json jobs`) | the repository stays **public**; private repositories bill minutes | `.github/workflows/` |
+| GitHub Actions (CI, about 1.2×10^5 job-minutes over the 7 days 2026-11-19 to 2026-11-25 (3436 of 3456 runs summed, 20 unreadable), 5×10^5 per month extrapolated; re-measure: `gh run list --limit 1000 --json databaseId,createdAt`, then sum the job durations of `gh run view <id> --json jobs`) | the repository stays **public**; private repositories bill minutes | `.github/workflows/` |
 | GHCR images (`ghcr.io/<owner>`) | the packages stay public | `release.yml` |
 | Data sources | each `accessPolicy.terms` is `public-domain` or `attribution` | `services/financial-scraper/src/config/signal-registry.json`, ADR-0036 |
 | Off-site backup bucket (S3, Object Lock) | never: paid storage, provider not chosen | [BACKUP_DR.md](BACKUP_DR.md), ADR-0033 |

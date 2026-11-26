@@ -48,7 +48,7 @@ fi
 
 if [ "$method" = POST ]; then
   : "${RISK_ADMIN_URL:?set RISK_ADMIN_URL}" "${RISK_ADMIN_KEY:?set RISK_ADMIN_KEY}"
-  printf '%s' "$body" | curl -s -H "x-api-key: $RISK_ADMIN_KEY" -H content-type:application/json --data-binary @- "$RISK_ADMIN_URL$path"
+  printf '%s' "$body" | curl -s -H @<(printf 'x-api-key: %s' "$RISK_ADMIN_KEY") -H content-type:application/json --data-binary @- "$RISK_ADMIN_URL$path"
   echo
   exit 0
 fi

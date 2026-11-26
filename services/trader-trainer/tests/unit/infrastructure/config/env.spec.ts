@@ -22,7 +22,6 @@ function makeValidEnv(): Record<string, string> {
 		TRAINER_POPULATION_SIZE: "5",
 		TRAINER_TIME_BUDGET_MS: "60000",
 		TRAINER_EPISODES_PER_INDIVIDUAL: "2",
-		MESSAGE_CALLBACK_PATH: "/callback",
 	};
 }
 

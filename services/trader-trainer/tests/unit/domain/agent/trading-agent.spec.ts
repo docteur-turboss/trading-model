@@ -43,6 +43,7 @@ function makeConfig(
 			initialPrice: Price.of(100),
 			feeRate: Percentage.zero(),
 			executionCostRate: Percentage.zero(),
+			maxExposureFraction: 0.3,
 		},
 		tradeAmount: Volume.of(1),
 		stateManagerCfg: {
@@ -116,6 +117,12 @@ describe("TradingAgent", () => {
 	});
 
 	describe("ActionMapper.map", () => {
+		it("throws on non-finite Q-values instead of selling", () => {
+			const output = new Float32Array([Number.NaN, 0.1, 0.1]);
+
+			expect(() => new ActionMapper().map(output)).toThrow("not finite");
+		});
+
 		it("should map index 0 to sell", () => {
 			const output = new Float32Array([0.8, 0.1, 0.1]);
 

@@ -1,6 +1,6 @@
 import { execSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -73,8 +73,6 @@ const SCOPE_TO_PACKAGE = {
   'audit-logger': 'services/audit-logger',
   'decision-consumer': 'services/decision-consumer',
   'model-evaluator': 'services/model-evaluator',
-  'dlq-service': 'services/dlq-service',
-  'message-manager': 'services/message-manager',
   'financial-scraper': 'services/financial-scraper',
   scraper: 'services/financial-scraper',
   'trader-trainer': 'services/trader-trainer',
@@ -298,8 +296,8 @@ function handleExplicitVersion(args) {
   console.log(`  Root: ${rootPkg.version} → ${args.version}\n`);
   bumpRoot(rootPkg, args.version, args.dryRun);
   console.log(`\n  ── Release ${args.version} ──\n`);
-  if (args.dryRun) console.log(`  ⚠️  Dry run — no files written\n`);
-  else console.log(`  ✓ package.json updated`);
+  if (args.dryRun) console.log("  ⚠️  Dry run — no files written\n");
+  else console.log("  ✓ package.json updated");
   console.log();
 }
 
@@ -388,8 +386,8 @@ function buildChangelog(bumps, scoped, unscoped, newVersion, dryRun) {
 
 function printSummary(bumps, oldRootVer, newVersion, rootBump, dryRun) {
   console.log(`\n  ── Release ${newVersion} ──\n`);
-  if (dryRun) console.log(`  ⚠️  Dry run — no files written\n`);
-  else console.log(`  ✓ CHANGELOG.md updated\n`);
+  if (dryRun) console.log("  ⚠️  Dry run — no files written\n");
+  else console.log("  ✓ CHANGELOG.md updated\n");
   if (bumps.length > 0) {
     console.log('  Package bumps:');
     for (const b of bumps) {

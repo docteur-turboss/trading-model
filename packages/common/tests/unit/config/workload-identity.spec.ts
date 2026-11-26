@@ -1,21 +1,19 @@
 import { describe, expect, it } from "@jest/globals";
 import { ServiceId } from "@trading-model/primitives/primitives/general-ids";
 import {
-	DEFAULT_NAMESPACE,
 	isSpiffeId,
 	normalizeServiceName,
 	parseSpiffeId,
-	serviceNameFromSpiffeId,
 	TRUST_DOMAIN,
 } from "../../../src/config/workload-identity";
 
 const buildSpiffeId = (name: string): string =>
-	`spiffe://${TRUST_DOMAIN}/ns/${DEFAULT_NAMESPACE}/sa/${name}`;
+	`spiffe://${TRUST_DOMAIN}/ns/trading-model/sa/${name}`;
 
 describe("workload-identity", () => {
 	describe("isSpiffeId", () => {
 		it("should accept valid SPIFFE IDs", () => {
-			expect(isSpiffeId(buildSpiffeId("dlq-service"))).toBe(true);
+			expect(isSpiffeId(buildSpiffeId("audit-logger"))).toBe(true);
 		});
 
 		it("should reject non-SPIFFE identities", () => {
@@ -54,24 +52,7 @@ describe("workload-identity", () => {
 		});
 	});
 
-	describe("serviceNameFromSpiffeId", () => {
-		it("should extract the canonical last path segment", () => {
-			expect(serviceNameFromSpiffeId(buildSpiffeId("financial-scraper"))).toBe(
-				ServiceId.of("financial-scraper")
-			);
-		});
-	});
-
 	describe("normalizeServiceName", () => {
-		it("should map legacy registration names onto canonical names", () => {
-			expect(normalizeServiceName("message-delivery-service")).toBe(
-				ServiceId.of("message-manager")
-			);
-			expect(normalizeServiceName("audit-logger-service")).toBe(
-				ServiceId.of("audit-logger")
-			);
-		});
-
 		it("should pass through canonical and unknown names", () => {
 			expect(normalizeServiceName("api-gateway")).toBe(
 				ServiceId.of("api-gateway")

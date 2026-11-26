@@ -27,7 +27,7 @@ All access to trading-model platform resources shall be authenticated, authorise
 |---|---|---|
 | **Transport** | mTLS TLS 1.3 | `@trading-model/http/service-server-factory.ts` |
 | **Identity** | SPIFFE ID (SAN `spiffe://...`) | `@trading-model/http/mtls-auth.ts` |
-| **API key** | External access, one named key per client with its scopes (`read`, `dlq:write`, `risk:admin`; ADR-0059) | `api-gateway` — `AUTH_TOKENS` env var (`name:scopes:secret`) |
+| **API key** | External access, one named key per client with its scopes (`read`, `risk:admin`; ADR-0059, `dlq:write` retired with dlq-service) | `api-gateway` — `AUTH_TOKENS` env var (`name:scopes:secret`) |
 
 ### 2.2 Authorisation Layers
 
@@ -43,23 +43,13 @@ All access to trading-model platform resources shall be authenticated, authorise
 
 Every service instance is provisioned with an X.509 SVID issued by the SPIRE Server after workload attestation. The SVID Subject Alternative Name (SAN) carries the SPIFFE ID `spiffe://trading-model.local/ns/<namespace>/sa/<service>`.
 
-| Identity | SPIFFE ID (SAN) | Issued By | Validity |
-|---|---|---|---|
-| `message-manager` | `spiffe://trading-model.local/ns/trading-model/sa/message-manager` | SPIRE Server | 4 h TTL (auto-rotated) |
-| `financial-scraper` | `spiffe://trading-model.local/ns/trading-model/sa/financial-scraper` | SPIRE Server | 4 h TTL (auto-rotated) |
-| `trader-trainer` | `spiffe://trading-model.local/ns/trading-model/sa/trader-trainer` | SPIRE Server | 4 h TTL (auto-rotated) |
-| `audit-logger` | `spiffe://trading-model.local/ns/trading-model/sa/audit-logger` | SPIRE Server | 4 h TTL (auto-rotated) |
-| `dlq-service` | `spiffe://trading-model.local/ns/trading-model/sa/dlq-service` | SPIRE Server | 4 h TTL (auto-rotated) |
-| `api-gateway` | `spiffe://trading-model.local/ns/trading-model/sa/api-gateway` | SPIRE Server | 4 h TTL (auto-rotated) |
-| `edge-proxy` | `spiffe://trading-model.local/ns/trading-model/sa/edge-proxy` | SPIRE Server | 4 h TTL (auto-rotated) |
-
 **Enforcement:** `@trading-model/http/mtls-auth.ts` extracts the client identity from the SVID's verified SPIFFE ID SAN. Requests without a valid SVID are rejected at the TLS handshake level (all environments). `mtls-authorization.ts` enforces the ACL on every inbound request.
 
 ## 4. ACL Definition
 
 ### 4.1 Default ACL
 
-The default ACL maps each target service to the callers allowed to reach it (`"*"` = any platform service). Its single source is [`packages/http/src/acl-config.ts`](../../packages/http/src/acl-config.ts).
+The default ACL maps each target service to the callers allowed to reach it. Its single source is [`packages/http/src/acl-config.ts`](../../packages/http/src/acl-config.ts).
 
 **Enforcement:** Every incoming request passes through `mtls-authorization.ts` middleware. If the caller's identity is not found in the target service's authorised callers, the request is rejected with HTTP 403.
 
@@ -76,9 +66,8 @@ The default ACL maps each target service to the callers allowed to reach it (`"*
 
 | Resource | Access Method | Authentication | Authorisation |
 |---|---|---|---|
-| API gateway admin endpoints (DLQ delete, replay) | HTTPS + API key | `x-api-key` header | scope `dlq:write` of the key in `AUTH_TOKENS` (403 without it); the key name is recorded as `actor` of the DLQ audit events (ADR-0059) |
 | Database (MySQL) | TLS 1.2+ (cert-manager server certificate, host name verified; plain TCP refused: `require_secure_transport=ON`, issue #767) | Username/password + SealedSecret **and** a cert-manager client certificate per user (`REQUIRE ISSUER / SUBJECT`) | NetworkPolicy: ports 3306 / 33061 only from the listed client components ([databases.md](../architecture/databases.md)); SQL grants |
-| Database (MongoDB) | TLS `requireTLS` in the cluster; operators through `kubectl exec` | One user per service, replica-set `keyFile` (ADR-0067, authentication enforced) | NetworkPolicy: port 27017 only from the owner service, the replica set members and the init Job ([databases.md](../architecture/databases.md#mongodb--audit-and-dlq), which also covers auth and TLS); `kubectl exec` through Kubernetes RBAC |
+| Database (MongoDB) | TLS `requireTLS` in the cluster; operators through `kubectl exec` | One user per service, replica-set `keyFile` (ADR-0067, authentication enforced) | NetworkPolicy: port 27017 only from the owner service, the replica set members and the init Job ([databases.md](../architecture/databases.md#mongodb--audit), which also covers auth and TLS); `kubectl exec` through Kubernetes RBAC |
 | Grafana (metrics, Loki logs) | HTTPS through the ingress | OIDC, one account per person (ADR-0063); local `admin` kept for break-glass only | Role `Viewer` by default, no sign-up, no anonymous access; Admin granted by hand |
 | Kubernetes API | kubectl + client cert | mTLS certificate | RBAC roles + SealedSecrets |
 
@@ -104,7 +93,7 @@ The shared `admin` account (`GRAFANA_PASSWORD`) is used only when the identity p
 | Token audit | Annual | Verify HMAC token rotation and revocation procedures |
 | Emergency access log review | Quarterly | Review break-glass incidents for compliance |
 | Grafana account review | Quarterly | List Grafana users (Administration > Users): remove leavers, keep Admin to named operators, check `GRAFANA_PASSWORD` was rotated after any break-glass use. Logins are in Loki (logger `context`). Delete the account of each leaver (register activity 8) |
-| API key review | Quarterly | List the names and scopes of `AUTH_TOKENS`: remove keys nobody owns, check every name is a pseudonym (ADR-0059), keep `dlq:write` to operators who purge or replay the DLQ, rewrite old-format keys (bare secret, ADR-0059) |
+| API key review | Quarterly | List the names and scopes of `AUTH_TOKENS`: remove keys nobody owns, check every name is a pseudonym (ADR-0059), rewrite old-format keys (bare secret, ADR-0059) |
 
 ## 7. Enforcement & Violations
 

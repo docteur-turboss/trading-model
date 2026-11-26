@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { SourceAdapter } from "../../../domain/ports/signal-source.port";
+import { DAY_MS } from "./common";
 
 const Count = z
 	.string()
@@ -17,7 +18,6 @@ const Rows = z.array(
 	})
 );
 
-const DAY_MS = 86_400_000;
 const NEW_YORK_HOUR = new Intl.DateTimeFormat("en-US", {
 	timeZone: "America/New_York",
 	hour: "numeric",

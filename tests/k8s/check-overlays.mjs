@@ -3,9 +3,8 @@
 //   - every overlay renders
 //   - every first-party image (ghcr.io/trading-model/<image>) is published by
 //     release.yml and rewritten by deploy.yml (IMAGES): an image missing there
-//     would stay on the logical name, which no registry serves; and every
-//     deploy.yml IMAGES entry is built by release.yml; the release.yml sign
-//     matrix holds exactly the deploy.yml IMAGES entries
+//     would stay on the logical name, which no registry serves (release.yml
+//     builds and signs exactly the deploy.yml IMAGES entries)
 //   - every overlay gets its application secrets from SealedSecrets only, never
 //     from a plain Secret (issue #417); staging-local renders no AgCHANGE_ME
 //     placeholder (issue #1065)
@@ -35,13 +34,10 @@
 //     kind of the application overlay is in deploy-identity/app-role.yaml (or,
 //     for the cluster-scope ones, cluster-role.yaml), every kind of the
 //     node-agents overlay in node-role.yaml or cluster-role.yaml
-//   - no bus user (BUS_USERS) of staging-local reaches the partitioned redis-0 (its ConfigMap
-//     sets BUS_TRANSPORT=http), unless in BUS_ON_PARTITIONED_REDIS (issue #1931)
-//   - mongo-dlq and mongo-audit run the same bootstrap script, which adds every
-//     pod to the replica set (issue #2197)
+//   - mongo-audit runs a bootstrap script that adds every pod to the replica set (issue #2197)
 // Usage: node tests/k8s/check-overlays.mjs   (needs kubectl)
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const OVERLAYS = ["staging", "staging-local", "production"];
 const SEALED_ONLY = ["trading-model-secrets"];
@@ -54,13 +50,8 @@ const SINGLETONS = {
 };
 // Data and observability StatefulSets of staging-local held by a partition (issue #700).
 // Not prometheus nor alertmanager: a held pod keeps the rules and scrape jobs of an old release (issue #2323).
-const DATABASES = ["mysql", "redis", "redis-sentinel", "mongo-dlq", "mongo-audit"];
+const DATABASES = ["mysql", "redis", "redis-sentinel", "mongo-audit"];
 const DATA_STATEFULSETS = [...DATABASES, "grafana", "loki"];
-// Bus ACL users (redis-ha.sh) a partitioned redis-0 learns only when restarted (issue #1931).
-const BUS_USERS = ["audit-logger", "trader-trainer", "model-evaluator", "risk-execution", "decision-consumer"];
-// Bus users allowed on the sentinels in staging-local: those redis-0 knows after the
-// data tier switch of docs/deployment/STAGING_LOCAL.md (done 2026-11-23, issue #1982).
-const BUS_ON_PARTITIONED_REDIS = new Set(["audit-logger", "trader-trainer", "model-evaluator"]);
 // Bare names a database may mount: also applied by name outside kustomize (run-migrations.sh), read by the exporter sidecar only.
 const BARE_CONFIGMAPS = new Set(["mysql-client-tls"]);
 const IMAGE = /image: ghcr\.io\/trading-model\/([a-z0-9-]+)/g;
@@ -160,10 +151,10 @@ const RESOURCES = {
 /** "group/resource" pairs of a flow-style rules file (deploy/k8s/deploy-identity). */
 function grantedResources(file) {
 	const granted = new Set();
-	const text = readFileSync("deploy/k8s/deploy-identity/" + file, "utf8");
+	const text = readFileSync(`deploy/k8s/deploy-identity/${file}`, "utf8");
 	for (const [, groups, resources] of text.matchAll(/apiGroups: \[([^\]]*)\]\n\s+(?:resourceNames: \[[^\]]*\]\n\s+)?resources: \[([^\]]*)\]/g)) {
 		for (const g of groups.split(",")) {
-			for (const r of resources.split(",")) granted.add(g.trim().replace(/"/g, "") + "/" + r.trim());
+			for (const r of resources.split(",")) granted.add(`${g.trim().replace(/"/g, "")}/${r.trim()}`);
 		}
 	}
 	return granted;
@@ -176,8 +167,8 @@ function uncoveredKinds(docs, namespacedFile) {
 	const missing = new Set();
 	for (const { kind } of docs.filter((d) => d.kind)) {
 		const [group, resource] = RESOURCES[kind] ?? [];
-		if (!resource) missing.add(kind + " (unknown kind: add it to RESOURCES)");
-		else if (!(CLUSTER_KINDS.has(kind) ? cluster : namespaced).has(group + "/" + resource)) missing.add(kind);
+		if (!resource) missing.add(`${kind} (unknown kind: add it to RESOURCES)`);
+		else if (!(CLUSTER_KINDS.has(kind) ? cluster : namespaced).has(`${group}/${resource}`)) missing.add(kind);
 	}
 	return [...missing];
 }
@@ -255,25 +246,6 @@ function deployImages() {
 	return new Set(block[1].trim().split(/\s+/));
 }
 
-function releaseImages() {
-	const workflow = readFileSync(".github/workflows/release.yml", "utf8");
-	const services = workflow.match(/^ {8}service:\n((?: {10}- .*\n)+)/m);
-	if (!services) throw new Error("release.yml: service matrix not found");
-	const names = services[1].match(/- (\S+)/g).map((item) => item.slice(2));
-	for (const [, image] of workflow.matchAll(/^ {10}- image: (\S+)$/gm)) {
-		names.push(image);
-	}
-	return new Set(names);
-}
-
-/** Images of the release.yml sign matrix (the only `image:` list at this indent). */
-function signedImages() {
-	const workflow = readFileSync(".github/workflows/release.yml", "utf8");
-	const images = workflow.match(/^ {8}image:\n((?: {10}- .*\n)+)/m);
-	if (!images) throw new Error("release.yml: sign image matrix not found");
-	return new Set(images[1].match(/- (\S+)/g).map((item) => item.slice(2)));
-}
-
 /** Singletons named by a deploy.yml step that runs `deploy-k8s.sh canary*`: a canary is a second pod. */
 function canarySingletons() {
 	const workflow = readFileSync(".github/workflows/deploy.yml", "utf8");
@@ -291,19 +263,13 @@ function canarySingletons() {
 
 const errors = [...canarySingletons()];
 const deployed = deployImages();
-const released = releaseImages();
-const signed = signedImages();
-
-// release.yml verify-images resolves deploy.yml IMAGES: one never built fails every release.
-// deploy.yml also refuses any IMAGES digest without a release.yml signature (ADR-0041).
+// release.yml derives services from IMAGES; tools stay hard-coded `include` entries.
+const releaseTools = new Set([...readFileSync(".github/workflows/release.yml", "utf8").matchAll(/^ {10}- image: (\S+)$/gm)].map((m) => m[1]));
 for (const image of deployed) {
-	if (!released.has(image)) errors.push(`deploy.yml IMAGES: ${image} is not built by release.yml`);
-	if (!signed.has(image)) errors.push(`deploy.yml IMAGES: ${image} is not signed by release.yml`);
+	if (!existsSync(`services/${image}`) && !releaseTools.has(image)) {
+		errors.push(`deploy.yml IMAGES: ${image} is built by release.yml neither as a service (services/${image}/) nor as a tool (- image: ${image})`);
+	}
 }
-for (const image of signed) {
-	if (!deployed.has(image)) errors.push(`release.yml sign: ${image} is not in deploy.yml IMAGES`);
-}
-
 for (const env of OVERLAYS) {
 	const app = render(`deploy/k8s/overlays/${env}`);
 	const nodeAgents = render(`deploy/k8s/overlays/${env}/node-agents`);
@@ -313,9 +279,6 @@ for (const env of OVERLAYS) {
 	for (const [, image] of rendered.matchAll(IMAGE)) {
 		if (!deployed.has(image)) {
 			errors.push(`${env}: image ${image} is not in deploy.yml IMAGES`);
-		}
-		if (!released.has(image)) {
-			errors.push(`${env}: image ${image} is not built by release.yml`);
 		}
 	}
 
@@ -334,7 +297,7 @@ for (const env of OVERLAYS) {
 
 	for (const [dir, file, text] of [[`deploy/k8s/overlays/${env}`, "app-role.yaml", app], [`deploy/k8s/overlays/${env}/node-agents`, "node-role.yaml", nodeAgents]]) {
 		for (const kind of uncoveredKinds(documents(text), file)) {
-			errors.push(env + ": " + kind + " of " + dir + " is not covered by deploy/k8s/deploy-identity/" + file + " (or cluster-role.yaml): the deploy identity could not apply it");
+			errors.push(`${env}: ${kind} of ${dir} is not covered by deploy/k8s/deploy-identity/${file} (or cluster-role.yaml): the deploy identity could not apply it`);
 		}
 	}
 
@@ -358,6 +321,14 @@ for (const env of OVERLAYS) {
 	if (riskValue("EXECUTION_MODE") === "live" && env !== "production") errors.push(`${env}: risk-execution-config sets EXECUTION_MODE=live outside production (ADR-0064 §6)`);
 	if ((riskValue("DEPLOYMENT_ENV") === "production") !== (env === "production")) errors.push(`${env}: risk-execution-config DEPLOYMENT_ENV=${riskValue("DEPLOYMENT_ENV")}, only the production overlay may be production`);
 	if (env !== "production" && /BROKER_API_(KEY|SECRET)/.test(rendered)) errors.push(`${env}: live broker keys outside the production overlay (ADR-0064 §6)`);
+
+	// Issue #2821: replica-set members of production never share a node.
+	for (const name of ["redis", "redis-sentinel", "mongo-audit"]) {
+		const sts = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === name);
+		if (env === "production" && sts && !spreadsAcrossNodes(sts.text)) {
+			errors.push(`production: StatefulSet ${name} lacks topologySpreadConstraints on kubernetes.io/hostname (DoNotSchedule)`);
+		}
+	}
 
 	// Issue #809 (ADR-0062): production runs the alerting path twice, Alertmanager as one cluster.
 	for (const name of ["alertmanager", "prometheus"]) {
@@ -417,23 +388,10 @@ for (const env of OVERLAYS) {
 		}
 	}
 
-	// Issue #2197: every Mongo pod adds itself to the replica set, with one script for both sets.
-	const [dlqBoot, auditBoot] = ["mongo-dlq", "mongo-audit"].map(
-		(name) => docs.find((doc) => doc.kind === "StatefulSet" && doc.name === name)?.text.match(/^ +M="mongosh [\s\S]*?exec sleep infinity$/m)?.[0],
-	);
-	if (!dlqBoot?.includes("rs.add(process.env.SELF)") || dlqBoot !== auditBoot) {
-		errors.push(`${env}: the mongodb-bootstrap scripts of mongo-dlq and mongo-audit must be identical and rs.add each member (issue #2197)`);
-	}
-
-	const redisSts = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === "redis")?.text ?? "";
-	if (/^ {6}partition: [1-9]/m.test(redisSts)) {
-		for (const cm of docs.filter((doc) => doc.kind === "ConfigMap")) {
-			const user = cm.text.match(/^ +REDIS_USERNAME: "?([^"\n]+)"?$/m)?.[1];
-			const transport = cm.text.match(/^ +BUS_TRANSPORT: "?([^"\n]*)"?$/m)?.[1]?.trim();
-			if (BUS_USERS.includes(user) && transport !== "http" && !BUS_ON_PARTITIONED_REDIS.has(user)) {
-				errors.push(`${env}: ${cm.name} sends bus user ${user} to the partitioned redis, which lacks it until restarted: set BUS_TRANSPORT=http (issue #1931)`);
-			}
-		}
+	// Issue #2197: every Mongo pod adds itself to the replica set.
+	const auditBoot = docs.find((doc) => doc.kind === "StatefulSet" && doc.name === "mongo-audit")?.text.match(/^ +M="mongosh [\s\S]*?exec sleep infinity$/m)?.[0];
+	if (!auditBoot?.includes("rs.add(process.env.SELF)")) {
+		errors.push(`${env}: the mongodb-bootstrap script of mongo-audit must rs.add each member (issue #2197)`);
 	}
 
 	// Issue #917: a PDB demanding every pod of a fixed-replica workload blocks node drains.

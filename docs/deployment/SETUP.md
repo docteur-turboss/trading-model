@@ -4,14 +4,14 @@
 
 | Tool                           | Version    | Usage                      |
 | ------------------------------ | ---------- | -------------------------- |
-| Bun                           | 1.4.4      | JS runtime + package manager (tested; same as `services/*/Dockerfile`) |
+| Bun                           | 1.4.5      | JS runtime + package manager (tested; same as `Dockerfile`) |
 | Docker Desktop / Docker Engine | 24+        | Containerization           |
 | Git                            | 2.40+      | Version control            |
 
 Verify installed versions:
 
 ```bash
-bun --version      # 1.4.4 (tested; same as services/*/Dockerfile)
+bun --version      # 1.4.5 (tested; same as Dockerfile)
 docker --version   # ≥ 24.x
 git --version      # ≥ 2.40
 ```
@@ -242,7 +242,6 @@ Expected:
 NAME               IMAGE                                                   STATUS
 trading-mongo      mongo:7                                                 Up (healthy)
 trading-mysql      mysql:8                                                 Up (healthy)
-trading-message    ghcr.io/trading-model/message-manager:latest            Up (healthy)
 trading-scraper    ghcr.io/trading-model/financial-scraper:latest          Up (healthy)
 trading-trainer    ghcr.io/trading-model/trader-trainer:latest             Up (healthy)
 trading-gateway    ghcr.io/trading-model/api-gateway:latest                Up (healthy)

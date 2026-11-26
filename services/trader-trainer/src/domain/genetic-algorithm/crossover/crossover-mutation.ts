@@ -1,20 +1,12 @@
 import type { MutationGenome } from "../genome-mutation";
 
-function _coin<TValue>(
-	valueA: TValue,
-	valueB: TValue,
-	rng: () => number
-): TValue {
-	return rng() < 0.5 ? valueA : valueB;
-}
-
 function _coinField<TSection, TKey extends keyof TSection>(
 	left: TSection,
 	right: TSection,
 	key: TKey,
 	rng: () => number
 ): TSection[TKey] {
-	return _coin(left[key], right[key], rng);
+	return rng() < 0.5 ? left[key] : right[key];
 }
 
 function _crossoverRates(

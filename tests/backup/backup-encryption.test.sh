@@ -88,6 +88,18 @@ echo "off-site copy required"
 ) && pass "BACKUP_REQUIRE_OFFSITE=true without bucket fails the run" ||
 	failed "a run without off-site copy passed despite BACKUP_REQUIRE_OFFSITE=true"
 
+echo "off-site bucket size"
+mkdir -p "$WORK/bin"
+printf '#!/bin/sh\necho "{\\"count\\":3,\\"bytes\\":123456}"\n' >"$WORK/bin/rclone"
+chmod +x "$WORK/bin/rclone"
+(
+	PATH="$WORK/bin:$PATH" METRICS_FILE="$WORK/size.prom" BACKUP_S3_BUCKET="s3://b" _METRICS_TMP=""
+	: >"$WORK/size.prom.tmp"
+	_METRICS_TMP="$WORK/size.prom.tmp"
+	write_offsite_size 2>/dev/null
+	grep -qx 'backup_offsite_bytes 123456' "$_METRICS_TMP"
+) && pass "backup_offsite_bytes published from rclone size" || failed "backup_offsite_bytes missing"
+
 echo "restore scripts find *.age backups (through the run manifest)"
 BACKUPS="$WORK/backups"
 mkdir -p "$BACKUPS/mysql" "$BACKUPS/spire" "$BACKUPS/checkpoints"
@@ -97,7 +109,7 @@ write_dump mysql "$BACKUPS/mysql/financial_scraper_${TIMESTAMP}.sql.gz${AGE_SUFF
 write_dump spire "$BACKUPS/spire/data_${TIMESTAMP}.tar${AGE_SUFFIX}" echo x 2>/dev/null
 write_dump checkpoints "$BACKUPS/checkpoints/checkpoints_${TIMESTAMP}.tar.gz${AGE_SUFFIX}" echo x 2>/dev/null
 write_manifest 2>/dev/null
-out="$(BACKUP_DIR="$BACKUPS" BACKUP_AGE_IDENTITY="$WORK/key.txt" bash "$ROOT/scripts/restore-k8s.sh" --dry-run \
+out="$(RESTORE_HELPER_IMAGE=helper:test BACKUP_DIR="$BACKUPS" BACKUP_AGE_IDENTITY="$WORK/key.txt" bash "$ROOT/scripts/restore-k8s.sh" --dry-run \
 	--components mysql,spire,checkpoints --timestamp 2026-01-01_020000 2>&1 || true)"
 if echo "$out" | grep -q 'financial_scraper_2026-01-01_020000.sql.gz.age' &&
 	echo "$out" | grep -q 'data_2026-01-01_020000.tar.age'; then

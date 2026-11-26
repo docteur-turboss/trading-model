@@ -27,11 +27,11 @@ This register documents the processing activities of the trading-model platform,
 | **Purpose**              | Ingest financial market data (OHLCV candles, trades, order books, tickers) for algorithmic trading agent training and backtesting |
 | **Data categories**      | Trading symbols (e.g., BTCUSDT), numeric price/volume data, timestamps, market identifiers                                        |
 | **Personal data**        | None                                                                                                                              |
-| **Recipients**           | Internal: trader-trainer, audit-logger, message-manager                                                                           |
+| **Recipients**           | Internal: trader-trainer, audit-logger                                                                           |
 | **Transfers outside EU** | None. Market data is **received** from the Binance public API (Cayman Islands); nothing is sent to it. Signal sources (ADR-0036): each request sends the User-Agent `automated news analysis <SIGNAL_CONTACT_EMAIL>` to ECB, Eurostat, DVF (France), SEC EDGAR, NWS, Treasury, CFTC, NASA POWER, FRED, Federal Register, EIA and Wikimedia (all United States except ECB, Eurostat and DVF; Art. 44 transfer) and Twelve Data (seat not verified, treated as a possible Art. 44 transfer). API keys are also sent to EIA (`SIGNAL_KEY_EIA`), FRED (`SIGNAL_KEY_FRED`) and Twelve Data (`SIGNAL_KEY_TWELVEDATA`); the collector IP reaches every source. `SIGNAL_CONTACT_EMAIL` must be a functional, non-nominative address (project alias, never a person's e-mail): then no personal data is sent and no Art. 44 transfer of personal data occurs. The real address stays out of the repository. See third-party assessment |
 | **Retention period**     | 1827 days (5 years, record-keeping, see [Data Retention Policy](data-retention-policy.md)): daily CronJob `db-retention` (`scripts/retention-mysql.sh`, `RETENTION_DAYS`; `signals` on `RETENTION_SIGNALS_DAYS`), ADR-0051 |
 | **Technical measures**   | mTLS (SPIFFE SVIDs), LUKS2 data disks, age-encrypted backups, RBAC service accounts                                               |
-| **System**               | financial-scraper → MySQL (market_candles, market_trades, market_tickers, market_order_books, signals). `signals` (ADR-0036) holds numeric observations of public sources, free for any use except Twelve Data (internal use, API key, ADR-0080): bond yields (ECB), company filings (SEC EDGAR), weather observations (NWS), daily Wikipedia page views (Wikimedia, counts only), daily equity and ETF prices (Twelve Data); French housing sales per commune and year (DVF: median price per m² and count only, never a sale line: sale rows are read in memory, never stored, and a median needs at least 11 sales of its type); see [Third-Party DPAs](third-party-dpas.md#signal-sources-adr-0036) |
+| **System**               | financial-scraper → MySQL (market_candles, market_trades, market_tickers, market_order_books, signals, signal_documents). `signals` (ADR-0036) holds numeric observations of public sources, free for any use except Twelve Data (internal use, API key, ADR-0080): bond yields (ECB), company filings (SEC EDGAR), weather observations (NWS), daily Wikipedia page views (Wikimedia, counts only), daily equity and ETF prices (Twelve Data); French housing sales per commune and year (DVF: median price per m² and count only, never a sale line: sale rows are read in memory, never stored, and a median needs at least 11 sales of its type); `signal_documents` (ADR-0084) holds title, URL, dates, hashes and enrichment result of the documents behind text signals, never a body nor a party or author name, purged after 90 days, not served by the API; see [Third-Party DPAs](third-party-dpas.md#signal-sources-adr-0036) |
 
 ## Processing Activity 2: Message Routing
 
@@ -42,9 +42,9 @@ This register documents the processing activities of the trading-model platform,
 | **Personal data**        | None                                                                                                      |
 | **Recipients**           | Internal platform services only                                                                           |
 | **Transfers outside EU** | None — all services are self-hosted                                                                       |
-| **Retention period**     | message-manager: payloads journaled 24 h in Redis Streams (`JOURNAL_RETENTION_MS` = 24 h, `XADD … MINID` trim; AOF + replication; ACL user `message-manager`, ADR-0048), no personal data by design. DLQ: 30 days (TTL index on `createdAt`), capped at `MAX_ENTRIES` (100 000) |
+| **Retention period**     | payloads journaled 24 h in Redis Streams (`JOURNAL_RETENTION_MS` = 24 h, `XADD … MINID` trim; AOF + replication; one ACL user per service, ADR-0048, ADR-0073), no personal data by design. Dead letters stay in the dead streams until an operator replays or deletes them, 7 days at most (`DEAD_LETTER_RETENTION_MS`, `XADD … MINID` trim) |
 | **Technical measures**   | mTLS between services (databases: MongoDB and MySQL require TLS, Redis `optional` until `required`, #1580), payload sanitization, deduplication                                                      |
-| **System**               | message-manager (HTTP push) → dlq-service → MongoDB (`dlq_entries`)                                       |
+| **System**               | bus library in each service (Redis Streams journal, consumed in process) → dead streams (Redis)                                       |
 
 ## Processing Activity 3: Audit Logging
 
@@ -93,6 +93,7 @@ This register documents the processing activities of the trading-model platform,
 | **Data categories**      | Truncated caller IP (IPv4 /24, IPv6 /48), timestamp, method, path without query string, status, size, duration, correlation ID (caller-supplied `X-Correlation-Id` if valid, else generated by nginx), API key name (pseudonym, ADR-0059; empty if unauthenticated). No User-Agent, no X-Forwarded-For, no credentials |
 | **Data subjects**        | Operators and tools calling the public API                                                                         |
 | **Legal basis**          | Legitimate interest (Art. 6(1)(f)) — security of the service (recital 49)                                          |
+| **Balancing test (Art. 5(2))** | Interest: detect abuse and diagnose failures of the public API. Necessity: a truncated IP, path and status are the minimum for that; no User-Agent, query string or full IP, 31 days only. Reasonable expectations: callers of a public API expect access logs, and the [privacy notice](privacy-notice.md) says so |
 | **Recipients**           | Internal: operators (Grafana/Loki)                                                                                 |
 | **Transfers outside EU** | None — Loki is self-hosted                                                                                         |
 | **Retention period**     | 31 days (Loki `retention_period: 744h`)                                                                            |
@@ -118,14 +119,15 @@ This register documents the processing activities of the trading-model platform,
 | Field                    | Value                                                                                                              |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------ |
 | **Purpose**              | Authenticate operators to Grafana and attribute DLQ deletions and replays to a key (ADR-0063, ADR-0059)            |
-| **Data categories**      | Grafana account created at first OIDC login (scopes `openid email profile`: e-mail, name, login); Grafana login log lines (logger `context`: login, and possibly the remote address, not confirmed on a live instance, ADR-0063 §6); API key name as `actor` of `dlq.*` audit events and of `kill_switch.*` risk events (risk-execution) |
+| **Data categories**      | Grafana account created at first OIDC login (scopes `openid email profile`: e-mail, name, login); Grafana login log lines (logger `context`: login; the remote address is masked by a promtail `replace` stage before Loki, ADR-0063 §6); API key name as `actor` of `dlq.*` audit events and of `kill_switch.*` risk events (risk-execution) |
 | **Data subjects**        | Operators                                                                                                          |
 | **Legal basis**          | Legitimate interest (Art. 6(1)(f)): security and traceability of operator actions                                  |
+| **Balancing test (Art. 5(2))** | Interest: know who did what on Grafana, DLQ and kill switch. Necessity: an account is needed to log in; `actor` is a pseudonym and the mapping stays outside the system. Reasonable expectations: operators know their actions are attributed, and the [privacy notice](privacy-notice.md) says so |
 | **Recipients**           | Internal: operators (Grafana/Loki, audit trail via api-gateway). No third party besides the OIDC identity provider |
-| **Transfers outside EU** | None from the platform; the identity provider is the operating entity's (`third-party-dpas.md`)                    |
+| **Transfers outside EU** | None from the platform; the identity provider's region is the operator's choice: see its sheet in `third-party-dpas.md` |
 | **Retention period**     | Grafana accounts (PVC `grafana-data`): deleted when the operator leaves, at the latest at the quarterly Grafana account review. Login logs: 31 days (Loki). `actor`: 1827 days in the immutable audit chain; before delivery, in `risk-event-outbox.json` of the risk-execution PVC (up to 1000 events, removed once the bus accepts them) (Art. 17(3)(b) when a record-keeping obligation applies, otherwise (e)) |
 | **Technical measures**   | Key names must be pseudonyms (`op-01`, ADR-0059); the mapping to a person is kept outside the system, so erasing an operator means destroying its mapping row, never touching the chain. Viewer role by default, `GRAFANA_OIDC_ALLOWED_DOMAINS` |
-| **System**               | Grafana (`grafana-data`), Promtail → Loki, dlq-service → audit-logger → MongoDB                                    |
+| **System**               | Grafana (`grafana-data`), Promtail → Loki, audit-logger → MongoDB                                    |
 
 ---
 
@@ -134,7 +136,7 @@ This register documents the processing activities of the trading-model platform,
 | Activity                 | Personal Data?      | Legal Basis         | Retention                    | Transfers                    |
 | ------------------------ | ------------------- | ------------------- | ---------------------------- | ---------------------------- |
 | Market Data Ingestion    | ❌ None             | —                   | 1827 days (`db-retention`) | Received from Binance; functional contact address sent to signal sources (US included) |
-| Message Routing          | ❌ None             | —                   | Redis journal 24 h; DLQ 30 days       | None                         |
+| Message Routing          | ❌ None             | —                   | Redis journal 24 h; dead streams until replayed       | None                         |
 | Audit Logging            | ✅ Pseudonym `actor` | See activity 8      | 5 years (1827 days)          | None                         |
 | Workload Identity        | ❌ None             | —                   | 4h–168h                      | None                         |
 | ML Training              | ❌ None             | —                   | Per-agent                    | None                         |

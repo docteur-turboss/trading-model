@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { SourceAdapter } from "../../../domain/ports/signal-source.port";
+import { DAY_MS, METRIC_PATTERN } from "./common";
 
 /** `GET /fred/series/observations`: a value is `"."` when the agency has none for the period. */
 const Observations = z.object({
@@ -12,7 +13,6 @@ const Observations = z.object({
 	),
 });
 
-const DAY_MS = 86_400_000;
 /** Calendar months a period covers; absent = one day. */
 const MONTHS = { month: 1, quarter: 3 } as const;
 
@@ -29,13 +29,13 @@ function _periodEnd(start: string, span: keyof typeof MONTHS | "day") {
 /**
  * One FRED series of a US federal agency (FRED API, request with
  * `realtime_start=1776-07-04&realtime_end=9999-12-31` so every vintage comes):
- * a `macro` payload per (period, vintage). `observedAt` is the vintage date
- * (`realtime_start`), so a revision is a second signal and the first stays.
+ * a `macro` payload per (period, vintage). `observedAt` is the end of the
+ * vintage day (`realtime_start`, UTC: FRED gives no release time), so a revision is a second signal and the first stays.
  */
 export const FRED_SERIES_OBSERVATIONS: SourceAdapter = {
 	dimensions: ["macro"],
 	params: z.object({
-		metric: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
+		metric: z.string().regex(METRIC_PATTERN),
 		area: z.string().min(1),
 		unit: z.string().min(1).max(32),
 		period: z.enum(["day", "month", "quarter"]),
@@ -55,7 +55,7 @@ export const FRED_SERIES_OBSERVATIONS: SourceAdapter = {
 			return [
 				{
 					key: `${row.date}@${row.realtime_start}`,
-					observedAt: Date.parse(row.realtime_start),
+					observedAt: Date.parse(row.realtime_start) + DAY_MS,
 					payload: {
 						metric: params.metric,
 						value,

@@ -1,12 +1,13 @@
 {
   "name": "decision-consumer",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "description": "Paper decision consumer (ADR-0049 option C): decides on each closed bar with the promoted models and sends the intents to risk-execution",
   "license": "ISC",
   "type": "commonjs",
   "main": "./dist/application/index.js",
   "scripts": {
     "test": "jest",
+    "stryker": "stryker run",
     "test:coverage": "jest --coverage",
     "build": "tsc",
     "dev": "ts-node src/application/index.ts"
@@ -30,6 +31,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^26.6.6",
     "jest": "^30.5.2",
+    "jest-environment-node": "^30.5.2",
     "ts-jest": "^29.4.15",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3"

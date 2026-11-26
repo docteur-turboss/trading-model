@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10
 **Related:** [ADR-0010](./0010-clean-architecture-migration.md) (layering conventions relied on by the cleanup), ADR-0002 (deleted), ADR-0003 (deleted), ADR-0008 (deleted) (decisions whose never-wired implementations are removed here)
-**Verified by:** `bun run reach:check`, `services/message-manager/tests/unit/app/index.spec.ts`
+**Verified by:** `bun run reach:check`, `services/audit-logger/tests/unit/app/index.spec.ts`
 
 ## Context
 

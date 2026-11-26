@@ -37,7 +37,7 @@ function isMetricsScrape(
  * Usage:
  * ```
  * // Per-service allowlist
- * app.use(MTLSAuthorizationMiddleware('message-manager'));
+ * app.use(MTLSAuthorizationMiddleware('audit-logger'));
  *
  * // Or custom allowlist for specific routes
  * router.use('/admin', MTLSAuthorizationMiddleware('admin-service', ['edge-proxy']));

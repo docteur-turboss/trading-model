@@ -56,21 +56,16 @@ const API_MAJOR_VERSION = 1;
 /** Services the gateway proxies to, by canonical (SPIFFE) name. */
 const PROXIED_SERVICES = [
 	"audit-logger",
-	"dlq-service",
 	"financial-scraper",
-	"message-manager",
 	"model-evaluator",
 	"risk-execution",
 	"trader-trainer",
 ];
 
 /** Routes of proxied services that the gateway does not expose (PUBLIC_ROUTES). */
-const INFRASTRUCTURE_PATHS = new Set(["/metrics", "/health", "/health/ready", "/ping", "/status"]);
+const INFRASTRUCTURE_PATHS = new Set(["/metrics", "/health", "/health/ready", "/ping"]);
 const SERVICE_TO_SERVICE = {
-	"audit-logger": ["POST /message"],
-	"model-evaluator": ["POST /message"],
 	"risk-execution": ["POST /intents", "POST /orders/:clientOrderId/cancel", "GET /positions/:symbol", "GET /admin/status"],
-	"message-manager": ["POST /message", "POST /message/replay", "POST /subscribe", "DELETE /subscribe"],
 	// Model weights: never through the gateway (ADR-0022).
 	"trader-trainer": ["GET /models/:symbol/:version/weights"],
 	"financial-scraper": ["GET /v2/candles/latest"],
@@ -78,18 +73,10 @@ const SERVICE_TO_SERVICE = {
 
 /**
  * Who calls each service-to-service route, and the call that proves it: a
- * pattern searched in the caller's non-test sources. A broker callback
- * (`POST /message`) is called by message-manager for the services that
- * subscribe, so its proof is the owner's subscription (`intents(`).
+ * pattern searched in the caller's non-test sources.
  */
 const CALLERS = {
-	"message-manager POST /message": { caller: "packages/broker-message", call: /\}\/message`/ },
-	"message-manager POST /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
-	"message-manager DELETE /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
-	"message-manager POST /message/replay": { caller: "services/dlq-service", call: /"\/message\/replay"/ },
-	"audit-logger POST /message": { caller: "services/audit-logger", call: /\.intents\(/ },
-	"model-evaluator POST /message": { caller: "services/model-evaluator", call: /\.intents\(/ },
-	"trader-trainer GET /models/:symbol/:version/weights": { caller: "packages/http", call: /\/weights`/ },
+	"trader-trainer GET /models/:symbol/:version/weights": { caller: "packages/model-runtime", call: /\/weights`/ },
 	"financial-scraper GET /v2/candles/latest": { caller: "services/risk-execution", call: /\/v2\/candles\/latest/ },
 	"risk-execution POST /intents": { caller: "services/decision-consumer", call: /\/intents`/ },
 	"risk-execution GET /positions/:symbol": { caller: "services/decision-consumer", call: /\/positions\// },
@@ -115,13 +102,6 @@ const ROUTE_PROVIDERS = [
 	{
 		mountedBy: /createServiceServer\(|createSecureServer\(/,
 		files: ["packages/http/src/configure-app.ts"],
-	},
-	{
-		mountedBy: /ADDRESS_MANAGER_ROUTES\(/,
-		files: [
-			"packages/address-manager/src/monitoring/metrics-collector.ts",
-			"packages/address-manager/src/routes/metrics.routes.ts",
-		],
 	},
 ];
 
@@ -242,7 +222,7 @@ const SOURCE_PATHS = join(ROOT, "scripts/api-contract.tsconfig.json");
 	}
 	const probe = Bun.resolveSync(
 		"@trading-model/http/api-route/api-route",
-		join(ROOT, "services/dlq-service/src")
+		join(ROOT, "services/audit-logger/src")
 	);
 	if (!probe.replaceAll("\\", "/").includes("/packages/http/src/")) {
 		console.error(`@trading-model/* resolves to ${probe}, not to the sources: run through \`bun run api:check\``);
@@ -582,7 +562,7 @@ const SECURITY_SCHEMES = {
 			in: "header",
 			name: "x-signature",
 			description:
-				"Hex HMAC-SHA256(secret, '<x-service-name>:<x-timestamp>:<sha256 hex of the JSON body, or of {} without body>:<METHOD>:<path the service receives, /v1/dlq...>'), see examples/manage-dlq.sh",
+				"Hex HMAC-SHA256(secret, '<x-service-name>:<x-timestamp>:<sha256 hex of the JSON body, or of {} without body>:<METHOD>:<service path>')",
 		},
 	},
 };
@@ -636,8 +616,8 @@ function schemaOperation(lines, method, path, { tag, entry, operation: key }, ga
 	}
 	if (gateway) {
 		responses["401"] ??= { $ref: "#/components/responses/Unauthorized" };
-		// The API key lacks the scope of the route: read for GET, dlq:write otherwise (ADR-0059).
-		responses["403"] ??= { description: "API key without the scope of the route (read for GET, dlq:write otherwise)" };
+		// The API key lacks the scope of the route: read (ADR-0059).
+		responses["403"] ??= { description: "API key without the scope of the route (read)" };
 		responses["404"] ??= { $ref: "#/components/responses/NotFound" };
 	}
 	op.responses = responses;
@@ -802,7 +782,7 @@ function buildInternalSpecs(routesByService) {
 
 // ── Gateway path resolution ──────────────────────────────────────────────────
 
-/** Canonical names and legacy aliases the gateway resolves (registryNamesFor). */
+/** Canonical service names the gateway resolves. */
 function resolvableServiceNames() {
 	const names = new Map();
 	visit(parse(IDENTITY_PATH), (node) => {
@@ -811,13 +791,6 @@ function resolvableServiceNames() {
 		while (ts.isAsExpression(init) || ts.isSatisfiesExpression?.(init)) init = init.expression;
 		if (node.name.getText() === "PLATFORM_SERVICES" && ts.isArrayLiteralExpression(init)) {
 			for (const el of init.elements) if (ts.isStringLiteralLike(el)) names.set(el.text, el.text);
-		}
-		if (node.name.getText() === "LEGACY_SERVICE_NAME_ALIASES" && ts.isObjectLiteralExpression(init)) {
-			for (const prop of init.properties) {
-				if (ts.isPropertyAssignment(prop) && ts.isStringLiteralLike(prop.initializer)) {
-					names.set(prop.name.text ?? prop.name.getText(), prop.initializer.text);
-				}
-			}
 		}
 	});
 	if (names.size === 0) errors.push(`${rel(IDENTITY_PATH)}: service names not found`);

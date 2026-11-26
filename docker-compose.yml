@@ -29,13 +29,30 @@ x-logging: &default-logging
     max-size: 10m
     max-file: "3"
 
+x-spiffe-helper: &spiffe-helper
+  logging: *default-logging
+  image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+  restart: unless-stopped
+  network_mode: none
+  command: ["-config", "/etc/spiffe-helper/helper.conf"]
+  depends_on:
+    spire-agent:
+      condition: service_healthy
+
+x-hardening: &hardening
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+  read_only: true
+  tmpfs:
+    - /tmp
+
 x-message-env: &message-env
   <<: *core-env
-  MESSAGE_CALLBACK_PATH: message
 
 services:
   # ---------------------------------------------------------------------------
-  #  MongoDB — audit-logger (audit trail) and dlq-service (dead letters)
+  #  MongoDB — audit-logger (audit trail)
   # ---------------------------------------------------------------------------
   mongo:
     logging: *default-logging
@@ -77,8 +94,6 @@ services:
       MONGO_BACKUP_PASSWORD: ${MONGO_BACKUP_PASSWORD:?MONGO_BACKUP_PASSWORD must be set (MongoDB user, ADR-0067)}
       MONGO_AUDIT_PASSWORD: ${MONGO_AUDIT_PASSWORD:?MONGO_AUDIT_PASSWORD must be set (MongoDB user, ADR-0067)}
       MONGO_AUDIT_DB: audit-logger
-      MONGO_DLQ_PASSWORD: ${MONGO_DLQ_PASSWORD:?MONGO_DLQ_PASSWORD must be set (MongoDB user, ADR-0067)}
-      MONGO_DLQ_DB: dlq
     volumes:
       - ./deploy/mongo/users.js:/scripts/users.js:ro
     networks:
@@ -88,8 +103,8 @@ services:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------
-  #  Redis — message-manager journal, dlq-service
-  #  queues (single node for dev/E2E)
+  #  Redis — the message bus (journal and dead streams, ADR-0073)
+  #  (single node for dev/E2E)
   # ---------------------------------------------------------------------------
   redis:
     logging: *default-logging
@@ -97,13 +112,12 @@ services:
     container_name: trading-redis
     restart: unless-stopped
     mem_limit: 512m
-    # Snapshots (RDB) always; the append-only file is per environment:
-    # dev leaves it off, a compose host running staging/production sets
-    # REDIS_APPENDONLY=yes like the K8s StatefulSet (deploy/k8s/infra/redis.yaml).
+    # Snapshots (RDB) always, append-only file on by default (journal survives a restart);
+    # REDIS_APPENDONLY=no turns it off for a disposable stack.
     command:
       - redis-server
       - --appendonly
-      - ${REDIS_APPENDONLY:-no}
+      - ${REDIS_APPENDONLY:-yes}
       # A full Redis refuses writes (a publish fails visibly) instead of evicting journal entries (ADR-0073).
       # 384mb = 75 % of mem_limit: room for the AOF rewrite fork, so Redis refuses writes before an OOM kill.
       - --maxmemory
@@ -120,7 +134,7 @@ services:
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 5
 
   # ---------------------------------------------------------------------------
@@ -191,7 +205,7 @@ services:
       DB_HOST: mysql
       DB_PORT: "3306"
       DB_USER: ${MYSQL_USER:-root}
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
       DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
     networks:
       - data-net
@@ -249,6 +263,8 @@ services:
   spire-agent:
     logging: *default-logging
     image: trading-model/spire-agent:${IMAGE_TAG:-latest}
+    # No registry in the name: built locally only, never pulled from docker.io.
+    pull_policy: never
     container_name: trading-spire-agent
     restart: unless-stopped
     mem_limit: 256m
@@ -279,48 +295,13 @@ services:
       retries: 5
 
   # ---------------------------------------------------------------------------
-  #  Message Manager — Event bus / message broker
-  # ---------------------------------------------------------------------------
-  message-manager:
-    logging: *default-logging
-    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/message-manager:${IMAGE_TAG:-latest}
-    container_name: trading-message
-    restart: unless-stopped
-    mem_limit: 512m
-    ports:
-      - '127.0.0.1:${MESSAGE_PORT:-8444}:3000'
-    environment:
-      <<: *message-env
-      APP_NAME: message-manager
-      APP_VERSION: ${APP_VERSION:-1.3.0}
-      SERVICE_NAME: message-manager
-      INSTANCE_ID: message-manager-1
-    # Lets in-flight publishes (PUBLISH_ACCEPT_TIMEOUT_MS) and deliveries
-    # finish: see application/index.ts. Undelivered messages stay in the Redis journal.
-    stop_grace_period: 2m
-    volumes:
-      - svid-message:/run/spire/svid
-    networks:
-      - backend-net
-      - data-net
-    healthcheck:
-      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
-      interval: 15s
-      timeout: 5s
-      retries: 3
-    depends_on:
-      spiffe-helper-message:
-        condition: service_started
-      redis:
-        condition: service_healthy
-
-  # ---------------------------------------------------------------------------
   #  Financial Scraper — Real-time market data ingestion
   # ---------------------------------------------------------------------------
   financial-scraper:
     # Waits for the running scrape cycle, then hands the collector lease over (ADR-0057).
     stop_grace_period: 1m
     logging: *default-logging
+    <<: *hardening
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/financial-scraper:${IMAGE_TAG:-latest}
     container_name: trading-scraper
     restart: unless-stopped
@@ -367,10 +348,10 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-      message-manager:
+      redis:
         condition: service_healthy
     healthcheck:
-      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
+      test: node /app/probe.js https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -380,6 +361,7 @@ services:
   # ---------------------------------------------------------------------------
   trader-trainer:
     logging: *default-logging
+    <<: *hardening
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/trader-trainer:${IMAGE_TAG:-latest}
     container_name: trading-trainer
     stop_grace_period: 2m
@@ -392,7 +374,6 @@ services:
       APP_NAME: trader-trainer
       APP_VERSION: ${APP_VERSION:-1.3.0}
       SERVICE_NAME: trader-trainer
-      BUS_TRANSPORT: library
       INSTANCE_ID: trader-trainer-1
       TRAINER_SYMBOLS: ${TRAINER_SYMBOLS:-BTCUSDT,ETHUSDT}
       TRAINER_SYMBOL_ASSETS: ${TRAINER_SYMBOL_ASSETS:-}
@@ -416,6 +397,7 @@ services:
       TRAINER_FITNESS_TYPE: ${TRAINER_FITNESS_TYPE:-total_pnl}
       FEATURE_RISK_ADJUSTED_FITNESS: ${FEATURE_RISK_ADJUSTED_FITNESS:-true}
       FEATURE_ACTION_SPACE_GENE: ${FEATURE_ACTION_SPACE_GENE:-false}
+      FEATURE_TOPOLOGY_GENES: ${FEATURE_TOPOLOGY_GENES:-false}
       TRAINER_OBSERVE_POSITION: ${TRAINER_OBSERVE_POSITION:-true}
       TRAINER_SEED_OFFSET: ${TRAINER_SEED_OFFSET:-0}
       # Model artifacts (ADR-0022)
@@ -427,14 +409,14 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
+      test: node /app/probe.js https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
     depends_on:
       spiffe-helper-trainer:
         condition: service_started
-      message-manager:
+      redis:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------
@@ -442,6 +424,7 @@ services:
   # ---------------------------------------------------------------------------
   api-gateway:
     logging: *default-logging
+    <<: *hardening
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/api-gateway:${IMAGE_TAG:-latest}
     container_name: trading-gateway
     restart: unless-stopped
@@ -459,13 +442,14 @@ services:
       # Required: in production the gateway refuses to start without API keys.
       AUTH_TOKENS: ${GATEWAY_AUTH_TOKENS:-}
       PROXY_TIMEOUT_MS: '10000'
+      PROXY_MAX_CONCURRENT: '16'
       PROXY_MAX_RESPONSE_BYTES: '8388608'
     volumes:
       - svid-gateway:/run/spire/svid
     networks:
       - backend-net
     healthcheck:
-      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
+      test: node /app/probe.js https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
@@ -478,6 +462,7 @@ services:
   # ---------------------------------------------------------------------------
   audit-logger:
     logging: *default-logging
+    <<: *hardening
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/audit-logger:${IMAGE_TAG:-latest}
     container_name: trading-audit
     restart: unless-stopped
@@ -490,7 +475,6 @@ services:
       APP_NAME: audit-logger
       APP_VERSION: ${APP_VERSION:-1.0.0}
       SERVICE_NAME: audit-logger
-      BUS_TRANSPORT: library
       INSTANCE_ID: audit-logger-1
       MONGODB_URI: mongodb://mongo:27017/audit-logger?authSource=admin
       MONGO_USERNAME: audit-logger
@@ -501,13 +485,15 @@ services:
       - backend-net
       - data-net
     healthcheck:
-      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
+      test: node /app/probe.js https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
     depends_on:
       spiffe-helper-audit:
         condition: service_started
+      redis:
+        condition: service_healthy
       mongo-users:
         condition: service_completed_successfully
 
@@ -516,6 +502,7 @@ services:
   # ---------------------------------------------------------------------------
   model-evaluator:
     logging: *default-logging
+    <<: *hardening
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/model-evaluator:${IMAGE_TAG:-latest}
     container_name: trading-model-evaluator
     restart: unless-stopped
@@ -528,7 +515,6 @@ services:
       APP_NAME: model-evaluator
       APP_VERSION: ${APP_VERSION:-1.0.0}
       SERVICE_NAME: model-evaluator
-      BUS_TRANSPORT: library
       INSTANCE_ID: model-evaluator-1
       EVALUATIONS_DIR: /data/evaluations
       TRAINER_MODEL_DIR: /data/checkpoints/models
@@ -539,19 +525,22 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
+      test: node /app/probe.js https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
     depends_on:
       spiffe-helper-evaluator:
         condition: service_started
+      redis:
+        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  Risk/Execution — order flow owner of ADR-0064 (simulated broker, paper only)
   # ---------------------------------------------------------------------------
   risk-execution:
     logging: *default-logging
+    <<: *hardening
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/risk-execution:${IMAGE_TAG:-latest}
     container_name: trading-risk-execution
     restart: unless-stopped
@@ -564,7 +553,6 @@ services:
       APP_NAME: risk-execution
       APP_VERSION: ${APP_VERSION:-1.0.0}
       SERVICE_NAME: risk-execution
-      BUS_TRANSPORT: library
       INSTANCE_ID: risk-execution-1
       EXECUTION_MODE: paper
       DEPLOYMENT_ENV: development
@@ -577,19 +565,22 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
+      test: node /app/probe.js https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
     depends_on:
       spiffe-helper-risk:
         condition: service_started
+      redis:
+        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  Decision Consumer — paper decisions of the promoted models, intents to risk-execution (ADR-0049 option C, ADR-0088)
   # ---------------------------------------------------------------------------
   decision-consumer:
     logging: *default-logging
+    <<: *hardening
     image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/decision-consumer:${IMAGE_TAG:-latest}
     container_name: trading-decision-consumer
     restart: unless-stopped
@@ -600,7 +591,6 @@ services:
       APP_NAME: decision-consumer
       APP_VERSION: ${APP_VERSION:-1.0.0}
       SERVICE_NAME: decision-consumer
-      BUS_TRANSPORT: library
       INSTANCE_ID: decision-consumer-1
       PROMOTED_MODELS: ${PROMOTED_MODELS:-}
     volumes:
@@ -608,55 +598,15 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
+      test: node /app/probe.js https://localhost:3000/health/ready
       interval: 15s
       timeout: 5s
       retries: 3
     depends_on:
       spiffe-helper-decision:
         condition: service_started
-
-  # ---------------------------------------------------------------------------
-  #  DLQ Service - Dead Letter Queue management
-  # ---------------------------------------------------------------------------
-  dlq-service:
-    logging: *default-logging
-    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/dlq-service:${IMAGE_TAG:-latest}
-    container_name: trading-dlq
-    restart: unless-stopped
-    stop_grace_period: 30s
-    mem_limit: 256m
-    ports:
-      - '127.0.0.1:${DLQ_PORT:-8452}:3000'
-    environment:
-      <<: *message-env
-      APP_NAME: dlq-service
-      APP_VERSION: ${APP_VERSION:-1.0.0}
-      SERVICE_NAME: dlq-service
-      INSTANCE_ID: dlq-service-1
-      MONGO_URI: mongodb://mongo:27017/?authSource=admin
-      MONGO_USERNAME: dlq-service
-      MONGO_PASSWORD: ${MONGO_DLQ_PASSWORD:?MONGO_DLQ_PASSWORD must be set (MongoDB user, ADR-0067)}
-      MONGO_DB: dlq
-      MONGO_COLLECTION: dlq_entries
-      MAX_ENTRIES: '100000'
-      DLQ_AUTH_HMAC_SECRET: ${DLQ_AUTH_HMAC_SECRET:?DLQ_AUTH_HMAC_SECRET must be set (min 32 chars, shared by message-manager and dlq-service)}
-      DLQ_ALLOWED_SERVICES: ${DLQ_ALLOWED_SERVICES:-message-manager,admin}
-    volumes:
-      - svid-dlq:/run/spire/svid
-    networks:
-      - backend-net
-      - data-net
-    healthcheck:
-      test: node -e 'const f=require("fs"),d="/run/spire/svid/";require("https").get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' https://localhost:3000/health/ready
-      interval: 15s
-      timeout: 5s
-      retries: 3
-    depends_on:
-      spiffe-helper-dlq:
-        condition: service_started
-      mongo-users:
-        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  SPIFFE Helpers — spiffe-helper sidecars (ADR-0011)
@@ -666,185 +616,86 @@ services:
   #  (spiffe-helper-<suffix>, registered by spire-bootstrap). Helpers only talk
   #  to the agent socket: no network, so a service restart cannot strand them.
   # ---------------------------------------------------------------------------
-  spiffe-helper-message:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
-    container_name: trading-helper-message
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
-    volumes:
-      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
-      - spire-agent-sockets:/run/spire/agent-sockets:ro
-      - svid-message:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
-
   spiffe-helper-scraper:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-scraper
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-scraper:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
   spiffe-helper-trainer:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-trainer
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-trainer:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
   spiffe-helper-gateway:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-gateway
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-gateway:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
   spiffe-helper-audit:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-audit
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-audit:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
   spiffe-helper-evaluator:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-evaluator
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-evaluator:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
   spiffe-helper-risk:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-risk
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-risk:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
   spiffe-helper-decision:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-decision
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-decision:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
-  spiffe-helper-dlq:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
-    container_name: trading-helper-dlq
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
-    volumes:
-      - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
-      - spire-agent-sockets:/run/spire/agent-sockets:ro
-      - svid-dlq:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
   spiffe-helper-edge:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-edge
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-edge:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
   spiffe-helper-prometheus:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-prometheus
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-prometheus:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
   spiffe-helper-blackbox:
-    logging: *default-logging
-    image: ghcr.io/spiffe/spiffe-helper:0.12.4@sha256:8c63bb63f61c00ab79080fd7dea80cecb47558989c2b8d84f6a6d0dc7a1fba32
+    <<: *spiffe-helper
     container_name: trading-helper-blackbox
-    restart: unless-stopped
-    network_mode: none
-    command: ["-config", "/etc/spiffe-helper/helper.conf"]
     volumes:
       - ./deploy/compose/spire/helper.conf:/etc/spiffe-helper/helper.conf:ro
       - spire-agent-sockets:/run/spire/agent-sockets:ro
       - svid-blackbox:/run/spire/svid
-    depends_on:
-      spire-agent:
-        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  Edge proxy — external entry point to the api-gateway (ADR-0018)
@@ -960,8 +811,7 @@ services:
       mysql-exporter-user:
         condition: service_completed_successfully
 
-  # One mongod serves audit-logger and dlq-service in compose; standalone, so
-  # no replica set collector.
+  # One standalone mongod serves audit-logger in compose: no replica set collector.
   mongodb-exporter:
     logging: *default-logging
     image: percona/mongodb_exporter:0.54.0@sha256:934e9db87e85e0fa63654e73c3504845993a254e898783ca905e65a68848b5a4
@@ -1204,12 +1054,10 @@ volumes:
   spire-bootstrap:
   spire-server-sockets:
   spire-agent-sockets:
-  svid-message:
   svid-scraper:
   svid-trainer:
   svid-gateway:
   svid-audit:
-  svid-dlq:
   svid-evaluator:
   svid-risk:
   svid-decision:

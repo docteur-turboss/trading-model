@@ -1,0 +1,11 @@
+# Role of the cluster-scope deploy identity in the ingress controller
+# namespace: check-prereqs.sh reads one ConfigMap (disable-access-log).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deploy-check-ingress
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [ingress-nginx-controller]
+    verbs: [get]

@@ -10,7 +10,6 @@
 #  SPIRE bundle, it creates nothing. Every check prints OK or KO; exit 1 when
 #  any KO.
 #    - audit trail: tests/backup/audit-chain.js, `broken` null and count > 0
-#    - dead letters (dlq.dlq_entries): count reported
 #    - financial_scraper.market_candles: rows > 0, latest timestamp reported
 #      (KO older than --max-candle-age-hours when given; after a restore the
 #      data is as old as the backup, so there is no default limit)
@@ -87,16 +86,6 @@ check_audit() {
     fail "audit trail: no event (count ${count})"
   else
     ok "audit trail: ${count} events, sequence $(json_field "$out" first)..$(json_field "$out" last), chain intact"
-  fi
-}
-
-check_dlq() {
-  local n
-  if n="$(mongo_eval mongodb "print(db.getSiblingDB('dlq').dlq_entries.countDocuments({}))" 2>/dev/null | tail -1)" \
-    && [[ "$n" =~ ^[0-9]+$ ]]; then
-    ok "dead letters: ${n} in dlq.dlq_entries"
-  else
-    fail "dead letters: cannot count dlq.dlq_entries"
   fi
 }
 
@@ -181,7 +170,6 @@ check_manifest() {
 
 log "Post-restore verification (namespace ${K8S_NAMESPACE}, read-only)"
 check_audit
-check_dlq
 check_candles
 check_spire_entries
 check_trust_bundle

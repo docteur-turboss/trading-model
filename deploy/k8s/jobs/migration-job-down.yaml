@@ -52,6 +52,7 @@ spec:
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop:
                 - ALL
@@ -88,6 +89,8 @@ spec:
             - name: DB_SSL_KEY
               value: /etc/mysql-tls/tls.key
           volumeMounts:
+            - name: tmp
+              mountPath: /tmp
             - name: mysql-tls
               mountPath: /etc/mysql-tls
               readOnly: true
@@ -99,6 +102,8 @@ spec:
               cpu: 500m
               memory: 256Mi
       volumes:
+        - name: tmp
+          emptyDir: {}
         - name: mysql-tls
           secret:
             secretName: mysql-client-migrator

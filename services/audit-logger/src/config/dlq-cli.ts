@@ -13,16 +13,39 @@ import {
 	Topic,
 } from "@trading-model/primitives/primitives";
 import { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
+import { MongoClient } from "mongodb";
+import { importMongoDlq } from "../adapters/outbound/mongo-dlq-import";
+import type { MongoDlqImportReport } from "../domain/mongo-dlq-import-report";
 import { ENV } from "../infrastructure/config/env";
 
 /** The bus of the operator CLI: dead streams and the `dlq.*` publisher, over the service's Redis settings. */
 export function openDlqCli() {
 	const journal = busJournalFromEnv(ENV);
-	if (!journal) {
-		throw new Error("the DLQ CLI needs the bus: BUS_TRANSPORT=library");
-	}
+	const streams = new DeadStreams(journal);
 	return {
-		streams: new DeadStreams(journal),
+		streams,
+		importMongo: async (): Promise<MongoDlqImportReport> => {
+			const uri = process.env.MONGO_DLQ_URI;
+			if (!uri) {
+				throw new Error("MONGO_DLQ_URI is required");
+			}
+			const client = await MongoClient.connect(uri, {
+				auth: {
+					username: process.env.MONGO_DLQ_USERNAME,
+					password: process.env.MONGO_DLQ_PASSWORD,
+				},
+			});
+			try {
+				return await importMongoDlq(
+					client
+						.db(process.env.MONGO_DLQ_DB ?? "dlq")
+						.collection("dlq_entries"),
+					streams
+				);
+			} finally {
+				await client.close();
+			}
+		},
 		publish: <TEvent extends DlqEvent>(
 			event: TEvent,
 			payload: DlqEventMap[TEvent]

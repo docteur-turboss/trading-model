@@ -42,7 +42,7 @@ The `financial-scraper` waits for `migrate` to complete (`condition: service_com
 
 ## MongoDB
 
-MongoDB 7 serves `audit-logger` (database `audit-logger`) and `dlq-service` (database `dlq`), authenticated (ADR-0067). Replica sets, users and connection settings: [databases.md](../architecture/databases.md#mongodb--audit-and-dlq).
+MongoDB 7 serves `audit-logger` (database `audit-logger`), authenticated (ADR-0067). Replica sets, users and connection settings: [databases.md](../architecture/databases.md#mongodb--audit).
 
 ---
 

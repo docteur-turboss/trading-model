@@ -2,7 +2,7 @@
 # =============================================================================
 #  Trading Model — Fetch a backup run from the off-site bucket
 #  Usage:  bash scripts/fetch-offsite.sh --dest DIR [--timestamp TS] [--tier T] [--pitr] [--dry-run]
-#            [--components mongodb,mongodb-audit,mysql,mysql-core,checkpoints,spire,risk]
+#            [--components mongodb-audit,mysql,mysql-core,checkpoints,spire,risk]
 #          BACKUP_S3_BUCKET=s3://bucket/prefix AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...
 #          RCLONE_S3_ENDPOINT / RCLONE_S3_PROVIDER for a non-AWS store
 #
@@ -10,8 +10,7 @@
 #  written by upload_offsite (backup-lib.sh) holds the only copy. This script
 #  copies ONE run (all its files share the timestamp TS) into DIR, in the
 #  layout restore-k8s.sh reads:
-#    mongodb/<TS>/<replica set>.archive.gz.age   (mongodb, mongodb-audit)
-#      component `mongodb`: both replica sets; `mongodb-audit`: the audit one
+#    mongodb/<TS>/mongodb-audit.archive.gz.age   (component `mongodb-audit`, alias `mongodb`)
 #    mysql/financial_scraper_<TS>.sql.gz.age
 #    mysql-core/financial_scraper_<TS>.sql.gz.age (without the market tables
 #      of MYSQL_CORE_EXCLUDED_TABLES, backup-lib.sh)
@@ -56,7 +55,7 @@ DEST=""
 TIMESTAMP=""
 DRY_RUN=false
 PITR=false
-COMPONENTS="mongodb,mysql,checkpoints,spire,risk"
+COMPONENTS="mongodb-audit,mysql,checkpoints,spire,risk"
 TIER=""
 
 usage() {
@@ -78,27 +77,19 @@ done
 
 # shellcheck source=backup-lib.sh
 source "$(dirname "$0")/backup-lib.sh"
+COMPONENTS="$(normalize_components "$COMPONENTS")"
 
-# Replica sets dumped by backup-k8s.sh, one archive each.
-MONGO_LABELS="mongodb mongodb-audit"
 TS_PATTERN='[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}'
-
-# Replica sets of component `$1`: `mongodb` is both, `mongodb-audit` the
-# audit trail alone (the only one in the weekly and monthly tiers, ADR-0032).
-mongo_labels() {
-  if [ "$1" = mongodb-audit ]; then echo mongodb-audit; else echo "$MONGO_LABELS"; fi
-}
 
 # Relative paths (inside the bucket prefix) of component `$1` for run `$2`,
 # with its PITR starting points when --pitr.
 component_files() {
+  # shellcheck disable=SC2034 # label is read by component_files branches per component
   local label
   case "$1" in
-    mongodb|mongodb-audit)
-      for label in $(mongo_labels "$1"); do
-        echo "mongodb/$2/${label}.archive.gz.age"
-        ! $PITR || echo "mongodb/$2/${label}.pitr.age"
-      done
+    mongodb-audit)
+      echo "mongodb/$2/mongodb-audit.archive.gz.age"
+      ! $PITR || echo "mongodb/$2/mongodb-audit.pitr.age"
       ;;
     mysql)
       echo "mysql/financial_scraper_$2.sql.gz.age"
@@ -132,10 +123,8 @@ pitr_archives() {
           [[ "${stamp%.gz.age}" < "$1" ]] || echo "$file"
         done
         ;;
-      mongodb|mongodb-audit)
-        local labels
-        labels="$(mongo_labels "$part" | tr ' ' '|')"
-        grep -E "^mongodb/oplog/(${labels})/[0-9]+\.[0-9]+_[0-9]+\.[0-9]+\.bson\.gz\.age$" <<<"$LISTING" | while read -r file; do
+      mongodb-audit)
+        grep -E "^mongodb/oplog/mongodb-audit/[0-9]+\.[0-9]+_[0-9]+\.[0-9]+\.bson\.gz\.age$" <<<"$LISTING" | while read -r file; do
           end="${file##*_}"
           end="${end%%.*}"
           [ "$end" -lt "$since" ] || echo "$file"
@@ -185,16 +174,10 @@ PARTS=()
 IFS=',' read -ra REQUESTED <<<"$COMPONENTS"
 for part in "${REQUESTED[@]}"; do
   case "$part" in
-    mongodb|mongodb-audit|mysql|mysql-core|checkpoints|spire|risk) PARTS+=("$part") ;;
+    mongodb-audit|mysql|mysql-core|checkpoints|spire|risk) PARTS+=("$part") ;;
     *) fail "Unknown component: ${part}"; exit 1 ;;
   esac
 done
-# mongodb already holds the audit replica set.
-if [[ " ${PARTS[*]} " == *" mongodb "* ]]; then
-  KEPT=()
-  for part in "${PARTS[@]}"; do [ "$part" = mongodb-audit ] || KEPT+=("$part"); done
-  PARTS=("${KEPT[@]}")
-fi
 if [ "${#PARTS[@]}" -eq 0 ]; then
   fail "No component to fetch"
   exit 1

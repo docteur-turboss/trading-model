@@ -7,10 +7,7 @@ import {
 	it,
 } from "@jest/globals";
 import { DateRange } from "@trading-model/primitives/date-range";
-import {
-	Limit,
-	PageNumber,
-} from "@trading-model/primitives/primitives/page-number";
+import { Limit } from "@trading-model/primitives/primitives/page-number";
 import { type Db, MongoClient } from "mongodb";
 import {
 	buildAuditDocument,
@@ -21,7 +18,7 @@ import {
 	AuditRepository,
 } from "../../src/adapters/outbound/persistence/audit-repository";
 
-const NOON = Date.UTC(2026, 9, 31, 12, 0, 0);
+const NOON = Date.now() - 3_600_000;
 
 function envelope(event: {
 	id: string;
@@ -127,26 +124,23 @@ describe("AuditRepository reads — real MongoDB", () => {
 		await record(...batch);
 
 		const seen: string[] = [];
-		let total = 0;
-		for (let page = 1; page <= 3; page++) {
+		let before: number | undefined;
+		do {
 			const result = await repository.query({
-				page: PageNumber.of(page),
+				before,
 				limit: Limit.of(10, 1000),
 			} as AuditEventQuery);
-			total = result.total!;
+			before = result.nextCursor ?? undefined;
 			seen.push(...result.docs.map((doc) => doc.metadata.messageId));
-		}
+		} while (before !== undefined);
 
-		expect(total).toBe(25);
 		expect(new Set(seen).size).toBe(25);
 	});
 
-	it("should omit total, and not count, with withTotal=false", async () => {
+	it("should omit total, and not count, by default", async () => {
 		await record({ id: "x" }, { id: "y" });
 
-		const page = await repository.query({
-			withTotal: false,
-		} as AuditEventQuery);
+		const page = await repository.query({} as AuditEventQuery);
 
 		expect(page.docs).toHaveLength(2);
 		expect(page).not.toHaveProperty("total");

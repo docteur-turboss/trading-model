@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { SourceAdapter } from "../../../domain/ports/signal-source.port";
+import { METRIC_PATTERN } from "./common";
 
 const Categories = z.object({
 	category: z.object({ index: z.record(z.string(), z.number().int()) }),
@@ -46,7 +47,7 @@ function _period(code: string) {
 export const EUROSTAT_JSONSTAT: SourceAdapter = {
 	dimensions: ["macro"],
 	params: z.object({
-		metric: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
+		metric: z.string().regex(METRIC_PATTERN),
 		area: z.string().regex(/^[A-Z][A-Z0-9]{1,7}$/),
 	}),
 	normalize(payload, { params }) {

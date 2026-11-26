@@ -176,6 +176,7 @@ describe("Wallet module", () => {
 				initialPrice: Price.of(50),
 				feeRate: Percentage.zero(),
 				executionCostRate: Percentage.zero(),
+				maxExposureFraction: 0.3,
 			});
 			const result = wallet.buy(Volume.of(5));
 			expect(result).toBe(true);
@@ -188,8 +189,9 @@ describe("Wallet module", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(100),
 				initialPrice: Price.of(50),
-				feeRate: Percentage.zero(),
+				feeRate: Percentage.of(0.01),
 				executionCostRate: Percentage.zero(),
+				maxExposureFraction: 1,
 			});
 			const result = wallet.buy(Volume.of(3));
 			expect(result).toBe(false);
@@ -211,7 +213,7 @@ describe("Wallet module", () => {
 		test.each([
 			[50, 10],
 			[0.01, 50000],
-		])("refuses a buy past the exposure cap at price %p", (price, cap) => {
+		])("reduces a buy past the exposure cap at price %p", (price, cap) => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(price),
@@ -220,13 +222,13 @@ describe("Wallet module", () => {
 				maxExposureFraction: 0.5,
 			});
 			// cap = 0.5 * 1000 / price units
-			expect(wallet.buy(Volume.of(cap + 1))).toBe(false);
 			expect(wallet.buy(Volume.of(cap / 2))).toBe(true);
-			expect(wallet.buy(Volume.of(cap / 2 + 1))).toBe(false);
-			expect(wallet.buy(Volume.of(cap / 2))).toBe(true);
+			expect(wallet.buy(Volume.of(cap / 2 + 1))).toBe(true);
+			expect(wallet.getPosition()).toBeCloseTo(cap, 6);
+			expect(wallet.buy(Volume.of(1))).toBe(false);
 		});
 
-		test("checks the exposure cap at the fill price, not the marked price", () => {
+		test("reduces the buy to the exposure cap at the fill price, not the marked price", () => {
 			const wallet = createWallet({
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(100),
@@ -234,8 +236,10 @@ describe("Wallet module", () => {
 				executionCostRate: Percentage.zero(),
 				maxExposureFraction: 0.5,
 			});
-			expect(wallet.buy(Volume.of(5), Price.of(120))).toBe(false);
-			expect(wallet.buy(Volume.of(5), Price.of(100))).toBe(true);
+			// 100 % of the cap sized at the close (5 units), filled 5 % above it
+			expect(wallet.buy(Volume.of(5), Price.of(105))).toBe(true);
+			expect(wallet.getPosition() * 105).toBeLessThanOrEqual(500 + 1e-6);
+			expect(wallet.getPosition()).toBeCloseTo(500 / 105, 6);
 		});
 	});
 
@@ -246,6 +250,7 @@ describe("Wallet module", () => {
 				initialPrice: Price.of(50),
 				feeRate: Percentage.zero(),
 				executionCostRate: Percentage.zero(),
+				maxExposureFraction: 0.3,
 			});
 			wallet.buy(Volume.of(5));
 			const result = wallet.sell(Volume.of(2));
@@ -314,6 +319,7 @@ describe("Wallet module", () => {
 				initialPrice: Price.of(50),
 				feeRate: Percentage.zero(),
 				executionCostRate: Percentage.zero(),
+				maxExposureFraction: 0.3,
 			});
 			wallet.buy(Volume.of(5));
 			wallet.sell(Volume.of(2));
@@ -344,6 +350,7 @@ describe("Wallet module", () => {
 				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
 				executionCostRate: Percentage.zero(),
+				maxExposureFraction: 0.3,
 				feeRate: Percentage.of(0.01),
 			});
 			wallet.buy(Volume.of(5));
@@ -404,6 +411,7 @@ describe("Wallet module", () => {
 				initialPrice: Price.of(100),
 				feeRate: Percentage.of(0.001),
 				executionCostRate: Percentage.of(0.0005),
+				maxExposureFraction: 0.3,
 			});
 
 		test("a buy pays fill × (1 + cost) plus the fee, marked at the close", () => {

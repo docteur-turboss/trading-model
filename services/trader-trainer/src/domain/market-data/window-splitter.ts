@@ -211,13 +211,20 @@ export class WindowSplitter {
 		if (steps.length < MIN_TRAINING_STEPS || test.length < MIN_TRAINING_STEPS) {
 			return null;
 		}
-		const sets: WindowSet[] =
+		const candles = contiguousCandles(
+			this._states.get(ctx.symbol)?.candles ?? []
+		);
+		const replay = candles.length
+			? {
+					from: candles[0].timestamp,
+					to: candles[candles.length - 1].closeTimestamp,
+				}
+			: undefined;
+		const sets: WindowSet[] = (
 			walkForwardFolds >= 2
-				? this.splitWalkForward(steps, walkForwardFolds).map((ws) => ({
-						...ws,
-						test,
-					}))
-				: [{ ...this.splitTrainValidation(steps, validationSplit), test }];
+				? this.splitWalkForward(steps, walkForwardFolds)
+				: [this.splitTrainValidation(steps, validationSplit)]
+		).map((ws) => ({ ...ws, test, replay }));
 		return this.signalKeys.length
 			? sets.map((set) => this._normalizeSignals(ctx.symbol, set))
 			: sets;

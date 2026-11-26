@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 #  Trading Model — Database Backup Script (Kubernetes)
-#  Usage:  bash scripts/backup-k8s.sh [--dry-run] [--components mongodb,mysql,checkpoints,spire,risk]
+#  Usage:  bash scripts/backup-k8s.sh [--dry-run] [--components mongodb-audit,mysql,checkpoints,spire,risk]
 #          BACKUP_DIR=/backups BACKUP_S3_BUCKET=s3://my-bucket/backups
 #          BACKUP_AGE_RECIPIENTS=age1... (encryption, see backup-lib.sh)
 #          RETENTION_DAYS, RETENTION_WEEKLY_WEEKS, RETENTION_MONTHLY_MONTHS,
@@ -14,7 +14,7 @@ BACKUP_DIR="${BACKUP_DIR:-/backups}"
 # UTC: restore-k8s.sh --until compares these stamps with the requested instant.
 TIMESTAMP="$(date -u +%Y-%m-%d_%H%M%S)"
 DRY_RUN=false
-COMPONENTS="mongodb,mysql,checkpoints,spire,risk"
+COMPONENTS="mongodb-audit,mysql,checkpoints,spire,risk"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
 K8S_NAMESPACE="${K8S_NAMESPACE:-trading-model}"
 METRICS_FILE="${METRICS_FILE:-}"
@@ -43,9 +43,10 @@ backup_mongodb() {
   local dest="${BACKUP_DIR}/mongodb/${TIMESTAMP}"
   mkdir -p "$dest"
 
-  # One dump per replica set, from its primary: every member holds the same data.
+  # One dump of the audit replica set, from its primary: every member holds the same data.
   local label primary
-  for label in mongodb mongodb-audit; do
+  # shellcheck disable=SC2043 # one-element list kept so a second replica set is a one-word change
+  for label in mongodb-audit; do
     if ! primary=$(mongo_primary "$label"); then
       fail "No writable MongoDB primary for ${label}"
       write_metric "$label" 0
@@ -232,7 +233,7 @@ fi
 IFS=',' read -ra PARTS <<< "$COMPONENTS"
 for part in "${PARTS[@]}"; do
   case "$part" in
-    mongodb)      backup_mongodb ;;
+    mongodb|mongodb-audit) backup_mongodb ;;
     mysql)        backup_mysql ;;
     checkpoints)  backup_volume checkpoints trader-trainer tar czf - -C /data/checkpoints . ;;
     # *.json only: never a half-written tmp file (JsonFile renames it into place).

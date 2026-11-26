@@ -198,7 +198,7 @@ export class SignalCollector {
 		() => this._deps.now()
 	);
 
-	async collect(source: Source): Promise<void> {
+	async collect(source: Source, signal?: AbortSignal): Promise<void> {
 		if (this._quarantine.isOpen(source.id)) {
 			SIGNAL_COLLECTIONS_TOTAL.inc({
 				source: source.id,
@@ -210,13 +210,19 @@ export class SignalCollector {
 		let fetchFailure: Error | undefined;
 		for (const [index, request] of source.requests.entries()) {
 			// One after the other, at most maxRequestsPerMinute: free sources are not to be burst.
+			if (signal?.aborted) {
+				return;
+			}
 			if (index > 0) {
 				await this._deps.sleep(spacingMs);
 			}
-			const failure = await this._collectRequest(source, request);
+			const failure = await this._collectRequest(source, request, signal);
 			fetchFailure ??= failure;
 		}
-		this._track(source.id, fetchFailure);
+		// A cut cycle says nothing about the source: no quarantine step.
+		if (!signal?.aborted) {
+			this._track(source.id, fetchFailure);
+		}
 	}
 
 	/** Opens, extends or closes the quarantine of a source after a tick. */
@@ -245,16 +251,19 @@ export class SignalCollector {
 			return;
 		}
 		await this._deps.store.save(
-			this._toSignals(source, request, payload, this._deps.now(), true)
+			this._toSignals(source, request, payload, this._deps.now(), true),
+			source.restated
 		);
 	}
 
 	private async _collectRequest(
 		source: Source,
-		request: SourceRequest
+		request: SourceRequest,
+		signal?: AbortSignal
 	): Promise<Error | undefined> {
 		let result: CollectionResult = "fetch_error";
 		let fetchFailure: Error | undefined;
+		let cut = false;
 		const ingestedAt = this._deps.now();
 		try {
 			const worker = this._deps.workers[source.protocol];
@@ -262,8 +271,10 @@ export class SignalCollector {
 			const payload = await worker(
 				{ ...request, url },
 				source.accessPolicy.auth,
-				source
+				source,
+				signal
 			);
+			signal?.throwIfAborted();
 			if (payload === NOT_MODIFIED) {
 				result = "not_modified";
 				SIGNAL_LAST_SUCCESS.set({ source: source.id }, ingestedAt / 1000);
@@ -272,7 +283,7 @@ export class SignalCollector {
 			result = "invalid_payload";
 			const signals = this._toSignals(source, request, payload, ingestedAt);
 			result = "store_error";
-			await this._deps.store.save(signals);
+			await this._deps.store.save(signals, source.restated);
 			worker.confirm?.(url);
 			result = "success";
 			SIGNAL_LAST_SUCCESS.set({ source: source.id }, ingestedAt / 1000);
@@ -289,6 +300,11 @@ export class SignalCollector {
 				context: { source: source.id, count: signals.length },
 			});
 		} catch (err) {
+			if (signal?.aborted) {
+				// Lease lost: not a source failure, no log, no metric.
+				cut = true;
+				return undefined;
+			}
 			if (err instanceof HttpStatusError) {
 				// `result` is already "invalid_payload" here: without this, an HTTP failure an adapter finds in a 200 body would skip `_track` and never quarantine.
 				result = "fetch_error";
@@ -317,7 +333,9 @@ export class SignalCollector {
 				error: err,
 			});
 		} finally {
-			SIGNAL_COLLECTIONS_TOTAL.inc({ source: source.id, result });
+			if (!cut) {
+				SIGNAL_COLLECTIONS_TOTAL.inc({ source: source.id, result });
+			}
 		}
 		return fetchFailure;
 	}

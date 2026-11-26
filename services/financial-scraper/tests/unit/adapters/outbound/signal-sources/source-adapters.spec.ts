@@ -115,7 +115,7 @@ describe("fred-series-observations", () => {
 		series: "UNRATE",
 	};
 
-	it('keeps one signal per vintage, stamped at its publication, and skips "."', () => {
+	it('keeps one signal per vintage, stamped at the end of its vintage day, and skips "."', () => {
 		const observations = FRED_SERIES_OBSERVATIONS.normalize(
 			fixture("fred-unrate"),
 			{ params }
@@ -125,7 +125,7 @@ describe("fred-series-observations", () => {
 			["2026-09-01@2026-11-07", 4.4],
 		]);
 		expect(observations[1]).toMatchObject({
-			observedAt: Date.parse("2026-11-07"),
+			observedAt: Date.parse("2026-11-08"),
 			payload: { period: { start: "2026-09-01", end: "2026-09-30" } },
 		});
 		for (const { payload } of observations) {
@@ -1057,21 +1057,22 @@ describe("twelvedata-daily-prices", () => {
 			start: "2026-11-13",
 			end: "2026-11-13",
 		});
-		// No release time: the collection time stands, never before the close.
-		expect(observations.every((o) => o.observedAt === undefined)).toBe(true);
-	});
-
-	it("dates a backfilled bar at 21:00 UTC of its session day", () => {
-		const observations = TWELVEDATA_DAILY_PRICES.normalize(
-			fixture("twelvedata-daily-prices"),
-			NO_PARAMS
-		);
-
+		// Live and backfill date a bar alike: 21:00 UTC of its session day.
 		expect(
 			observations.every(
 				(o) => o.observedAt === Date.parse("2026-11-13T21:00:00Z")
 			)
 		).toBe(true);
+	});
+
+	it("gives every session of an overlapping window, so a missed day is caught up", () => {
+		const [row] = fixture("twelvedata-daily-prices").values;
+		const keys = TWELVEDATA_DAILY_PRICES.normalize(
+			{ values: [row, { ...row, datetime: "2026-11-12" }] },
+			NO_PARAMS
+		).map((o) => o.key);
+
+		expect(new Set(keys)).toEqual(new Set(["2026-11-13", "2026-11-12"]));
 	});
 
 	it("throws a 429 HttpStatusError for a quota body sent with HTTP 200", () => {
@@ -1083,6 +1084,30 @@ describe("twelvedata-daily-prices", () => {
 		expect(() =>
 			TWELVEDATA_DAILY_PRICES.normalize({ ...body, code: 400 }, NO_PARAMS)
 		).toThrow(z.ZodError);
+	});
+
+	it.each([401, 403])(
+		"throws a %i HttpStatusError for a key error sent with HTTP 200, so the source is quarantined",
+		(code) => {
+			expect(() =>
+				TWELVEDATA_DAILY_PRICES.normalize(
+					{ code, message: "Invalid API key", status: "error" },
+					NO_PARAMS
+				)
+			).toThrow(
+				expect.objectContaining({ name: "HttpStatusError", status: code })
+			);
+		}
+	);
+
+	it("gives an empty page for a no-data answer", () => {
+		const body = {
+			code: 400,
+			message: "No data is available on the specified dates.",
+			status: "error",
+		};
+
+		expect(TWELVEDATA_DAILY_PRICES.normalize(body, NO_PARAMS)).toEqual([]);
 	});
 
 	it("gives nothing for a day without quotation (no value)", () => {

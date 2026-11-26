@@ -72,7 +72,8 @@ export interface RLBackend {
 	replay(batchSize: number, discount: number): void;
 	getWeights(): Float32Array;
 	setWeights(weights: Float32Array): void;
-	getPnL(): Cash;
+	/** Wallet PnL, marked to `mark` when given. */
+	getPnL(mark?: Price): Cash;
 	resetEpisode(): void;
 }
 
@@ -209,7 +210,12 @@ export function makeTradingAgentBackend(
 		},
 		getWeights: () => agent.getWeights(),
 		setWeights: (weights) => agent.setWeights(weights),
-		getPnL: () => agent.wallet.getPnL(),
+		getPnL: (mark) => {
+			if (mark !== undefined) {
+				agent.wallet.setPrice(mark);
+			}
+			return agent.wallet.getPnL();
+		},
 		resetEpisode: () => agent.resetEpisode(),
 	};
 }

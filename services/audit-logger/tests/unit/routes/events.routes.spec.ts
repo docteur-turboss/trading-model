@@ -79,14 +79,14 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 			auditRepo.query.mockResolvedValue({
 				docs: [EVENT],
 				total: 1,
-				page: 2,
+				nextCursor: 40,
 				limit: 10,
 			});
 
 			const { status, body } = await get(
 				AUDIT_API.listEvents,
 				"/events?topic=market.candles.fetch&publisher=financial-scraper-service" +
-					"&correlationId=c-1&startDate=2026-10-01&endDate=2026-10-28T23:59:59Z&page=2&limit=10"
+					"&correlationId=c-1&startDate=2026-10-01&endDate=2026-10-28T23:59:59Z&before=50&withTotal=true&limit=10"
 			);
 
 			expect(status).toBe(200);
@@ -102,7 +102,7 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 					start: new Date("2026-10-01"),
 					end: new Date("2026-10-28T23:59:59Z"),
 				}),
-				page: 2,
+				before: 50,
 				limit: 10,
 				withTotal: true,
 			});
@@ -111,8 +111,7 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 		it("leaves out the empty filters and caps the limit at 1000", async () => {
 			auditRepo.query.mockResolvedValue({
 				docs: [],
-				total: 0,
-				page: 1,
+				nextCursor: null,
 				limit: 1000,
 			});
 
@@ -123,16 +122,20 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 				publisher: undefined,
 				correlationId: undefined,
 				dateRange: undefined,
-				page: undefined,
+				before: undefined,
 				limit: 1000,
-				withTotal: true,
+				withTotal: false,
 			});
 		});
 
-		it("passes withTotal=false to the repository", async () => {
-			auditRepo.query.mockResolvedValue({ docs: [], page: 1, limit: 100 });
+		it("does not ask for a total unless withTotal=true", async () => {
+			auditRepo.query.mockResolvedValue({
+				docs: [],
+				nextCursor: null,
+				limit: 100,
+			});
 
-			await get(AUDIT_API.listEvents, "/events?withTotal=false");
+			await get(AUDIT_API.listEvents, "/events");
 
 			expect(auditRepo.query).toHaveBeenCalledWith(
 				expect.objectContaining({ withTotal: false })
@@ -140,8 +143,8 @@ describe("audit-logger HTTP API (AUDIT_API)", () => {
 		});
 
 		it.each([
-			["a non-numeric page", "page=abc", "query.page"],
-			["a page below 1", "page=0", "query.page"],
+			["a non-numeric cursor", "before=abc", "query.before"],
+			["a cursor below 1", "before=0", "query.before"],
 			["a non-numeric limit", "limit=abc", "query.limit"],
 			["an unparsable date", "startDate=yesterday", "query.startDate"],
 		])("rejects %s with 400 before querying", async (_label, qs, field) => {

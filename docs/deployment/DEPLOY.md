@@ -254,7 +254,7 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u <USERNAME> --password-stdin
 IMAGE_TAG=2.0.3 docker compose pull
 
 # Or pull a specific service
-docker pull ghcr.io/<owner>/message-manager:2.0.3
+docker pull ghcr.io/<owner>/api-gateway:2.0.3
 ```
 
 ## Production deployment
@@ -449,7 +449,7 @@ reported and every canary is removed if one fails.
 | `CANARY_GATE_SECONDS` | `120` | Observation window |
 | `CANARY_MIN_REQUESTS` | `20` | Real requests a canary must serve: fewer is a failure (no signal is not a pass) |
 | `CANARY_ERROR_THRESHOLD_PCT` | `5` | Maximum 4xx/5xx share |
-| `CANARY_READINESS_ONLY` | `dlq-service` | Comma-separated services whose gate checks readiness and routing only |
+| `CANARY_READINESS_ONLY` | empty | Comma-separated services whose gate checks readiness and routing only |
 
 Behind `edge-proxy` the canary share depends on connections, not requests: its
 keep-alive pool to `api-gateway` (`deploy/edge-proxy/gateway-upstream.k8s.conf`)
@@ -459,9 +459,8 @@ Service routes to the canary (a failed restart aborts the canary), so the gate
 starts with fresh connections. The kind gate (`verify_canary`) still sends
 bursts of 12 requests every 5 s because its client is serial.
 
-`dlq-service` is readiness-only: it only receives requests on a dead letter or an
-admin call, so a healthy environment gives it no traffic. Add a service to
-`CANARY_READINESS_ONLY` only for the same reason. Test of the gate:
+No service is readiness-only since dlq-service was retired (ADR-0073). Add a service to
+`CANARY_READINESS_ONLY` only when a healthy environment gives it no traffic. Test of the gate:
 `bash tests/k8s/canary-gate.test.sh`.
 
 ### Release verification

@@ -8,9 +8,10 @@ import { z } from "zod";
 export const HARD_CEILINGS = {
 	dailyLossPct: 0.02,
 	drawdownPct: 0.1,
+	cumulativeLossPct: 0.2,
 	symbolDailyLossPct: 0.01,
-	globalExposurePct: 0.3,
-	instrumentExposurePct: 0.3,
+	globalExposurePct: 0.1,
+	instrumentExposurePct: 0.1,
 	orderNotionalPct: 0.1,
 	priceBandPct: 0.05,
 	maxIntentAgeMs: 60_000,
@@ -27,11 +28,11 @@ export const RiskLimits = z.object({
 	allocatedCapital: z.number().positive(),
 	dailyLossPct: upTo(HARD_CEILINGS.dailyLossPct).default(0.02),
 	drawdownPct: upTo(HARD_CEILINGS.drawdownPct).default(0.1),
+	/** Absolute stop: equity under (1 - this) x allocatedCapital, whatever the re-arms (policy §3). */
+	cumulativeLossPct: upTo(HARD_CEILINGS.cumulativeLossPct).default(0.2),
 	symbolDailyLossPct: upTo(HARD_CEILINGS.symbolDailyLossPct).default(0.01),
-	globalExposurePct: upTo(HARD_CEILINGS.globalExposurePct).default(0.3),
-	instrumentExposurePct: upTo(HARD_CEILINGS.instrumentExposurePct).default(
-		0.15
-	),
+	globalExposurePct: upTo(HARD_CEILINGS.globalExposurePct).default(0.1),
+	instrumentExposurePct: upTo(HARD_CEILINGS.instrumentExposurePct).default(0.1),
 	orderNotionalPct: upTo(HARD_CEILINGS.orderNotionalPct).default(0.05),
 	priceBandPct: upTo(HARD_CEILINGS.priceBandPct).default(0.01),
 	maxIntentAgeMs: upTo(HARD_CEILINGS.maxIntentAgeMs).default(60_000),

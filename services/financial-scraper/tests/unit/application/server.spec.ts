@@ -12,10 +12,6 @@ jest.mock("@trading-model/http/service-server-factory", () => ({
 	createServiceServer: MOCK_CREATE_SECURE_SERVER,
 }));
 
-jest.mock("../../../src/config/address-manager", () => ({
-	ADDRESS_MANAGER_ROUTES: jest.fn((app: any) => app),
-}));
-
 jest.mock("../../../src/adapters/inbound/http/routes", () => ({
 	FINANCIAL_ROUTES: jest.fn((..._args: any[]) => MOCK_APP),
 }));

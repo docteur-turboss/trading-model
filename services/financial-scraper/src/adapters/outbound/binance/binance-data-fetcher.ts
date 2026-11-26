@@ -22,29 +22,27 @@ import {
 	get24hrTickerStats,
 	getCandlestickData,
 	getOrderBook,
-	getRecentTrades,
 } from "./binance.client";
 import { normalizeCandles } from "./normalizers/candles";
 import { normalizeOrderBook } from "./normalizers/order-book";
 import { normalizeTicker24h } from "./normalizers/ticker";
-import { normalizeTrades } from "./normalizers/trades";
 
 /** Raw answer of each Binance endpoint; absent when that request failed. */
 export interface RawBinanceData {
 	orderBookRaw?: Awaited<ReturnType<typeof getOrderBook>>;
-	tradesRaw?: Awaited<ReturnType<typeof getRecentTrades>>;
 	candlesRaw?: Awaited<ReturnType<typeof getCandlestickData>>;
 	ticker24hRaw?: Awaited<ReturnType<typeof get24hrTickerStats>>;
 }
 
-/** HTTP status and `Retry-After` of a 429 (weight limit), 418 (IP ban) or 451 (restricted location) error, else undefined: each further call extends a ban. */
+/** HTTP status and `Retry-After` of a 429 (weight limit), 418 (IP ban), 403 (WAF block) or 451 (restricted location) error, else undefined: each further call extends a ban. */
 export function banOf(
 	error: unknown
 ): { status: number; retryAfter?: string } | undefined {
 	const response = (error as AxiosError | undefined)?.response;
 	return response?.status === 429 ||
 		response?.status === 418 ||
-		response?.status === 451
+		response?.status === 451 ||
+		response?.status === 403
 		? { status: response.status, retryAfter: response.headers?.["retry-after"] }
 		: undefined;
 }
@@ -87,16 +85,15 @@ async function rowsOf<Row extends { symbol: string }>(
 
 const PART_OF: Record<RawKey, SnapshotPart> = {
 	orderBookRaw: "orderBook",
-	tradesRaw: "recentTrades",
 	candlesRaw: "candles",
 	ticker24hRaw: "ticker24h",
 };
 
 /**
- * Fetches the four endpoints of one symbol. A failed endpoint only leaves its
+ * Fetches the three endpoints of one symbol. A failed endpoint only leaves its
  * part out of the snapshot (logged, counted): an order book error must not
  * cost the candles. Rejects when every endpoint failed, with the first error
- * (a 429, 418 or 451 wins over the others). `onBan` is called on a 429, 418 or 451
+ * (a 429, 418, 403 or 451 wins over the others). `onBan` is called on a 429, 418, 403 or 451
  * from any endpoint, so a partial snapshot still opens the quarantine.
  */
 export async function fetchAllRawData(
@@ -104,8 +101,7 @@ export async function fetchAllRawData(
 	tickers?: TickerBatch,
 	onBan?: (ban: NonNullable<ReturnType<typeof banOf>>) => void
 ): Promise<RawBinanceData> {
-	const { symbol, candleLimit, candleStartTime, tradeLimit, orderBookLimit } =
-		opts;
+	const { symbol, candleLimit, candleStartTime, orderBookLimit } = opts;
 	const { signal } = opts;
 	const interval = opts.interval ?? CandleInterval.Min1;
 	const requests: Record<RawKey, () => Promise<unknown>> = {
@@ -114,14 +110,6 @@ export async function fetchAllRawData(
 				{
 					symbol,
 					limit: orderBookLimit ?? PositiveInt.of(100),
-				},
-				signal
-			),
-		tradesRaw: () =>
-			getRecentTrades(
-				{
-					symbol,
-					limit: tradeLimit ?? PositiveInt.of(100),
 				},
 				signal
 			),
@@ -200,18 +188,13 @@ export function buildResponse(
 	raw: RawBinanceData
 ): MarketDataSnapshot {
 	const fetchedAt = Date.now();
-	const { orderBookRaw, tradesRaw, candlesRaw } = raw;
+	const { orderBookRaw, candlesRaw } = raw;
 	const { ticker24hRaw } = raw;
 	return {
 		orderBook:
 			orderBookRaw &&
 			normalizePart(query, "orderBook", () =>
 				normalizeOrderBook(query, orderBookRaw)
-			),
-		recentTrades:
-			tradesRaw &&
-			normalizePart(query, "recentTrades", () =>
-				normalizeTrades(query, tradesRaw)
 			),
 		// Binance returns the still-open candle last: persisting it would store a
 		// partial candle that the next cycle overwrites with other values.
