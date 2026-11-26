@@ -1,6 +1,6 @@
 import { describe, expect, test } from "@jest/globals";
-import type { PositiveInt } from "@trading-model/primitives/primitives";
 import { policyNetworkConfig } from "@trading-model/model-runtime/replay";
+import type { PositiveInt } from "@trading-model/primitives/primitives";
 import { createDefaultGenome } from "../../../../src/domain/genetic-algorithm/factory";
 import type { LamarckGenome } from "../../../../src/domain/genetic-algorithm/genome";
 import { crossoverNetwork } from "../../../../src/domain/genetic-algorithm/genome-network/crossover";
@@ -19,7 +19,10 @@ const withLayers = (neurons: number[]): LamarckGenome["network"] => ({
 });
 
 describe("topology genes (FEATURE_TOPOLOGY_GENES)", () => {
-	const mutate = (topologyGene?: boolean, neurons = [500, 500, 500, 500, 500, 2]) =>
+	const mutate = (
+		topologyGene?: boolean,
+		neurons = [500, 500, 500, 500, 500, 2]
+	) =>
 		mutateNetworkStructure({
 			genome: {
 				...base,
