@@ -499,15 +499,24 @@ groups:
           description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 12h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
-      - alert: TrainerEventLoopLagHigh
-        expr: max by (job) (nodejs_eventloop_lag_max_seconds{job="trader-trainer"}) > 10
+      - alert: EventLoopLagHigh
+        expr: max by (job) (nodejs_eventloop_lag_p99_seconds) > 0.2
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: 'trader-trainer event loop lag above 10 s'
-          description: 'Trainer event loop lag reached {{ $value | humanizeDuration }} (threshold 10 s) outside or inside GA evaluation. Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventlooplaghigh'
+          summary: '{{ $labels.job }} event loop lag p99 above 200 ms'
+          description: '{{ $labels.job }} event loop lag p99 is {{ $value | humanizeDuration }} (threshold 200 ms) for 5 min. Heartbeats and deliveries time out when it grows.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#eventlooplaghigh'
+
+      - alert: DbIndexBuildFailed
+        expr: max(kube_job_failed{job_name=~"db-index-build.*",condition="true"}) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Job db-index-build failed'
+          description: 'The paged-read index build failed: reads by symbol use the old idx_*_symbol index and a sort until it succeeds (ADR-0088).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#dbindexbuildfailed'
 
       # ADR-0058: only the holder of the trainer Lease trains; the other pod of a
       # rollout reports 0, so max() is 0 when no pod holds it.
