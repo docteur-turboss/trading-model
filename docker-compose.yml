@@ -188,7 +188,7 @@ services:
       DB_HOST: mysql
       DB_PORT: "3306"
       DB_USER: ${MYSQL_USER:-root}
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
       DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
     networks:
       - data-net
