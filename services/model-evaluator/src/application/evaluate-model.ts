@@ -10,6 +10,7 @@ import {
 	type PublishedModel,
 	type ReplayOutcome,
 	replayOutcome,
+	sectorOutcome,
 	toRecord,
 } from "../domain/model-evaluation";
 
@@ -44,6 +45,60 @@ interface Scraper {
 
 /** Whole evaluation, under the bus handler deadline (85 s) so it stops before its redelivery starts. */
 const EVALUATION_BUDGET_MS = 75_000;
+
+/** Replays a sector: its analysts' manifests, weights and candles are read first (ADR-0076 §3). */
+async function replaySectorModel(
+	deps: { trainer: Trainer; scraper: Scraper },
+	manifest: ModelManifest,
+	weights: Uint8Array,
+	signal: AbortSignal
+): Promise<ReplayOutcome> {
+	const window = manifest.replay;
+	if (!window) {
+		return { replay: "failed", reason: "no-window" };
+	}
+	if (!isSupportedInterval(window.intervalMs)) {
+		return {
+			replay: "failed",
+			reason: `unsupported-interval: ${window.intervalMs} ms`,
+		};
+	}
+	const components = (manifest.components ?? []).flatMap(
+		({ symbol, version }) => (symbol ? [{ symbol, version }] : [])
+	);
+	if (components.length === 0) {
+		return { replay: "failed", reason: "no-components" };
+	}
+	const analysts = await Promise.all(
+		components.map(async ({ symbol, version }) => {
+			const [analyst, analystWeights, candles] = await Promise.all([
+				deps.trainer.manifest(symbol, version, signal),
+				deps.trainer.weights(symbol, version, signal),
+				deps.scraper.candles(
+					symbol,
+					window.from,
+					window.to,
+					window.intervalMs,
+					signal
+				),
+			]);
+			verifyModel({
+				model: { symbol, version },
+				manifest: analyst,
+				weights: analystWeights.bytes,
+				headerSha256: analystWeights.sha256,
+			});
+			return {
+				symbol,
+				genome: analyst.genome,
+				weights: analystWeights.bytes,
+				candles,
+			};
+		})
+	);
+	signal.throwIfAborted();
+	return sectorOutcome(manifest, weights, analysts);
+}
 
 /** Reads the window of the manifest, never later than `to`, and replays the model on it. */
 async function replay(
@@ -121,7 +176,10 @@ export function createEvaluateModel(deps: {
 			weights: weights.bytes,
 			headerSha256: weights.sha256,
 		});
-		const outcome = await replay(deps.scraper, manifest, weights.bytes, signal);
+		const outcome =
+			manifest.role === "sector"
+				? await replaySectorModel(deps, manifest, weights.bytes, signal)
+				: await replay(deps.scraper, manifest, weights.bytes, signal);
 		const published = manifest.admission?.criteria?.sharpe;
 		if (outcome.replay === "done" && published !== undefined) {
 			MODEL_REPLAY_SHARPE_GAP.set(

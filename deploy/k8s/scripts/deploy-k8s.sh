@@ -563,11 +563,11 @@ alert_names() {
 release_checks_once() {
   local strict="$1" key code critical fresh
 
-  key="$(kubectl get secret -n "$NAMESPACE" trading-model-secrets -o jsonpath='{.data.AUTH_TOKENS}' | base64 -d | cut -d, -f1)"
-  # A key is name:scopes:secret (ADR-0059): the secret is after the last colon.
-  key="${key##*:}"
+  # Dedicated Secret (deploy.yml, GitHub environment secret GATEWAY_CANARY_KEY): the secret part of a
+  # gateway API key, so deploy-app need not read trading-model-secrets (issue #2791).
+  key="$(kubectl get secret -n "$NAMESPACE" gateway-canary-key -o jsonpath='{.data.GATEWAY_CANARY_KEY}' | base64 -d)"
   if [[ -z "$key" ]]; then
-    err "  ✗ no gateway API key in Secret trading-model-secrets (AUTH_TOKENS)"
+    err "  ✗ no gateway API key in Secret gateway-canary-key (GATEWAY_CANARY_KEY)"
     return 1
   fi
   # The key goes through stdin, never on a command line or in a log.

@@ -13,8 +13,22 @@ metadata:
   name: deploy-app
 rules:
   - apiGroups: [""]
-    resources: [configmaps, secrets, services, persistentvolumeclaims, serviceaccounts, resourcequotas, limitranges]
+    resources: [configmaps, services, persistentvolumeclaims, serviceaccounts, resourcequotas, limitranges]
     verbs: [get, list, watch, create, update, patch, delete]
+  # Secrets (issue #2791): never a general read. The application Secrets come from the
+  # SealedSecrets controller; only the ones the scripts read or deploy.yml writes are named.
+  # `create` cannot be limited by name (the name is not known at admission time).
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [create]
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [trading-model-secrets, trading-model-backup-s3, audit-anchor-s3, alertmanager-credentials, gateway-canary-key]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [trading-model-secrets, trading-model-backup-s3, audit-anchor-s3, alertmanager-credentials, gateway-canary-key]
+    verbs: [patch]
   - apiGroups: [""]
     resources: [pods/log]
     verbs: [get, list, watch]

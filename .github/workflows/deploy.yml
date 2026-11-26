@@ -673,6 +673,17 @@ jobs:
             --from-env-file="$envfile" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      # The canary reads its API key here, not in trading-model-secrets (ADR-0041, issue #2791). The value
+      # is the secret part of an AUTH_TOKENS entry with scope read.
+      - name: Configure gateway canary key
+        if: ${{ !inputs.preflight_only }}
+        shell: bash
+        env:
+          GATEWAY_CANARY_KEY: ${{ secrets.GATEWAY_CANARY_KEY }}
+        run: |
+          [ -n "$GATEWAY_CANARY_KEY" ] || { echo "::error::secret GATEWAY_CANARY_KEY is not set in this environment"; exit 1; }
+          printf '%s' "$GATEWAY_CANARY_KEY" | kubectl -n "$NAMESPACE" create secret generic gateway-canary-key             --from-file=GATEWAY_CANARY_KEY=/dev/stdin --dry-run=client -o yaml | kubectl apply -f -
+
       # The off-site backup copy must survive a compromised cluster, which holds
       # the bucket's credentials: Object Lock in compliance mode, default
       # retention from RETENTION_DAYS of the db-backup CronJob to the 31 days

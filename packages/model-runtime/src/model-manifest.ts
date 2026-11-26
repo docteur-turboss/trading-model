@@ -121,6 +121,16 @@ export const ModelManifestSchema = z.object({
 			}),
 		})
 		.optional(),
+	/** ADR-0076 step 4: `sector` = a manager over `components`; absent = an asset model (N-1 readers ignore it). */
+	role: z.enum(["asset", "sector"]).optional(),
+	/** Analysts of a sector, by `(symbol, version)`; older manifests list other components without a `symbol`. */
+	components: z
+		.array(
+			z.looseObject({ symbol: z.string().optional(), version: z.string() })
+		)
+		.optional(),
+	/** How a sector manager pools its analysts' signals; absent: `mean+max`. */
+	pooling: z.enum(["mean", "mean+max"]).optional(),
 	/** Window and simulator to replay the model (ADR-0079); absent on older manifests. */
 	replay: z
 		.object({
@@ -153,6 +163,9 @@ export const ModelManifest = ModelManifestSchema.pick({
 	admission: true,
 	replay: true,
 	riskLimits: true,
+	role: true,
+	components: true,
+	pooling: true,
 });
 export type ModelManifest = z.infer<typeof ModelManifest>;
 
