@@ -60,7 +60,7 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md'
 
       - alert: ServiceTargetsMissing
-        expr: absent(up{job="api-gateway"}) or absent(up{job="audit-logger"}) or absent(up{job="financial-scraper"}) or absent(up{job="trader-trainer"}) or absent(up{job="model-evaluator"}) or absent(up{job="risk-execution"})
+        expr: absent(up{job="api-gateway"}) or absent(up{job="audit-logger"}) or absent(up{job="financial-scraper"}) or absent(up{job="trader-trainer"}) or absent(up{job="model-evaluator"}) or absent(up{job="risk-execution"}) or absent(up{job="decision-consumer"})
         for: 5m
         labels:
           severity: critical
@@ -359,6 +359,15 @@ groups:
           summary: 'risk-execution rejected 3 or more intents of the decision consumer in 1 hour ({{ $labels.reason }})'
           description: 'The promoted models decide once per closed bar, so three rejections with the same reason code in an hour are not noise: the consumer sends a price or a size the limits refuse (ADR-0087).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#decisionintentsrejected'
+
+      - alert: DecisionPassFailing
+        expr: 'sum by (job) (increase(decision_skipped_total{reason="error"}[1h])) > 0'
+        labels:
+          severity: warning
+        annotations:
+          summary: 'decision-consumer decision pass failed in the last hour'
+          description: 'A decision pass or a promoted model failed (decision_skipped_total{reason="error"}): no intent is decided while it keeps failing, so paper trading is stopped.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#decisionpassfailing'
 
       # -- Authentication failures and ACL denials -------------------
 
