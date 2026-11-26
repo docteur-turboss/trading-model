@@ -1,13 +1,10 @@
 import { describe, expect, it } from "@jest/globals";
 import { ServiceId } from "@trading-model/primitives/primitives";
-import {
-	DEFAULT_NAMESPACE,
-	TRUST_DOMAIN,
-} from "../../../src/config/workload-identity";
+import { TRUST_DOMAIN } from "../../../src/config/workload-identity";
 import { extractCanonicalServiceName } from "../../../src/utils/spiffe";
 
 const buildSpiffeId = (name: string): string =>
-	`spiffe://${TRUST_DOMAIN}/ns/${DEFAULT_NAMESPACE}/sa/${name}`;
+	`spiffe://${TRUST_DOMAIN}/ns/trading-model/sa/${name}`;
 
 describe("extractCanonicalServiceName", () => {
 	it("should refuse another trust domain, path shape, namespace, CN or client: name", () => {

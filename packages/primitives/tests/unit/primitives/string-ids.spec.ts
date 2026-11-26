@@ -1,8 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import {
-	AuthToken,
 	ClientIdentity,
-	Environment,
 	Role,
 	Subject,
 } from "../../../src/primitives/auth-ids";
@@ -39,11 +37,9 @@ describe.each([
 	["Version", Version, "1.0.0"],
 	["GenomeId", GenomeId, "genome-x"],
 	["TenantId", TenantId, "tenant-42"],
-	["AuthToken", AuthToken, "tok-abc"],
 	["ClientIdentity", ClientIdentity, "ci-123"],
 	["Subject", Subject, "spiffe://example/foo"],
 	["Role", Role, "admin"],
-	["Environment", Environment, "production"],
 	["DbUser", DbUser, "app_user"],
 	["DbName", DbName, "trading_db"],
 ] as const)("%s", (_name, brand, sample) => {
