@@ -13,10 +13,12 @@ const PORT = Number(process.env.PORT ?? 8080);
 const MINUTE = 60_000;
 const BASE_PRICE = { BTCUSDT: 80_000, ETHUSDT: 3_000 };
 
-// Klines rise 10 per minute from the stub start (same value on every fetch of a bar): a flat
-// history makes the trained model hold forever, so the decision-to-position E2E never opens one.
+// Klines rise 0.3%/min (200 bars back from the stub start, so prices stay positive; same value on every
+// fetch of a bar): a flat or sub-fee slope makes the trained model hold forever, so the
+// decision-to-position E2E never opens a position. One bar stays inside risk-execution's price band (1%).
 const START_MINUTE = Math.floor(Date.now() / MINUTE);
-const trend = (openTime) => (openTime / MINUTE - START_MINUTE) * 10;
+const trend = (symbol, openTime) =>
+  (BASE_PRICE[symbol] ?? 100) * 0.003 * (openTime / MINUTE - START_MINUTE + 200);
 
 const price = (symbol, delta = 0) => ((BASE_PRICE[symbol] ?? 100) + delta).toFixed(8);
 
@@ -45,16 +47,16 @@ function klines(symbol, limit, startTime) {
     const openTime = firstOpen + i * MINUTE;
     return [
       openTime,
-      price(symbol, trend(openTime)),
-      price(symbol, trend(openTime) + 10),
-      price(symbol, trend(openTime) - 10),
-      price(symbol, trend(openTime) + 5),
+      price(symbol, trend(symbol, openTime)),
+      price(symbol, trend(symbol, openTime) + 10),
+      price(symbol, trend(symbol, openTime) - 10),
+      price(symbol, trend(symbol, openTime) + 5),
       '1.00000000',
       openTime + MINUTE - 1,
-      price(symbol, trend(openTime)),
+      price(symbol, trend(symbol, openTime)),
       42,
       '0.50000000',
-      price(symbol, trend(openTime)),
+      price(symbol, trend(symbol, openTime)),
       '0',
     ];
   });
