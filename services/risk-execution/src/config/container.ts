@@ -18,7 +18,7 @@ import { assertExecutionLock } from "../domain/execution-mode";
 import { RiskLimits } from "../domain/limits";
 import type { RiskState } from "../domain/state";
 import { ENV } from "../infrastructure/config/env";
-import { initRiskOutbox, publishRiskEvent, replayRiskEvents } from "./audit";
+import { createRiskOutbox, publishRiskEvent } from "./audit";
 import {
 	metricsHandler,
 	RISK_DAILY_LOSS,
@@ -61,7 +61,7 @@ export async function createRiskExecutionApp() {
 	});
 	const mode = ENV.EXECUTION_MODE;
 	const tls = buildTlsFromEnv(ENV);
-	await initRiskOutbox(
+	const outbox = await createRiskOutbox(
 		new JsonFile(join(ENV.RISK_STATE_DIR, "risk-event-outbox.json"))
 	);
 	const risk = new RiskExecution({
@@ -79,7 +79,7 @@ export async function createRiskExecutionApp() {
 		prices: new ScraperPrices(tls),
 		emit: (event, fields) => {
 			getLogger().info(event, fields);
-			publishRiskEvent(event, fields);
+			publishRiskEvent(outbox, event, fields);
 		},
 	});
 	await risk.start();
@@ -105,7 +105,7 @@ export async function createRiskExecutionApp() {
 	publish();
 	RISK_TICK_FAILURES.inc({ mode }, 0);
 	const timer = setInterval(() => {
-		void replayRiskEvents();
+		void outbox.replay();
 		void runTick(
 			() =>
 				runJob(
