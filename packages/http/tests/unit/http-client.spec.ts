@@ -171,7 +171,7 @@ describe("HttpClient", () => {
 			const { getKeepAliveAgent } = require("../../src/http-utils");
 			getKeepAliveAgent();
 		});
-		const [opts] = (https.Agent as unknown as jest.Mock).mock.calls.at(-1) as [
+		const [opts] = (https.Agent as unknown as jest.Mock).mock.calls[0] as [
 			{ timeout: number },
 		];
 		expect(opts.timeout).toBeLessThan(5000);
