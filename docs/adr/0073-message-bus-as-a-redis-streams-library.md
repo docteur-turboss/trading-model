@@ -2,9 +2,9 @@
 
 **Status:** Accepted
 **Date:** 2026-11
-**Supersedes:** [ADR-0048](./0048-durable-message-journal-in-redis-streams.md), [ADR-0043](./0043-message-delivery-once-per-subscribed-service.md), [ADR-0070](./0070-replayed-dead-letter-reopens-its-entry.md)
+**Supersedes:** ADR-0048 (deleted), ADR-0043 (deleted), ADR-0070 (deleted)
 **Verified by:** `packages/broker-message/tests/unit/bus/bus.spec.ts`, `packages/broker-message/tests/unit/bus/redis-journal.spec.ts`, `packages/broker-message/tests/unit/bus/backoff.spec.ts`, `packages/broker-message/tests/unit/bus/delivery-error-classifier.spec.ts`, `packages/broker-message/tests/db/bus-library.db.spec.ts`, `services/audit-logger/tests/db/mongo-dlq-import.db.spec.ts`, `services/audit-logger/tests/unit/dlq-cli.spec.ts`, `bun run test:contract`, `tests/alerts/alerting.test.yml`
-**Related:** [ADR-0046](./0046-simplification-trajectory.md) (step 4), [ADR-0047](./0047-redis-isolation-per-service.md) (ACL users), [ADR-0059](./0059-scoped-api-keys-and-dlq-actor.md) (DLQ scopes), [ADR-0070](./0070-replayed-dead-letter-reopens-its-entry.md), [ADR-0029](./0029-orphan-subsystems-retired-and-reachability-gate.md) (DLQ auto-retry), [ADR-0040](./0040-locked-resumable-migrations-and-expand-contract.md) (expand/contract), issues #1202, #1211
+**Related:** [ADR-0046](./0046-simplification-trajectory.md) (step 4), [ADR-0047](./0047-redis-isolation-per-service.md) (ACL users), [ADR-0059](./0059-scoped-api-keys-and-dlq-actor.md) (DLQ scopes), ADR-0070 (deleted), [ADR-0029](./0029-orphan-subsystems-retired-and-reachability-gate.md) (DLQ auto-retry), [ADR-0040](./0040-locked-resumable-migrations-and-expand-contract.md) (expand/contract), issues #1202, #1211
 
 Accepted with release N (issue #1240): it supersedes ADR-0048 (journal, groups, retries, backoff and limits: kept, moved into the library) and ADR-0043 (once per service: kept). Release N+1 (issue #1241) removed message-manager, dlq-service and `mongo-dlq`: ADR-0070 is superseded, ADR-0029 and ADR-0059 are amended (their DLQ parts are gone), and the MongoDB entries are imported once by `dlq-cli import-mongo` ([release runbook](../contributing/release.md#one-off-mongodb-dlq-import)).
 

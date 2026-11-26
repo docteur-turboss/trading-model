@@ -201,7 +201,7 @@ ADR-0087. Paper only: no broker key, no kill switch, no mode choice (ADR-0064 §
 
 ## Message bus (library, ADR-0073)
 
-No broker service: every service that publishes or consumes links the library and talks to Redis (`REDIS_SENTINELS` / `REDIS_URL`, required: the service refuses to start without them), accepted messages in a Redis Streams journal (AOF on), dead letters in dead streams ([ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md)).
+No broker service: every service that publishes or consumes links the library and talks to Redis (`REDIS_SENTINELS` / `REDIS_URL`, required: the service refuses to start without them), accepted messages in a Redis Streams journal (AOF on), dead letters in dead streams ([ADR-0073](../adr/0073-message-bus-as-a-redis-streams-library.md)).
 
 | Variable                  | Type   | Default                     | Required             | Description                                                                 | Services |
 | ------------------------- | ------ | --------------------------- | -------------------- | --------------------------------------------------------------------------- | -------- |
