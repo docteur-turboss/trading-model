@@ -25,10 +25,6 @@ export class CircuitStateMachine {
 
 	constructor(protected readonly _config: CircuitBreakerConfig) {}
 
-	static defaultConfig(): CircuitBreakerConfig {
-		return { ...DEFAULT_CIRCUIT_CONFIG };
-	}
-
 	/** Half-open lets one caller through (the probe); the others see OPEN until its result or the cooldown. */
 	check(): CircuitState {
 		const now = UnixTimestamp.now();

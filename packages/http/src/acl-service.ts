@@ -1,5 +1,5 @@
 import { extractCanonicalServiceName } from "@trading-model/common/utils/spiffe";
-import { ServiceId } from "@trading-model/primitives/primitives";
+import type { ServiceId } from "@trading-model/primitives/primitives";
 import type { Request } from "express";
 import { DEFAULT_ACL } from "./acl-config";
 import { mtlsDenialsTotal } from "./outbound-metrics";
@@ -32,9 +32,7 @@ export class AclService {
 		allowedCallers?: readonly ServiceId[]
 	): void {
 		const allowed = this._getAllowedCallers(targetService, allowedCallers);
-		if (
-			!(allowed.includes(ServiceId.of("*")) || allowed.includes(callerName))
-		) {
+		if (!allowed.includes(callerName)) {
 			this._throwForbidden(
 				"caller_not_allowed",
 				`"${callerName}" is not authorized to access "${targetService}"`

@@ -1,5 +1,3 @@
-import type { Collection, Document, Filter, Sort } from "mongodb";
-
 export interface MongoPoolOptions {
 	maxPoolSize: number;
 	minPoolSize: number;
@@ -35,21 +33,6 @@ export function createPoolOptions(
 		maxPoolSize: poolSize,
 		minPoolSize: minPoolSize ?? Math.max(2, Math.floor(poolSize / 5)),
 	};
-}
-
-export function findPaginated<TDocument extends Document>(
-	collection: Collection<TDocument>,
-	filter: Filter<TDocument>,
-	sort: Sort,
-	skip: number,
-	limit: number
-): Promise<TDocument[]> {
-	return collection
-		.find(filter)
-		.sort(sort)
-		.skip(skip)
-		.limit(limit)
-		.toArray() as Promise<TDocument[]>;
 }
 
 /**
