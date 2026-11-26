@@ -1,4 +1,4 @@
-import { describe, expect, it, jest } from "@jest/globals";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import promClient from "prom-client";
 
 const POST = jest.fn<(...args: any[]) => Promise<void>>();
@@ -12,12 +12,25 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 }));
 
 import {
-	initRiskOutbox,
-	publishRiskEvent,
-	replayRiskEvents,
+	createRiskOutbox,
+	publishRiskEvent as publish,
 } from "../../src/config/audit";
 
+const empty = {
+	load: async () => [] as any[],
+	save: async (_doc: any[]): Promise<void> => undefined,
+};
+let outbox: Awaited<ReturnType<typeof createRiskOutbox>>;
+const publishRiskEvent = (event: string, fields: Record<string, unknown>) =>
+	publish(outbox, event, fields);
+const replayRiskEvents = () => outbox.replay();
+const initRiskOutbox = async (store: typeof empty) => {
+	outbox = await createRiskOutbox(store);
+};
+
 describe("publishRiskEvent", () => {
+	beforeEach(() => initRiskOutbox(empty));
+
 	it("does not throw when the bus client cannot be built", () => {
 		CREATE.mockImplementationOnce(() => {
 			throw new Error("REDIS_URL or REDIS_SENTINELS is required by the bus");
