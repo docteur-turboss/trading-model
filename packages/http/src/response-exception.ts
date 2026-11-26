@@ -3,8 +3,6 @@ import { HTTP_STATUS } from "@trading-model/contracts/http-status";
 
 /** Status value of a healthy health-check response. */
 export const HEALTH_STATUS_OK = "ok" as const;
-/** Type of the healthy status value. */
-export type HealthStatusOk = typeof HEALTH_STATUS_OK;
 
 /** Status and payload of a response to send to the client. */
 export interface ResponseObject {
