@@ -7,6 +7,8 @@ jest.mock("@trading-model/contracts/logger-registry", () => ({
 	getLogger: () => ({ warn: jest.fn(), error: jest.fn(), info: jest.fn() }),
 }));
 
+import { AGENT_STATE_FIELDS } from "@trading-model/model-runtime/agent/agent-state";
+import { FEATURE_LAYOUT } from "@trading-model/model-runtime/feature-vector-codec";
 import { verifyModel } from "@trading-model/model-runtime/model-manifest";
 import { createDecisionTick } from "../../src/application/decide";
 import { DECISION_INTENTS_TOTAL } from "../../src/config/metrics";
@@ -19,10 +21,16 @@ const WEIGHTS = new Uint8Array(8);
 const SHA = createHash("sha256").update(WEIGHTS).digest("hex");
 const MODEL = { symbol: "BTCUSDT", version: "v1" };
 
-function manifest(admissible: boolean, intervalMs = 60_000) {
+function manifest(admissible: boolean, intervalMs = 60_000, signals = 0) {
+	const fields = [
+		...FEATURE_LAYOUT.fields,
+		...Array.from({ length: signals }, (_, i) => `Signal${i}`),
+		...AGENT_STATE_FIELDS,
+	];
 	return {
 		symbol: "BTCUSDT",
 		version: "v1",
+		features: { dim: fields.length, fields },
 		weights: { sha256: SHA, length: 2 },
 		genome: {},
 		admission: { admissible },
@@ -87,6 +95,37 @@ describe("decision tick", () => {
 		await tick();
 		expect(risk.send).not.toHaveBeenCalled();
 		expect(audit.promotionLoaded).not.toHaveBeenCalled();
+	});
+
+	it("reads a refused model once, and again when a new version is promoted", async () => {
+		const { trainer, risk, audit, scraper } = build();
+		trainer.manifest.mockImplementation(async () => manifest(false));
+		const promoted = [MODEL];
+		const tick = createDecisionTick({
+			promoted,
+			trainer,
+			scraper,
+			risk,
+			audit,
+			windowBars: 50,
+			now: () => NOW,
+		});
+		await tick();
+		await tick();
+		expect(trainer.manifest).toHaveBeenCalledTimes(1);
+		promoted[0] = { ...MODEL, version: "v2" };
+		await tick();
+		expect(trainer.manifest).toHaveBeenCalledTimes(2);
+	});
+
+	it("refuses a manifest with signal inputs without throwing", async () => {
+		const { tick, trainer, risk } = build();
+		trainer.manifest.mockImplementation(async () => manifest(true, 60_000, 2));
+		await tick();
+		await tick();
+		expect(trainer.weights).not.toHaveBeenCalled();
+		expect(trainer.manifest).toHaveBeenCalledTimes(1);
+		expect(risk.send).not.toHaveBeenCalled();
 	});
 
 	it("sends no intent for a model that is not promoted", async () => {
