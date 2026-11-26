@@ -221,6 +221,23 @@ describe("decision tick", () => {
 		expect(risk.send).toHaveBeenCalledTimes(2);
 	});
 
+	it("counts a duplicate client order id as received, not rejected", async () => {
+		const { tick, risk } = build();
+		risk.send.mockResolvedValueOnce({
+			status: "rejected",
+			reason: "duplicate_client_order_id",
+			clientOrderId: "o1",
+		});
+		await tick();
+		const counts = (await DECISION_INTENTS_TOTAL.get()).values;
+		expect(counts).toEqual([
+			expect.objectContaining({
+				labels: { outcome: "received", reason: "" },
+				value: 1,
+			}),
+		]);
+	});
+
 	it("counts a rejection by its reason and a hold without sending", async () => {
 		const { tick, risk, setNow } = build();
 		risk.send.mockResolvedValueOnce({
