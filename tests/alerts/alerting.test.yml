@@ -2265,3 +2265,62 @@ tests:
               summary: 'audit-logger gave up appending an event after repeated chain collisions'
               description: 'Retries on the chain sequence ran out (writers contend for the head, ADR-0050): the event was not appended.'
               runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-audit-chain-broken.md#auditchaincollisionsexhausted'
+
+  - name: slow latency burn, stale or failed or unencrypted backups and failing rule evaluation fire
+    interval: 5m
+    input_series:
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",instance="a",path="/v1/x",le="1"}'
+        values: '0x400'
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",instance="a",path="/v1/x",le="5"}'
+        values: '0+500x400'
+      - series: 'http_request_duration_seconds_bucket{job="api-gateway",instance="a",path="/v1/x",le="+Inf"}'
+        values: '0+500x400'
+      - series: 'backup_last_success_timestamp'
+        values: '0x400'
+      - series: 'backup_last_run_timestamp'
+        values: '0x400'
+      - series: 'backup_encrypted'
+        values: '0x400'
+      - series: 'prometheus_rule_evaluation_failures_total'
+        values: '0+1x400'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: SLOLatencySlowBurn
+        exp_alerts:
+          - exp_labels: {severity: warning, slo: latency, job: api-gateway}
+            exp_annotations:
+              summary: 'Latency SLO: p95 latency above 3 s'
+              description: 'P95 latency > 3s over 1h — approaching 2s SLO target breach.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#which-alert-tells-what'
+      - eval_time: 28h
+        alertname: BackupFailed
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: 'Database backup failed or too old'
+              description: 'Last successful backup was more than 25 hours ago — check backup job.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+      - eval_time: 28h
+        alertname: BackupJobStale
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: 'Backup job has not run for more than 26 hours'
+              description: 'The db-backup CronJob stopped running (suspended, failing to start or stuck): no new backup is being taken.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+      - eval_time: 10m
+        alertname: BackupUnencrypted
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: 'Backups are not encrypted'
+              description: 'No age recipient configured (BACKUP_AGE_RECIPIENTS; ConfigMap backup-encryption in K8s), or fewer distinct recipients than BACKUP_MIN_RECIPIENTS (2 in production): backups are refused or written in clear.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+      - eval_time: 30m
+        alertname: PrometheusRuleEvaluationFailures
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: 'Prometheus fails to evaluate alert rules'
+              description: 'Some alert rules cannot be evaluated: alerts may be silently missing.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#alerts-on-the-alerting-path'

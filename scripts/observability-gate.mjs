@@ -318,6 +318,13 @@ let allEmitted = new Set(); // emitted metrics + recording rules, reused by chec
       }
     }
   }
+  // A rule without a promtool case lets a renamed label pass CI.
+  const promtoolCases = readFileSync(join(ROOT, "tests", "alerts", "alerting.test.yml"), "utf-8");
+  for (const name of composeRules.keys()) {
+    if (name !== "Watchdog" && !new RegExp(`alertname:\\s*${name}\\s*$`, "m").test(promtoolCases)) {
+      errors.push(`Alert ${name}: no case in tests/alerts/alerting.test.yml (add an alert_rule_test with alertname: ${name})`);
+    }
+  }
   info.push(`${composeRules.size} alert rules, all on emitted metrics, each with a runbook in the repository`);
 }
 
