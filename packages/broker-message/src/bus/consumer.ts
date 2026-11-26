@@ -299,8 +299,6 @@ export class BusConsumer {
 					);
 					MESSAGES_DLQ_TOTAL.inc({ topic: group.topic, reason: action.reason });
 					onDeadLetter?.(group, entry.message, action.reason, id);
-				} else if (action.action === ErrorActionType.SWALLOW) {
-					await journal.ack(group, entry.id);
 				}
 				// RETRY: left pending, due again after the backoff.
 				return;

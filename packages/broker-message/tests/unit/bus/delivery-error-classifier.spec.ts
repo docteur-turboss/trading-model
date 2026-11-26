@@ -1,6 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
 import { deadLetterError } from "@trading-model/broker-message/shared/errors";
-import { DeliveryMode } from "@trading-model/contracts/delivery-mode";
 import {
 	DurationMs,
 	type SequenceNumber,
@@ -16,9 +15,8 @@ import {
 
 const transient = new Error("Transient error");
 
-function params(deliveryMode: DeliveryMode) {
+function params() {
 	return {
-		deliveryMode,
 		ttl: DurationMs.of(60_000),
 		emittedAt: UnixTimestamp.now(),
 	};
@@ -32,7 +30,7 @@ describe("classifyDeliveryError", () => {
 					reason: DlqReason.RejectedBySubscriber,
 				}),
 				1 as SequenceNumber,
-				params(DeliveryMode.AtLeastOnce)
+				params()
 			)
 		).toEqual({
 			action: ErrorActionType.DLQ,
@@ -42,11 +40,7 @@ describe("classifyDeliveryError", () => {
 
 	it("should retry an at-least-once failure below the retry budget", () => {
 		expect(
-			classifyDeliveryError(
-				transient,
-				1 as SequenceNumber,
-				params(DeliveryMode.AtLeastOnce)
-			)
+			classifyDeliveryError(transient, 1 as SequenceNumber, params())
 		).toEqual({ action: ErrorActionType.RETRY });
 	});
 
@@ -55,7 +49,7 @@ describe("classifyDeliveryError", () => {
 			classifyDeliveryError(
 				transient,
 				MAX_RETRIES as unknown as SequenceNumber,
-				params(DeliveryMode.AtLeastOnce)
+				params()
 			)
 		).toEqual({
 			action: ErrorActionType.DLQ,

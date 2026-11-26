@@ -26,13 +26,11 @@ export function isDeliveryExhausted(reason: string): boolean {
 
 export enum ErrorActionType {
 	DLQ = "dlq",
-	SWALLOW = "swallow",
 	RETRY = "retry",
 }
 
 export type ErrorAction =
 	| { action: ErrorActionType.DLQ; reason: string }
-	| { action: ErrorActionType.SWALLOW }
 	| { action: ErrorActionType.RETRY };
 
 export function classifyDeliveryError(
