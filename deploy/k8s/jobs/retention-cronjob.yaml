@@ -5,7 +5,7 @@
 #  the hourly :30 incremental run's busiest minute: Forbid is per CronJob, the
 #  deletes land in the binlogs the incremental job archives, as expected).
 #  Connects as the `retention` MySQL user (SELECT, DELETE on market_candles,
-#  market_trades, market_tickers, market_order_books, signals only; created by db-migrate-user).
+#  market_trades, market_tickers, market_order_books, signals, signal_documents only; created by db-migrate-user).
 #
 #  Metrics: /backups/metrics/retention.prom, served by backup-metrics-exporter.
 #  Alerts: RetentionFailed, RetentionStale (runbook BACKUP_DR.md#retention-job).
@@ -57,6 +57,7 @@ spec:
               securityContext:
                 runAsNonRoot: true
                 allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
                 capabilities:
                   drop:
                     - ALL
@@ -69,6 +70,8 @@ spec:
                   set -eu
                   exec bash /scripts/retention-mysql.sh
               env:
+                - name: HOME
+                  value: /tmp
                 - name: MYSQL_HOST
                   value: mysql-primary
                 - name: MYSQL_USER
@@ -93,6 +96,8 @@ spec:
                 - name: METRICS_FILE
                   value: /backups/metrics/retention.prom
               volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
                 - name: scripts
                   mountPath: /scripts
                   readOnly: true
@@ -112,6 +117,8 @@ spec:
                   cpu: 500m
                   memory: 256Mi
           volumes:
+            - name: tmp
+              emptyDir: {}
             - name: scripts
               configMap:
                 name: backup-scripts

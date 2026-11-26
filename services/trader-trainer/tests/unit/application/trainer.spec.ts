@@ -85,7 +85,6 @@ jest.mock("../../../src/domain/genetic-algorithm/ga-runner", () => {
 					archive: [{}],
 					stagnation: 0,
 					elapsedMs: 1000,
-					bestGenome: { id: "gen-1" },
 				});
 			}
 			if (mockRunImpl) {

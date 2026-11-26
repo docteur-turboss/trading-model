@@ -43,7 +43,7 @@ Proxies the public routes listed in `PUBLIC_ROUTES` (`services/api-gateway/src/s
 
 \*All routes except `/ping` require authentication via `x-api-key: <token>` or `Authorization: Bearer <token>` (the `Bearer ` prefix is case-insensitive and also stripped from the configured header). Validated against `AUTH_TOKENS` by SHA-256 digests compared with `timingSafeEqual`; the rate-limit identity is `client:` + 32 hex chars of that digest (one quota per token, no token material in logs).
 
-**Scopes (ADR-0059).** Each key of `AUTH_TOKENS` is `name:scope1+scope2:secret`. `read` opens the `GET` routes, `risk:admin` the risk-execution kill switch (engage, re-arm). The `dlq:write` scope went with the public `/v1/dlq-service/*` routes (ADR-0073, issue #1241); dead letters are handled by the operator CLI inside the stack. For one release a key that still declares `dlq:write` starts the gateway, the scope is ignored and a warning is logged at startup; issue #2620 refuses it again. A key without the scope a route needs gets `403`. The gateway drops any client `x-actor` header and sends `x-actor: <key name>` (never the secret) to the service. A bare secret (old format) is refused at startup.
+**Scopes (ADR-0059).** Each key of `AUTH_TOKENS` is `name:scope1+scope2:secret`. `read` opens the `GET` routes except the audit trail (`audit:read`), `risk:admin` engages the risk-execution kill switch, `risk:rearm` re-arms it (`risk:admin` implies it for one release). The `dlq:write` scope went with the public `/v1/dlq-service/*` routes (ADR-0073, issue #1241); dead letters are handled by the operator CLI inside the stack. For one release a key that still declares `dlq:write` starts the gateway, the scope is ignored and a warning is logged at startup; issue #2620 refuses it again. A key without the scope a route needs gets `403`. The gateway drops any client `x-actor` header and sends `x-actor: <key name>` (never the secret) to the service. A bare secret (old format) is refused at startup.
 
 **Response (success):** Proxied response from target service (status code and body forwarded as-is).
 
@@ -98,4 +98,5 @@ Client → edge-proxy (HTTP, /v1) → mTLS → API Gateway → auth → rate-lim
 | `AUTH_TOKEN_HEADER`     | `x-api-key`                     | Header name for auth token   |
 | `AUTH_TOKENS`           | `''`                            | Comma-separated API keys `name:scope1+scope2:secret` (ADR-0059); required in production (the gateway refuses to start, as with a malformed key) |
 | `PROXY_TIMEOUT_MS`      | `10000`                         | Proxy total deadline (ms)  |
+| `PROXY_MAX_CONCURRENT`  | `16`                        | Proxied requests in flight; past it 503 `Retry-After` |
 | `PROXY_MAX_RESPONSE_BYTES` | `8388608` (8 MiB)          | Largest upstream answer; past it 502 `Upstream response too large` (ADR-0054) |

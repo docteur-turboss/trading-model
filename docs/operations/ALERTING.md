@@ -112,11 +112,13 @@ A service can answer `/health/ready` while doing nothing useful: from launch to
 | `BusDeadLetters` | A dead stream holds entries (`bus_dead_letters`): a subscriber group gave up on them, an operator replays or deletes them with `audit-dlq` | [runbook-message-bus-outage](runbooks/runbook-message-bus-outage.md) |
 | `MessagesUnrouted` | the bus library dropped messages for 10 min on a topic with no subscriber (`mm_messages_unrouted_total`) | [runbook-message-bus-outage#6-no-subscriber-on-a-topic](runbooks/runbook-message-bus-outage.md#6-no-subscriber-on-a-topic) |
 | `KillSwitchEngaged` | the Risk/Execution kill switch is engaged (global or per symbol): no new order, open orders cancelled, manual re-arming only | [runbook-risk-execution#killswitchengaged](runbooks/runbook-risk-execution.md#killswitchengaged) |
+| `RiskDrawdownApproaching` | the drawdown from the high-water mark has been above 70 % of its limit for 5 min (`risk_drawdown_ratio`; 1 = kill switch) | [runbook-risk-execution#riskdrawdownapproaching](runbooks/runbook-risk-execution.md#riskdrawdownapproaching) |
 | `RiskTickFailing` | the risk-execution tick failed repeatedly for 5 min (`risk_tick_failures_total`): state write or reconciliation error | [runbook-risk-execution#risktickfailing](runbooks/runbook-risk-execution.md#risktickfailing) |
 | `RiskOutboxDropped` | risk-execution dropped audit events because its outbox was full (`risk_outbox_dropped_total`): lost from the audit chain | [runbook-risk-execution#riskoutboxdropped](runbooks/runbook-risk-execution.md#riskoutboxdropped) |
 | `RiskOutboxPending` | order or kill switch events refused by the bus stayed in the risk-execution outbox for 30 min (`risk_outbox_pending`) | [runbook-risk-execution#riskoutboxpending](runbooks/runbook-risk-execution.md#riskoutboxpending) |
 | `ReconciliationMismatch` | risk-execution found a position, open order or balance difference with the broker (ADR-0064 §4) | [runbook-risk-execution#reconciliationmismatch](runbooks/runbook-risk-execution.md#reconciliationmismatch) |
 | `RiskRejectRatioHigh` | risk-execution rejected over 50% of the order intents for 15 min (`risk_orders_total`) | [runbook-risk-execution#riskrejectratiohigh](runbooks/runbook-risk-execution.md#riskrejectratiohigh) |
+| `DecisionPassFailing` | a decision pass or a promoted model of decision-consumer failed in the last hour (`decision_skipped_total{reason="error"}`) | [runbook-risk-execution#decisionpassfailing](runbooks/runbook-risk-execution.md#decisionpassfailing) |
 | `DecisionIntentsRejected` | risk-execution rejected 3 or more intents of the decision consumer in 1 h with the same reason (`decision_intents_total`) | [runbook-risk-execution#decisionintentsrejected](runbooks/runbook-risk-execution.md#decisionintentsrejected) |
 | `RiskMarketDataStale` | the newest reference price of an allowed instrument is older than 15 min (ADR-0064 §7) | [runbook-risk-execution#riskmarketdatastale](runbooks/runbook-risk-execution.md#riskmarketdatastale) |
 | `RetentionFailed` | warning | [BACKUP_DR#retention-job](../deployment/BACKUP_DR.md#retention-job) |
@@ -162,6 +164,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `BackupUnencrypted` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupOffsiteCopyFailed` | critical | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `BackupVolumeFilling` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
+| `BackupOffsiteBucketLarge` | warning | [BACKUP_DR#monitoring](../deployment/BACKUP_DR.md#monitoring) |
 | `ApiAuthFailuresHigh` | warning | [runbook-auth-failures#apiauthfailureshigh](runbooks/runbook-auth-failures.md#apiauthfailureshigh) |
 | `MtlsAclDenials` | warning | [runbook-auth-failures#mtlsacldenials](runbooks/runbook-auth-failures.md#mtlsacldenials) |
 | `AuditChainBroken` | critical | [runbook-audit-chain-broken#auditchainbroken](runbooks/runbook-audit-chain-broken.md#auditchainbroken) |
@@ -175,7 +178,8 @@ file absent from the repository, or on an anchor that matches no heading.
 | `JournalBacklogOld` | warning | [runbook-message-bus-outage#3-backlog-of-a-subscriber](runbooks/runbook-message-bus-outage.md#3-backlog-of-a-subscriber) |
 | `TrainingCompletionRateLow` | warning | [runbook-trainer#trainingcompletionratelow](runbooks/runbook-trainer.md#trainingcompletionratelow) |
 | `TrainingCompletionRateCritical` | critical | [runbook-trainer#trainingcompletionratelow](runbooks/runbook-trainer.md#trainingcompletionratelow) |
-| `TrainerEventLoopLagHigh` | warning | [runbook-trainer#trainereventlooplaghigh](runbooks/runbook-trainer.md#trainereventlooplaghigh) |
+| `EventLoopLagHigh` | warning | [runbook-infrastructure#eventlooplaghigh](runbooks/runbook-infrastructure.md#eventlooplaghigh) |
+| `DbIndexBuildFailed` | warning | [runbook-infrastructure#dbindexbuildfailed](runbooks/runbook-infrastructure.md#dbindexbuildfailed) |
 | `TrainerNoLeader` | warning | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `TrainerNoLeaderProlonged` | warning | [runbook-trainer#trainernoleader](runbooks/runbook-trainer.md#trainernoleader) |
 | `MarketDataStale` | critical | [runbook-market-data-stale](runbooks/runbook-market-data-stale.md) |
@@ -192,6 +196,7 @@ file absent from the repository, or on an anchor that matches no heading.
 | `TrainerFeatureDrift` | warning | [runbook-trainer#trainerfeaturedrift](runbooks/runbook-trainer.md#trainerfeaturedrift) |
 | `KubePodCrashLooping` | warning | [runbook-infrastructure#kubepodcrashlooping](runbooks/runbook-infrastructure.md#kubepodcrashlooping) |
 | `KubeContainerOOMKilled` | warning | [runbook-infrastructure#kubecontaineroomkilled](runbooks/runbook-infrastructure.md#kubecontaineroomkilled) |
+| `KubeContainerMemoryNearLimit` | warning | [runbook-infrastructure#kubecontaineroomkilled](runbooks/runbook-infrastructure.md#kubecontaineroomkilled) |
 | `KubeWorkloadUnavailable` | critical | [runbook-infrastructure#kubeworkloadunavailable](runbooks/runbook-infrastructure.md#kubeworkloadunavailable) |
 | `KubePodPending` | warning | [runbook-infrastructure#kubepodpending](runbooks/runbook-infrastructure.md#kubepodpending) |
 | `KubePersistentVolumeFillingUp` | warning | [runbook-infrastructure#kubepersistentvolumefillingup](runbooks/runbook-infrastructure.md#kubepersistentvolumefillingup) |
@@ -247,5 +252,5 @@ Compose runs the same datasources as K8s, each one fed:
 
 Prometheus runs without `--web.enable-lifecycle` (issue #850): `POST /-/reload` and `/-/quit` answer 403/404 for any network client.
 
-- K8s: the Prometheus container checksums `/etc/prometheus` every 20 s and sends itself `SIGHUP` (PID 1) when it changed. After `kubectl apply`, the new rules are live within about a minute (kubelet ConfigMap sync included).
+- K8s: `prometheus-config` is hash-suffixed, so a changed rule file changes the pod template and `kubectl apply` rolls the StatefulSet (issue #2825); no in-pod reload.
 - Compose: `docker kill --signal=HUP trading-prometheus` after editing `observability/*.yml`.

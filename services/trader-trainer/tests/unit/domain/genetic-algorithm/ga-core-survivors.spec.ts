@@ -44,7 +44,6 @@ describe("pareto-processor", () => {
 		];
 		const res = buildParetoFronts(genomes, objs, metas, () => 0.5);
 		expect(res.avgFit).toBe(2);
-		expect(res.avgEff).toBe(2);
 		expect(res.popWithMeta.map((m) => m.genome)).toEqual(genomes);
 		expect(res.popWithMeta.map((m) => m.fitness)).toEqual([1, 3]);
 		expect(res.popWithMeta[1].fitnessMeta).toBe(metas[1]);

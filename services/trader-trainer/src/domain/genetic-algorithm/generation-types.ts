@@ -47,10 +47,8 @@ export interface GenerationContext {
 	population: DeepReadonly<LamarckGenome>[];
 	archive: DeepReadonly<LamarckGenome>[];
 	bestFitness: number;
-	bestGenome: DeepReadonly<LamarckGenome>;
 	bestFitnessMeta?: GenomeFitnessMeta;
 	avgFitness: number;
-	efficiencyScore: number;
 	elapsedMs: number;
 	stagnation: number;
 	gaControl: DeepReadonly<GAControlGenome>;

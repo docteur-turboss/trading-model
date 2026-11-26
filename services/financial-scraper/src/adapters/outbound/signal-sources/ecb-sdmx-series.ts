@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { SourceAdapter } from "../../../domain/ports/signal-source.port";
+import { METRIC_PATTERN } from "./common";
 
 const Code = z.object({ id: z.string().min(1) });
 const TimePeriod = Code.extend({
@@ -69,7 +70,7 @@ function _unit(structure: Sdmx["structure"], attributes: (number | null)[]) {
 export const ECB_SDMX_SERIES: SourceAdapter = {
 	dimensions: ["market", "macro"],
 	params: z.object({
-		metric: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
+		metric: z.string().regex(METRIC_PATTERN),
 		area: z.string().min(1).optional(),
 	}),
 	normalize(payload, { params }) {

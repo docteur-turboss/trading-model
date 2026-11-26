@@ -103,7 +103,7 @@ function _expandTemplates(
 			problems.push(`${where}: selector matches no asset`);
 		}
 		const holes = [...template.url.matchAll(HOLE)].map((match) => match[1]);
-		const stray = /\{(?!date-\d)/.test(template.url.replace(HOLE, ""));
+		const stray = /\{(?!date-\d|year\})/.test(template.url.replace(HOLE, ""));
 		// A hole in the host would let an asset value pick the host.
 		if (stray || /^https:\/\/[^/?#]*\{/.test(template.url)) {
 			problems.push(`${where}: unknown or misplaced hole in ${template.url}`);

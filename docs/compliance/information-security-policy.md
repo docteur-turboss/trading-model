@@ -18,7 +18,7 @@ The trading-model platform processes machine-generated financial market data and
 |---|---|---|
 | Prevent unauthorised access to platform services | mTLS authentication coverage | 100% of service-to-service HTTP communication (database clients excluded, ADR-0060) |
 | Ensure data integrity in transit and at rest | Encryption coverage | 100% of service-to-service HTTP in transit (TLS 1.3) and of the SPIRE datastore, backups and data disks at rest; database client traffic is not encrypted (ADR-0060) |
-| Maintain service availability | Uptime per service | ≥ 99.9% (production target) |
+| Maintain service availability | Uptime per service | ≥ 99% over 30 days (production target, [SLO](../operations/slo.md)) |
 | Detect and respond to security incidents | Time to detect (TTD) | ≤ 15 minutes |
 | Ensure secure software development lifecycle | Critical/high vulnerabilities in production | 0 |
 | Maintain immutable audit trail | Audit event capture rate | 100% of inter-service messages |
@@ -95,7 +95,7 @@ All platform assets are documented in:
 
 ## 7. Physical & Environmental Security
 
-The platform is deployed as a containerised microservice architecture. Physical security is the responsibility of the hosting provider (cloud / bare-metal). The platform ensures:
+The platform is deployed as a containerised microservice architecture. Production runs on a home host: physical security is the operator's (the home premises). A stolen disk stays unreadable (LUKS2 + Tang, which never runs on the host it unlocks). The platform ensures:
 
 - No sensitive data written to persistent host volumes (except the SPIRE datastore)
 - All database data encrypted at rest via storage-layer encryption: LUKS2 data disks unlocked by Clevis/Tang (`deploy/host/`), backups encrypted with age (see [Encryption at Rest](../deployment/ENCRYPTION_AT_REST.md))
@@ -158,7 +158,6 @@ See [Incident Response Policy](incident-response-policy.md) for detailed procedu
 - Report all security incidents immediately to the maintainer
 - Document every incident with correlation ID via audit-logger
 - Apply forensic containment (scale to zero / isolate service) before root cause analysis
-- Regulatory notification within 24 hours for reportable incidents (financial regulations)
 
 ## 12. Business Continuity
 
@@ -170,7 +169,7 @@ The platform is designed to comply with:
 - **GDPR** — Zero personal data architecture; IP anonymization + context sanitization (see [DPIA](dpia.md))
 - **MiFID II** — Record-keeping Art. 72 (see [Algorithmic Trading Compliance](algorithmic-trading-compliance.md))
 - **MAR** — Market abuse prevention Art. 16
-- **DORA** — Digital operational resilience (see [Compliance Framework](compliance-framework.md))
+- **DORA** — good-practice reference only, not binding (see [Compliance Framework](compliance-framework.md))
 
 ## 14. Policy Review & Enforcement
 

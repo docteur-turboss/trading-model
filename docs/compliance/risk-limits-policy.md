@@ -28,6 +28,7 @@ Bound the loss of any order flow, including the worst case where the operator is
 |---|---|---|---|
 | Daily loss | 2 % of allocated capital | Equity at 00:00 UTC minus current equity | Global kill switch |
 | Drawdown stop | 10 % of allocated capital | High-water mark minus current equity | Global kill switch; re-arming also requires the owner's review of the strategy (§4.4) |
+| Cumulative loss floor | 20 % of allocated capital | Allocated capital minus current equity, whatever the re-arms | Global kill switch (`cumulative_loss`); re-arming is refused while equity is under the floor. Lift: lower `RISK_ALLOCATED_CAPITAL` by a reviewed limit change (§2) so the floor falls to the equity, then restart (the persisted cash is kept: a higher capital raises the floor and does not lift it) |
 | Daily loss per symbol | 1 % of allocated capital | Loss of the symbol's position and fees since 00:00 UTC | Kill switch of that symbol |
 
 The limits are checked on every fill and on every reference price update, and before every intent: an intent whose worst case (fill at the limit of the price band) would cross a limit is rejected (ADR-0064 §2). No order leaves without a limit price inside the band (an intent without one gets the band edge, ADR-0064 §2), so the slippage of a fill is bounded by the band. The pre-trade worst case is bounded by the price band: a gap beyond the band crosses the limit after the fill, and the switch then engages on the next check. The daily figures restart at 00:00 UTC, but a switch engaged by a limit stays on until an operator re-arms it (§4.4).
@@ -72,7 +73,7 @@ Closing positions is a separate, explicit operator action, never automatic: a fo
 | Unreadable switch state | The service cannot read its stored state: it counts as on (fail closed, ADR-0064 §5) | Global |
 | Missing switch state | No stored state at start (first install or lost volume): it counts as on until an operator re-arms (ADR-0064 §5) | Global |
 
-Below the stale data threshold, an intent decided on a price older than 1 min (value of this policy for the maximum age of ADR-0064 §7) is rejected without engaging the switch.
+Below the stale data threshold, an intent older than 1 min (its decision time; value of this policy for the maximum age of ADR-0064 §7) is rejected without engaging the switch. Price freshness is checked by `stale_price` and `price_gap`.
 
 ### 4.4 Re-arming
 

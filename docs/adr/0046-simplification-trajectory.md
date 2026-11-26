@@ -2,8 +2,8 @@
 
 **Status:** Accepted
 **Date:** 2026-11 (accepted 2026-11-15, issue #1202)
-**Verified by:** manual review 2026-11-15: owner decision on issue #1202; steps 1 and 3 shipped as `docs/adr/0048-durable-message-journal-in-redis-streams.md` and `docs/adr/0047-redis-isolation-per-service.md`; step 4 shipped as `docs/adr/0073-message-bus-as-a-redis-streams-library.md` (release N+1, issue #1241)
-**Related:** [ADR-0011](./0011-spiffe-spire-workload-identity.md), [ADR-0019](./0019-message-broker-as-built.md), [ADR-0023](./0023-discovery-registry-in-redis.md), [ADR-0029](./0029-orphan-subsystems-retired-and-reachability-gate.md), [ADR-0042](./0042-singleton-collector-with-verified-recovery.md), [ADR-0043](./0043-message-delivery-once-per-subscribed-service.md) (delivery once per subscribed service; amends ADR-0019), [ADR-0044](./0044-singleton-trainer.md) (trainer singleton), [ADR-0045](./0045-single-service-resolution-strategy.md) (one resolution strategy; amends ADR-0023)
+**Verified by:** manual review 2026-11-15: owner decision on issue #1202; steps 1 and 3 shipped as ADR-0048 (deleted, superseded by ADR-0073) and `docs/adr/0047-redis-isolation-per-service.md`; step 4 shipped as `docs/adr/0073-message-bus-as-a-redis-streams-library.md` (release N+1, issue #1241)
+**Related:** [ADR-0011](./0011-spiffe-spire-workload-identity.md), ADR-0019 (deleted), ADR-0023 (deleted), [ADR-0029](./0029-orphan-subsystems-retired-and-reachability-gate.md), ADR-0042 (deleted), ADR-0043 (deleted) (delivery once per subscribed service; amends ADR-0019), [ADR-0044](./0044-singleton-trainer.md) (trainer singleton), ADR-0045 (deleted) (one resolution strategy; amends ADR-0023)
 
 This ADR sets the direction (issue #504, audit architecture 2026-11-06, A5). The owner accepted it on 2026-11-15 (issue #1202, audit architecture 2026-11-15, A1/A2): step 2 is accepted and step 4 is Redis Streams used as a library. Nothing here changes code or manifests: each step ships through its own issue and ADR.
 

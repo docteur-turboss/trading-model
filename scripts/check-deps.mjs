@@ -12,7 +12,7 @@
  *
  * Usage: node scripts/check-deps.mjs
  */
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WORKSPACE_ROOTS, walk as walkFiles } from './lib/fs.mjs';

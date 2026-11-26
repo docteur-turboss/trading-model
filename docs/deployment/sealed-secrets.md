@@ -98,7 +98,7 @@ The final file must list ALL keys. `run-migrations.sh` refuses to apply a file t
 A quarterly reminder issue (workflow `Secret Rotation Reminder`) points here.
 
 ```bash
-bash scripts/rotate-secrets.sh --component tokens|mysql|all
+bash scripts/rotate-secrets.sh --component tokens|mysql|migrator|retention|all
 DRY_RUN=true bash scripts/rotate-secrets.sh --component tokens   # no merge, apply or restart
 ```
 Before `kubectl apply` the script compares the live Secret keys with the file: a live key missing from `SEALED_SECRETS_FILE` stops it (the controller would erase that key). The merged file stays on disk; add the key with `kubeseal --merge-into`, then rerun.
@@ -118,12 +118,14 @@ For `tokens`, the new key is written to a `0600` temporary file whose path is lo
 No downtime: the old password stays valid until every consumer restarted on the new one.
 
 ```bash
-bash scripts/rotate-secrets.sh --component mysql   # MYSQL_PASSWORD (user scraper)
+bash scripts/rotate-secrets.sh --component mysql       # MYSQL_PASSWORD (user scraper)
+bash scripts/rotate-secrets.sh --component migrator    # MYSQL_MIGRATE_PASSWORD (Jobs read it at start)
+bash scripts/rotate-secrets.sh --component retention   # MYSQL_RETENTION_PASSWORD (CronJob reads it at start)
 ```
 
-`ALTER USER ... RETAIN CURRENT PASSWORD` on `mysql-primary`, Secret, restart, `DISCARD OLD PASSWORD`. The password travels on stdin, never argv. The script refuses to start if `scraper` already has a secondary password (an earlier run stopped midway): check which value the live Secret holds, run `ALTER USER 'scraper'@'%' DISCARD OLD PASSWORD`, rerun.
+`ALTER USER ... RETAIN CURRENT PASSWORD` on `mysql-primary`, Secret, restart, `DISCARD OLD PASSWORD`. The password travels on stdin, never argv. The script refuses to start if the user already has a secondary password (an earlier run stopped midway): check which value the live Secret holds, run `ALTER USER '<user>'@'%' DISCARD OLD PASSWORD`, rerun.
 
-Still manual (the script refuses them): `MYSQL_ROOT_PASSWORD`; `MYSQL_MIGRATE_PASSWORD` and `MYSQL_RETENTION_PASSWORD` (merge, apply, rerun Job `db-migrate-user`); the exporter keys (merge, apply, restart the database pods, rerun `db-migrate-user`); every `REDIS_*_PASSWORD`: `ACL SETUSER <user> >new` on every data node as an administrator, merge and apply the Secret, restart the consumer, then `ACL SETUSER <user> <old` (no service identity may hold `+acl|setuser`: every pod receives `REDIS_INTERNAL_PASSWORD`, ADR-0047); `REDIS_INTERNAL_PASSWORD` (`ha`: ordered restart of the StatefulSets); Mongo `root` (`db.getSiblingDB("admin").changeUserPassword("root", <new>)`; the other Mongo users come from the `mongo-*-users` Jobs on release).
+Still manual (the script refuses them): `MYSQL_ROOT_PASSWORD`; `MYSQL_EXPORTER_PASSWORD` (the sidecar reads it from an env var and StatefulSet `mysql` has one pod: the restart stops MySQL for every service, so merge and apply the Secret, restart `mysql` in a quiet window, rerun `db-migrate-user`); every `REDIS_*_PASSWORD`: `ACL SETUSER <user> >new` on every data node as an administrator, merge and apply the Secret, restart the consumer, then `ACL SETUSER <user> <old` (no service identity may hold `+acl|setuser`: every pod receives `REDIS_INTERNAL_PASSWORD`, ADR-0047); `REDIS_INTERNAL_PASSWORD` (`ha`: ordered restart of the StatefulSets); Mongo `root` (`db.getSiblingDB("admin").changeUserPassword("root", <new>)`; the other Mongo users come from the `mongo-*-users` Jobs on release).
 
 ### 3. Apply
 

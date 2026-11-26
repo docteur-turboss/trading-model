@@ -9,8 +9,6 @@ const WEIGHT = {
 	CHANGE_24HR_LOW: 2 as ApiWeight,
 	CHANGE_24HR_MED: 40 as ApiWeight,
 	CHANGE_24HR_HIGH: 80 as ApiWeight,
-	TICKER_ONE_SYMBOL: 2 as ApiWeight,
-	TICKER_MANY_SYMBOLS: 4 as ApiWeight,
 } as const satisfies Record<string, ApiWeight>;
 
 /** Binance API weight values per endpoint, used for rate-limit token accounting. */

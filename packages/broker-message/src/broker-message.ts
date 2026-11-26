@@ -23,7 +23,7 @@ import { type DeliveredMessage, deliverToHandler } from "./messages.controller";
 import { deadLetterError } from "./shared/errors";
 
 /** Publishes and subscribes to messages through the bus in Redis (ADR-0073). */
-export default class BrokerMessage {
+export default class BusClient {
 	private _topics: EventEnumMap[] = [];
 	private readonly _journal: RedisMessageJournal;
 	private _consumer?: BusConsumer;
@@ -45,7 +45,7 @@ export default class BrokerMessage {
 	}
 
 	/** Consumes the specified event topics in this process, each message through `handle`. */
-	async intents(
+	async subscribe(
 		topics: readonly EventEnumMap[],
 		handle: (message: DeliveredMessage, signal?: AbortSignal) => Promise<void>
 	): Promise<void> {
@@ -121,7 +121,7 @@ export default class BrokerMessage {
 		event: TEvent,
 		payload: DlqEventMap[TEvent]
 	): Promise<void> {
-		return this.post.indirect(
+		return this.publish(
 			payload,
 			new MessageMetadataBuilder(Topic.of(event), event, {
 				instanceId: this._instanceId,
@@ -133,19 +133,15 @@ export default class BrokerMessage {
 	}
 
 	/** Stops the consumer. */
-	async stopMessageManager(): Promise<void> {
+	async stop(): Promise<void> {
 		await this._consumer?.stop();
 		this._consumer = undefined;
 		this._topics = [];
 	}
 
-	/** Publishes messages to the bus. */
-	get post() {
-		const journal = this._journal;
-		return {
-			indirect: (payload: unknown, metadata: MessageMetadata) =>
-				publishToBus(journal, payload, metadata),
-		};
+	/** Publishes a message to the bus; resolves once the entry is durable. */
+	publish(payload: unknown, metadata: MessageMetadata): Promise<void> {
+		return publishToBus(this._journal, payload, metadata);
 	}
 }
 

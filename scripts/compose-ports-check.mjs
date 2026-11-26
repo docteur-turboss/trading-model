@@ -5,7 +5,7 @@
 // Plain text parsing (no YAML dependency, CRLF-safe), like scripts/observability-gate.mjs.
 //
 // Usage: node scripts/compose-ports-check.mjs [rootDir]
-import { readFileSync, readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
 // Exceptions: "<repo-relative file>:<line>" of a `ports:` item allowed to publish wider. Keep empty.

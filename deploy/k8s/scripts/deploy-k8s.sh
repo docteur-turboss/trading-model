@@ -458,6 +458,23 @@ cmd_smoke_test() {
     fi
   done
 
+  # Every Redis node must know each bus user (redis-ha.sh bus_user): a node on an older template
+  # lacks the newer ones while every readiness probe stays green (issue #2882).
+  # shortcut: clear port only (REDIS_TLS_MODE optional); add --tls with the required step (ADR-0047).
+  local users="" user pod
+  for user in $(sed -n 's/^\tbus_user \([a-z-]*\) .*/\1/p' "$K8S_DIR/infra/redis-ha.sh"); do
+    [[ " ${SMOKE_SKIP:-} " == *" $user "* ]] || users+=" $user"
+  done
+  for pod in $(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/component=redis -o name); do
+    # shellcheck disable=SC2016,SC2086 # expanded in the pod; one argument per user
+    if kubectl exec -n "$NAMESPACE" "$pod" -c redis -- sh -c 'for u; do eval "p=\${REDIS_$(echo "$u" | tr a-z- A-Z_)_PASSWORD:-}"; [ "$(REDISCLI_AUTH="$p" redis-cli --user "$u" PING 2>&1)" = PONG ] || { echo "bus user $u refused"; exit 1; }; done' sh $users; then
+      log "  ✓ ${pod#pod/} accepts the bus users:$users"
+    else
+      err "  ✗ ${pod#pod/} refuses a bus user: restart it on the current template (redis-last)"
+      failed=$((failed + 1))
+    fi
+  done
+
   if [[ "$failed" -eq 0 ]]; then
     log "All smoke tests passed!"
   else

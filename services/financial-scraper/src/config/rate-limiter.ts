@@ -8,6 +8,9 @@ interface RateLimitBucket {
 }
 
 const RATE_LIMIT_BUCKETS: Record<string, RateLimitBucket> = {};
+// Binance IP quota: 1 200 weight/min. A symbol costs 32 per minute (depth 5 +
+// trades 25 + candles 2): 1 200 / 32 = 37 symbols max. Not a hard limit, the
+// bucket follows the server's used weight (syncUsedWeight).
 const DEFAULT_CAPACITY = 1200;
 const DEFAULT_REFILL_RATE = 20;
 
@@ -31,6 +34,20 @@ function _refillBucket(bucket: RateLimitBucket): void {
 		bucket.tokens + elapsed * bucket.refillRate
 	);
 	bucket.lastRefill = now;
+}
+
+/**
+ * Aligns the bucket on the weight Binance counted for the last minute
+ * (`X-MBX-USED-WEIGHT-1M`): it only ever lowers the local balance, so the
+ * server value wins when other clients share the IP quota.
+ */
+export function syncUsedWeight(baseURL: string, usedWeight1m: number): void {
+	if (!Number.isFinite(usedWeight1m)) {
+		return;
+	}
+	const bucket = _getBucket(baseURL);
+	_refillBucket(bucket);
+	bucket.tokens = Math.min(bucket.tokens, bucket.capacity - usedWeight1m);
 }
 
 const QUEUE_TAILS: Record<string, Promise<void>> = {};

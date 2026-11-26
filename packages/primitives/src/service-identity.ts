@@ -33,8 +33,3 @@ export namespace HostPort {
 		return `${hp.host}:${hp.port}`;
 	}
 }
-
-/** Identifies a service by name, network address, and port. */
-export interface ServiceEndpoint extends HostPort {
-	serviceName: ServiceId;
-}

@@ -219,34 +219,29 @@ export class BusConsumer {
 			service: group.service,
 			entryId: entry.id,
 		};
+		const deadLetter = async (reason: string): Promise<void> => {
+			const id = await deadStreams.deadLetter(
+				group,
+				entry.id,
+				entry.message,
+				reason,
+				entry.deliveries
+			);
+			MESSAGES_DLQ_TOTAL.inc({ topic: group.topic, reason });
+			onDeadLetter?.(group, entry.message, reason, id);
+		};
 		try {
 			const publisher = entry.message?.metadata?.publisher?.serviceName;
 			if (typeof publisher !== "string") {
 				const reason =
 					"invalid envelope: metadata.publisher.serviceName missing";
-				const id = await deadStreams.deadLetter(
-					group,
-					entry.id,
-					entry.message,
-					reason,
-					entry.deliveries
-				);
-				MESSAGES_DLQ_TOTAL.inc({ topic: group.topic, reason });
-				onDeadLetter?.(group, entry.message, reason, id);
+				await deadLetter(reason);
 				return;
 			}
 			// Only a crash gets here past the limit: the classifier below never saw those deliveries.
 			if (entry.deliveries > MAX_RETRIES) {
 				const reason = DlqReason.MaxRetriesExceeded;
-				const id = await deadStreams.deadLetter(
-					group,
-					entry.id,
-					entry.message,
-					reason,
-					entry.deliveries
-				);
-				MESSAGES_DLQ_TOTAL.inc({ topic: group.topic, reason });
-				onDeadLetter?.(group, entry.message, reason, id);
+				await deadLetter(reason);
 				return;
 			}
 			if (!isExpectedPublisher(group.topic, publisher)) {
@@ -290,17 +285,7 @@ export class BusConsumer {
 					extractDeliveryParams(entry.message)
 				);
 				if (action.action === ErrorActionType.DLQ) {
-					const id = await deadStreams.deadLetter(
-						group,
-						entry.id,
-						entry.message,
-						action.reason,
-						entry.deliveries
-					);
-					MESSAGES_DLQ_TOTAL.inc({ topic: group.topic, reason: action.reason });
-					onDeadLetter?.(group, entry.message, action.reason, id);
-				} else if (action.action === ErrorActionType.SWALLOW) {
-					await journal.ack(group, entry.id);
+					await deadLetter(action.reason);
 				}
 				// RETRY: left pending, due again after the backoff.
 				return;

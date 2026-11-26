@@ -43,21 +43,13 @@ All access to trading-model platform resources shall be authenticated, authorise
 
 Every service instance is provisioned with an X.509 SVID issued by the SPIRE Server after workload attestation. The SVID Subject Alternative Name (SAN) carries the SPIFFE ID `spiffe://trading-model.local/ns/<namespace>/sa/<service>`.
 
-| Identity | SPIFFE ID (SAN) | Issued By | Validity |
-|---|---|---|---|
-| `financial-scraper` | `spiffe://trading-model.local/ns/trading-model/sa/financial-scraper` | SPIRE Server | 4 h TTL (auto-rotated) |
-| `trader-trainer` | `spiffe://trading-model.local/ns/trading-model/sa/trader-trainer` | SPIRE Server | 4 h TTL (auto-rotated) |
-| `audit-logger` | `spiffe://trading-model.local/ns/trading-model/sa/audit-logger` | SPIRE Server | 4 h TTL (auto-rotated) |
-| `api-gateway` | `spiffe://trading-model.local/ns/trading-model/sa/api-gateway` | SPIRE Server | 4 h TTL (auto-rotated) |
-| `edge-proxy` | `spiffe://trading-model.local/ns/trading-model/sa/edge-proxy` | SPIRE Server | 4 h TTL (auto-rotated) |
-
 **Enforcement:** `@trading-model/http/mtls-auth.ts` extracts the client identity from the SVID's verified SPIFFE ID SAN. Requests without a valid SVID are rejected at the TLS handshake level (all environments). `mtls-authorization.ts` enforces the ACL on every inbound request.
 
 ## 4. ACL Definition
 
 ### 4.1 Default ACL
 
-The default ACL maps each target service to the callers allowed to reach it (`"*"` = any platform service). Its single source is [`packages/http/src/acl-config.ts`](../../packages/http/src/acl-config.ts).
+The default ACL maps each target service to the callers allowed to reach it. Its single source is [`packages/http/src/acl-config.ts`](../../packages/http/src/acl-config.ts).
 
 **Enforcement:** Every incoming request passes through `mtls-authorization.ts` middleware. If the caller's identity is not found in the target service's authorised callers, the request is rejected with HTTP 403.
 

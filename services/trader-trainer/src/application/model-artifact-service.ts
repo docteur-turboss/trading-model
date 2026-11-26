@@ -114,6 +114,7 @@ export class ModelArtifactService {
 						version: manifest.version,
 						sha256: manifest.weights.sha256,
 						admissible: manifest.admission?.admissible ?? false,
+						minSharpe: manifest.admission?.thresholds.minSharpe,
 					},
 				});
 				getLogger().info("Best agent rehydrated", {
@@ -183,7 +184,12 @@ export class ModelArtifactService {
 				context: { symbol: result.symbol, version: stored.version, admissible },
 			});
 			return {
-				ref: { version: stored.version, sha256: stored.sha256, admissible },
+				ref: {
+					version: stored.version,
+					sha256: stored.sha256,
+					admissible,
+					minSharpe: admission?.thresholds.minSharpe,
+				},
 				lastModel: { createdAt: Date.parse(stored.createdAt), normalization },
 			};
 		} catch (err) {

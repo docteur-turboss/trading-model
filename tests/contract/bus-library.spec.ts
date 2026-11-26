@@ -11,7 +11,7 @@ import { StreamRedis } from "../../packages/broker-message/tests/fixtures/stream
  * HTTP and no message-manager in between.
  */
 
-const TOPIC = "market.candles.fetch";
+const TOPIC = "training.model.published";
 
 describe("bus contract: publisher → subscriber, no HTTP", () => {
 	it("hands the subscriber the payload and the metadata the publisher wrote, once per service", async () => {
@@ -36,8 +36,8 @@ describe("bus contract: publisher → subscriber, no HTTP", () => {
 			{
 				topic: TOPIC,
 				publisher: {
-					serviceName: "financial-scraper",
-					instanceId: "financial-scraper-1",
+					serviceName: "trader-trainer",
+					instanceId: "trader-trainer-1",
 				},
 			} as never
 		);

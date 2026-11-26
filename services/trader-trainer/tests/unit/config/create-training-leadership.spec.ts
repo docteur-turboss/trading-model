@@ -12,7 +12,7 @@ jest.mock("@trading-model/contracts/logger-registry", () => ({
 
 // The container's message bus client reads the environment at import.
 jest.mock("../../../src/config/message-manager", () => ({
-	MessageManager: {},
+	busClient: {},
 }));
 
 const MOCK_LEASE_API = jest.fn<(name: string) => unknown>(() => ({}));

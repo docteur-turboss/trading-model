@@ -112,7 +112,7 @@ Get a single audit event by its message ID.
 
 ### Message Ingestion
 
-No HTTP route: the service consumes the bus in process (`BrokerMessage.intents`, ADR-0073) and records each message.
+No HTTP route: the service consumes the bus in process (`BusClient.subscribe`, ADR-0073) and records each message.
 
 Every event is appended to a hash chain (`chainSequence`, `previousHash`, `dataHash`; `chainSequence` and `metadata.messageId` are unique indexes). Messages arrive concurrently, so an instance writes its inserts one at a time. If another replica takes the same sequence first, the insert retries on the new tail (up to 5 attempts). A redelivered message (same `messageId`) is recorded once (`audit_events_stored_total{status="duplicate"}`).
 

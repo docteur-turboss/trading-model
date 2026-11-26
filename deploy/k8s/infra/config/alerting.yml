@@ -5,25 +5,25 @@ groups:
 
       # ── Burn Rate Alerts (SLO-based) ─────────────────────────────
       - alert: SLOAvailabilityFastBurn
-        expr: slo:sli_error:ratio_rate1h > 0.0144 and slo:sli_error:ratio_rate5m > 0.0144
+        expr: slo:sli_error:ratio_rate1h > 0.144 and slo:sli_error:ratio_rate5m > 0.144
         for: 2m
         labels:
           severity: critical
           slo: availability
         annotations:
           summary: 'Availability SLO fast burn rate exceeded'
-          description: '5xx ratio > 1.44% over both 1h and 5m (14.4x the 0.1% budget of the 99.9% SLO). Probes (/ping, /health/ready, /metrics) are not counted.'
+          description: '5xx ratio > 14.4% over both 1h and 5m (14.4x the 1% budget of the 99% SLO). Probes (/ping, /health/ready, /metrics) are not counted.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
       - alert: SLOAvailabilitySlowBurn
-        expr: slo:sli_error:ratio_rate6h > 0.006 and slo:sli_error:ratio_rate30m > 0.006
+        expr: slo:sli_error:ratio_rate6h > 0.06 and slo:sli_error:ratio_rate30m > 0.06
         for: 15m
         labels:
           severity: warning
           slo: availability
         annotations:
           summary: 'Availability SLO slow burn rate exceeded'
-          description: '5xx ratio > 0.6% over both 6h and 30m (6x the 0.1% budget of the 99.9% SLO). Probes are not counted.'
+          description: '5xx ratio > 6% over both 6h and 30m (6x the 1% budget of the 99% SLO). Probes are not counted.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#higherrorrate'
 
       - alert: SLOLatencyFastBurn
@@ -60,7 +60,7 @@ groups:
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-service-down.md'
 
       - alert: ServiceTargetsMissing
-        expr: absent(up{job="api-gateway"}) or absent(up{job="audit-logger"}) or absent(up{job="financial-scraper"}) or absent(up{job="trader-trainer"}) or absent(up{job="model-evaluator"}) or absent(up{job="risk-execution"})
+        expr: absent(up{job="api-gateway"}) or absent(up{job="audit-logger"}) or absent(up{job="financial-scraper"}) or absent(up{job="trader-trainer"}) or absent(up{job="model-evaluator"}) or absent(up{job="risk-execution"}) or absent(up{job="decision-consumer"})
         for: 5m
         labels:
           severity: critical
@@ -249,6 +249,16 @@ groups:
           description: 'The backup-data PVC (100Gi) is filling up: dumps grow with the market data. Check the retention (RETENTION_DAYS) or grow the volume before a night of backups fails.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
 
+      - alert: BackupOffsiteBucketLarge
+        expr: 'max by (job) (backup_offsite_bytes) > 100 * 1024 ^ 3'
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Off-site backup bucket is over 100 GB'
+          description: 'The Object Lock bucket (compliance mode) only grows: locked objects cannot be deleted. Check dump sizes and the monthly tier before the bill does.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/deployment/BACKUP_DR.md#monitoring'
+
       # Retention job (ADR-0051): daily at 03:30 UTC, so 36 h = one missed run.
       - alert: RetentionFailed
         expr: 'retention_last_status == 0'
@@ -281,6 +291,16 @@ groups:
           summary: 'Kill switch engaged ({{ $labels.scope }}, {{ $labels.mode }})'
           description: 'risk-execution stopped new orders and cancelled the open ones. It stays on until an operator re-arms it by hand after checking the cause (loss limit, stale data, reconciliation, rejections).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#killswitchengaged'
+
+      - alert: RiskDrawdownApproaching
+        expr: 'max by (job, mode) (risk_drawdown_ratio) > 0.7'
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Drawdown above 70 % of its limit ({{ $labels.mode }})'
+          description: 'The drawdown from the high-water mark has been above 70 % of its limit for 5 min. At 100 % the kill switch engages by itself.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#riskdrawdownapproaching'
 
       - alert: RiskTickFailing
         expr: 'sum by (job, mode) (increase(risk_tick_failures_total[10m])) > 0'
@@ -349,6 +369,15 @@ groups:
           summary: 'risk-execution rejected 3 or more intents of the decision consumer in 1 hour ({{ $labels.reason }})'
           description: 'The promoted models decide once per closed bar, so three rejections with the same reason code in an hour are not noise: the consumer sends a price or a size the limits refuse (ADR-0087).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#decisionintentsrejected'
+
+      - alert: DecisionPassFailing
+        expr: 'sum by (job) (increase(decision_skipped_total{reason="error"}[1h])) > 0'
+        labels:
+          severity: warning
+        annotations:
+          summary: 'decision-consumer decision pass failed in the last hour'
+          description: 'A decision pass or a promoted model failed (decision_skipped_total{reason="error"}): no intent is decided while it keeps failing, so paper trading is stopped.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-risk-execution.md#decisionpassfailing'
 
       # -- Authentication failures and ACL denials -------------------
 
@@ -489,15 +518,24 @@ groups:
           description: 'Trainer completion rate is {{ $value | humanizePercentage }} over 12h: most or all training sessions fail. Inhibits TrainingCompletionRateLow.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainingcompletionratelow'
 
-      - alert: TrainerEventLoopLagHigh
-        expr: max by (job) (nodejs_eventloop_lag_max_seconds{job="trader-trainer"}) > 10
+      - alert: EventLoopLagHigh
+        expr: max by (job) (nodejs_eventloop_lag_p99_seconds) > 0.2
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: 'trader-trainer event loop lag above 10 s'
-          description: 'Trainer event loop lag reached {{ $value | humanizeDuration }} (threshold 10 s) outside or inside GA evaluation. Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
-          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventlooplaghigh'
+          summary: '{{ $labels.job }} event loop lag p99 above 200 ms'
+          description: '{{ $labels.job }} event loop lag p99 is {{ $value | humanizeDuration }} (threshold 200 ms) for 5 min. Heartbeats and deliveries time out when it grows.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#eventlooplaghigh'
+
+      - alert: DbIndexBuildFailed
+        expr: max(kube_job_failed{job_name=~"db-index-build.*",condition="true"}) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Job db-index-build failed'
+          description: 'The paged-read index build failed: reads by symbol use the old idx_*_symbol index and a sort until it succeeds (ADR-0088).'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#dbindexbuildfailed'
 
       # ADR-0058: only the holder of the trainer Lease trains; the other pod of a
       # rollout reports 0, so max() is 0 when no pod holds it.
@@ -789,7 +827,7 @@ groups:
           description: 'Always firing. Routed to the dead man''s switch (ALERTMANAGER_DEADMAN_URL): when it stops arriving, Prometheus, Alertmanager or the notification path is down.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/ALERTING.md#dead-mans-switch'
 
-  # ── Error budget (slo.md: 99.9% over 30d) ────────────────────
+  # ── Error budget (slo.md: 99% over 30d, issue #2735) ────────────────────
   - name: trading-model-slo-recording
     interval: 1m
     rules:
@@ -809,14 +847,14 @@ groups:
       - record: slo:sli_error:ratio_rate30d
         expr: avg_over_time(slo:sli_error:ratio_rate1h[30d])
       - alert: SLOErrorBudgetLow
-        expr: (1 - slo:sli_error:ratio_rate30d / 0.001) * 100 < 20
+        expr: (1 - slo:sli_error:ratio_rate30d / 0.01) * 100 < 20
         for: 1h
         labels:
           severity: warning
           slo: availability
         annotations:
           summary: 'Error budget of {{ $labels.job }} below 20%'
-          description: 'Less than 20% of the 30d availability error budget (99.9%) remains: full change freeze except critical fixes and rollbacks (slo.md, Error Budget Policy).'
+          description: 'Less than 20% of the 30d availability error budget (99%) remains: full change freeze except critical fixes and rollbacks (slo.md, Error Budget Policy).'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-latency-and-errors.md#slo-error-budget-low'
 
   # ── Infrastructure (issue #601, ADR-0056): exporters, kubelet ──────────
@@ -845,6 +883,18 @@ groups:
         annotations:
           summary: '{{ $labels.pod }} ({{ $labels.container }}) was OOMKilled'
           description: 'Container {{ $labels.container }} of {{ $labels.pod }} was killed for exceeding its memory limit and restarted in the last 15 minutes. HighMemoryUsage only sees the V8 heap of the services; this is the container.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubecontaineroomkilled'
+
+      # Before the OOMKill. cAdvisor reports 0 for a container without limit and
+      # adds pod-level series (container "" or "POD"): both are left out.
+      - alert: KubeContainerMemoryNearLimit
+        expr: max by (namespace, pod, container) (container_memory_working_set_bytes{container!="", container!="POD"}) / max by (namespace, pod, container) (container_spec_memory_limit_bytes{container!="", container!="POD"} > 0) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.pod }} ({{ $labels.container }}) is close to its memory limit'
+          description: 'Container {{ $labels.container }} of {{ $labels.pod }} uses {{ $value | humanizePercentage }} of its memory limit (working set): the kernel kills it at 100%.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubecontaineroomkilled'
 
       # Compared with the wanted replicas: a workload scaled to 0 stays silent.

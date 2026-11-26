@@ -131,7 +131,7 @@ spec:
                 optional: true
           env:
             - name: NODE_OPTIONS
-              value: --max-old-space-size=192
+              value: --max-old-space-size=128
             - name: MONGO_USERNAME
               value: audit-logger
             - name: MONGO_PASSWORD
@@ -172,31 +172,24 @@ spec:
               mountPath: /etc/mongo-tls
               readOnly: true
           livenessProbe:
-            exec:
-              command:
-                - node
-                - /app/probe.js
-                - https://localhost:3000/ping
-            initialDelaySeconds: 20
+            httpGet:
+              path: /ping
+              port: 3001
             periodSeconds: 15
             timeoutSeconds: 10
             failureThreshold: 3
           readinessProbe:
-            exec:
-              command:
-                - node
-                - /app/probe.js
-                - https://localhost:3000/health/ready
+            httpGet:
+              path: /health/ready
+              port: 3001
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 10
             successThreshold: 1
           startupProbe:
-            exec:
-              command:
-                - node
-                - /app/probe.js
-                - https://localhost:3000/ping
+            httpGet:
+              path: /ping
+              port: 3001
             initialDelaySeconds: 30
             periodSeconds: 5
             failureThreshold: 12

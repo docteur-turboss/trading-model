@@ -704,6 +704,26 @@ _upload_offsite_to() {
 	fi
 }
 
+# write_offsite_size: total bytes of the primary off-site bucket as
+# backup_offsite_bytes (alert BackupOffsiteBucketLarge). Listing only: works with
+# the no-delete credentials (ADR-0033). A failed listing publishes nothing, so
+# the alert stays silent instead of firing on a wrong value.
+write_offsite_size() {
+	[ -n "$_METRICS_TMP" ] && command -v rclone >/dev/null || return 0
+	local json bytes
+	if ! json="$(RCLONE_S3_ENV_AUTH=true rclone size --json "$(offsite_remote "${BACKUP_S3_BUCKET%/}")")"; then
+		warn "Cannot size the off-site bucket: backup_offsite_bytes not published"
+		return 0
+	fi
+	bytes="$(sed -nE 's/.*"bytes":([0-9]+).*/\1/p' <<<"$json")"
+	[ -n "$bytes" ] || return 0
+	if [ -n "${BACKUP_RUN:-}" ]; then
+		echo "backup_offsite_bytes{run=\"${BACKUP_RUN}\"} ${bytes}" >>"$_METRICS_TMP"
+	else
+		echo "backup_offsite_bytes ${bytes}" >>"$_METRICS_TMP"
+	fi
+}
+
 upload_offsite() {
 	if [ -z "${BACKUP_S3_BUCKET:-}" ]; then
 		if [ "${BACKUP_REQUIRE_OFFSITE:-false}" = true ]; then
@@ -713,6 +733,7 @@ upload_offsite() {
 		return 0
 	fi
 	_upload_offsite_to "$BACKUP_S3_BUCKET" offsite
+	write_offsite_size
 	[ -n "${BACKUP_S3_SECONDARY_BUCKET:-}" ] || return 0
 	# Optional second bucket at another provider (ADR-0033): its own credentials
 	# and endpoint, swapped in a subshell; a failure there is counted here.
@@ -1111,6 +1132,7 @@ MYSQL_DUMP_SH="dbs=\$(mysql --user=root -N -e \"SELECT schema_name FROM informat
 # empty instance matches `_migrations` and never touches live rows.
 MYSQL_CORE_EXCLUDED_TABLES="financial_scraper.market_trades financial_scraper.market_candles financial_scraper.market_order_books"
 # shellcheck disable=SC2086 # one --ignore-table per table
+# shellcheck disable=SC2034 # expanded by the scripts that source this library
 MYSQL_CORE_DUMP_SH="${MYSQL_DUMP_SH/exec /}$(printf ' --ignore-table=%s' $MYSQL_CORE_EXCLUDED_TABLES) && echo 'USE \`financial_scraper\`;' && exec mysqldump --user=root --no-data --skip-add-drop-table --set-gtid-purged=OFF financial_scraper ${MYSQL_CORE_EXCLUDED_TABLES//financial_scraper./}"
 
 # Filter of the core dump: CREATE TABLE IF NOT EXISTS, so the structure of an

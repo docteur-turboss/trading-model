@@ -1,9 +1,14 @@
+import { createHash } from "node:crypto";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { mountRoute } from "@trading-model/http/api-route/mount-route";
 import { ResponseProtocol } from "@trading-model/http/response-protocol";
+import { AGENT_STATE_DIM } from "@trading-model/model-runtime/agent/agent-state";
+import { FEATURE_DIM } from "@trading-model/model-runtime/feature-vector-codec";
+import { decideOnLastBar } from "@trading-model/model-runtime/replay";
 import express, { Router } from "express";
 import { RiskClient } from "../../services/decision-consumer/src/adapters/outbound/risk-client";
+import { createDecisionTick } from "../../services/decision-consumer/src/application/decide";
 import { RISK_API } from "../../services/risk-execution/src/adapters/inbound/api-routes";
 import { createHandlers } from "../../services/risk-execution/src/adapters/inbound/handlers";
 import { PaperBroker } from "../../services/risk-execution/src/adapters/outbound/paper-broker";
@@ -24,6 +29,10 @@ jest.mock(
 		FIND_A_SERVICE: async () => ({ host: "risk", port: 3000 }),
 	})
 );
+// The model's forward pass is not the contract: the decision is given.
+jest.mock("@trading-model/model-runtime/replay", () => ({
+	decideOnLastBar: jest.fn(),
+}));
 jest.mock("@trading-model/primitives/service-identity", () => ({
 	HostPort: { toAddress: () => "risk:3000" },
 }));
@@ -68,7 +77,9 @@ class Memory<T> {
 	}
 }
 
-const NOW = Date.now();
+// 01:45 UTC: the daily bar of the day before is in (collected at 01:30).
+const NOW = Date.UTC(2026, 10, 26, 1, 45);
+const DAY_MS = 86_400_000;
 const LIMITS = RiskLimits.parse({
 	allocatedCapital: 100_000,
 	instruments: { BTCUSDT: { maxQuantity: 0.1 } },
@@ -93,13 +104,14 @@ describe("intent contract: decision-consumer → risk-execution", () => {
 			limits: LIMITS,
 			broker: new PaperBroker(new Memory<never>(), 100_000),
 			store,
-			admission: { isAdmissible: async () => true },
+			admission: { admission: async () => ({ admissible: true }) },
 			prices: {
 				latest: async () => ({ BTCUSDT: { price: 60_000, at: NOW } }),
 			},
 			mode: "paper",
 			ownerActor: "owner",
 			emit: () => undefined,
+			now: () => NOW,
 		});
 		await risk.start();
 		const handlers = createHandlers(risk, () => undefined, [
@@ -152,6 +164,56 @@ describe("intent contract: decision-consumer → risk-execution", () => {
 		});
 		expect(result.status).toBe("rejected");
 		expect(result.reason).toEqual(expect.any(String));
+	});
+
+	it("accepts the intent of a daily model at 01:45 UTC for the bar of the day before", async () => {
+		const bar = Date.UTC(2026, 10, 25);
+		jest.mocked(decideOnLastBar).mockReturnValue({
+			barTimestamp: bar,
+			price: 60_000,
+			// A sale: a buy would fall in the duplicate window of the first test (frozen clock).
+			// Sized on the 0.01 held after that first test: run alone, nothing is sold.
+			order: { side: "sell", quantity: 0.01 },
+		});
+		const weights = new Uint8Array(8);
+		const sha256 = createHash("sha256").update(weights).digest("hex");
+		const results: { status: string }[] = [];
+		const client = new RiskClient({} as never);
+		const tick = createDecisionTick({
+			promoted: [INTENT.model],
+			trainer: {
+				manifest: async () =>
+					({
+						...INTENT.model,
+						weights: { sha256, length: 2 },
+						genome: {
+							network: { inputDim: FEATURE_DIM + AGENT_STATE_DIM },
+							rl: { horizon: {} },
+						},
+						admission: { admissible: true },
+						replay: {
+							intervalMs: DAY_MS,
+							simulator: { initialCash: 1_000_000 },
+						},
+					}) as never,
+				weights: async () => ({ bytes: weights, sha256 }),
+			},
+			scraper: { candles: async () => [] },
+			risk: {
+				position: (symbol) => client.position(symbol),
+				send: async (intent) => {
+					const result = await client.send(intent);
+					results.push(result);
+					return result;
+				},
+			},
+			audit: { promotionLoaded: async () => undefined },
+			windowBars: 50,
+			now: () => NOW,
+		});
+		await tick();
+		expect(results).toHaveLength(1);
+		expect(results[0].status).not.toBe("rejected");
 	});
 
 	it("refuses any other identity with a 403", async () => {

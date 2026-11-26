@@ -25,7 +25,7 @@ import { createServer } from "../application/server";
 import { MS_PER_DAY } from "../domain/audit-chain";
 import type { ChainAuditMetricsPort } from "../domain/ports/audit-chain.port";
 import { ENV } from "../infrastructure/config/env";
-import { createBrokerMessage } from "./broker-setup";
+import { createBusClient } from "./broker-setup";
 import {
 	CHAIN_ANCHORED_SEQUENCE,
 	CHAIN_ANCHORING_ENABLED,
@@ -199,7 +199,7 @@ export async function createAuditLoggerApp() {
 		mongoManager,
 		() => repo !== null
 	);
-	const { brokerMessage } = await createBrokerMessage(
+	const { brokerMessage } = await createBusClient(
 		createMessageHandler(lazyRepo, ENV.AUDIT_RETENTION_DAYS)
 	);
 	return {

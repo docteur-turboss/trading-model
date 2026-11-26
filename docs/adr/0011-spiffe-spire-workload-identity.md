@@ -3,6 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-09
 **Supersedes:** ADR-0005 (deleted) (issuance & identity model), ADR-0009 (deleted) (custom certificate format)
+**Amended by:** [ADR-0091](./0091-plain-http-probe-listener.md) (plain-HTTP probe port 3001, `/ping` and `/health/ready` only)
 **Verified by:** `tests/e2e/security.e2e.spec.ts`, `tests/k8s/run-kind.sh`
 
 ## Context

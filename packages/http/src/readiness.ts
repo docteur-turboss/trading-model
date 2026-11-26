@@ -1,4 +1,5 @@
-import { access, constants } from "node:fs/promises";
+import { X509Certificate } from "node:crypto";
+import { access, constants, readFile } from "node:fs/promises";
 import type { TlsEnvVars } from "@trading-model/common/config/tls-paths";
 import { withTimeout } from "@trading-model/common/utils/retry";
 import { DurationMs } from "@trading-model/primitives/primitives";
@@ -13,8 +14,10 @@ export interface ReadinessCheck {
 }
 
 /**
- * Local readiness check: the SVID (key, certificate, trust bundle) is readable,
- * so the pod can make mTLS calls. Depends on no other service.
+ * Local readiness check: the SVID (key, certificate, trust bundle) is readable
+ * and the certificate has not expired, so the pod can make mTLS calls. Depends
+ * on no other service. A certificate that does not parse (spiffe-helper rewrites
+ * it on rotation) falls back to the readability test.
  */
 export function svidReadinessCheck(env: TlsEnvVars): ReadinessCheck {
 	return {
@@ -25,7 +28,13 @@ export function svidReadinessCheck(env: TlsEnvVars): ReadinessCheck {
 					access(path, constants.R_OK)
 				)
 			);
-			return true;
+			// biome-ignore lint/plugin: the files were just read OK; a partial write during rotation keeps the R_OK verdict
+			try {
+				const pem = await readFile(env.TLS_CERT_PATH);
+				return new X509Certificate(pem).validToDate.getTime() > Date.now();
+			} catch {
+				return true;
+			}
 		},
 	};
 }

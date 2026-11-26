@@ -67,6 +67,8 @@ export interface GAControlGenome {
 	mutationStd: Percentage;
 	/** FEATURE_ACTION_SPACE_GENE (ADR-0039): the action set may mutate. Absent: never. */
 	actionSetGene?: boolean;
+	/** FEATURE_TOPOLOGY_GENES (ADR-0039): depth and layer width evolve within fixed bounds. Absent: unbounded as before. */
+	topologyGene?: boolean;
 }
 
 export function createCrossoverGenome(): CrossoverGenome {

@@ -26,8 +26,8 @@
               "mode": "absolute",
               "steps": [
                 { "color": "red", "value": null },
-                { "color": "orange", "value": 99.9 },
-                { "color": "green", "value": 99.95 }
+                { "color": "orange", "value": 99 },
+                { "color": "green", "value": 99.5 }
               ]
             }
           }
@@ -66,7 +66,7 @@
         "gridPos": { "h": 8, "w": 8, "x": 0, "y": 10 },
         "targets": [
           {
-            "expr": "max(slo:sli_error:ratio_rate5m) / 0.001",
+            "expr": "max(slo:sli_error:ratio_rate5m) / 0.01",
             "legendFormat": "Burn rate (5m)"
           }
         ],
@@ -86,7 +86,7 @@
         "gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 },
         "targets": [
           {
-            "expr": "max(slo:sli_error:ratio_rate1h) / 0.001",
+            "expr": "max(slo:sli_error:ratio_rate1h) / 0.01",
             "legendFormat": "Burn rate (1h)"
           }
         ],
@@ -106,7 +106,7 @@
         "gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 },
         "targets": [
           {
-            "expr": "clamp_max((1 - max(slo:sli_error:ratio_rate30d) / 0.001) * 100, 100)",
+            "expr": "clamp_max((1 - max(slo:sli_error:ratio_rate30d) / 0.01) * 100, 100)",
             "legendFormat": "Budget %"
           }
         ],

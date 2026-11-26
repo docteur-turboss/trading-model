@@ -65,13 +65,27 @@ const needsNamedKey = () =>
 		HTTP_STATUS.FORBIDDEN
 	);
 
+const adminGuard = (
+	req: Request,
+	body: Parameters<typeof killTarget>[0]
+):
+	| { denied: ReturnType<typeof scopeError> }
+	| { actor: string; target: KillTarget } => {
+	const actor = actorOf(req);
+	if (!actor) {
+		return { denied: needsNamedKey() };
+	}
+	const target = killTarget(body);
+	return target ? { actor, target } : { denied: scopeError() };
+};
+
 type Handler<Key extends keyof typeof RISK_API> = ApiRouteHandler<
 	(typeof RISK_API)[Key]
 >;
 
 /**
- * @param decisionConsumers identities allowed to send intents: none until the
- * decision consumer exists, with its own identity and ACL entry (ADR-0049 §1.3).
+ * @param decisionConsumers identities allowed to send intents (the container
+ * passes decision-consumer), each with its own identity and ACL entry (ADR-0049 §1.3).
  */
 export function createHandlers(
 	risk: RiskExecution,
@@ -111,26 +125,20 @@ export function createHandlers(
 	const adminStatus: Handler<"adminStatus"> = (_in, req) =>
 		forbidden(req, OPERATOR) ?? sendResponse(risk.status(), HTTP_STATUS.OK);
 	const adminEngage: Handler<"adminEngage"> = async ({ body }, req) => {
-		const actor = actorOf(req);
-		if (!actor) {
-			return needsNamedKey();
+		const guarded = adminGuard(req, body);
+		if ("denied" in guarded) {
+			return guarded.denied;
 		}
-		const target = killTarget(body);
-		if (!target) {
-			return scopeError();
-		}
+		const { actor, target } = guarded;
 		await risk.engage(target, body.reason, actor);
 		return sendResponse({ status: "engaged" as const }, HTTP_STATUS.OK);
 	};
 	const adminRearm: Handler<"adminRearm"> = async ({ body }, req) => {
-		const actor = actorOf(req);
-		if (!actor) {
-			return needsNamedKey();
+		const guarded = adminGuard(req, body);
+		if ("denied" in guarded) {
+			return guarded.denied;
 		}
-		const target = killTarget(body);
-		if (!target) {
-			return scopeError();
-		}
+		const { actor, target } = guarded;
 		try {
 			await risk.rearm(target, body.reason, actor);
 		} catch (error) {

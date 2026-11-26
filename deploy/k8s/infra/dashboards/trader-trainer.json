@@ -132,7 +132,7 @@
       ]
     },
     {
-      "title": "Genome Evaluation P95 (event loop blocked)",
+      "title": "Genome Evaluation P95",
       "type": "timeseries",
       "gridPos": { "h": 6, "w": 12, "x": 12, "y": 18 },
       "fieldConfig": { "defaults": { "unit": "s" } },

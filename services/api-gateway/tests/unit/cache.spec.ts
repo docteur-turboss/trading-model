@@ -43,17 +43,17 @@ describe("ResponseCache", () => {
 		cache.set("/a", {
 			data: "a",
 			status: 200 as HttpStatusCode,
-			bytes: 20 * mb,
+			chars: 20 * mb,
 		});
 		cache.set("/b", {
 			data: "b",
 			status: 200 as HttpStatusCode,
-			bytes: 10 * mb,
+			chars: 10 * mb,
 		});
 		cache.set("/c", {
 			data: "c",
 			status: 200 as HttpStatusCode,
-			bytes: 10 * mb,
+			chars: 10 * mb,
 		});
 		expect(cache.get("/a")).toBeUndefined();
 		expect(cache.get("/b")?.data).toBe("b");
@@ -61,7 +61,7 @@ describe("ResponseCache", () => {
 		cache.set("/huge", {
 			data: "h",
 			status: 200 as HttpStatusCode,
-			bytes: 33 * mb,
+			chars: 33 * mb,
 		});
 		expect(cache.get("/huge")).toBeUndefined();
 		expect(cache.get("/c")?.data).toBe("c");

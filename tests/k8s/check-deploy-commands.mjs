@@ -7,7 +7,7 @@
 // run with the deploy-app kubeconfig if it misses a case.
 import { readFileSync } from "node:fs";
 
-const ALIAS = { deployment: "deployments", deploy: "deployments", statefulset: "statefulsets", service: "services", svc: "services", secret: "secrets", certificate: "certificates", configmap: "configmaps", pod: "pods", pods: "pods", hpa: "horizontalpodautoscalers", pdb: "poddisruptionbudgets", ingress: "ingresses", job: "jobs", cronjob: "cronjobs", endpointslice: "endpointslices" };
+const ALIAS = { deployment: "deployments", deploy: "deployments", statefulset: "statefulsets", service: "services", svc: "services", secret: "secrets", configmap: "configmaps", pod: "pods", pods: "pods", hpa: "horizontalpodautoscalers", pdb: "poddisruptionbudgets", ingress: "ingresses", job: "jobs", cronjob: "cronjobs", endpointslice: "endpointslices", certificate: "certificates", controllerrevision: "controllerrevisions", vpa: "verticalpodautoscalers" };
 const norm = (r) => ALIAS[r] ?? r;
 
 const rules = [...readFileSync("deploy/k8s/deploy-identity/app-role.yaml", "utf8").matchAll(/resources: \[([^\]]*)\]\n(?:\s+resourceNames: \[([^\]]*)\]\n)?\s+verbs: \[([^\]]*)\]/g)]
@@ -32,7 +32,7 @@ function needs(args) {
 		case "wait": return [[type(pos[0]), "get"], [type(pos[0]), "watch"]];
 		case "logs": return [["pods", "get"], ["pods/log", "get"]];
 		case "exec": return [["pods/exec", "create"]];
-		case "scale": return [[type(pos[0]) + "/scale", "get"], [type(pos[0]) + "/scale", "update"]];
+		case "scale": return [[`${type(pos[0])}/scale`, "get"], [`${type(pos[0])}/scale`, "update"]];
 		case "annotate": case "set": return [[type(pos[verb === "set" ? 1 : 0]), "patch"]];
 		case "create": return pos[0] === "token" ? [] : [[type(pos[0]), "create"]];
 		case "rollout": return pos[0] === "undo" || pos[0] === "restart"
@@ -46,6 +46,7 @@ const errors = [];
 const SOURCES = [
 	["deploy/k8s/scripts/deploy-k8s.sh", () => true],
 	["deploy/k8s/scripts/run-migrations.sh", () => true],
+	["deploy/k8s/scripts/deploy-release.sh", (l) => !/KUBECONFIG=/.test(l)],
 	[".github/workflows/deploy.yml", (l) => /-n "\$NS"/.test(l) && !/KUBECONFIG=|CLUSTER_KUBECONFIG/.test(l)],
 ];
 for (const [file, keep] of SOURCES) {
@@ -54,7 +55,8 @@ for (const [file, keep] of SOURCES) {
 		if (/^\s*#/.test(line) || !keep(line)) continue;
 		for (const [, cmd] of line.matchAll(/\bkubectl\s+((?:(?!\||&&|;|>|\)).)+)/g)) {
 			const args = cmd.trim().split(/\s+/).filter((a, i, all) => !(a === "-n" || all[i - 1] === "-n"));
-			for (const [res, verb, name] of needs(args)) {
+			// A resource held in a variable (`$target`) is unknown to this parser.
+			for (const [res, verb, name] of needs(args).filter(([r]) => !r.includes("$"))) {
 				if (!allowed(res, verb, name)) errors.push(`${file}: \`kubectl ${args.slice(0, 3).join(" ")}\` needs ${verb} ${res}${name ? ` ${name}` : ""}, missing from app-role.yaml`);
 			}
 		}

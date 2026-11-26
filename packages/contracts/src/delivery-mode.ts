@@ -7,7 +7,5 @@
  */
 
 export enum DeliveryMode {
-	AtMostOnce = "at-most-once",
 	AtLeastOnce = "at-least-once",
-	ExactlyOnce = "exactly-once",
 }

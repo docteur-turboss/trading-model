@@ -147,7 +147,23 @@ describe("financial-scraper HTTP API (SCRAPER_API)", () => {
 			expect(status).toBe(200);
 			expect(selectLatestClosedCandles).toHaveBeenCalledWith(
 				["BTCUSDT", "ETHUSDT"],
-				expect.any(Date)
+				expect.any(Date),
+				expect.anything()
+			);
+		});
+
+		it("passes the source and interval filters of the latest candle", async () => {
+			selectLatestClosedCandles.mockResolvedValue([]);
+
+			await get(
+				SCRAPER_API.candlesLatest,
+				"/candles/latest?symbols=BTCUSDT&source=binance&interval=1d"
+			);
+
+			expect(selectLatestClosedCandles).toHaveBeenLastCalledWith(
+				["BTCUSDT"],
+				expect.any(Date),
+				expect.objectContaining({ source: "binance", interval: "1d" })
 			);
 		});
 

@@ -36,6 +36,11 @@ rules:
   - apiGroups: [cert-manager.io]
     resources: [clusterissuers]
     verbs: [get]
+  # check-prereqs.sh: metrics-server APIService behind the HPAs.
+  - apiGroups: [apiregistration.k8s.io]
+    resources: [apiservices]
+    resourceNames: [v1beta1.metrics.k8s.io]
+    verbs: [get]
   - apiGroups: [storage.k8s.io]
     resources: [csidrivers]
     verbs: [get, list, create, patch, update]

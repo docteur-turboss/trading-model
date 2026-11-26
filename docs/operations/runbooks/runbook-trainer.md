@@ -5,7 +5,7 @@ target in [slo.md](../slo.md#5-training-completion-rate)),
 `TrainingCompletionRateCritical` (critical, same SLO),
 `TrainerNoModelStored` (critical),
 `ModelArtifactWriteFailing` (warning),
-`TrainerEventLoopLagHigh` (warning),
+`EventLoopLagHigh` (warning, every service),
 `TrainerNoLeader` (warning), `TrainerNoLeaderProlonged` (warning, 30 min),
 `ModelBelowBuyAndHold` (warning), `TrainerFeatureDrift` (warning).
 
@@ -88,11 +88,11 @@ Common causes:
 
 The previous artifacts stay valid meanwhile: nothing serving them is affected.
 
-## TrainerEventLoopLagHigh
+## EventLoopLagHigh (trainer)
 
-`nodejs_eventloop_lag_max_seconds` of the trainer above 10 s for 5 min. The
-metric is a max reset at each scrape, so it catches isolated long blocks (the
-#477 incident peaked at 139.9 s) that an average smooths out (DQN step, GC, JSON parsing). The GA runs in a
+`EventLoopLagHigh` on the trainer (p99 above 200 ms for 5 min). The max
+(`nodejs_eventloop_lag_max_seconds`, reset at each scrape) shows isolated long
+blocks (the #477 incident peaked at 139.9 s). The GA runs in a
 worker thread: a slow genome evaluation does not block the loop. Above 10 s
 (delivery timeout) or 15 s (heartbeat), `ServiceDown`, `HeartbeatStopped` and
 DLQ alerts follow.
@@ -222,7 +222,7 @@ Compose: `docker logs trading-trainer 2>&1 | grep ...` and
 | `Failed to store model artifact` | Volume: see [ModelArtifactWriteFailing](#modelartifactwritefailing) |
 | `Model not stored: the best genome has no trained weights` | Every session ends without trained weights (`result="skipped"`): a training regression, check the release notes of the running version |
 | `Market data is stale: training paused`, no session at all | No fresh candles: `TrainerMarketDataStale` fires too, follow [runbook-market-data-stale](runbook-market-data-stale.md) |
-| No line at all | The loop does not run on the leader: the holder of the Lease is stuck (event loop, see [TrainerEventLoopLagHigh](#trainereventlooplaghigh)); delete that pod to hand the Lease over |
+| No line at all | The loop does not run on the leader: the holder of the Lease is stuck (event loop, see [EventLoopLagHigh (trainer)](#eventlooplaghigh-trainer)); delete that pod to hand the Lease over |
 
 **Resolution check:** `sum(increase(tt_model_artifacts_total{result="stored"}[9h]))`
 is above 0 again; the alert resolves at the next evaluation.

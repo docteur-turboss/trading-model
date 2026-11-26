@@ -88,8 +88,9 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `RATE_LIMIT_MAX`      | number | `100`                            | no       | Max requests per window, per pod: effective limit per client = value x replicas (HPA 2-8), i.e. 200 to 800 per 60 s by default (ADR-0047) | GW       |
 | `CACHE_TTL_MS`        | number | `30000`                          | no       | Cache TTL for proxied responses | GW       |
 | `AUTH_TOKEN_HEADER`   | string | `x-api-key`                      | no       | Header name for auth token      | GW       |
-| `AUTH_TOKENS`         | string | —                                | **yes**  | Comma-separated API keys `name:scope1+scope2:secret` (in production each secret: at least 32 characters, no `change-me`; start refused otherwise) (scopes `read`, `risk:admin`; secret without `:`). A bare secret (old format) is refused at startup (ADR-0059) | GW |
+| `AUTH_TOKENS`         | string | —                                | **yes**  | Comma-separated API keys `name:scope1+scope2:secret` (in production each secret: at least 32 characters, no `change-me`; start refused otherwise) (scopes `read`, `audit:read` (audit routes), `risk:admin` (engage), `risk:rearm` (re-arm; implied by `risk:admin` for one release); secret without `:`). A bare secret (old format) is refused at startup (ADR-0059) | GW |
 | `PROXY_TIMEOUT_MS`    | number | `10000`                          | no       | Proxy total deadline (ms)       | GW       |
+| `PROXY_MAX_CONCURRENT` | number | `16` | no | Proxied requests in flight at once; past it 503 + `Retry-After: 1` (buffered answers up to `PROXY_MAX_RESPONSE_BYTES` each) | GW |
 | `PROXY_MAX_RESPONSE_BYTES` | number | `8388608` (8 MiB)    | no       | Largest upstream answer the gateway buffers; past it the upstream request is cut and the client gets 502 `Upstream response too large` (ADR-0054) | GW |
 | `ALLOWED_PROXY_CIDRS` | string | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8` | no (must not be empty in production) | Comma-separated CIDRs the resolved proxy target IP must be in. Empty: target IP check off; in production the gateway refuses to start | GW |
 
@@ -120,6 +121,7 @@ The in-house `certificate-authority` service and its `CERT_CLIENT_*` /
 | `TRAINER_FITNESS_TYPE`            | enum         | `total_pnl`       | no       | GA scalar fitness: `total_pnl`, `sharpe`, `sortino`, `calmar`, `composite` (ADR-0025) | TT       |
 | `FEATURE_RISK_ADJUSTED_FITNESS`   | boolean      | `true`            | no       | Feature flag (ADR-0039): `false` forces fitness `total_pnl` whatever `TRAINER_FITNESS_TYPE` says. Invalid value: refused at startup | TT       |
 | `FEATURE_ACTION_SPACE_GENE`        | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076): `true` lets the GA mutate the action set (partial order sizes, recorded as `actions` in the manifest); `false`: `sell_hold_buy`, never mutated | TT       |
+| `FEATURE_TOPOLOGY_GENES`           | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076 step 3): `true` bounds the depth (1 to 4 hidden layers) and layer width (8 to 128 neurons) the GA evolves per symbol; `false`: unbounded as before | TT       |
 | `FEATURE_EVENT_DRIVEN_DECISIONS`   | boolean      | `false`           | no       | Feature flag (ADR-0039, ADR-0076 §5): `true` makes the agent decide on market events (price move, volume) instead of every bar; network gets a 33rd input `BarsSinceDecision`. `false`: genome and manifest unchanged. Invalid value: refused at startup | TT       |
 | `TRAINER_SHARED_TRUNK_SYMBOLS_PER_GENERATION` | int | `0` | no | ADR-0076 step 1, read only with `FEATURE_SHARED_TRUNK`: symbols each generation trains and evaluates on, a rotating subset of the group (k in [1, number of symbols], refused above; `0`: `max(1, floor(N / 3))`; k = N: every symbol every generation) | TT       |
 | `TRAINER_SEED_OFFSET`             | int          | `0`               | no       | Added to the default PRNG seeds: same value and same data give the same run (A/B measures, ADR-0030) | TT       |
@@ -200,7 +202,7 @@ ADR-0087. Paper only: no broker key, no kill switch, no mode choice (ADR-0064 §
 
 ## Message bus (library, ADR-0073)
 
-No broker service: every service that publishes or consumes links the library and talks to Redis (`REDIS_SENTINELS` / `REDIS_URL`, required: the service refuses to start without them), accepted messages in a Redis Streams journal (AOF on), dead letters in dead streams ([ADR-0048](../adr/0048-durable-message-journal-in-redis-streams.md)).
+No broker service: every service that publishes or consumes links the library and talks to Redis (`REDIS_SENTINELS` / `REDIS_URL`, required: the service refuses to start without them), accepted messages in a Redis Streams journal (AOF on), dead letters in dead streams ([ADR-0073](../adr/0073-message-bus-as-a-redis-streams-library.md)).
 
 | Variable                  | Type   | Default                     | Required             | Description                                                                 | Services |
 | ------------------------- | ------ | --------------------------- | -------------------- | --------------------------------------------------------------------------- | -------- |

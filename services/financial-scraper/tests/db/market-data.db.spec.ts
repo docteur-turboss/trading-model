@@ -178,6 +178,7 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		"market_order_books",
 		"market_tickers",
 		"market_trades",
+		"signal_documents",
 		"signals",
 	];
 
@@ -185,14 +186,17 @@ describe("scripts/migrate.mjs — real MySQL", () => {
 		await expect(appliedMigrations()).resolves.toEqual(MIGRATION_IDS);
 		await expect(tables()).resolves.toEqual(ALL_TABLES);
 
-		// 013 (cursors, down recreates them), 012 (trades id, down is a no-op), 010 (index), 009 (signals.area), 008 (market_order_books).
-		migrate("down", "5");
+		// 014 (signal_documents), 013 (cursors, down recreates them), 012 (trades id, down is a no-op), 010 (index), 009 (signals.area), 008 (market_order_books).
+		migrate("down", "6");
 		await expect(appliedMigrations()).resolves.toEqual(
-			MIGRATION_IDS.slice(0, -5)
+			MIGRATION_IDS.slice(0, -6)
 		);
 		await expect(tables()).resolves.toEqual(
 			[
-				...ALL_TABLES.filter((table) => table !== "market_order_books"),
+				...ALL_TABLES.filter(
+					(table) =>
+						table !== "market_order_books" && table !== "signal_documents"
+				),
 				"market_publish_cursors",
 			].sort()
 		);
@@ -514,6 +518,34 @@ describe("selectLatestClosedCandles — real MySQL", () => {
 			["BTCUSDT", 4],
 			["ETHUSDT", 7],
 		]);
+	});
+
+	it("should filter on the interval and the source, and widen the window to 3 bars of the interval (issue #2804)", async () => {
+		const now = new Date(at(0) + 20 * 3_600_000);
+		await insertCandles([
+			closed(1199, { close: Price.of(1) }),
+			closed(1195, { close: Price.of(2), interval: CandleInterval.Min5 }),
+			closed(1198, { close: Price.of(3), source: SourceType.Nyse }),
+			candle({
+				close: Price.of(9),
+				interval: CandleInterval.D1,
+				timestamp: UnixTimestamp.of(now.getTime() - 44 * 3_600_000),
+				closeTimestamp: UnixTimestamp.of(now.getTime() - 20 * 3_600_000),
+			}),
+		]);
+		const close = async (
+			filter: Parameters<typeof selectLatestClosedCandles>[2]
+		) =>
+			(await selectLatestClosedCandles([SYMBOL], now, filter)).map(
+				(r) => r.close
+			);
+
+		await expect(close({ interval: CandleInterval.Min5 })).resolves.toEqual([
+			2,
+		]);
+		await expect(close({ source: SourceType.Nyse })).resolves.toEqual([3]);
+		await expect(close({ interval: CandleInterval.D1 })).resolves.toEqual([9]);
+		await expect(close(undefined)).resolves.toEqual([1]);
 	});
 
 	it("should read an index range per symbol, without dependent subquery or table scan, before index-build (issue #2592)", async () => {

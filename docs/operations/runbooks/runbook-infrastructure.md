@@ -1,7 +1,7 @@
 # Runbook: Infrastructure (pods, nodes, volumes, databases)
 
 **Alerts:** `KubePodCrashLooping`, `KubeContainerOOMKilled`,
-`KubePodPending`, `KubePersistentVolumeFillingUp`, `NodeFilesystemAlmostFull`
+`KubeContainerMemoryNearLimit`, `KubePodPending`, `KubePersistentVolumeFillingUp`, `NodeFilesystemAlmostFull`
 (warning); `RedisMemoryHigh` (warning); `KubeWorkloadUnavailable`, `MySQLDown`, `RedisDown`, `RedisSentinelQuorumLost`, `MongoDBDown`,
 `MongoDBReplicaSetNoPrimary` (critical); `RedisReplicasMissing`,
 `MongoDBReplicaSetMemberUnhealthy` (warning).
@@ -13,7 +13,7 @@ ADR-0056. Prometheus scrapes, in K8s:
 | Job | Source | Metrics |
 | --- | --- | --- |
 | `kube-state-metrics` | Deployment `kube-state-metrics`, own namespace only (Role) | `kube_pod_*`, `kube_statefulset_*`, `kube_deployment_*`, `kube_persistentvolumeclaim_*` |
-| `kubelet`, `cadvisor` | kubelet of each node, port 10250 (ClusterRole `prometheus-nodes`: `nodes/metrics`) | `kubelet_volume_stats_*`, `container_cpu_usage_seconds_total`, `container_memory_working_set_bytes`, `container_spec_memory_limit_bytes`, `container_oom_events_total` |
+| `kubelet`, `cadvisor` | kubelet of each node, port 10250 (ClusterRole `prometheus-nodes`: `nodes/metrics`) | `kubelet_volume_stats_*`, `container_cpu_usage_seconds_total`, `container_cpu_cfs_(throttled_)periods_total`, `container_memory_working_set_bytes`, `container_spec_memory_limit_bytes`, `container_oom_events_total` |
 | `node-exporter` | DaemonSet in `trading-model-node`, port 9100 of each node | `node_*` |
 | `mysql`, `mongo-audit`, `redis`, `redis-sentinel` | exporter sidecar of each database pod (port `metrics`) | `mysql_*`, `mongodb_*`, `redis_*` |
 
@@ -105,7 +105,8 @@ kubectl -n $NS describe pod <pod> | sed -n '/Events/,$p'
 ## KubeContainerOOMKilled
 
 A container was killed for exceeding its memory limit and restarted in the
-last 15 minutes. `HighMemoryUsage` only sees the V8 heap of the services: a
+last 15 minutes (`KubeContainerMemoryNearLimit`: its working set has stayed
+above 90% of the limit for 5 minutes, the kill is close). `HighMemoryUsage` only sees the V8 heap of the services: a
 database, an exporter or native memory shows up here only.
 
 ```bash
@@ -239,6 +240,32 @@ stable id, a restart of the StatefulSet clears them
 `127.0.0.1:27017` of its pod (no user involved: MongoDB runs without
 authentication, ADR-0056). The `mongod` container is down, restarting or
 stuck: [runbook-database-failover#mongodb-audit-trail](runbook-database-failover.md#mongodb-audit-trail).
+
+## EventLoopLagHigh
+
+`nodejs_eventloop_lag_p99_seconds` of a service above 200 ms for 5 min. A
+blocked loop delays heartbeats (15 s) and deliveries (10 s timeout). Find the
+service in the alert's `job` label, then its CPU throttling, GC and logs.
+
+```bash
+kubectl -n $NS top pod -l app.kubernetes.io/name=<job>
+```
+
+Causes: CPU limit, JSON parsing, GC, memory pressure. Trainer: see
+[runbook-trainer](runbook-trainer.md#eventlooplaghigh-trainer).
+
+## DbIndexBuildFailed
+
+Job `db-index-build` (ADR-0088) failed. Paged reads by symbol use the old
+`idx_*_symbol` index and a sort until it succeeds.
+
+```bash
+kubectl -n $NS logs job/db-index-build
+```
+
+The build is idempotent: fix the cause (error 1205 lock wait, disk), delete the
+failed Job and rerun `bun scripts/migrate.mjs index-build` through
+`deploy/k8s/jobs/index-build-job.yaml`.
 
 ## StatefulSetStuckOnOldRevision
 

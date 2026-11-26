@@ -23,7 +23,7 @@ const ENV: any = {
 	CACHE_TTL_MS: 30000,
 	AUTH_TOKEN_HEADER: "x-api-key",
 	AUTH_TOKENS:
-		"all:read:test-token,all2:read:secondary-token,reader:read:reader-secret,ops-alice:read:alice-secret",
+		"all:read+audit:read:test-token,all2:read+audit:read:secondary-token,reader:read+audit:read:reader-secret,ops-alice:read+audit:read:alice-secret",
 	PROXY_TIMEOUT_MS: 5000,
 	ALLOWED_PROXY_CIDRS: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8",
 };
@@ -52,9 +52,11 @@ jest.mock("../../src/adapters/outbound/proxy-handler", () => ({
 }));
 
 import { createRouter } from "../../src/adapters/inbound/router";
-import type { ProxyResult } from "../../src/adapters/outbound/proxy-handler";
 import { forwardRequest } from "../../src/adapters/outbound/proxy-handler";
-import type { ForwardableRequest } from "../../src/domain/ports/gateway.port";
+import type {
+	ForwardableRequest,
+	ProxyResult,
+} from "../../src/domain/ports/gateway.port";
 import { safeHeaders } from "../../src/shared/proxy-header-sanitizer";
 
 interface RequestOptions {

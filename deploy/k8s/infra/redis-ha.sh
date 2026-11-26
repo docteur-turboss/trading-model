@@ -94,16 +94,20 @@ tls_cli_args() {
 # redis-cli against a data node / a sentinel, authenticated when ACLs are on.
 node_cli() {
 	if [ -n "${REDIS_INTERNAL_PASSWORD:-}" ]; then
+		# shellcheck disable=SC2046 # tls_cli_args prints several flags, the split is intended
 		REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli $(tls_cli_args) --user ha "$@"
 	else
+		# shellcheck disable=SC2046 # tls_cli_args prints several flags, the split is intended
 		redis-cli $(tls_cli_args) "$@"
 	fi
 }
 
 sentinel_cli() {
 	if [ -n "${REDIS_INTERNAL_PASSWORD:-}" ]; then
+		# shellcheck disable=SC2046 # tls_cli_args prints several flags, the split is intended
 		REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli $(tls_cli_args) "$@"
 	else
+		# shellcheck disable=SC2046 # tls_cli_args prints several flags, the split is intended
 		redis-cli $(tls_cli_args) "$@"
 	fi
 }
@@ -168,7 +172,8 @@ acl_args() {
 	print_args --masteruser ha --masterauth "$REDIS_INTERNAL_PASSWORD"
 	print_args --user ha on ">$REDIS_INTERNAL_PASSWORD" allchannels -@all +psync +replconf +ping
 	print_args +role +info +multi +exec +slaveof +replicaof +subscribe +publish
-	print_args "+config|rewrite" "+client|setname" "+client|kill" "+script|kill"
+	# client|pause: writes held on the old master of a planned failover (deploy-release.sh, ADR-0090).
+	print_args "+config|rewrite" "+client|setname" "+client|kill" "+script|kill" "+client|pause" "+client|unpause"
 	service_user discovery "${REDIS_DISCOVERY_PASSWORD:-}" "trading-model:discovery:*" +get +set +del +mget +sadd +srem +smembers +sismember +scard +eval +evalsha "+script|load"
 	# Kept one release (expand/contract, ADR-0040): N-1 pods still publish through message-manager during the rollout; removed in N+1.
 	service_user message-manager "${REDIS_MESSAGE_MANAGER_PASSWORD:-}" "trading-model:message-manager:*" +hset +hgetall +hdel +pexpire +sadd +srem +smembers +exists +xadd +xdel +xlen +xreadgroup +xpending +xclaim +xack +xgroup +xinfo +xrange +wait
@@ -288,7 +293,9 @@ ACL
 
 start_sentinel() {
 	waited=0
-	until master=$(master_from_sentinels) || master=$(master_from_nodes); do
+	# A master that does not answer (pod just died, failover pending) is never monitored: a sentinel
+	# started on that address sees no peer through it and stays blind after the failover.
+	until { master=$(master_from_sentinels) || master=$(master_from_nodes); } && answers "$master"; do
 		give_up_after_wait
 	done
 	# A stable id per pod: when a restarted sentinel comes back with a new IP,

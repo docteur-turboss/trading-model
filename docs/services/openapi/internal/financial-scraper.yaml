@@ -46,7 +46,7 @@ paths:
       operationId: "getV2CandlesLatest"
       tags:
         - "financial-scraper"
-      summary: "Newest closed candle of each listed symbol, opened in the last hour (any source, interval)"
+      summary: "Newest closed candle of each listed symbol, opened within the last hour or 3 bars of `interval`; any source or interval unless filtered"
       x-registry-entry: "candlesLatest"
       parameters:
         - name: "symbols"
@@ -54,6 +54,37 @@ paths:
           required: true
           schema:
             type: "string"
+        - name: "source"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+            enum:
+              - "bloomberg"
+              - "binance"
+              - "nyse"
+        - name: "interval"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+            enum:
+              - "1s"
+              - "1m"
+              - "3m"
+              - "5m"
+              - "15m"
+              - "30m"
+              - "1h"
+              - "2h"
+              - "4h"
+              - "6h"
+              - "8h"
+              - "12h"
+              - "1d"
+              - "3d"
+              - "1w"
+              - "1M"
       responses:
         "200":
           description: "OK"

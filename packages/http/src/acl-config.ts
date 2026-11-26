@@ -1,7 +1,7 @@
 import { ServiceId } from "@trading-model/primitives/primitives";
 import { ServiceInstanceName } from "@trading-model/primitives/service-instance-name";
 
-/** Default caller allowlist per target service; `*` admits any platform service. */
+/** Default caller allowlist per target service. */
 export const DEFAULT_ACL: Record<ServiceInstanceName, readonly ServiceId[]> = {
 	// api-gateway relays the public reads.
 	[ServiceInstanceName.AuditLoggerService]: [ServiceId.of("api-gateway")],

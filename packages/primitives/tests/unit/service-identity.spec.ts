@@ -37,16 +37,3 @@ describe("HostPort.toAddress", () => {
 		expect(addr).toBe("::1:443");
 	});
 });
-
-describe("ServiceEndpoint", () => {
-	it("should extend HostPort with serviceName", () => {
-		const endpoint: Record<string, unknown> = {
-			serviceName: "financial-scraper",
-			host: "10.0.0.1",
-			port: 3000,
-		};
-		expect(endpoint.serviceName).toBe("financial-scraper");
-		expect(endpoint.host).toBe("10.0.0.1");
-		expect(endpoint.port).toBe(3000);
-	});
-});

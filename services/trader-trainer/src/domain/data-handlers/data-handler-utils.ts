@@ -1,4 +1,4 @@
-/** Series helpers shared by the handlers; no handler dependency, so no import cycle with data-handler.ts. */
+/** Series helpers shared by the handlers; no handler dependency, so no import cycle. */
 export function pushWithMaxSize<TData>(
 	array: TData[],
 	data: TData,

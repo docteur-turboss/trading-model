@@ -148,6 +148,20 @@ describe("worker training runner", () => {
 		expect(result.bestGenome).toBeDefined();
 	}, 120_000);
 
+	it("revives the EpisodeScores of every symbols[*].bestFitnessMeta", async () => {
+		const meta = "{rawScores:{_scores:[1,2,3]},pnlCurve:{_scores:[1,2,4]}}";
+		const code = `require('node:worker_threads').parentPort.postMessage({type:'result',result:{generation:1,symbols:{BTCUSDT:{weights:new Float32Array(1),bestFitnessMeta:${meta}},ETHUSDT:{weights:new Float32Array(1)}}}})`;
+		const runner = createWorkerRunner({
+			file: code,
+			options: { eval: true },
+		});
+		const { symbols } = await runner([], SETTINGS);
+		const revived = symbols?.BTCUSDT?.bestFitnessMeta;
+		expect(typeof revived?.rawScores.sharpe).toBe("function");
+		expect(typeof revived?.pnlCurve?.sharpe).toBe("function");
+		expect(symbols?.ETHUSDT?.bestFitnessMeta).toBeUndefined();
+	});
+
 	it("rejects when the worker fails", async () => {
 		const failing = createWorkerRunner({
 			file: "data:text/javascript,throw new Error('boom')",

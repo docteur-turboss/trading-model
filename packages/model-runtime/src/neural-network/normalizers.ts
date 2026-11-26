@@ -1,15 +1,13 @@
 import { NumericRange } from "@trading-model/primitives/numeric-range";
 import { NormalisationType } from "./type";
 
-export type NormalizeParams = NumericRange;
-
 interface DataSlice {
 	data: Float32Array;
 	len: number;
 }
 
 export interface Normalizer {
-	normalize(slice: DataSlice, params?: NormalizeParams): Float32Array;
+	normalize(slice: DataSlice): Float32Array;
 }
 
 function _findMaxAbs(data: Float32Array): number {
@@ -126,7 +124,7 @@ const Z_SCORE: Normalizer = {
 };
 
 const NONE_NORMALIZER: Normalizer = {
-	normalize(slice: DataSlice, _params?: NormalizeParams): Float32Array {
+	normalize(slice: DataSlice): Float32Array {
 		return slice.data;
 	},
 };

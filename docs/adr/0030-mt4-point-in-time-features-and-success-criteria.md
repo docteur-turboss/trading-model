@@ -62,6 +62,7 @@ The 2026-09-13 architecture audit put MT4 on the mid-term roadmap: once ingestio
 - The order book inputs are never exercised by a historical run until the scraper's own history is long enough (it keeps no order book in MySQL, `market_candles` / `market_trades` / `market_tickers` only). *Amended by [ADR-0053](./0053-order-books-persisted-not-served.md): order book snapshots are kept in `market_order_books` from then on.*
 - MT4 cannot pass while the paper trading criterion is open.
 - *Amended by [ADR-0069](./0069-model-admission-verdict-on-the-test-segment.md): the trainer checks the Sharpe, Sortino, Calmar and buy and hold criteria on the test segment of every stored model.*
+- *Amended (issue #2805): the Sharpe threshold of the admission verdict rises with the symbol's `attempt` on the same test segment by `sqrt(2 ln attempt) × sqrt(barsPerYear / test bars)` (zero on the first try); the manifest `admission.thresholds.minSharpe` and `training.model.published` `minSharpe` carry the effective value.*
 
 ## Results
 
