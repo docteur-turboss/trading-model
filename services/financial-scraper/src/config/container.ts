@@ -254,10 +254,11 @@ export async function createCollector(
 	}
 	let leaseApi: LeaseApi | undefined;
 	let store: QuarantineStore | undefined;
-	if (settings.COLLECTOR_LEASE_NAME) {
-		const { kubernetesLeaseApi, leaseAnnotation } = await import(
-			"@trading-model/reliability/kubernetes-lease"
-		);
+	const leaseModule = settings.COLLECTOR_LEASE_NAME
+		? await import("@trading-model/reliability/kubernetes-lease")
+		: undefined;
+	if (leaseModule) {
+		const { kubernetesLeaseApi, leaseAnnotation } = leaseModule;
 		leaseApi = kubernetesLeaseApi(settings.COLLECTOR_LEASE_NAME);
 		const annotation = leaseAnnotation(leaseApi, QUARANTINE_ANNOTATION);
 		store = {
@@ -283,15 +284,15 @@ export async function createCollector(
 		},
 	};
 	let lease: ConstructorParameters<typeof Leadership>[0] = SOLE_INSTANCE_LEASE;
-	if (settings.COLLECTOR_LEASE_NAME) {
+	if (leaseModule) {
 		logger.info("Collector leader election enabled", {
 			lease: settings.COLLECTOR_LEASE_NAME,
 			identity: settings.INSTANCE_ID,
 		});
-		const { KubernetesLease } = await import(
-			"@trading-model/reliability/kubernetes-lease"
+		lease = new leaseModule.KubernetesLease(
+			settings.INSTANCE_ID,
+			leaseApi as LeaseApi
 		);
-		lease = new KubernetesLease(settings.INSTANCE_ID, leaseApi as LeaseApi);
 	}
 	return new Leadership(
 		lease,
