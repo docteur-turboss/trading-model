@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-11
-**Related:** [ADR-0021](./0021-http-api-schemas-and-generated-openapi.md) (routes and OpenAPI from the Zod schemas), [ADR-0029](./0029-orphan-subsystems-retired-and-reachability-gate.md) (no orphan code), [ADR-0040](./0040-locked-resumable-migrations-and-expand-contract.md) (expand-only migration), [ADR-0042](./0042-singleton-collector-with-verified-recovery.md) (one collector pod, HTTP replicas apart), [ADR-0051](./0051-mysql-retention-cronjob.md) (retention job)
+**Related:** [ADR-0021](./0021-http-api-schemas-and-generated-openapi.md) (routes and OpenAPI from the Zod schemas), [ADR-0029](./0029-orphan-subsystems-retired-and-reachability-gate.md) (no orphan code), [ADR-0040](./0040-locked-resumable-migrations-and-expand-contract.md) (expand-only migration), ADR-0042 (deleted) (one collector pod, HTTP replicas apart), [ADR-0051](./0051-mysql-retention-cronjob.md) (retention job)
 **Verified by:** `services/financial-scraper/tests/db/market-data.db.spec.ts`, `services/financial-scraper/tests/db/retention.db.spec.ts`, `bun run api:check`, `bun run reach:check`
 
 ## Context

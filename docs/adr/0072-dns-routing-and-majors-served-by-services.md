@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-11
-**Supersedes:** [ADR-0023](./0023-discovery-registry-in-redis.md), [ADR-0045](./0045-single-service-resolution-strategy.md), [ADR-0071](./0071-empty-registry-serves-last-known-target.md)
+**Supersedes:** ADR-0023 (deleted), ADR-0045 (deleted), ADR-0071 (deleted)
 **Related:** [ADR-0046](./0046-simplification-trajectory.md) (step 2), [ADR-0040](./0040-locked-resumable-migrations-and-expand-contract.md) (expand/contract), [ADR-0021](./0021-http-api-schemas-and-generated-openapi.md) (route registries), [ADR-0029](./0029-orphan-subsystems-retired-and-reachability-gate.md), issues #1202, #1208, #1112, #1156
 **Verified by:** `services/api-gateway/tests/unit/router.spec.ts`, `services/api-gateway/tests/unit/public-routes.spec.ts`, `packages/address-manager/tests/unit/address-manager.spec.ts`, `packages/http/tests/unit/adapters/inbound/api-route.spec.ts`, `bun run api:check`
 

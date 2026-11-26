@@ -5,7 +5,7 @@
 
 ## Architecture Context
 
-The bus is a library in each service over the shared Redis ([ADR-0073](../../adr/0073-message-bus-as-a-redis-streams-library.md), journal [ADR-0048](../../adr/0048-durable-message-journal-in-redis-streams.md)); there is no broker service to restart. Know its limits before acting:
+The bus is a library in each service over the shared Redis ([ADR-0073](../../adr/0073-message-bus-as-a-redis-streams-library.md)); there is no broker service to restart. Know its limits before acting:
 
 - **A publish is an `XADD`** to the stream of its topic (key `trading-model:message-manager:journal:<topic>`, one consumer group per subscriber service). It resolves once the entry is in Redis; a Redis outage makes publishers fail, and losing Redis with its replicas loses what was not consumed yet. Inspect a backlog with `XPENDING <journal key> <service>`; never `KEYS`.
 - **Each subscriber consumes in process** (`XREADGROUP`), retries with backoff, then writes the entry to the dead stream of the topic. A crashed replica loses nothing: another replica of the group claims its pending entries.
