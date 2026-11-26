@@ -95,7 +95,7 @@ All platform assets are documented in:
 
 ## 7. Physical & Environmental Security
 
-The platform is deployed as a containerised microservice architecture. Physical security is the responsibility of the hosting provider (cloud / bare-metal). The platform ensures:
+The platform is deployed as a containerised microservice architecture. Production runs on a home host: physical security is the operator's (the home premises). A stolen disk stays unreadable (LUKS2 + Tang, which never runs on the host it unlocks). The platform ensures:
 
 - No sensitive data written to persistent host volumes (except the SPIRE datastore)
 - All database data encrypted at rest via storage-layer encryption: LUKS2 data disks unlocked by Clevis/Tang (`deploy/host/`), backups encrypted with age (see [Encryption at Rest](../deployment/ENCRYPTION_AT_REST.md))
