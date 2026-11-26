@@ -8,6 +8,7 @@ import {
 	reconciliationDiffs,
 	rollDay,
 } from "../domain/accounting";
+import { engages } from "../domain/kill-switch";
 import type { RiskLimits } from "../domain/limits";
 import { FINAL, transition } from "../domain/order";
 import type {
@@ -29,8 +30,8 @@ import {
 	exposure,
 	isOpen,
 	newState,
+	pruneFinalOrders,
 	type RiskState,
-	SEEN_HORIZON_MS,
 } from "../domain/state";
 
 export interface RiskExecutionDeps {
@@ -433,20 +434,7 @@ export class RiskExecution {
 		if (!this._broken) {
 			// Final orders older than the longest window read by the pre-trade checks (rate: 60 s, duplicates).
 			const keepMs = Math.max(60_000, this._d.limits.duplicateWindowMs);
-			const cutoff = this._now() - keepMs;
-			const seen = this._state.seen ?? {};
-			this._state.seen = seen;
-			for (const [id, order] of Object.entries(this._state.orders)) {
-				if (FINAL.has(order.status) && order.createdAt < cutoff) {
-					seen[id] = order.createdAt;
-					delete this._state.orders[id];
-				}
-			}
-			for (const [id, at] of Object.entries(seen)) {
-				if (at < this._now() - SEEN_HORIZON_MS) {
-					delete seen[id];
-				}
-			}
+			pruneFinalOrders(this._state, this._now(), keepMs);
 			await this._d.store.save(this._state);
 		}
 	}
@@ -572,14 +560,7 @@ export class RiskExecution {
 	private _flag(symbol: string | null, reason: string, actor: string): boolean {
 		const ks = this._state.killSwitch;
 		const current = symbol === null ? ks.global : ks.symbols[symbol];
-		// drawdown overrides other reasons (re-arm owner-only, policy §4.4); cumulative_loss overrides all and nothing overrides it
-		if (
-			current &&
-			((reason !== "drawdown" && reason !== "cumulative_loss") ||
-				current === reason ||
-				current === "cumulative_loss" ||
-				current === "state_unreadable")
-		) {
+		if (!engages(current, reason)) {
 			return false;
 		}
 		if (symbol === null) {
