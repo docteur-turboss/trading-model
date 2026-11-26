@@ -39,8 +39,7 @@ prereqs() {
 	bash "$ROOT/scripts/install-sealed-secrets.sh"
 	# kind kubelets serve a self-signed certificate: metrics-server cannot verify it.
 	curl -fsSL "https://github.com/kubernetes-sigs/metrics-server/releases/download/${METRICS_SERVER}/components.yaml" |
-		sed -E 's#^( *)- --cert-dir=/tmp$#&
-- --kubelet-insecure-tls#' | kubectl apply -f -
+		sed -E 's#^( *)- --cert-dir=/tmp$#&\n\1- --kubelet-insecure-tls#' | kubectl apply -f -
 	# hostPath dirs are root:root and fsGroup skips hostPath: the trainer (uid 10001) must write (#1246).
 	docker exec trading-staging-control-plane install -d -o 10001 -g 10001 /var/local/kind-rwx/trainer-checkpoints
 	kubectl apply -f "$ROOT/tests/k8s/kind-fixtures.yaml"
