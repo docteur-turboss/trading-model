@@ -3,7 +3,7 @@ const DAY_MS = 86_400_000;
 const WINDOW_DAYS = 400;
 const PART = /^(\*|\d+(-\d+)?)(\/[1-9]\d*)?$/;
 
-export function _field(
+export function parseCronField(
 	text: string,
 	min: number,
 	max: number
@@ -34,14 +34,14 @@ export function _field(
 export function cronMaxGapMs(expression: string): number | undefined {
 	const fields = expression.trim().split(/\s+/);
 	const [minute, hour, day = "", month, weekday = ""] = [
-		_field(fields[0] ?? "", 0, 59),
-		_field(fields[1] ?? "", 0, 23),
+		parseCronField(fields[0] ?? "", 0, 59),
+		parseCronField(fields[1] ?? "", 0, 23),
 		fields[2],
-		_field(fields[3] ?? "", 1, 12),
+		parseCronField(fields[3] ?? "", 1, 12),
 		fields[4],
 	];
-	const days = _field(day, 1, 31);
-	const weekdays = _field(weekday, 0, 7);
+	const days = parseCronField(day, 1, 31);
+	const weekdays = parseCronField(weekday, 0, 7);
 	if (fields.length !== 5 || !minute || !hour || !month || !days || !weekdays) {
 		return undefined;
 	}
