@@ -6,7 +6,14 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import { acquireToken, syncUsedWeight } from "../../../src/config/rate-limiter";
+
+jest.mock("../../../src/infrastructure/config/env", () => ({
+	ENV: { BINANCE_BASE_URL: "http://binance-stub:8080" },
+}));
+
+import { AxiosError } from "axios";
+import { createHttpClient } from "../../../src/config/http";
+import { acquireToken } from "../../../src/config/rate-limiter";
 
 describe("acquireToken", () => {
 	beforeEach(() => {
@@ -28,19 +35,40 @@ describe("acquireToken", () => {
 		expect(served).toEqual([10, 1, 1]);
 	});
 
-	it("lowers the balance to the weight Binance reports as used", async () => {
-		const url = "https://sync.test";
-		syncUsedWeight(url, 1190);
-		let served = false;
-		const waiting = acquireToken(url, 100).then(() => {
-			served = true;
-		});
-		await jest.advanceTimersByTimeAsync(1000);
-		expect(served).toBe(false);
-		await jest.advanceTimersByTimeAsync(4000);
-		await waiting;
-		expect(served).toBe(true);
-	});
+	it.each([
+		["a success", 200],
+		["a 429", 429],
+	])(
+		"lowers the balance to X-MBX-USED-WEIGHT-1M on %s response",
+		async (_n, status) => {
+			const url = `https://sync-${status}.test`;
+			const headers = { "x-mbx-used-weight-1m": "1190" };
+			const client = createHttpClient(url);
+			client.defaults.adapter = async (config) => {
+				const response = { data: {}, status, statusText: "", headers, config };
+				if (status >= 400) {
+					throw new AxiosError(
+						"limited",
+						"ERR_BAD_REQUEST",
+						config,
+						null,
+						response
+					);
+				}
+				return response;
+			};
+			await client.get("/x").catch(() => undefined);
+			let served = false;
+			const waiting = acquireToken(url, 100).then(() => {
+				served = true;
+			});
+			await jest.advanceTimersByTimeAsync(1000);
+			expect(served).toBe(false);
+			await jest.advanceTimersByTimeAsync(4000);
+			await waiting;
+			expect(served).toBe(true);
+		}
+	);
 
 	it("rejects a waiting request on abort and lets the next one through", async () => {
 		const url = "https://abort.test";
