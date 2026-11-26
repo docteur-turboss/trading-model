@@ -37,7 +37,7 @@ services:
   # External E2E traffic authenticates with this key (tests/e2e/helpers.ts).
   api-gateway:
     environment:
-      AUTH_TOKENS: e2e:read+audit:read+risk:admin+risk:rearm:e2e-api-key-0123456789abcdef0123456789abcdef
+      AUTH_TOKENS: e2e:read+audit:read+risk:admin:e2e-api-key-0123456789abcdef0123456789abcdef
       # The k6 smoke sends ~240 req/min from one IP; the default 100/min would answer 429.
       # Scenarios and stress need more: tests/load/README.md, "Rate limit".
       RATE_LIMIT_MAX: '2000'

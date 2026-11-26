@@ -15,7 +15,7 @@ export const PUBLIC_ROUTES = [
 	"GET /v1/audit-logger/events",
 	"GET /v1/audit-logger/events/stats",
 	"GET /v1/audit-logger/events/:messageId",
-	// Scope risk:admin; the API key name is the actor (ADR-0059, ADR-0064 §5).
+	// Scope risk:admin (engage) / risk:rearm (rearm); the API key name is the actor (ADR-0059, ADR-0064 §5).
 	"POST /v1/risk-execution/admin/kill-switch",
 	"POST /v1/risk-execution/admin/kill-switch/rearm",
 	"GET /v2/financial-scraper/candles/symbols/:symbol",

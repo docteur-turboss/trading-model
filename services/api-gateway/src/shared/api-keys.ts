@@ -66,7 +66,7 @@ export function hasRetiredScope(entries: readonly string[]): boolean {
 
 /** Scope a public route (`PUBLIC_ROUTES` pattern path) needs: `audit:read` for the audit trail, `risk:rearm` for the re-arm, `risk:admin` for the other writes, `read` otherwise. */
 export function requiredScope(method: string, path: string): ApiScope {
-	if (path.startsWith("/v1/audit-logger/")) {
+	if (path.includes("/audit-logger/")) {
 		return "audit:read";
 	}
 	if (path.endsWith("/rearm")) {

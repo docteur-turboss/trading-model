@@ -5,7 +5,7 @@
 set -euo pipefail
 
 API_GATEWAY="${API_GATEWAY:-http://localhost:8449}"  # edge-proxy
-ADMIN_TOKEN="${ADMIN_TOKEN:-changeme}"                # one of the gateway AUTH_TOKENS
+ADMIN_TOKEN="${ADMIN_TOKEN:-changeme}"                # gateway AUTH_TOKENS key with audit:read
 
 # Pretty-prints JSON with jq when it is installed, raw output otherwise.
 pretty() { if command -v jq >/dev/null 2>&1; then jq .; else cat; echo; fi; }

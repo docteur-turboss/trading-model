@@ -307,6 +307,35 @@ describe("router", () => {
 			expect(result.status).toBe(403);
 		});
 
+		it.each([
+			["GET", "/v1/audit-logger/events", ["read"], 403],
+			["GET", "/v1/audit-logger/events", ["read", "audit:read"], 200],
+			[
+				"POST",
+				"/v1/risk-execution/admin/kill-switch/rearm",
+				["risk:admin"],
+				200,
+			],
+			[
+				"POST",
+				"/v1/risk-execution/admin/kill-switch/rearm",
+				["risk:rearm"],
+				200,
+			],
+			["POST", "/v1/risk-execution/admin/kill-switch", ["risk:rearm"], 403],
+		])(
+			"%s %s with %j answers %i",
+			async (method, path, apiKeyScopes, status) => {
+				mockForwardSuccess({});
+
+				const result = await getHandler()(
+					createReq({ method, path, url: path, apiKeyScopes })
+				);
+
+				expect(result.status).toBe(status);
+			}
+		);
+
 		it("should handle non-JSON response body", async () => {
 			const {
 				forwardRequest,
