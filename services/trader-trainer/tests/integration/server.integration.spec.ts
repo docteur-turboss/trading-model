@@ -52,7 +52,6 @@ jest.mock<{
 }));
 
 jest.mock("../../src/config/address-manager", () => ({
-	ADDRESS_MANAGER_ROUTES: (): void => {},
 	AddressManager: { getAddress: (): null => null },
 }));
 
