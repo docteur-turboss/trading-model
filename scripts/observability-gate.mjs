@@ -34,14 +34,7 @@ import { join, relative, resolve } from "node:path";
 import { WORKSPACE_ROOTS, walk as walkFiles } from "./lib/fs.mjs";
 
 const ROOT = resolve(import.meta.dirname, "..");
-const SERVICES = [
-  "financial-scraper",
-  "trader-trainer",
-  "api-gateway",
-  "audit-logger",
-  "model-evaluator",
-  "risk-execution",
-];
+const SERVICES = readdirSync(join(ROOT, "services"));
 
 const METRIC_DEF_RE =
   /export\s+const\s+([A-Z0-9_]+)\s*=\s*new\s+(?:promClient\.)?(Counter|Gauge|Histogram|Summary)\b/g;

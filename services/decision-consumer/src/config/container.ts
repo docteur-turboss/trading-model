@@ -13,6 +13,7 @@ import { createServer } from "../application/server";
 import { parsePromoted } from "../domain/decision";
 import { ENV } from "../infrastructure/config/env";
 import { FIND_A_SERVICE } from "./address-manager";
+import { DECISION_SKIPPED_TOTAL } from "./metrics";
 
 /** Wires the service: trainer, scraper and risk clients, the promotion list and the decision pass (paper only: no broker, no kill switch). */
 export async function createDecisionConsumerApp() {
@@ -33,11 +34,12 @@ export async function createDecisionConsumerApp() {
 		}
 		running = true;
 		void runJob("decision-consumer.tick", tick)
-			.catch((error: unknown) =>
+			.catch((error: unknown) => {
+				DECISION_SKIPPED_TOTAL.inc({ reason: "error" });
 				getLogger().error("decision pass failed", {
 					error: normalizeError(error),
-				})
-			)
+				});
+			})
 			.finally(() => {
 				running = false;
 			});
