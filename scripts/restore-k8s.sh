@@ -338,7 +338,7 @@ purge_expired_rows() {
   fi
   # `user-only` on an empty volume ran before these tables existed: the retention user has no grant yet.
   local t
-  for t in market_candles market_trades market_tickers market_order_books signals; do
+  for t in market_candles market_trades market_tickers market_order_books signals signal_documents; do
     echo "GRANT SELECT, DELETE ON financial_scraper.${t} TO 'retention'@'%';"
   done | mysql_root_sh "$(mysql_primary_pod)" 'mysql --user=root' ||
     warn "Retention grants not applied (no retention user?): the purge below may be denied"
