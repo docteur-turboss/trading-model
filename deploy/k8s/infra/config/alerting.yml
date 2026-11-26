@@ -885,6 +885,18 @@ groups:
           description: 'Container {{ $labels.container }} of {{ $labels.pod }} was killed for exceeding its memory limit and restarted in the last 15 minutes. HighMemoryUsage only sees the V8 heap of the services; this is the container.'
           runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubecontaineroomkilled'
 
+      # Before the OOMKill. cAdvisor reports 0 for a container without limit and
+      # adds pod-level series (container "" or "POD"): both are left out.
+      - alert: KubeContainerMemoryNearLimit
+        expr: max by (namespace, pod, container) (container_memory_working_set_bytes{container!="", container!="POD"}) / max by (namespace, pod, container) (container_spec_memory_limit_bytes{container!="", container!="POD"} > 0) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $labels.pod }} ({{ $labels.container }}) is close to its memory limit'
+          description: 'Container {{ $labels.container }} of {{ $labels.pod }} uses {{ $value | humanizePercentage }} of its memory limit (working set): the kernel kills it at 100%.'
+          runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubecontaineroomkilled'
+
       # Compared with the wanted replicas: a workload scaled to 0 stays silent.
       # Covers spire-server (one replica, SVIDs expire about 2 h after it
       # stops), the databases and a lost node (ADR-0056: no Node objects).

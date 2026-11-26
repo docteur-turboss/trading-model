@@ -1739,6 +1739,32 @@ tests:
         alertname: KubeContainerOOMKilled
         exp_alerts: []
 
+  # 92% of the limit fires; 80% and a container without limit (0) do not.
+  - name: a container working set above 90% of its limit fires before the OOMKill
+    interval: 1m
+    input_series:
+      - series: 'container_memory_working_set_bytes{job="cadvisor",node="n1",namespace="trading-model",pod="api-gateway-1",container="api-gateway"}'
+        values: '92x10'
+      - series: 'container_spec_memory_limit_bytes{job="cadvisor",node="n1",namespace="trading-model",pod="api-gateway-1",container="api-gateway"}'
+        values: '100x10'
+      - series: 'container_memory_working_set_bytes{job="cadvisor",node="n1",namespace="trading-model",pod="mysql-0",container="mysql"}'
+        values: '80x10'
+      - series: 'container_spec_memory_limit_bytes{job="cadvisor",node="n1",namespace="trading-model",pod="mysql-0",container="mysql"}'
+        values: '100x10'
+      - series: 'container_memory_working_set_bytes{job="cadvisor",node="n1",namespace="trading-model",pod="jaeger-1",container="jaeger"}'
+        values: '500x10'
+      - series: 'container_spec_memory_limit_bytes{job="cadvisor",node="n1",namespace="trading-model",pod="jaeger-1",container="jaeger"}'
+        values: '0x10'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: KubeContainerMemoryNearLimit
+        exp_alerts:
+          - exp_labels: {severity: warning, namespace: trading-model, pod: api-gateway-1, container: api-gateway}
+            exp_annotations:
+              summary: 'api-gateway-1 (api-gateway) is close to its memory limit'
+              description: 'Container api-gateway of api-gateway-1 uses 92% of its memory limit (working set): the kernel kills it at 100%.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#kubecontaineroomkilled'
+
   - name: a PVC over 80% full is reported with its usage
     interval: 1m
     input_series:

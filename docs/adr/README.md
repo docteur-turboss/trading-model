@@ -98,6 +98,7 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0088](./0088-paged-read-indexes-built-outside-the-migration-job.md) | Paged Market Read Indexes Are Built Outside the Migration Job | Accepted | 2026-11 |
 | [ADR-0089](./0089-model-readers-mount-the-artifact-volume-read-only.md) | Model Readers Mount the Artifact Volume Read-Only | Accepted | 2026-11 |
 | [ADR-0090](./0090-ha-user-holds-writes-over-a-planned-redis-failover.md) | The Redis `ha` User Holds Writes Over a Planned Failover | Accepted | 2026-11 |
+| [ADR-0091](./0091-plain-http-probe-listener.md) | Plain-HTTP Probe Listener Beside the mTLS Port | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 

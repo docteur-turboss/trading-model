@@ -141,11 +141,9 @@ spec:
             - name: tmp
               mountPath: /tmp
           livenessProbe:
-            exec:
-              command:
-                - node
-                - /app/probe.js
-                - https://localhost:3000/ping
+            httpGet:
+              path: /ping
+              port: 3001
             periodSeconds: 15
             timeoutSeconds: 10
             failureThreshold: 3
@@ -157,21 +155,17 @@ spec:
                   - -c
                   - sleep 10
           readinessProbe:
-            exec:
-              command:
-                - node
-                - /app/probe.js
-                - https://localhost:3000/health/ready
+            httpGet:
+              path: /health/ready
+              port: 3001
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 10
             successThreshold: 1
           startupProbe:
-            exec:
-              command:
-                - node
-                - /app/probe.js
-                - https://localhost:3000/ping
+            httpGet:
+              path: /ping
+              port: 3001
             initialDelaySeconds: 30
             periodSeconds: 5
             failureThreshold: 12
