@@ -31,9 +31,9 @@ export function busJournalFromEnv(
 	}
 	const redis = createRedisClient(connection);
 	return new RedisMessageJournal({
-		redis: redis as never,
-		openBlockingRedis: () => redis.duplicate() as never,
-		openWriteRedis: () => openJournalWriter(redis as never),
+		redis,
+		openBlockingRedis: () => redis.duplicate(),
+		openWriteRedis: () => openJournalWriter(redis),
 		keyPrefix: BUS_KEY_PREFIX,
 		minReplicas: env.JOURNAL_MIN_REPLICAS,
 	});
