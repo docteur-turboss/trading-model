@@ -5,7 +5,7 @@ target in [slo.md](../slo.md#5-training-completion-rate)),
 `TrainingCompletionRateCritical` (critical, same SLO),
 `TrainerNoModelStored` (critical),
 `ModelArtifactWriteFailing` (warning),
-`TrainerEventLoopLagHigh` (warning),
+`EventLoopLagHigh` (warning, every service),
 `TrainerNoLeader` (warning), `TrainerNoLeaderProlonged` (warning, 30 min),
 `ModelBelowBuyAndHold` (warning), `TrainerFeatureDrift` (warning).
 
@@ -90,9 +90,9 @@ The previous artifacts stay valid meanwhile: nothing serving them is affected.
 
 ## TrainerEventLoopLagHigh
 
-`nodejs_eventloop_lag_max_seconds` of the trainer above 10 s for 5 min. The
-metric is a max reset at each scrape, so it catches isolated long blocks (the
-#477 incident peaked at 139.9 s) that an average smooths out (DQN step, GC, JSON parsing). The GA runs in a
+`EventLoopLagHigh` on the trainer (p99 above 200 ms for 5 min). The max
+(`nodejs_eventloop_lag_max_seconds`, reset at each scrape) shows isolated long
+blocks (the #477 incident peaked at 139.9 s). The GA runs in a
 worker thread: a slow genome evaluation does not block the loop. Above 10 s
 (delivery timeout) or 15 s (heartbeat), `ServiceDown`, `HeartbeatStopped` and
 DLQ alerts follow.

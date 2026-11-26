@@ -269,37 +269,41 @@ tests:
         alertname: TrainingCompletionRateCritical
         exp_alerts: []
 
-  # Event loop lag outside the GA, constant.
-  - name: trainer event loop lag is high
+  # p99 lag of the gateway above 200 ms for 5 min; a 3 min spike on the trainer stays silent.
+  - name: event loop lag p99 is high on one service
     interval: 1m
     input_series:
-      - series: 'nodejs_eventloop_lag_max_seconds{job="trader-trainer",instance="t"}'
-        values: '30x60'
+      - series: 'nodejs_eventloop_lag_p99_seconds{job="api-gateway",instance="g"}'
+        values: '0.5x30'
+      - series: 'nodejs_eventloop_lag_p99_seconds{job="trader-trainer",instance="t"}'
+        values: '0x10 0.5x3 0x17'
     alert_rule_test:
-      - eval_time: 40m
-        alertname: TrainerEventLoopLagHigh
+      - eval_time: 20m
+        alertname: EventLoopLagHigh
         exp_alerts:
-          - exp_labels: {severity: warning, job: trader-trainer}
+          - exp_labels: {severity: warning, job: api-gateway}
             exp_annotations:
-              summary: 'trader-trainer event loop lag above 10 s'
-              description: 'Trainer event loop lag reached 30s (threshold 10 s) outside or inside GA evaluation. Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventlooplaghigh'
+              summary: 'api-gateway event loop lag p99 above 200 ms'
+              description: 'api-gateway event loop lag p99 is 500ms (threshold 200 ms) for 5 min. Heartbeats and deliveries time out when it grows.'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#eventlooplaghigh'
 
-  # Lag above 10 s for 7 minutes only: fires on the 5m rule.
-  - name: trainer event loop lag is a short spike
+  - name: db-index-build job failed
     interval: 1m
     input_series:
-      - series: 'nodejs_eventloop_lag_max_seconds{job="trader-trainer",instance="t"}'
-        values: '0x10 30x7 0x43'
+      - series: 'kube_job_status_failed{job="kube-state-metrics",namespace="trading-model",job_name="db-index-build"}'
+        values: '0x5 1x10'
     alert_rule_test:
-      - eval_time: 16m
-        alertname: TrainerEventLoopLagHigh
+      - eval_time: 3m
+        alertname: DbIndexBuildFailed
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: DbIndexBuildFailed
         exp_alerts:
-          - exp_labels: {severity: warning, job: trader-trainer}
+          - exp_labels: {severity: warning}
             exp_annotations:
-              summary: 'trader-trainer event loop lag above 10 s'
-              description: 'Trainer event loop lag reached 30s (threshold 10 s) outside or inside GA evaluation. Heartbeats (15 s) and deliveries (10 s timeout) fail meanwhile.'
-              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-trainer.md#trainereventlooplaghigh'
+              summary: 'Job db-index-build failed'
+              description: 'The paged-read index build failed: reads by symbol use the old idx_*_symbol index and a sort until it succeeds (ADR-0088).'
+              runbook_url: 'https://github.com/docteur-turboss/trading-model/blob/main/docs/operations/runbooks/runbook-infrastructure.md#dbindexbuildfailed'
 
   # No session ever succeeds: the `success` series does not exist.
   - name: every training session fails
