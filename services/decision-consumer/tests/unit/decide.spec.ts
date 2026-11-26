@@ -188,6 +188,8 @@ describe("decision tick", () => {
 
 	it("sends one intent per bar with a decision id fixed by model and bar", async () => {
 		const { tick, risk, scraper, setNow } = build();
+		// Off the minute boundary: the bar close time would differ from the decision time.
+		setNow(NOW + 30_000);
 		await tick();
 		await tick();
 		expect(risk.send).toHaveBeenCalledTimes(1);
@@ -197,6 +199,7 @@ describe("decision tick", () => {
 				side: "buy",
 				quantity: 0.01234567,
 				referencePrice: 60_000,
+				referenceAt: NOW + 30_000,
 			})
 		);
 		expect(scraper.candles).toHaveBeenCalledWith(
