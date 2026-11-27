@@ -297,11 +297,12 @@ current stack, and the S3 price is a list price, not a quote.
 | Server (*estimate*, sized on the current stack) | 4 000 € over 36 months | 111.11 |
 | Electricity (upper bound) | 1 000 W at high load × 730 h = 730 kWh × 0.25 €/kWh | 182.50 |
 | Off-site backup and audit anchor buckets, S3 Object Lock (*estimate*) | ≤ 100 GB stored (staging holds 5.8 GB on 2026-11-23) × about 0.007-0.015 €/GB (Backblaze B2 6.95 $/TB, Scaleway Multi-AZ about 0.0146 €/GB) | ≤ 2 |
-| **Total** | | **about 296** |
+| AI agents (Claude Max subscription: orchestrator sessions, reviews, audits) | flat subscription, owner, 2026-11-26; 1 170 PRs merged 2026-10-26 to 2026-11-25, about 0.09 € per merged PR; the orchestrator weekly cap of 1 100 $ is at API list price and is not billed | 100 |
+| **Total** | | **about 396** |
 
 Allocated capital of the first live tier: 10 000 USDT (`RISK_ALLOCATED_CAPITAL`),
 about 9 000 € at 1 USDT ≈ 0.90 € (*estimate*). Minimal return to pay the
-infrastructure: 296 / 9 000 ≈ **3.3 % per month** net of fees, about 47 % per
+infrastructure and the AI agents: 396 / 9 000 ≈ **4.4 % per month** net of fees, about 68 % per
 year compounded. The electricity line is an upper bound (1 000 W is the high
 load, not the average): measure the average draw to lower it. The threshold
 falls in proportion to the capital, and more symbols share the same fixed cost.

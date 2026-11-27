@@ -666,6 +666,65 @@ jobs:
         if: failure()
         run: bash tests/k8s/run-kind.sh dump
 
+  # Release PR only (development -> main): the overlay really deployed in staging (staging-local, partitioned
+  # data StatefulSets), from the release running there (repository variable STAGING_RELEASE_VERSION, e.g. v3.2.2,
+  # to update after each staging deploy; issue #3013). Not in k8s-result: advisory until it proves stable.
+  k8s-staging-local:
+    needs: gate
+    if: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref == 'development' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: read
+    env:
+      KIND_VERSION: v0.27.0
+      KIND_SHA256: a6875aaea358acf0ac07786b1a6755d08fd640f4c79b7a2e46681cc13f49a04b
+      KIND: ./kind
+      KIND_OVERLAY: staging-local
+      KIND_PREVIOUS_REF: ${{ vars.STAGING_RELEASE_VERSION }}
+      KIND_PREVIOUS_REGISTRY: ${{ vars.IMAGE_REGISTRY || format('ghcr.io/{0}', github.repository_owner) }}
+    steps:
+      - name: Require the staging release
+        run: test -n "$KIND_PREVIOUS_REF" || { echo "::error::Repository variable STAGING_RELEASE_VERSION is empty"; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+      - name: Install kind
+        run: |
+          curl -fsSLo kind --retry 5 --retry-all-errors --retry-delay 5 "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
+          echo "${KIND_SHA256}  kind" | sha256sum -c -
+          chmod +x kind
+      - name: Unload the runner's mysqld AppArmor profile
+        run: |
+          if [ -f /etc/apparmor.d/usr.sbin.mysqld ]; then
+            sudo apparmor_parser -R /etc/apparmor.d/usr.sbin.mysqld || true
+          fi
+      - name: Create the cluster
+        run: bash tests/k8s/run-kind.sh cluster
+      - name: Pull release N-1, build release N
+        run: bash tests/k8s/run-kind.sh images
+      - name: Load the images into kind
+        run: bash tests/k8s/run-kind.sh load
+      - name: Deploy release N-1 (staging-local overlay)
+        run: bash tests/k8s/run-kind.sh deploy
+      - name: Upgrade N-1 to N, forced failure and rollback
+        run: bash tests/k8s/run-kind.sh upgrade
+      - name: Smoke test (deploy.yml gate)
+        run: bash tests/k8s/run-kind.sh smoke
+      - name: Dump cluster state
+        if: failure()
+        run: bash tests/k8s/run-kind.sh dump
+
   # The one check the development and main rulesets require, so it aggregates every job of this
   # workflow: a red or cancelled job fails it, a skipped one (gate, k8s=false) does not. Keep the
   # name: renaming it breaks the rulesets. A skipped k8s matrix reports "k8s (${{ matrix.group }})",
