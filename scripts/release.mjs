@@ -196,9 +196,9 @@ const TYPE_ORDER = [
 ];
 
 function parseArgs() {
-  const args = { dryRun: false, bump: null, version: null, publish: false, prepare: false, prerelease: null };
+  const args = { dryRun: false, bump: null, version: null, publish: false, prepare: false, tag: false, prerelease: null };
   const argv = process.argv.slice(2);
-  const BOOLEAN_FLAGS = { '--dry-run': 'dryRun', '--publish': 'publish', '--prepare': 'prepare' };
+  const BOOLEAN_FLAGS = { '--dry-run': 'dryRun', '--publish': 'publish', '--prepare': 'prepare', '--tag': 'tag' };
   const VALUE_FLAGS = { '--bump': 'bump', '--version': 'version', '--prerelease': 'prerelease' };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
@@ -245,12 +245,14 @@ function parseArgs() {
   return args;
 }
 
-function handlePublishMerge(args) {
-  if (!(args.publish || args.prepare) || args.dryRun) return;
-  const flag = args.prepare ? '--prepare' : '--publish';
+function requirePublishBranch(args) {
+  if (!(args.publish || args.prepare || args.tag) || args.dryRun) return;
+  const flag = args.tag ? '--tag' : args.prepare ? '--prepare' : '--publish';
   const branch = run('git rev-parse --abbrev-ref HEAD');
-  if (args.prepare ? !branch.startsWith('release/') : branch !== 'main') {
-    console.error(`  ${flag} requires being on ${args.prepare ? 'a release/* branch' : 'main branch'} (currently on ${branch}).\n`);
+  const ok = args.tag ? branch === 'main' : args.prepare ? branch.startsWith('release/') : branch === 'development';
+  if (!ok) {
+    const want = args.tag ? 'main' : args.prepare ? 'a release/* branch' : 'development';
+    console.error(`  ${flag} requires being on ${want} (currently on ${branch}).\n`);
     process.exit(1);
   }
   // publishRelease runs `git add -A`: a dirty tree would end up in the release commit.
@@ -258,19 +260,12 @@ function handlePublishMerge(args) {
     console.error(`  ${flag} requires a clean working tree (commit or remove your changes).\n`);
     process.exit(1);
   }
-  if (args.prepare) return mergeMainIntoRelease();
-  console.log('\n  → Merging development into main...');
-  const mergeOut = run('git merge development --no-edit');
-  if (mergeOut === '' && run('git diff --name-only --diff-filter=U')) {
-    console.error('  ✖ Merge conflicts detected. Resolve them and retry.\n');
-    process.exit(1);
-  }
-  console.log('  ✓ Merged development into main\n');
+  if (args.prepare) mergeMainIntoRelease();
 }
 
 /**
- * --prepare: merges main into the release/* branch (made from development). The last tag, on main's merge
- * commit, becomes reachable and CHANGELOG.md / package.json start from main's, so the PR to main has no
+ * --prepare: merges main into the release/* branch (made from development). The last tag, on the version
+ * commit of the previous release, becomes reachable and CHANGELOG.md / package.json start from main's, so the PR to main has no
  * conflict. Conflicts on those files are settled here (development's content and deletions, main's version
  * and CHANGELOG); any other conflict stops the release.
  */
@@ -442,34 +437,58 @@ function printSummary(bumps, oldRootVer, newVersion, rootBump, dryRun) {
   console.log(`  Root: ${oldRootVer} → ${newVersion} (${rootBump})\n`);
 }
 
+/** Commits the version on `release/vX.Y.Z` (cut from development) and pushes that branch; main and the tag come after the PR merge (`--tag`). */
 function publishRelease(newVersion, args) {
   if (!(args.publish || args.prepare) || args.dryRun) return;
   console.log(`\n  ── ${args.prepare ? 'Preparing' : 'Publishing'} release ──\n`);
-  console.log('  → Staging files...');
+  const branch = `release/v${newVersion}`;
+  if (args.publish) runOrDie(`git switch -c ${branch}`);
   runOrDie('git add -A');
   const commitMsg = `:rocket:(release): v${newVersion}`;
-  console.log(`  → Committing: ${commitMsg}`);
+  console.log(`  → Committing on ${branch}: ${commitMsg}`);
   runOrDie(`git commit --no-verify -m "${commitMsg}"`);
   if (args.prepare) {
     console.log(`version=v${newVersion}`); // last line, read by the orchestrator
     return;
   }
-  console.log(`  → Tagging v${newVersion}...`);
-  runOrDie(`git tag -a v${newVersion} -m "${commitMsg}"`);
-  console.log('  → Pushing commits and tags...');
-  runOrDie('git push --follow-tags');
-  if (!runOrDie(`git ls-remote --tags origin v${newVersion}`)) {
-    console.error(`\n  ✗ Tag v${newVersion} is not on origin after the push.`);
+  runOrDie(`git push -u origin ${branch}`);
+  console.log(`  ✓ ${branch} pushed. Merge it into main (PR) and into development (merge commit), then on main: bun run release:tag\n`);
+}
+
+/**
+ * Tags the version commit of `release/vX.Y.Z` (not the merge commit of main: development receives the branch, so only that
+ * commit is reachable from both, which `lastStableTag` needs). Refuses a main that is not origin/main, and a squashed PR.
+ */
+function tagRelease() {
+  const tag = `v${JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8')).version}`;
+  runOrDie('git fetch origin main --quiet');
+  if (runOrDie('git rev-parse HEAD') !== runOrDie('git rev-parse origin/main')) {
+    console.error('  ✗ HEAD is not origin/main: run `git pull --ff-only` first.\n');
     process.exit(1);
   }
-  console.log(`  ✓ Release v${newVersion} published.\n`);
+  const sha = runOrDie(`git log -1 --format=%H --fixed-strings --grep=":rocket:(release): ${tag}" HEAD`);
+  if (!sha) {
+    console.error(`  ✗ No version commit of ${tag} in main: merge the release PR with a merge commit (not squash).\n`);
+    process.exit(1);
+  }
+  runOrDie(`git tag -a ${tag} -m ":rocket:(release): ${tag}" ${sha}`);
+  runOrDie(`git push origin ${tag}`);
+  if (!runOrDie(`git ls-remote --tags origin ${tag}`)) {
+    console.error(`\n  ✗ Tag ${tag} is not on origin after the push.`);
+    process.exit(1);
+  }
+  console.log(`  ✓ Release ${tag} published.\n`);
 }
 
 function main() {
   const args = parseArgs();
   if (args.dryRun) console.log('\n  ⚠️  DRY RUN — no files will be modified\n');
 
-  handlePublishMerge(args);
+  requirePublishBranch(args);
+  if (args.tag) {
+    if (!args.dryRun) tagRelease();
+    return;
+  }
 
   const stableTag = lastStableTag();
   const allCommits = collectCommits(args, stableTag);
