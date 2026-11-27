@@ -43,7 +43,8 @@ function version(path) {
   return JSON.parse(readFileSync(join(repo, path, 'package.json'), 'utf-8')).version;
 }
 
-before(() => {
+function initRepo() {
+  if (repo) rmSync(repo, { recursive: true, force: true });
   repo = mkdtempSync(join(tmpdir(), 'release-'));
   git('init', '-q');
   mkdirSync(join(repo, 'scripts'));
@@ -54,7 +55,11 @@ before(() => {
   commit(':tada:(common): initial');
   git('tag', '-a', 'v3.0.0', '-m', 'v3.0.0');
   commit(':sparkles:(common): add a feature');
-});
+  git('branch', '-q', '-M', 'main');
+  git('branch', 'development');
+}
+
+before(initRepo);
 
 after(() => rmSync(repo, { recursive: true, force: true }));
 
@@ -140,7 +145,71 @@ test('--publish commits the version on release/vX on a branch cut from developme
   assert.equal(git('rev-parse', 'main'), git('rev-parse', 'development'));
 });
 
+
+
+test('--prepare refuses main, development, a dirty release/* tree, and --publish / --version / --dry-run', () => {
+  const head = git('rev-parse', 'HEAD');
+  const refusals = [['main'], ['development'], ['release/v3.1.0', true]];
+  for (const [branch, dirty] of refusals) {
+    git('checkout', '-q', '-B', branch);
+    if (dirty) writeFileSync(join(repo, 'dirty.txt'), 'x');
+    const { status, out } = release('--prepare');
+    if (dirty) rmSync(join(repo, 'dirty.txt'));
+    assert.equal(status, 1, `${branch}: ${out}`);
+    assert.match(out, dirty ? /--prepare requires a clean working tree/ : /--prepare requires being on a release\/\* branch/);
+  }
+  for (const args of [['--publish'], ['--version', '3.1.0'], ['--dry-run']]) {
+    const { status, out } = release('--prepare', ...args);
+    assert.equal(status, 1, `${args.join(' ')}: ${out}`);
+    assert.match(out, /--prepare cannot be combined/);
+  }
+  assert.equal(git('rev-parse', 'HEAD'), head);
+});
+
+test('--prepare on release/*: one release commit, no tag, no merge, last line version=vX.Y.Z', () => {
+  for (const [args, expected] of [[['--prerelease', 'rc'], 'v3.1.0-rc.10'], [[], 'v3.1.0']]) {
+    git('checkout', '-q', '-B', 'release/v3.1.0', 'main');
+    const tags = git('tag', '--list');
+    const { status, out } = release('--prepare', ...args);
+    assert.equal(status, 0, out);
+    assert.equal(out.trim().split('\n').at(-1), `version=${expected}`);
+    assert.equal(git('log', '-1', '--format=%s'), `:rocket:(release): ${expected}\n`);
+    assert.equal(git('rev-parse', 'HEAD~1'), git('rev-parse', 'main'));
+    assert.equal(git('tag', '--list'), tags);
+    assert.equal(version('.'), expected.slice(1));
+  }
+});
+
+test('--prepare, two cycles without merging main back into development: new version, no published entry, PR without conflict', () => {
+  const prepareFromDevelopment = branch => {
+    git('checkout', '-q', '-B', branch, 'development');
+    const { status, out } = release('--prepare');
+    assert.equal(status, 0, out);
+    return out.trim().split('\n').at(-1).slice('version='.length);
+  };
+  git('checkout', '-q', '-B', 'development', 'main');
+  writeJson('services/old/package.json', { name: 'old', version: '3.0.0' });
+  commit(':sparkles:(docs): feat A');
+  const first = prepareFromDevelopment('release/first');
+  git('checkout', '-q', 'main');
+  git('merge', '-q', '--no-ff', '--no-edit', 'release/first');
+  git('tag', '-a', first, '-m', first);
+
+  git('checkout', '-q', 'development');
+  git('rm', '-q', '-r', 'services/old');
+  commit(':bug:(docs): fix B');
+  const second = prepareFromDevelopment('release/second');
+  const [, major, minor, patch] = first.match(/^v(\d+)\.(\d+)\.(\d+)$/).map(Number);
+  assert.equal(second, `v${major}.${minor}.${patch + 1}`);
+  const section = readFileSync(join(repo, 'CHANGELOG.md'), 'utf-8').split('\n## [')[0];
+  assert.match(section, /fix B/);
+  assert.doesNotMatch(section, /feat A/);
+  assert.equal(version('.'), second.slice(1));
+  git('merge-tree', '--write-tree', 'main', 'HEAD'); // throws on a conflict
+});
+
 test('--tag refuses off main; full flow: publish, merge into main and development, tag, next publish restarts from that tag', () => {
+  initRepo();
   git('checkout', '-q', 'development');
   assert.match(release('--tag').out, /requires being on main/);
   const remote = mkdtempSync(join(tmpdir(), 'release-origin-'));
@@ -148,7 +217,8 @@ test('--tag refuses off main; full flow: publish, merge into main and developmen
     git('init', '-q', '--bare', remote);
     git('remote', 'add', 'origin', remote);
     git('push', '-q', 'origin', 'main', 'development');
-    assert.equal(release('--publish').status, 0);
+    const pub = release('--publish');
+    assert.equal(pub.status, 0, pub.out);
     git('checkout', '-q', 'main');
     git('commit', '-q', '--allow-empty', '--no-verify', '-m', 'local only');
     assert.match(release('--tag').out, /HEAD is not origin\/main/);
@@ -165,4 +235,3 @@ test('--tag refuses off main; full flow: publish, merge into main and developmen
     rmSync(remote, { recursive: true, force: true });
   }
 });
-
