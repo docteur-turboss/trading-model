@@ -52,6 +52,9 @@
 #   deploy-release.sh schema-check <namespace> <migrations-dir>
 #       Rollback input of deploy.yml: fails, naming them, when the live schema has applied migrations
 #       this checkout (the ref redeployed) lacks. Never migrates down. No MySQL: passes.
+#   deploy-release.sh prune-network-policies <namespace> < app-scope.yaml
+#       Rollback input of deploy.yml: deletes the NetworkPolicies (part-of trading-model) the
+#       rendered release lacks, e.g. N's default-deny-all, which cuts N-1 pods off DNS.
 #
 # GRAFANA_ALLOWED_CIDRS: comma-separated CIDRs; `render` sets them as whitelist-source-range of grafana-ingress (issue #1630).
 # DEPLOY_TIMEOUT_FACTOR: integer the wait and rollback timeouts are multiplied
@@ -221,7 +224,7 @@ spec:
 }
 
 usage() {
-	echo "usage: $0 without-redis <ns> | prepull <ns> | redis-last <ns> | record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | dry-run <ns> <node-agents-dir> | wait <ns> [timeout] | rollback <ns> <file> | forget <ns> | pre-migrate-backup <ns> <job> <env>" >&2
+	echo "usage: $0 without-redis <ns> | prepull <ns> | redis-last <ns> | record <ns> <file> | release-replicas <ns> | render <overlay-dir> <registry> <digests-file> | dry-run <ns> <node-agents-dir> | wait <ns> [timeout] | rollback <ns> <file> | forget <ns> | pre-migrate-backup <ns> <job> <env> | schema-check <ns> <dir> | prune-network-policies <ns>" >&2
 	exit 64
 }
 
@@ -564,6 +567,13 @@ schema_check() {
 	}
 }
 
+prune_network_policies() {
+	local ns="$1" keep
+	keep=$(kubectl apply --dry-run=client --output=name -f - | grep '^networkpolicy' | sort) || return 1
+	comm -13 <(echo "$keep") <(kubectl get networkpolicies -n "$ns" -l app.kubernetes.io/part-of=trading-model --output=name | sort) |
+		xargs -r kubectl delete -n "$ns"
+}
+
 case "${1:-}" in
 deployments) echo $DEPLOYMENTS ;;
 pre-migrate-backup) [ $# -eq 4 ] || usage; pre_migrate_backup "$2" "$3" "$4" ;;
@@ -577,6 +587,7 @@ dry-run) [ $# -eq 3 ] || usage; dry_run "$2" "$3" ;;
 wait) [ $# -ge 2 ] || usage; wait_rollout "$2" "${3:-180s}" ;;
 rollback) [ $# -eq 3 ] || usage; rollback "$2" "$3" ;;
 schema-check) [ $# -eq 3 ] || usage; schema_check "$2" "$3" ;;
+prune-network-policies) [ $# -eq 2 ] || usage; prune_network_policies "$2" ;;
 forget) [ $# -eq 2 ] || usage; forget "$2" ;;
 *) usage ;;
 esac

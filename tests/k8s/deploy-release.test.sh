@@ -43,6 +43,10 @@ cat >"$WORK/bin/kubectl" <<'STUB'
 # Revisions: $STUB_REVS "dep=rev" (absent: no Deployment). Undo of $STUB_UNDO_FAILS fails.
 # Grace periods: $STUB_GRACE "dep=seconds" (absent: none in the template).
 echo "$*" >>"$STUB_LOG"
+# Rollback prune (issue #3021): the render holds networkpolicy/keep, the live ones are $STUB_NETPOL.
+[[ $* == *--dry-run=client* ]] && { cat >/dev/null; echo networkpolicy/keep; exit 0; }
+[ "$1" = get ] && [ "$2" = networkpolicies ] && { printf 'networkpolicy/%s
+' $STUB_NETPOL; exit 0; }
 # API server down: `get deployments` fails while the count in $STUB_API_DOWN is above 0.
 if [ "$2" = deployments ] && [ -n "${STUB_API_DOWN:-}" ] && [ "$(cat "$STUB_API_DOWN")" -gt 0 ]; then
 	echo $(($(cat "$STUB_API_DOWN") - 1)) >"$STUB_API_DOWN"
@@ -293,6 +297,11 @@ out="$(STUB_MASTER= STUB_IDS='001_a
 002_b
 ' bash "$SCRIPT" schema-check ns "$WORK/migs" 2>&1)" &&
 	ko "schema-check accepted a newer schema" || { [[ "$out" == *"002_b"* ]] && ok "schema-check: newer schema refused, names 002_b" || ko "schema-check message: $out"; }
+
+: >"$WORK/log"
+echo x | STUB_NETPOL="keep default-deny-all" bash "$SCRIPT" prune-network-policies ns >/dev/null &&
+	[ "$(grep -c '^delete ' "$WORK/log")" -eq 1 ] && grep -q '^delete -n ns networkpolicy/default-deny-all$' "$WORK/log" &&
+	ok "prune-network-policies deletes only the policy the render lacks" || ko "prune-network-policies: $(cat "$WORK/log")"
 
 # Token expiry check of the "Configure kubeconfigs" step of deploy.yml (issue #1978): fake kubeconfigs holding only a JWT.
 jwt() { printf '{"exp":%s}' "$1" | base64 -w0 | tr '+/' '-_' | tr -d '='; }

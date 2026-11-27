@@ -1016,6 +1016,10 @@ jobs:
           # Redis last ("Wait for rollout"): it never restarts under the previous release (issue #1156).
           bash deploy/k8s/scripts/deploy-release.sh without-redis "$NAMESPACE" <"$RUNNER_TEMP/app.yaml" |
             kubectl apply -f -
+          # Full rollback: NetworkPolicies only N has (default-deny-all) would cut N-1 pods off DNS.
+          if [ "${{ inputs.rollback }}" = true ]; then
+            bash deploy/k8s/scripts/deploy-release.sh prune-network-policies "$NAMESPACE" <"$RUNNER_TEMP/app.yaml"
+          fi
 
       # Public age key(s) the db-backup CronJob encrypts every dump for (the
       # private keys never enter the cluster). Environment variable of the

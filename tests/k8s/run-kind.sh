@@ -820,22 +820,13 @@ full_rollback() {
 			# N-1 predates podManagementPolicy: Parallel (immutable): as release-replicas does for the other way round.
 			{ [ "$($K get statefulset redis -n "$NS" -o jsonpath='{.spec.podManagementPolicy}')" != Parallel ] || [ -n "$(grep -s podManagementPolicy "$PREVIOUS/deploy/k8s/infra/redis.yaml")" ] || $K delete statefulset redis -n "$NS" --cascade=orphan; } &&
 			apply_release "$PREVIOUS" "$WORK/digests-previous" &&
+			release_script prune-network-policies "$NS" <"$WORK/app.yaml" &&
 			release_script wait "$NS" &&
 			release_script redis-last "$NS" <"$WORK/app.yaml" &&
 			SMOKE_SKIP="model-evaluator risk-execution decision-consumer" deploy_script smoke-test &&
 			release_script forget "$NS"
 	} 2>&1 | tee "$out"
-	[ "${PIPESTATUS[0]}" = 0 ] || {
-		# The rollout diagnostics omit the redis and sentinel containers: show why N-1 Redis did not settle.
-		for c in redis-0:redis redis-sentinel-0:sentinel; do
-			$K -n "$NS" logs "${c%%:*}" -c "${c##*:}" --tail=40 || true
-			$K -n "$NS" logs "${c%%:*}" -c "${c##*:}" --previous --tail=40 || true
-		done
-		# The sentinel logs nothing while it waits for a master: ask it what it sees.
-		$K -n "$NS" exec redis-sentinel-0 -c sentinel -- sh -c 'env | grep -E "^(REDIS_HOSTS|SENTINEL_HOSTS|REDIS_TLS_MODE)="; for h in $REDIS_HOSTS; do echo "== $h"; getent hosts "$h"; REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli -h "$h" --user ha ROLE; REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli -h "$h" --user ha PING; done' 2>&1 || true
-		$K -n "$NS" get statefulset redis redis-sentinel -o wide || true
-		return 1
-	}
+	[ "${PIPESTATUS[0]}" = 0 ] || return 1
 	! grep -qi 'db-migrate\|migrations applied' "$out" && [ "$(applied_migrations)" = "$migrations_before" ] || {
 		log "the full rollback ran a migration"
 		return 1
