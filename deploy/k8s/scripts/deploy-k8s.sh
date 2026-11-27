@@ -442,11 +442,12 @@ cmd_smoke_test() {
     # Up to 12 answers, 5 s apart: one slow Redis connect just after the rollout is not a
     # failed release (run 43367462523), and Redis now rolls last, right before this test:
     # its Sentinel clients need time to resolve the master again (run 43634583251).
+    # Each answer within 5 s: a NetworkPolicy drop otherwise waits out the TCP connect (~2 min, issue #3070).
     local code="" try
     for try in $(seq 1 12); do
       # node, not curl: the service images (node alpine) ship no curl.
       code=$(kubectl exec -n "$NAMESPACE" deployment/api-gateway -c api-gateway -- \
-        node -e 'const f=require("fs"),d="/run/spire/svid/";require(process.argv[1].split(":")[0]).get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("error",()=>process.exit(1))' "$url" >/dev/null 2>&1 && echo 200 || true)
+        node -e 'const f=require("fs"),d="/run/spire/svid/";require(process.argv[1].split(":")[0]).get(process.argv[1],{cert:f.readFileSync(d+"svid.pem"),key:f.readFileSync(d+"svid_key.pem"),rejectUnauthorized:false,timeout:5000},r=>{r.pipe(process.stdout);process.exitCode=r.statusCode<300?0:1}).on("timeout",()=>process.exit(1)).on("error",()=>process.exit(1))' "$url" >/dev/null 2>&1 && echo 200 || true)
       [[ "$code" == "200" || "$try" -eq 12 ]] && break
       sleep 5
     done

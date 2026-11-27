@@ -18,7 +18,8 @@
 # signed images pulled from this registry instead of built; needs cosign; CI
 # sets both to the last stable tag with published images),
 # KIND_OVERLAY (overlay of both releases, default staging; staging-local keeps
-# the data StatefulSets partitioned, issue #1066, e.g. with KIND_PREVIOUS_REF=v3.1.0-rc.1).
+# the data StatefulSets partitioned, issue #1066, e.g. with KIND_PREVIOUS_REF=v3.1.0-rc.1),
+# KIND_FULL_ROLLBACK=0 (`upgrade` skips the full rollback N → N-1 and back; CI runs it in the backup group only).
 # Needs docker, git, kubectl, node, jq.
 #
 # `all` deletes the cluster when it ends: a forgotten cluster keeps the whole
@@ -791,8 +792,12 @@ upgrade() {
 		log "  min(mysql_up)=$(prometheus_value 'min(mysql_up)') min(redis_up)=$(prometheus_value 'min(redis_up)') min(mongodb_up)=$(prometheus_value 'min(mongodb_up)')"
 		return 1
 	}
-	full_rollback || return 1
-	log "OK: upgrade N-1 → N, forced failure and rollback, migrate-down 1 and up, full rollback in $((SECONDS - started)) s"
+	if [ "${KIND_FULL_ROLLBACK:-1}" = 0 ]; then
+		log "full rollback skipped (KIND_FULL_ROLLBACK=0)"
+	else
+		full_rollback || return 1
+	fi
+	log "OK: upgrade N-1 → N, forced failure and rollback, migrate-down 1 and up in $((SECONDS - started)) s"
 	[ -z "${GITHUB_STEP_SUMMARY:-}" ] ||
 		echo "Upgrade N-1 → N with forced failure and rollback: $((SECONDS - started)) s" >>"$GITHUB_STEP_SUMMARY"
 }
@@ -800,6 +805,8 @@ upgrade() {
 # deploy.yml with rollback=true (issue #3021), from release N: the schema guard refuses a schema
 # N-1 does not know, then (after an explicit migrate-down, as the runbook says) N-1 is applied
 # whole with no migration, and NetworkPolicies and CronJobs are N-1's. Ends back on N.
+# wait and smoke-test come from N-1's checkout, as deploy.yml runs them from the N-1 tag: N's
+# smoke-test probes from api-gateway, which N-1's NetworkPolicies may refuse (issue #3070).
 full_rollback() {
 	local drift unknown migrations_before out
 	log "full rollback N → N-1 (deploy.yml rollback=true)"
@@ -821,9 +828,9 @@ full_rollback() {
 			{ [ "$($K get statefulset redis -n "$NS" -o jsonpath='{.spec.podManagementPolicy}')" != Parallel ] || [ -n "$(grep -s podManagementPolicy "$PREVIOUS/deploy/k8s/infra/redis.yaml")" ] || $K delete statefulset redis -n "$NS" --cascade=orphan; } &&
 			apply_release "$PREVIOUS" "$WORK/digests-previous" &&
 			release_script prune-network-policies "$NS" <"$WORK/app.yaml" &&
-			release_script wait "$NS" &&
+			(cd "$PREVIOUS" && use_kube && bash deploy/k8s/scripts/deploy-release.sh wait "$NS") &&
 			release_script redis-last "$NS" <"$WORK/app.yaml" &&
-			SMOKE_SKIP="model-evaluator risk-execution decision-consumer" deploy_script smoke-test &&
+			(cd "$PREVIOUS" && use_kube && K8S_NAMESPACE="$NS" SMOKE_SKIP="model-evaluator risk-execution decision-consumer" bash deploy/k8s/scripts/deploy-k8s.sh smoke-test) &&
 			release_script forget "$NS"
 	} 2>&1 | tee "$out"
 	[ "${PIPESTATUS[0]}" = 0 ] || return 1
