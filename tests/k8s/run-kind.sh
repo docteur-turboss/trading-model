@@ -839,7 +839,8 @@ full_rollback() {
 		return 1
 	}
 	# $WORK/app.yaml is N-1's render: any NetworkPolicy or CronJob still differing from it stayed on N.
-	drift="$($K diff -f "$WORK/app.yaml" 2>/dev/null | grep -E '^diff .*(NetworkPolicy|CronJob).' || true)"
+	# discovery-server is retired in N: `forget` deletes it after the smoke test, so it always differs.
+	drift="$($K diff -f "$WORK/app.yaml" 2>/dev/null | grep -E '^diff .*(NetworkPolicy|CronJob).' | grep -v discovery-server-network-policy || true)"
 	[ -z "$drift" ] || {
 		log "NetworkPolicies or CronJobs not back on N-1: $drift"
 		return 1
