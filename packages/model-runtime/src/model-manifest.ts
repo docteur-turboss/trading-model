@@ -101,7 +101,13 @@ export const ModelManifestSchema = z.object({
 	/** Normalization statistics of the symbol at the end of training. */
 	normalization: z.record(z.string(), z.unknown()),
 	/** Constraint the policy learned under; absent on older manifests (DEFAULT_MAX_EXPOSURE_FRACTION). */
-	riskLimits: z.object({ maxExposureFraction: z.number() }).optional(),
+	riskLimits: z
+		.object({
+			maxExposureFraction: z.number(),
+			/** ADR-0076 step 5: largest share of the equity in one sector, an allocator input; absent: no limit. */
+			maxConcentration: z.number().optional(),
+		})
+		.optional(),
 	metrics: ModelMetricsSchema,
 	/** ADR-0030 verdict on the test segment (ADR-0069); absent: not admissible. */
 	admission: z
@@ -121,8 +127,8 @@ export const ModelManifestSchema = z.object({
 			}),
 		})
 		.optional(),
-	/** ADR-0076 step 4: `sector` = a manager over `components`; absent = an asset model (N-1 readers ignore it). */
-	role: z.enum(["asset", "sector"]).optional(),
+	/** ADR-0076 step 4: `sector` = a manager over `components`, `allocator` = a portfolio allocator over sector `components`; absent = an asset model (N-1 readers ignore it). */
+	role: z.enum(["asset", "sector", "allocator"]).optional(),
 	/** Analysts of a sector, by `(symbol, version)`; older manifests list other components without a `symbol`. */
 	components: z
 		.array(

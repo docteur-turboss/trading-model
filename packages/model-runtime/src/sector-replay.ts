@@ -156,32 +156,92 @@ function rebalance(wallet: MultiAssetWallet, targets: readonly Target[]): void {
 	}
 }
 
+/** Limits the allocator trains under and production clips to (ADR-0076 §8, Q3). */
+export interface AllocatorLimits {
+	/** Largest invested share of the equity. */
+	maxExposureFraction: number;
+	/** Largest share of the equity in one sector. */
+	maxConcentration: number;
+}
+
+/** Allocator inputs besides the sectors' views: the two limits. */
+const LIMIT_INPUTS = 2;
+/** Per sector: pooled mean of the signal fields plus the manager's exposure. */
+const SECTOR_VIEW_DIM = SIGNAL_DIM + 1;
+
+/** Input size of the allocator network for `sectors` sectors. */
+export const allocatorInputDim = (sectors: number): number =>
+	sectors * SECTOR_VIEW_DIM + LIMIT_INPUTS;
+
 /**
- * Replays a sector (ADR-0076 §3): analysts read their own asset, the manager
- * pools their signals, picks weights and exposure, and the portfolio trades
- * on a shared-cash wallet, filling at the next bar's open (ADR-0066). Only the
- * bars every asset has, from `testFrom`, are played. Throws when a network
- * does not fit, or when assets share fewer than 2 bars.
+ * Sector shares of the equity from the allocator's raw outputs (one per
+ * sector, then cash): softmax, each share clipped to the concentration limit,
+ * the total scaled to the exposure limit. Holds whatever the network says.
  */
-export function replaySector(input: {
-	assets: readonly {
-		symbol: string;
-		analyst: SectorNetwork;
-		candles: CandleData[];
+export function clipAllocation(
+	outputs: ArrayLike<number>,
+	limits: AllocatorLimits
+): number[] {
+	const raw = Array.from(outputs);
+	const top = Math.max(...raw);
+	const exps = raw.map((value) => Math.exp(value - top));
+	const total = exps.reduce((sum, value) => sum + value, 0);
+	const capped = exps
+		.slice(0, -1)
+		.map((value) => Math.min(value / total, limits.maxConcentration));
+	const invested = capped.reduce((sum, value) => sum + value, 0);
+	const scale =
+		invested > limits.maxExposureFraction
+			? limits.maxExposureFraction / invested
+			: 1;
+	return capped.map((value) => value * scale);
+}
+
+/**
+ * Replays sectors (ADR-0076 §3, §7) on one shared-cash portfolio, filling at
+ * the next bar's open (ADR-0066): analysts read their own asset, each manager
+ * pools its analysts' signals and picks weights and exposure. One sector and
+ * no allocator: the manager's exposure is the share. Several sectors: the
+ * allocator picks the sector shares and the cash, clipped to its limits. Only
+ * the bars every asset has, from `testFrom`, are played. Throws when a
+ * network does not fit, or when assets share fewer than 2 bars.
+ */
+export function replaySectors(input: {
+	sectors: readonly {
+		assets: readonly {
+			symbol: string;
+			analyst: SectorNetwork;
+			candles: CandleData[];
+		}[];
+		manager: SectorNetwork;
+		pooling: PoolingMode;
 	}[];
-	manager: SectorNetwork;
-	pooling: PoolingMode;
+	allocator?: { network: SectorNetwork; limits: AllocatorLimits };
 	testFrom: number;
 	simulator: SimulatorParams;
 }): SegmentRatios & { feesPaid: number; executionCostPaid: number } {
-	const { assets, pooling, simulator } = input;
-	const managerNet = input.manager.genome.network;
-	if (managerNet.inputDim !== managerInputDim(pooling)) {
-		throw new Error("manager input size does not match the pooling mode");
+	const { sectors, allocator, simulator } = input;
+	for (const sector of sectors) {
+		const managerNet = sector.manager.genome.network;
+		if (managerNet.inputDim !== managerInputDim(sector.pooling)) {
+			throw new Error("manager input size does not match the pooling mode");
+		}
+		if (managerNet.outputDim !== MANAGER_OUTPUT_DIM) {
+			throw new Error(`manager outputs ${MANAGER_OUTPUT_DIM} values`);
+		}
 	}
-	if (managerNet.outputDim !== MANAGER_OUTPUT_DIM) {
-		throw new Error(`manager outputs ${MANAGER_OUTPUT_DIM} values`);
+	if (allocator) {
+		const net = allocator.network.genome.network;
+		if (
+			net.inputDim !== allocatorInputDim(sectors.length) ||
+			net.outputDim !== sectors.length + 1
+		) {
+			throw new Error("allocator network does not fit the sectors");
+		}
+	} else if (sectors.length !== 1) {
+		throw new Error("several sectors need an allocator");
 	}
+	const assets = sectors.flatMap((sector) => sector.assets);
 	const stepsOf = assets.map(
 		(asset) =>
 			new Map<number, CandleStep>(
@@ -199,7 +259,15 @@ export function replaySector(input: {
 	const analysts = assets.map((asset) =>
 		inferenceEngine(asset.analyst.genome.network, asset.analyst.weights)
 	);
-	const manager = inferenceEngine(managerNet, input.manager.weights);
+	const managers = sectors.map((sector) =>
+		inferenceEngine(sector.manager.genome.network, sector.manager.weights)
+	);
+	const allocatorEngine = allocator
+		? inferenceEngine(
+				allocator.network.genome.network,
+				allocator.network.weights
+			)
+		: undefined;
 	const wallet = new MultiAssetWallet(
 		{
 			initialCash: Cash.of(simulator.initialCash),
@@ -229,22 +297,54 @@ export function replaySector(input: {
 			padded.set(market.subarray(0, network.inputDim));
 			return toAssetSignal(engine.forward(padded).output);
 		});
-		const pooled = poolSignals(signals, pooling);
-		const { weights, exposure } = sectorDecision(
-			signals.map(
-				(signal) =>
-					manager.forward(Float32Array.from([...fields(signal), ...pooled]))
-						.output
-			)
-		);
+		let offset = 0;
+		const decided = sectors.map((sector, idx) => {
+			const own = signals.slice(offset, offset + sector.assets.length);
+			offset += own.length;
+			const pooled = poolSignals(own, sector.pooling);
+			return {
+				pooled,
+				...sectorDecision(
+					own.map(
+						(signal) =>
+							managers[idx].forward(
+								Float32Array.from([...fields(signal), ...pooled])
+							).output
+					)
+				),
+			};
+		});
+		const sectorShares =
+			allocator && allocatorEngine
+				? clipAllocation(
+						allocatorEngine.forward(
+							Float32Array.from([
+								...decided.flatMap((sector) => [
+									...sector.pooled.slice(0, SIGNAL_DIM),
+									sector.exposure,
+								]),
+								allocator.limits.maxExposureFraction,
+								allocator.limits.maxConcentration,
+							])
+						).output,
+						allocator.limits
+					)
+				: [decided[0].exposure];
 		rebalance(
 			wallet,
-			assets.map((asset, idx) => ({
-				symbol: asset.symbol,
-				fill: steps[idx].fillPrice,
-				share: weights[idx] * exposure,
-				price: steps[idx].price,
-			}))
+			decided.flatMap((sector, sectorIdx) =>
+				sector.weights.map((weight, pos) => {
+					const idx = sectors
+						.slice(0, sectorIdx)
+						.reduce((sum, item) => sum + item.assets.length, pos);
+					return {
+						symbol: assets[idx].symbol,
+						fill: steps[idx].fillPrice,
+						share: weight * sectorShares[sectorIdx],
+						price: steps[idx].price,
+					};
+				})
+			)
 		);
 	}
 	const marks = timestamps.map((timestamp) => ({
@@ -255,4 +355,16 @@ export function replaySector(input: {
 		...segmentRatios(new EpisodeScores(curve), barsPerYear(marks) ?? 1, marks),
 		...wallet.costsPaid,
 	};
+}
+
+/** One sector: the replay of step 4. */
+export function replaySector(input: {
+	assets: Parameters<typeof replaySectors>[0]["sectors"][number]["assets"];
+	manager: SectorNetwork;
+	pooling: PoolingMode;
+	testFrom: number;
+	simulator: SimulatorParams;
+}): ReturnType<typeof replaySectors> {
+	const { testFrom, simulator, ...sector } = input;
+	return replaySectors({ sectors: [sector], testFrom, simulator });
 }

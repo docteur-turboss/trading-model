@@ -4,10 +4,13 @@ import { FEATURE_DIM } from "../src/feature-vector-codec";
 import { ActivationType, NormalisationType } from "../src/neural-network/type";
 import type { PolicyGenome } from "../src/replay";
 import {
+	allocatorInputDim,
+	clipAllocation,
 	managerInputDim,
 	type PoolingMode,
 	poolSignals,
 	replaySector,
+	replaySectors,
 	SIGNAL_DIM,
 	sectorDecision,
 	toAssetSignal,
@@ -128,5 +131,46 @@ describe("sector replay (ADR-0076 step 4)", () => {
 				testFrom: T0 + 1e9,
 			})
 		).toThrow("fewer than 2 bars");
+	});
+
+	it("clips any allocator output to the concentration and exposure limits", () => {
+		const limits = { maxExposureFraction: 0.5, maxConcentration: 0.3 };
+		for (const out of [
+			[50, -50, -50, -50],
+			[0, 0, 0, 0],
+			[-9, -9, -9, 40],
+		]) {
+			const shares = clipAllocation(out, limits);
+			expect(Math.max(...shares)).toBeLessThanOrEqual(0.3 + 1e-12);
+			expect(shares.reduce((sum, w) => sum + w, 0)).toBeLessThanOrEqual(
+				0.5 + 1e-12
+			);
+		}
+	});
+
+	it("replays two sectors under an allocator, and refuses several without one", () => {
+		const sector = (name: string, phase: number) => ({
+			assets: [0, 1].map((idx) => ({
+				symbol: `${name}${idx}`,
+				analyst: network(FEATURE_DIM, SIGNAL_DIM, idx + phase),
+				candles: candlesOf(idx + phase),
+			})),
+			manager: network(managerInputDim("mean"), 2, 9 + phase),
+			pooling: "mean" as const,
+		});
+		const base = {
+			sectors: [sector("A", 0), sector("B", 3)],
+			testFrom: T0 + 60 * 60_000,
+			simulator: SIMULATOR,
+		};
+		const ratios = replaySectors({
+			...base,
+			allocator: {
+				network: network(allocatorInputDim(2), 3, 5),
+				limits: { maxExposureFraction: 0.5, maxConcentration: 0.3 },
+			},
+		});
+		expect(ratios.feesPaid).toBeGreaterThan(0);
+		expect(() => replaySectors(base)).toThrow("need an allocator");
 	});
 });
