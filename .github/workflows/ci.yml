@@ -535,7 +535,7 @@ jobs:
       KIND: ./kind
       # The network group runs on 3 nodes with the production Redis HA and spread patches (#2657, run-kind.sh verify_ha).
       KIND_NODES: ${{ matrix.group == 'network' && '3' || '1' }}
-      # Full rollback N → N-1 and back (deploy.yml rollback=true, ~8 min): the backup group only, the one with 60 min (#3070).
+      # Full rollback N → N-1 and back (deploy.yml rollback=true, ~4 min): the backup group only, the one with 60 min (#3070).
       KIND_FULL_ROLLBACK: ${{ matrix.group == 'backup' && '1' || '0' }}
       # Restore drill timings (tests/backup/drill-timings.sh): JSON uploaded
       # below, table in the job summary. RESTORE_DRILL_BUDGET_SECONDS (default
