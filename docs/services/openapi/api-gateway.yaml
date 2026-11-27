@@ -1144,6 +1144,7 @@ paths:
                         enum:
                           - "mean"
                           - "mean+max"
+                          - "attention"
                       replay:
                         type: "object"
                         properties:
