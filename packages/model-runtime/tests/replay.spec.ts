@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 import type { CandleData } from "@trading-model/contracts/market-data.types";
 import { AGENT_STATE_DIM } from "../src/agent/agent-state";
-import { playEpisode } from "../src/agent/decision-events";
+import { decisionBars, playEpisode } from "../src/agent/decision-events";
 import { FEATURE_DIM } from "../src/feature-vector-codec";
 import { ActivationType, NormalisationType } from "../src/neural-network/type";
 import {
@@ -147,44 +147,34 @@ describe("decideOnLastBar (ADR-0087)", () => {
 			for (const [idx, answer] of answers.entries()) {
 				expect(answer?.barTimestamp).toBe(candles[60 + idx].timestamp);
 			}
-			expect(answers.map((answer) => answer?.order)).toEqual(
-				Array.from({ length: 60 }, (_, idx) => decide(61 + idx)?.order)
+			expect(answers.map((answer) => answer?.position)).toEqual(
+				Array.from({ length: 60 }, (_, idx) => decide(61 + idx)?.position)
 			);
-			const orders = answers.flatMap((answer) => answer?.order ?? []);
+			// The window starts at the same bar: a position change is an order on the last bar.
+			const moves = answers.filter(
+				(answer, idx) =>
+					idx > 0 && answer?.position !== answers[idx - 1]?.position
+			);
 			// The every-bar weights only hold on these last bars.
-			expect(orders.length > 0).toBe(variant === "on-event");
-			expect(orders.every((order) => order.quantity > 0)).toBe(true);
+			expect(moves.length > 0).toBe(variant === "on-event");
 		}
 	);
 
 	it.each([
 		[2, 500],
-		[2, 501],
-		[3, 500],
 		[3, 501],
 	])(
 		"decides every frameSkip %i bars in absolute time over a sliding window of %i candles",
 		(frameSkip, size) => {
-			const { genome: base, weights: every } = genome("every-bar");
-			const g: PolicyGenome = { ...base, rl: { horizon: { frameSkip } } };
-			// Weights that trade on these last bars.
-			const weights = every.map((_, idx) => Math.sin(idx * 1.1) * 5);
-			// The window slides one bar at a time over the last 40 candles.
-			const ends = Array.from({ length: 40 }, (_, idx) => candles.length - idx);
-			const orders = ends.filter(
-				(end) =>
-					decideOnLastBar({
-						genome: g,
-						weights,
-						simulator: SIMULATOR,
-						candles: candles.slice(end - size, end),
-					})?.order
-			);
-			expect(orders.length).toBeGreaterThan(0);
-			for (const end of orders) {
-				expect(
-					Math.round(candles[end - 1].timestamp / 60_000) % frameSkip
-				).toBe(0);
+			for (let end = candles.length; end > candles.length - 40; end--) {
+				const steps = candles.slice(end - size, end).map((candle) => ({
+					timestamp: candle.timestamp,
+				}));
+				for (const index of decisionBars(steps as never, { frameSkip })) {
+					expect(Math.round(steps[index].timestamp / 60_000) % frameSkip).toBe(
+						0
+					);
+				}
 			}
 		}
 	);

@@ -82,7 +82,7 @@ beforeEach(() => {
 	decideOnLastBar.mockReturnValue({
 		barTimestamp: BAR,
 		price: 60_000,
-		order: { side: "buy", quantity: 0.012345678912 },
+		position: 0.017345678912,
 	});
 });
 
@@ -159,7 +159,7 @@ describe("decision tick", () => {
 		decideOnLastBar.mockReturnValue({
 			barTimestamp: BAR,
 			price: 60_000,
-			order: { side: "sell", quantity: 0.012 },
+			position: 0,
 		});
 		const { tick, risk } = build();
 		await tick();
@@ -174,6 +174,11 @@ describe("decision tick", () => {
 
 	it("bounds a buy by the room left under the exposure cap", async () => {
 		// cap = 1_000_000 x 0.1 / 60_000 = 1.667 coin; 1.66 already held
+		decideOnLastBar.mockReturnValue({
+			barTimestamp: BAR,
+			price: 60_000,
+			position: 3,
+		});
 		const { tick, risk } = build();
 		risk.position.mockResolvedValue(1.66);
 		await tick();
@@ -217,7 +222,7 @@ describe("decision tick", () => {
 		decideOnLastBar.mockReturnValue({
 			barTimestamp: BAR + 60_000,
 			price: 1,
-			order: { side: "sell", quantity: 1 },
+			position: 0,
 		});
 		setNow(NOW + 60_000);
 		await tick();
@@ -249,7 +254,11 @@ describe("decision tick", () => {
 			clientOrderId: "o2",
 		});
 		await tick();
-		decideOnLastBar.mockReturnValue({ barTimestamp: BAR + 60_000, price: 1 });
+		decideOnLastBar.mockReturnValue({
+			barTimestamp: BAR + 60_000,
+			price: 1,
+			position: 0.005,
+		});
 		setNow(NOW + 60_000);
 		await tick();
 		expect(risk.send).toHaveBeenCalledTimes(1);
@@ -266,6 +275,30 @@ describe("decision tick", () => {
 				}),
 			])
 		);
+	});
+
+	it("converges on the target position whatever happened before", async () => {
+		// Rejected order, skipped pass, restart, model already long in its window: only the gap to the real position counts.
+		decideOnLastBar.mockReturnValue({
+			barTimestamp: BAR,
+			price: 60_000,
+			position: 0.5,
+		});
+		const { tick, risk, setNow } = build();
+		risk.position.mockResolvedValue(0.25);
+		await tick();
+		expect(risk.send).toHaveBeenLastCalledWith(
+			expect.objectContaining({ side: "buy", quantity: 0.25 })
+		);
+		risk.position.mockResolvedValue(0.5);
+		decideOnLastBar.mockReturnValue({
+			barTimestamp: BAR + 60_000,
+			price: 60_000,
+			position: 0.5,
+		});
+		setNow(NOW + 60_000);
+		await tick();
+		expect(risk.send).toHaveBeenCalledTimes(1);
 	});
 
 	it("decides nothing when the last bar is not in yet, and retries", async () => {

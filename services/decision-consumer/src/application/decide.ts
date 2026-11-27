@@ -180,17 +180,22 @@ export function createDecisionTick(deps: {
 			skip(model, "missing-bar");
 			return;
 		}
-		// Sized on the real position (ADR-0087 §3): a sale never exceeds it, a buy fits in what is left of
-		// the model's exposure cap. A failed read throws: no intent, retried next pass.
-		const held = decision.order ? await deps.risk.position(model.symbol) : 0;
-		const quantity = decision.order
-			? sized(decision.order, held, decision.price, manifest)
-			: 0;
-		if (decision.order && quantity > 0) {
+		// Target position (ADR-0087 §3): the order is the gap to the real position, a sale never exceeds
+		// it, a buy fits in what is left of the exposure cap. A failed read throws: no intent, retried next pass.
+		const held = await deps.risk.position(model.symbol);
+		const gap = decision.position - held;
+		const side = gap > 0 ? "buy" : "sell";
+		const quantity = sized(
+			{ side, quantity: Math.abs(gap) },
+			held,
+			decision.price,
+			manifest
+		);
+		if (quantity > 0) {
 			const sent = await deps.risk.send({
 				decisionId: decisionId(model, bar),
 				symbol: model.symbol,
-				side: decision.order.side,
+				side,
 				quantity,
 				referencePrice: decision.price,
 				// Decision time, not the bar close: a daily bar lands ~1 h 30 after its close (ADR-0087 §5).
@@ -216,7 +221,7 @@ export function createDecisionTick(deps: {
 		} else {
 			DECISION_INTENTS_TOTAL.inc({
 				outcome: "hold",
-				reason: decision.order ? "no-room" : "",
+				reason: gap === 0 ? "" : "no-room",
 			});
 		}
 		decided.set(model.symbol, bar);
