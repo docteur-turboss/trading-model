@@ -61,8 +61,8 @@ echo "critical alert already firing before the deploy"
 alerts() { printf '{"data":{"result":[%s]}}' "$(IFS=,; echo "$*")"; }
 STALE='{"metric":{"alertname":"BackupIncrementalStale","job":"backup-metrics","instance":"x:9118","severity":"critical"}}'
 REDIS='{"metric":{"alertname":"RedisDown","severity":"critical"}}'
-HB_A='{"metric":{"alertname":"HeartbeatStopped","service":"audit-logger","severity":"critical"}}'
-HB_B='{"metric":{"alertname":"HeartbeatStopped","service":"api-gateway","severity":"critical"}}'
+HB_A='{"metric":{"alertname":"HeartbeatStopped","job":"audit-logger","severity":"critical"}}'
+HB_B='{"metric":{"alertname":"HeartbeatStopped","job":"api-gateway","severity":"critical"}}'
 # The baseline is what firing-critical wrote before the deploy.
 baseline() { : >"$WORK/kubectl.log"; STUB_ALERTS="$(alerts "$@")" bash "$DEPLOY" firing-critical >"$WORK/baseline"; }
 baseline "$STALE"
@@ -71,7 +71,8 @@ if STUB_ALERTS="$(alerts "$STALE")" VERIFY_BASELINE_FILE="$WORK/baseline" run; t
 grep -q "firing before the deploy, not blocking: BackupIncrementalStale{instance=x:9118, job=backup-metrics}" "$WORK/out" && pass "reports the baseline alert" || { failed "baseline alert not reported"; cat "$WORK/out"; }
 if STUB_ALERTS="$(alerts "$STALE" "$REDIS")" VERIFY_BASELINE_FILE="$WORK/baseline" run; then failed "new alert should fail"; else pass "new alert fails"; fi
 grep -q "critical alert(s) firing: RedisDown$" "$WORK/out" && pass "names only the new alert" || { failed "new alert not named alone"; cat "$WORK/out"; }
-if STUB_ALERTS="$(alerts "${STALE/x:9118/y:9118}")" VERIFY_BASELINE_FILE="$WORK/baseline" run; then failed "same alert on a new instance should fail"; else pass "same alert on a new instance fails"; fi
+if STUB_ALERTS="$(alerts "${STALE/x:9118/y:9118}")" VERIFY_BASELINE_FILE="$WORK/baseline" run; then pass "same alertname + job on a new instance passes"; else failed "same alertname + job should pass"; cat "$WORK/out"; fi
+if STUB_ALERTS="$(alerts "${STALE/backup-metrics/other}")" VERIFY_BASELINE_FILE="$WORK/baseline" run; then failed "same alertname, other job should fail"; else pass "same alertname, other job fails"; fi
 # Run 45097230002: the baseline had run=incremental, the alert came back without it.
 STALE_RUN="${STALE/\"job\"/\"run\":\"incremental\",\"job\"}"
 baseline "$STALE_RUN"
@@ -80,8 +81,8 @@ baseline "$STALE"
 if STUB_ALERTS="$(alerts "$STALE_RUN")" VERIFY_BASELINE_FILE="$WORK/baseline" run; then pass "baseline alert with run passes"; else failed "run added should not block"; cat "$WORK/out"; fi
 grep -q "firing before the deploy, not blocking: BackupIncrementalStale{instance=x:9118, job=backup-metrics}" "$WORK/out" && pass "reports it" || { failed "not reported"; cat "$WORK/out"; }
 baseline "$HB_A"
-if STUB_ALERTS="$(alerts "$HB_A" "$HB_B")" VERIFY_BASELINE_FILE="$WORK/baseline" run; then failed "same name, other label should fail"; else pass "same name, other label fails"; fi
-grep -q "critical alert(s) firing: HeartbeatStopped{service=api-gateway}$" "$WORK/out" && pass "names the other-label alert" || { failed "other-label alert not named"; cat "$WORK/out"; }
+if STUB_ALERTS="$(alerts "$HB_A" "$HB_B")" VERIFY_BASELINE_FILE="$WORK/baseline" run; then failed "same name, other job should fail"; else pass "same name, other job fails"; fi
+grep -q "critical alert(s) firing: HeartbeatStopped{job=api-gateway}$" "$WORK/out" && pass "names the other-job alert" || { failed "other-job alert not named"; cat "$WORK/out"; }
 
 echo "global kill switch of a new environment (state_missing)"
 KS='{"metric":{"alertname":"KillSwitchEngaged","job":"risk-execution","mode":"paper","scope":"global","severity":"critical"}}'
