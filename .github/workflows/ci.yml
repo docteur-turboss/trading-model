@@ -651,11 +651,21 @@ jobs:
       KIND_SHA256: a6875aaea358acf0ac07786b1a6755d08fd640f4c79b7a2e46681cc13f49a04b
       KIND: ./kind
       KIND_OVERLAY: staging-local
-      KIND_PREVIOUS_REF: ${{ vars.STAGING_RELEASE_VERSION }}
       KIND_PREVIOUS_REGISTRY: ${{ vars.IMAGE_REGISTRY || format('ghcr.io/{0}', github.repository_owner) }}
     steps:
-      - name: Require the staging release
-        run: test -n "$KIND_PREVIOUS_REF" || { echo "::error::Repository variable STAGING_RELEASE_VERSION is empty"; exit 1; }
+      # N-1 = the version staging runs (issue #3022): the orchestrator's marker <!-- staging-deployed: vX.Y.Z -->
+      # in the PR body, else the repository variable STAGING_RELEASE_VERSION. The body is the one of the event
+      # (opened or synchronize; an edit alone runs no job, a re-run keeps the old body): a new marker needs a push.
+      - name: Resolve the staging release
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          FALLBACK: ${{ vars.STAGING_RELEASE_VERSION }}
+        run: |
+          tag="$(printf '%s\n' "$PR_BODY" | sed -nE 's/.*<!-- staging-deployed: (v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?) -->.*/\1/p' | head -1)"
+          tag="${tag:-$FALLBACK}"
+          test -n "$tag" || { echo "::error::No staging-deployed marker in the PR body and STAGING_RELEASE_VERSION is empty"; exit 1; }
+          echo "KIND_PREVIOUS_REF=$tag" >> "$GITHUB_ENV"
+          echo "Staging release (N-1): $tag"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false

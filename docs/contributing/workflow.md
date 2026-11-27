@@ -172,8 +172,8 @@ See [`docs/standards/pr-standards.md`](../standards/pr-standards.md) for the tem
 
 ### 10. Release
 
-1. Merge `development` into `main` via a pull request (or `git checkout main && git merge development`).
-2. Run `bun run release:publish`: it bumps versions, writes the CHANGELOG, tags `vX.Y.Z` and pushes the tag. The tag triggers the **Release** workflow (full CI, then the images).
+1. On `development`, run `bun run release:publish`: it bumps versions, writes the CHANGELOG and pushes the branch `release/vX.Y.Z`.
+2. Merge that branch into `main` via a pull request and into `development` (merge commit), then run `bun run release:tag` on `main`: it tags `vX.Y.Z` and pushes the tag. The tag triggers the **Release** workflow (full CI, then the images).
 
 Details, flags and workflow jobs: [release.md](release.md).
 
@@ -239,8 +239,7 @@ git push -u origin feature/my-feature
 
 # Release (maintainer)
 git checkout main && git pull
-git merge development
-bun run release:publish   # tag vX.Y.Z → Release workflow, see release.md
+bun run release:tag       # on main after the release PR: tag vX.Y.Z → Release workflow, see release.md
 ```
 
 ---
