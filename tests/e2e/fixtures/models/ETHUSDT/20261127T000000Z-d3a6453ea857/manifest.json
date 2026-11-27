@@ -1,0 +1,119 @@
+{
+  "formatVersion": 1,
+  "symbol": "ETHUSDT",
+  "version": "20261127T000000Z-d3a6453ea857",
+  "createdAt": "2026-11-27T00:00:00.000Z",
+  "producedBy": {
+    "instanceId": "e2e-fixture"
+  },
+  "weights": {
+    "file": "weights.f32",
+    "dtype": "float32-le",
+    "length": 60,
+    "sha256": "d3a6453ea8573cddfea9afdf25526161d829c6d91f72194d79fa90a4ce5acd50"
+  },
+  "genome": {
+    "id": "e2e-always-buy",
+    "gaControl": {
+      "population": {
+        "size": 1,
+        "elitismFraction": 0,
+        "survivorFraction": 1
+      },
+      "evaluation": {
+        "episodesPerIndividual": 1
+      },
+      "selectionType": "tournament",
+      "fitnessType": "sharpe"
+    },
+    "network": {
+      "inputDim": 19,
+      "outputDim": 3,
+      "hiddenLayers": [],
+      "normalization": "none",
+      "actionSet": "sell_hold_buy"
+    },
+    "rl": {
+      "gamma": 0.99,
+      "learningRate": 0.001,
+      "discretePolicy": {
+        "epsilonStart": 0,
+        "epsilonMin": 0,
+        "epsilonDecay": 1
+      },
+      "horizon": {
+        "frameSkip": 1
+      }
+    }
+  },
+  "features": {
+    "dim": 18,
+    "fields": [
+      "CandleClose",
+      "CandleVolume",
+      "CandleReturnRatio",
+      "CandlePositionRatio",
+      "CandleRangeRatio",
+      "CandleOpen",
+      "CandleHigh",
+      "CandleLow",
+      "CandleVolumeRatio",
+      "SlidingWindowClose0",
+      "SlidingWindowClose1",
+      "SlidingWindowClose2",
+      "SlidingWindowClose3",
+      "SlidingWindowClose4",
+      "SlidingWindowClose5",
+      "SlidingWindowClose6",
+      "SlidingWindowClose7",
+      "Bias"
+    ]
+  },
+  "normalization": {},
+  "riskLimits": {
+    "maxExposureFraction": 0.1
+  },
+  "metrics": {
+    "metricsVersion": 7,
+    "generation": 0,
+    "fitness": 0,
+    "sharpe": 0,
+    "avgPnl": 0,
+    "maxDrawdown": 0,
+    "evaluatedOn": "test"
+  },
+  "actions": [
+    "sell",
+    "hold",
+    "buy"
+  ],
+  "admission": {
+    "admissible": true,
+    "evaluatedOn": "test",
+    "criteria": {
+      "sharpe": 2,
+      "sortino": 3,
+      "calmar": 2,
+      "buyAndHoldSharpe": 1
+    },
+    "thresholds": {
+      "minSharpe": 1,
+      "minSortino": 1.5,
+      "minCalmar": 1
+    }
+  },
+  "replay": {
+    "intervalMs": 60000,
+    "simulator": {
+      "initialCash": 1000,
+      "feeRate": 0.001,
+      "executionCostRate": 0.0005,
+      "tradeFraction": 0.1,
+      "observePosition": true
+    },
+    "from": 0,
+    "testFrom": 0,
+    "to": 0,
+    "evalEpsilon": 0.05
+  }
+}

@@ -17,8 +17,11 @@ import {
  */
 
 const RISK = "trading-risk-execution";
+const DECIDER = "trading-decision-consumer";
 const URL = "https://risk-execution:3000";
 const RESTART_TIMEOUT_MS = 90_000;
+const DECISION_TIMEOUT_MS = 180_000;
+const SYMBOL = "ETHUSDT";
 const SCOPE = { scope: "global", reason: "e2e" };
 
 /** The API key name is the actor (ADR-0059): the overlay names it `e2e`. */
@@ -29,7 +32,7 @@ const admin = (path: string) =>
 		headers: { "x-api-key": GATEWAY_API_KEY },
 	});
 
-jest.setTimeout(RESTART_TIMEOUT_MS + 60_000);
+jest.setTimeout(DECISION_TIMEOUT_MS + 60_000);
 
 interface Status {
 	code: number;
@@ -37,13 +40,35 @@ interface Status {
 	ready: boolean;
 	killSwitch: { global: string | null };
 	openOrders: number;
-	positions: unknown;
+	positions: Record<string, number>;
 }
 
 const status = (): Status => {
 	const res = meshRequest(RISK, `${URL}/admin/status`);
 	return { code: res.status, ...JSON.parse(res.body) };
 };
+
+/** Tells hold, no-room, rejected and missing-bar apart: the CI log shows none of them otherwise. */
+function dumpDecisionDiagnostics(): void {
+	// From the container itself: its own SVID, no ACL or name resolution in between.
+	const res = meshRequest(DECIDER, "https://decision-consumer:3000/metrics");
+	const lines = res.body
+		.split("\n")
+		.filter((line) => /^decision_(intents|skipped)_total/.test(line));
+	console.error(
+		`decision-consumer /metrics ${res.status}\n${
+			lines.length > 0 ? lines.join("\n") : res.body.slice(0, 500)
+		}`
+	);
+	for (const container of [DECIDER, RISK]) {
+		console.error(
+			execFileSync("docker", ["logs", "--tail", "40", container], {
+				encoding: "utf8",
+				stdio: ["ignore", "pipe", "pipe"],
+			})
+		);
+	}
+}
 
 describe("risk-execution E2E", () => {
 	// Leaves the stack clean even when an assertion failed mid-way.
@@ -103,5 +128,26 @@ describe("risk-execution E2E", () => {
 		const after = status();
 		expect(after.openOrders).toBe(before.openOrders);
 		expect(after.positions).toEqual(before.positions);
+	});
+
+	// No hand-made intent: decision-consumer promotes the fixed, always-long model of the overlay
+	// (tests/e2e/fixtures/models) and sends its own intents. Needs the target-position decision (ADR-0087 §3, #3043).
+	it("opens a paper position from a promoted model", async () => {
+		await admin("kill-switch/rearm");
+		// `eventually` only returns a defined value: a non-zero position.
+		try {
+			await eventually(
+				"a paper position opened by the promoted model",
+				() => status().positions[SYMBOL] || undefined,
+				{ timeoutMs: DECISION_TIMEOUT_MS, intervalMs: 5_000 }
+			);
+		} catch (error) {
+			try {
+				dumpDecisionDiagnostics();
+			} catch (dumpError) {
+				console.error("diagnostics unavailable:", dumpError);
+			}
+			throw error;
+		}
 	});
 });
