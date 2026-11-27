@@ -222,7 +222,9 @@ jobs:
           persist-credentials: false
           ref: ${{ github.sha }}
           path: workflow-src
-          sparse-checkout: deploy/k8s/scripts
+          sparse-checkout: |
+            deploy/k8s/scripts
+            deploy/k8s/services/kustomization.yaml
 
       - name: Show deployed commit
         id: src
