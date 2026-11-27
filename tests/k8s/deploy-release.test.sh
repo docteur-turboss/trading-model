@@ -82,6 +82,7 @@ if [ "$1" = patch ]; then
 	exit 0
 fi
 if [ "$1" = get ] && [ "$2" = statefulset ]; then [ -z "${STUB_NO_REDIS:-}" ] || exit 1; [ "$3" = redis ] && printf 'redis-abc'; exit 0; fi
+[ "$1" = exec ] && [ -n "${STUB_IDS:-}" ] && { printf '%b' "$STUB_IDS"; exit 0; }
 [ "$1" = exec ] && exit 0
 if [ "$1" = create ] && [ "$2" = job ]; then cat "$STUB_JOB_JSON"; exit 0; fi
 if [ "$1" = get ] && [[ $2 == job/* ]]; then printf '%s ' "${STUB_JOB_STATE:-Complete}"; exit 0; fi
@@ -300,6 +301,16 @@ out="$(expiry 1700000000)" && ko "expired token accepted" ||
 out="$(expiry $(($(date +%s) + 3600)))" && [[ "$out" == *"::warning::KUBECONFIG_STAGING_APP token expires on"* ]] && ok "token expiring in 1 h: warning" || ko "soon: $out"
 out="$(expiry $(($(date +%s) + 999999)))" && [ -z "$out" ] && ok "valid token: silent" || ko "valid: $out"
 
+
+# Rollback guard (issue #3021): a live migration the target lacks is refused, never migrated down.
+mkdir -p "$WORK/migs" && : >"$WORK/migs/001_a.up.sql" && : >"$WORK/migs/001_a.down.sql"
+STUB_IDS='001_a
+' bash "$SCRIPT" schema-check ns "$WORK/migs" >/dev/null 2>&1 &&
+	ok "schema-check: known schema passes" || ko "schema-check refused a known schema"
+out="$(STUB_IDS='001_a
+002_b
+' bash "$SCRIPT" schema-check ns "$WORK/migs" 2>&1)" &&
+	ko "schema-check accepted a newer schema" || { [[ "$out" == *"002_b"* ]] && ok "schema-check: newer schema refused, names 002_b" || ko "schema-check message: $out"; }
 
 bash "$SCRIPT" bogus >/dev/null 2>&1 && ko "unknown command accepted" || ok "unknown command refused"
 

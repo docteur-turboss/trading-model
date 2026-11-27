@@ -49,6 +49,9 @@
 #   deploy-release.sh pre-migrate-backup <namespace> <job> <environment>
 #       MySQL dump from the db-backup CronJob before the migrations, waited for
 #       (fails on a failed dump). Outside production: no off-site copy, own metrics file.
+#   deploy-release.sh schema-check <namespace> <migrations-dir>
+#       Rollback input of deploy.yml: fails, naming them, when the live schema has applied migrations
+#       this checkout (the ref redeployed) lacks. Never migrates down. No MySQL: passes.
 #
 # GRAFANA_ALLOWED_CIDRS: comma-separated CIDRs; `render` sets them as whitelist-source-range of grafana-ingress (issue #1630).
 # DEPLOY_TIMEOUT_FACTOR: integer the wait and rollback timeouts are multiplied
@@ -550,6 +553,17 @@ pre_migrate_backup() {
 	} >>"${GITHUB_STEP_SUMMARY:-/dev/null}"
 }
 
+schema_check() {
+	local ns="$1" dir="$2" applied unknown
+	kubectl get statefulset mysql -n "$ns" >/dev/null 2>&1 || return 0
+	applied=$(kubectl exec mysql-0 -n "$ns" -c mysql -- sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N -e "SELECT id FROM financial_scraper._migrations"') || return 1
+	unknown=$(comm -23 <(tr -d '\r' <<<"$applied" | sort) <(cd "$dir" && ls | sed -n 's/\.up\.sql$//p' | sort))
+	[ -z "$unknown" ] || {
+		echo "::error::rollback refused: the live schema is newer than this release, it does not know: $(tr '\n' ' ' <<<"$unknown")(migrations are never undone automatically)" >&2
+		return 1
+	}
+}
+
 case "${1:-}" in
 deployments) echo $DEPLOYMENTS ;;
 pre-migrate-backup) [ $# -eq 4 ] || usage; pre_migrate_backup "$2" "$3" "$4" ;;
@@ -562,6 +576,7 @@ prepull) [ $# -eq 2 ] || usage; prepull "$2" ;;
 dry-run) [ $# -eq 3 ] || usage; dry_run "$2" "$3" ;;
 wait) [ $# -ge 2 ] || usage; wait_rollout "$2" "${3:-180s}" ;;
 rollback) [ $# -eq 3 ] || usage; rollback "$2" "$3" ;;
+schema-check) [ $# -eq 3 ] || usage; schema_check "$2" "$3" ;;
 forget) [ $# -eq 2 ] || usage; forget "$2" ;;
 *) usage ;;
 esac

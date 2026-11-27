@@ -24,6 +24,11 @@ on:
         required: false
         type: boolean
         default: false
+      rollback:
+        description: 'Full rollback: redeploy image_tag (the previous release) without backup, migrations or canary; refused when the live schema is newer'
+        required: false
+        type: boolean
+        default: false
       staging_namespace:
         description: 'Kubernetes namespace for staging'
         required: false
@@ -924,8 +929,13 @@ jobs:
             KUBECONFIG="$CLUSTER_KUBECONFIG" kubectl apply -f -
 
       # MySQL dump from the db-backup CronJob: the restore point of a destructive migration.
+      - name: Check the live schema is known to the rollback target
+        if: ${{ inputs.rollback && !inputs.preflight_only }}
+        shell: bash
+        run: bash deploy/k8s/scripts/deploy-release.sh schema-check "$NAMESPACE" scripts/migrations
+
       - name: Back up MySQL before migrations
-        if: ${{ !inputs.preflight_only }}
+        if: ${{ !inputs.preflight_only && !inputs.rollback }}
         shell: bash
         run: |
           bash deploy/k8s/scripts/deploy-release.sh pre-migrate-backup "$NAMESPACE" \
@@ -934,7 +944,7 @@ jobs:
       # Migrations must run before the new image rolls out. On a first deploy
       # MySQL does not exist yet: they run right after the overlay instead.
       - name: Run database migrations
-        if: ${{ !inputs.preflight_only }}
+        if: ${{ !inputs.preflight_only && !inputs.rollback }}
         id: migrate
         shell: bash
         run: |
@@ -959,7 +969,7 @@ jobs:
       # Gate tuning per environment through GitHub variables; seeing too little
       # traffic fails the gate (no signal is not a pass).
       - name: Canary deployments (if enabled)
-        if: ${{ inputs.canary && !inputs.preflight_only }}
+        if: ${{ inputs.canary && !inputs.preflight_only && !inputs.rollback }}
         shell: bash
         env:
           CANARY_GATE_SECONDS: ${{ vars.CANARY_GATE_SECONDS || '120' }}
@@ -1081,7 +1091,7 @@ jobs:
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Run first-deploy database migrations
-        if: ${{ steps.migrate.outputs.deferred == 'true' && !inputs.preflight_only }}
+        if: ${{ steps.migrate.outputs.deferred == 'true' && !inputs.preflight_only && !inputs.rollback }}
         shell: bash
         run: |
           NS="$NAMESPACE"
@@ -1156,16 +1166,22 @@ jobs:
           NS="$NAMESPACE"
           VERSION="$RESOLVED_VERSION"
           for dep in $(bash deploy/k8s/scripts/deploy-release.sh deployments); do
+            # Read before the overwrite: the version this rollback leaves.
+            extra=(trading-model.dev/rollback-of-)
+            if [ "${{ inputs.rollback }}" = true ]; then
+              prev=$(kubectl get deployment "$dep" -n "$NS" -o json | jq -r '.metadata.annotations["trading-model.dev/release-version"] // "unknown"')
+              extra=("trading-model.dev/rollback-of=$prev")
+            fi
             kubectl annotate deployment "$dep" -n "$NS" --overwrite \
               trading-model.dev/git-sha="${{ steps.src.outputs.sha }}" \
-              trading-model.dev/release-version="$VERSION"
+              trading-model.dev/release-version="$VERSION" "${extra[@]}"
           done
           # Deployed: a later failed deploy records the revisions afresh (issue #1192).
           bash deploy/k8s/scripts/deploy-release.sh forget "$NS"
 
       # always() ensures orphans are cleaned up even when canary or rollout fails.
       - name: Clean up canary deployments (if enabled)
-        if: ${{ always() && inputs.canary && !inputs.preflight_only }}
+        if: ${{ always() && inputs.canary && !inputs.preflight_only && !inputs.rollback }}
         shell: bash
         run: |
           NS="$NAMESPACE"
