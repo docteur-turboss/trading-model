@@ -84,7 +84,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: mysql
-          image: mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
+          image: mysql:8.4.13@sha256:8c233bad33d520a7aae1c1e619c3a9775f4a1ba2d463d692fada04ec7f40be00
           # Unique per pod.
           args:
             - "--server-id=10$(POD_INDEX)"
@@ -176,7 +176,7 @@ spec:
         # tests/k8s/run-kind.sh verify_mysql_tls); a failed
         # reload is logged and retried on the next tick.
         - name: tls-reload
-          image: mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
+          image: mysql:8.4.13@sha256:8c233bad33d520a7aae1c1e619c3a9775f4a1ba2d463d692fada04ec7f40be00
           command:
             - sh
             - -c
