@@ -46,6 +46,9 @@ services:
   # The loop checks every 60 s once a symbol has data; the run itself must stay
   # well under that so the first model lands within ~2 min of startup.
   trader-trainer:
+    depends_on:
+      e2e-models:
+        condition: service_completed_successfully
     environment:
       # One symbol: one run is enough, and the loop trains one symbol per cycle.
       TRAINER_SYMBOLS: BTCUSDT
@@ -64,16 +67,34 @@ services:
       # trainer ACL) is deliberately not listed, to prove the 403.
       MODEL_DOWNLOAD_CALLERS: api-gateway,model-evaluator,decision-consumer
 
-  # ADR-0093: the stub history cannot pass the admission gate (43 200 test bars), so the E2E
-  # waives it here and nowhere else; both services refuse the waiver when NODE_ENV=production.
-  # PROMOTED_MODELS is set by risk-execution.e2e.spec.ts once the model version is known.
+  # Fixed model to promote (tests/e2e/fixtures/models, written by the trainer's own store: see
+  # services/trader-trainer/tests/unit/e2e-model-fixture.spec.ts). It sits under ETHUSDT, a symbol the
+  # trainer does not train here, so model-training-flow keeps its own BTCUSDT versions. Copied into the
+  # volume by the trainer image so the files belong to the user the trainer writes as.
+  e2e-models:
+    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/trader-trainer:${IMAGE_TAG:-latest}
+    restart: 'no'
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    entrypoint: ["sh", "-c", "mkdir -p /data/checkpoints/models && cp -r /fixtures/. /data/checkpoints/models/"]
+    volumes:
+      - trainer-checkpoints:/data/checkpoints
+      - ./tests/e2e/fixtures/models:/fixtures:ro
+    networks:
+      - backend-net
+
   decision-consumer:
     environment:
-      NODE_ENV: development
-      DECISION_SKIP_ADMISSION: 'true'
+      PROMOTED_MODELS: ETHUSDT@20261127T000000Z-d3a6453ea857
       DECISION_TICK_MS: '5000'
 
   risk-execution:
     environment:
-      NODE_ENV: development
-      DECISION_SKIP_ADMISSION: 'true'
+      RISK_INSTRUMENTS: '{"BTCUSDT":{"maxQuantity":0.01},"ETHUSDT":{"maxQuantity":1}}'

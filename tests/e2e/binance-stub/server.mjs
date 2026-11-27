@@ -14,9 +14,8 @@ const MINUTE = 60_000;
 const BASE_PRICE = { BTCUSDT: 80_000, ETHUSDT: 3_000 };
 
 // Klines, ticker and depth rise 0.3%/min (200 bars back from the stub start, so prices stay positive; same
-// value on every fetch of a bar): a flat or sub-fee slope makes the trained model hold forever, so the
-// decision-to-position E2E never opens a position. Ticker and depth follow the last bar: risk-execution
-// rejects an intent priced more than 1% away from its market (price_gap).
+// value on every fetch of a bar). Ticker and depth follow the last bar: risk-execution rejects an intent
+// priced more than 1% away from its market (price_gap).
 const START_MINUTE = Math.floor(Date.now() / MINUTE);
 const trend = (symbol, openTime) =>
   (BASE_PRICE[symbol] ?? 100) * 0.003 * (openTime / MINUTE - START_MINUTE + 200);

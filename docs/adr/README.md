@@ -100,7 +100,6 @@ An ADR documents a significant architectural decision, including the context, al
 | [ADR-0090](./0090-ha-user-holds-writes-over-a-planned-redis-failover.md) | The Redis `ha` User Holds Writes Over a Planned Failover | Accepted | 2026-11 |
 | [ADR-0091](./0091-plain-http-probe-listener.md) | Plain-HTTP Probe Listener Beside the mTLS Port | Accepted | 2026-11 |
 | [ADR-0092](./0092-blocking-pdb-for-mysql-and-risk-execution.md) | Blocking PodDisruptionBudgets for mysql-0 and risk-execution | Accepted | 2026-11 |
-| [ADR-0093](./0093-admission-waiver-limited-to-the-e2e-overlay.md) | Admission Waiver Limited to the E2E Overlay | Accepted | 2026-11 |
 
 **Numbering gaps.** ADR-0014 and ADR-0028 do not exist. No file with either number has ever been committed on any branch, and no document refers to them, so they were skipped when the numbers were assigned and carry no decision. Do not reuse them for unrelated records.
 

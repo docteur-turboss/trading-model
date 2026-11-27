@@ -35,9 +35,7 @@ function manifest(admissible: boolean, intervalMs = 60_000, signals = 0) {
 	} as never;
 }
 
-function build(
-	over: { admissible?: boolean; header?: string; skipAdmission?: boolean } = {}
-) {
+function build(over: { admissible?: boolean; header?: string } = {}) {
 	const risk = {
 		position: jest.fn<(...args: any[]) => any>(async () => 0.005),
 		send: jest.fn<(...args: any[]) => any>(async () => ({
@@ -64,7 +62,6 @@ function build(
 		risk,
 		audit,
 		windowBars: 50,
-		skipAdmission: over.skipAdmission,
 		now: () => now,
 	});
 	return {
@@ -95,12 +92,6 @@ describe("decision tick", () => {
 		await tick();
 		expect(risk.send).not.toHaveBeenCalled();
 		expect(audit.promotionLoaded).not.toHaveBeenCalled();
-	});
-
-	it("decides for a non-admissible model when the E2E waiver is set", async () => {
-		const { tick, risk } = build({ admissible: false, skipAdmission: true });
-		await tick();
-		expect(risk.send).toHaveBeenCalledTimes(1);
 	});
 
 	it("reads a refused model once, and again when a new version is promoted", async () => {
