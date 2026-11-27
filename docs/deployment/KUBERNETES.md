@@ -85,7 +85,10 @@ migrations, rollout, rollback), first with a forced failure that must roll every
 Deployment back to N-1, and runs `migrate-down 1` then the migrations again; then the two gates of
 `deploy.yml` (`deploy-k8s.sh smoke-test`, and the canary on api-gateway with
 traffic through edge-proxy, which must also fail without traffic), and checks
-the stack (`tests/k8s/run-kind.sh`). The `deploy.yml` workflow runs these steps (migrations go before the rollout,
+the stack (`tests/k8s/run-kind.sh`). On the release PR (`development` to `main`), the advisory job
+`k8s-staging-local` runs the same upgrade with the `staging-local` overlay from the version staging runs:
+the PR body marker `<!-- staging-deployed: vX.Y.Z -->`, else the variable `STAGING_RELEASE_VERSION`
+(the body is read when the PR is opened or pushed, not on an edit). The `deploy.yml` workflow runs these steps (migrations go before the rollout,
 or right after the overlay on a first deploy, when MySQL does not exist yet).
 
 > **Public API path:** the nginx ingress controller (installed outside this

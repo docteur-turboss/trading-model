@@ -6,6 +6,8 @@ A release is a git tag `vX.Y.Z` pushed to `origin`. The tag triggers the **Relea
 
 `release:publish` runs from `development` and writes the version commit on a new branch `release/vX.Y.Z`, so `main` gets no commit of its own: `git pull --ff-only origin` first. Then open the PR `release/vX.Y.Z` → `main`, merge `release/vX.Y.Z` into `development` with a merge commit (no back-merge of content), and tag the merged `main` with `release:tag`. `release:publish` commits with `git add -A`: the whole working tree enters the release commit, so start clean.
 
+`--prepare` (on an existing `release/vX.Y.Z`, after `--publish` or a manual branch) merges `main` into it first, so the PR head's tree is the one `release-candidate.yml` scans: the tag then goes on the version commit with `release:tag`.
+
 | Command | Effect |
 | ------- | ------ |
 | `bun run release --dry-run` | Show the bump and the changelog, write nothing |
@@ -25,8 +27,8 @@ Prerelease tags never serve as a base. `X.Y.Z` is computed from the last **stabl
 ## 2. Workflow "Release"
 
 1. `version`: the tag must match `vX.Y.Z` or `vX.Y.Z-prerelease`, else the run fails. Image tag is `X.Y.Z` (no `v`). `latest` is set only for a stable tag that is the highest stable `v*` tag on `origin`: a prerelease or a backport patch never takes it.
-2. Before the tag, workflow `release-candidate.yml` (release PR to `main`, or manual) builds the 13 images, scans them (Trivy by digest) and pushes them under `:scan-<run id>`, then (job `publish`, only if every scan passed) as `:tree-<git tree>`, unsigned. Owner action: make `release-candidate / publish` a required check of the `main` ruleset, otherwise a red candidate can still be merged and tagged. `version` fails if the tagged commit's tree (`git rev-parse vX.Y.Z^{tree}`) has no such candidate; the CI is not replayed at the tag.
-3. After the `release` approval, `sign` promotes the scanned digest to `:X.Y.Z` (+ `:latest`) and signs it to `IMAGE_REGISTRY` (repository variable, default `ghcr.io/<owner>`).
+2. Before the tag, workflow `release-candidate.yml` (release PR to `main`, or manual) builds the 13 images, scans them (Trivy by digest) and pushes them under `:scan-<run id>`, then (job `publish`, only if every scan passed) as `:tree-<git tree>`, unsigned. Owner action: make `release-candidate / publish` a required check of the `main` ruleset, otherwise a red candidate can still be merged and tagged. Each scan job records the digest it scanned (artifact `digest-<image>`, after a green Trivy). `version` takes the newest run whose head has the tag's tree (`git rev-parse vX.Y.Z^{tree}`) and reads those digests; no run, a newest run not green, or a missing digest fails it before the approval. The CI is not replayed at the tag.
+3. After the `release` approval, `sign` promotes each recorded digest (never a tag read later) to `:X.Y.Z` (+ `:latest`) and signs it to `IMAGE_REGISTRY` (repository variable, default `ghcr.io/<owner>`).
 4. `verify-images`: reads `env.IMAGES` from `deploy.yml` and resolves each `<registry>/<image>:X.Y.Z` with `docker buildx imagetools inspect`, the same loop as the deploy step "Resolve image digests". It fails with the list of missing images.
 5. `sign` (before `verify-images`): signs the digest of each image with cosign (keyless, ADR-0038). `deploy.yml` refuses any digest without this signature.
 

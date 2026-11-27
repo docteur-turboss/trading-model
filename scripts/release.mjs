@@ -264,8 +264,8 @@ function requirePublishBranch(args) {
 }
 
 /**
- * --prepare: merges main into the release/* branch (made from development). The last tag, on main's merge
- * commit, becomes reachable and CHANGELOG.md / package.json start from main's, so the PR to main has no
+ * --prepare: merges main into the release/* branch (made from development). The last tag, on the version
+ * commit of the previous release, becomes reachable and CHANGELOG.md / package.json start from main's, so the PR to main has no
  * conflict. Conflicts on those files are settled here (development's content and deletions, main's version
  * and CHANGELOG); any other conflict stops the release.
  */
