@@ -43,6 +43,10 @@ cat >"$WORK/bin/kubectl" <<'STUB'
 # Revisions: $STUB_REVS "dep=rev" (absent: no Deployment). Undo of $STUB_UNDO_FAILS fails.
 # Grace periods: $STUB_GRACE "dep=seconds" (absent: none in the template).
 echo "$*" >>"$STUB_LOG"
+# Rollback prune (issue #3021): the render holds networkpolicy/keep, the live ones are $STUB_NETPOL.
+[[ $* == *--dry-run=client* ]] && { cat >/dev/null; echo networkpolicy/keep; exit 0; }
+[ "$1" = get ] && [ "$2" = networkpolicies ] && { printf 'networkpolicy/%s
+' $STUB_NETPOL; exit 0; }
 # API server down: `get deployments` fails while the count in $STUB_API_DOWN is above 0.
 if [ "$2" = deployments ] && [ -n "${STUB_API_DOWN:-}" ] && [ "$(cat "$STUB_API_DOWN")" -gt 0 ]; then
 	echo $(($(cat "$STUB_API_DOWN") - 1)) >"$STUB_API_DOWN"
@@ -82,6 +86,7 @@ if [ "$1" = patch ]; then
 	exit 0
 fi
 if [ "$1" = get ] && [ "$2" = statefulset ]; then [ -z "${STUB_NO_REDIS:-}" ] || exit 1; [ "$3" = redis ] && printf 'redis-abc'; exit 0; fi
+[ "$1" = exec ] && [ -n "${STUB_IDS:-}" ] && { printf '%b' "$STUB_IDS"; exit 0; }
 [ "$1" = exec ] && exit 0
 if [ "$1" = create ] && [ "$2" = job ]; then cat "$STUB_JOB_JSON"; exit 0; fi
 if [ "$1" = get ] && [[ $2 == job/* ]]; then printf '%s ' "${STUB_JOB_STATE:-Complete}"; exit 0; fi
@@ -282,6 +287,21 @@ STUB_PODS=node-1 bash "$SCRIPT" prepull ns <"$WORK/render.yaml" >/dev/null &&
 out="$(STUB_WAIT_FAILS=1 STUB_PODS=node-1 bash "$SCRIPT" prepull ns <"$WORK/render.yaml" 2>&1)" &&
 	[[ $out == *"::warning::Pre-pull"* ]] && grep -q '^delete pod prepull-risk-execution' "$WORK/log" &&
 	ok "a failed pre-pull only warns" || ko "prepull failure: $out"
+
+# Rollback guard (issue #3021): a live migration the target lacks is refused, never migrated down.
+mkdir -p "$WORK/migs" && : >"$WORK/migs/001_a.up.sql" && : >"$WORK/migs/001_a.down.sql"
+STUB_MASTER= STUB_IDS='001_a
+' bash "$SCRIPT" schema-check ns "$WORK/migs" >/dev/null 2>&1 &&
+	ok "schema-check: known schema passes" || ko "schema-check refused a known schema"
+out="$(STUB_MASTER= STUB_IDS='001_a
+002_b
+' bash "$SCRIPT" schema-check ns "$WORK/migs" 2>&1)" &&
+	ko "schema-check accepted a newer schema" || { [[ "$out" == *"002_b"* ]] && ok "schema-check: newer schema refused, names 002_b" || ko "schema-check message: $out"; }
+
+: >"$WORK/log"
+echo x | STUB_NETPOL="keep default-deny-all" bash "$SCRIPT" prune-network-policies ns >/dev/null &&
+	[ "$(grep -c '^delete ' "$WORK/log")" -eq 1 ] && grep -q '^delete -n ns networkpolicy/default-deny-all$' "$WORK/log" &&
+	ok "prune-network-policies deletes only the policy the render lacks" || ko "prune-network-policies: $(cat "$WORK/log")"
 
 # Token expiry check of the "Configure kubeconfigs" step of deploy.yml (issue #1978): fake kubeconfigs holding only a JWT.
 jwt() { printf '{"exp":%s}' "$1" | base64 -w0 | tr '+/' '-_' | tr -d '='; }

@@ -20,6 +20,7 @@ Open the **Actions** tab → **Deploy** → **Run workflow**, then select:
 | `environment` | `staging` or `production` |
 | `image_tag` | Required: release to deploy, `v1.2.3` or `1.2.3` (prerelease `v1.2.3-rc.1` or `1.2.3-rc.1` too). Staging also accepts `latest` (the highest stable release); production refuses anything but a release, before the cluster is reached. Resolved to image digests before anything is applied |
 | `canary` | Run canary + smoke test with automatic rollback on failure |
+| `rollback` | Full rollback: `image_tag` is the previous release; applies the whole overlay of that tag and waits, smoke and verify-release as an upgrade, with no backup, migration or canary. Refused when the live schema has migrations that tag lacks (run `migrate-down` first, never automatic). Deployments get annotation `trading-model.dev/rollback-of` |
 | `preflight_only` | Run every prerequisite guard and a server-side dry-run of the apply, change nothing: see [Preflight](#preflight) |
 
 ### Preflight
@@ -407,7 +408,9 @@ What the rollback restores:
   the namespace: nothing prunes them, so every ReplicaSet revision finds its
   own. A configuration change alone also rolls the Deployments that read it.
 
-What it does not restore (still at N+1 after a rollback):
+The automatic rollback restores Deployments and Redis only. For a complete return to N-1, run `Deploy` again with `rollback: true` and the N-1 tag (it applies everything N-1 defines: StatefulSets, NetworkPolicies, CronJobs, HPAs, PDBs, ConfigMaps; `tests/k8s/run-kind.sh upgrade` runs it). Objects that exist only in N are not deleted, except NetworkPolicies (`deploy-release.sh prune-network-policies`): N's `default-deny-all` would cut N-1 pods off DNS.
+
+What the automatic rollback does not restore (still at N+1):
 
 - the other Deployments (`spire-server`, whose `spire-entries` sidecar runs the
   `spire-tools` image of the release, and the infrastructure ones);

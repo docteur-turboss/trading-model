@@ -791,9 +791,54 @@ upgrade() {
 		log "  min(mysql_up)=$(prometheus_value 'min(mysql_up)') min(redis_up)=$(prometheus_value 'min(redis_up)') min(mongodb_up)=$(prometheus_value 'min(mongodb_up)')"
 		return 1
 	}
-	log "OK: upgrade N-1 → N, forced failure and rollback, migrate-down 1 and up in $((SECONDS - started)) s"
+	full_rollback || return 1
+	log "OK: upgrade N-1 → N, forced failure and rollback, migrate-down 1 and up, full rollback in $((SECONDS - started)) s"
 	[ -z "${GITHUB_STEP_SUMMARY:-}" ] ||
 		echo "Upgrade N-1 → N with forced failure and rollback: $((SECONDS - started)) s" >>"$GITHUB_STEP_SUMMARY"
+}
+
+# deploy.yml with rollback=true (issue #3021), from release N: the schema guard refuses a schema
+# N-1 does not know, then (after an explicit migrate-down, as the runbook says) N-1 is applied
+# whole with no migration, and NetworkPolicies and CronJobs are N-1's. Ends back on N.
+full_rollback() {
+	local drift unknown migrations_before out
+	log "full rollback N → N-1 (deploy.yml rollback=true)"
+	mysql_root "INSERT INTO financial_scraper._migrations (id, name, checksum) VALUES ('999_unknown_to_n1', 'x', 'x')" || return 1
+	if release_script schema-check "$NS" "$PREVIOUS/scripts/migrations" 2>/dev/null; then
+		log "schema-check accepted a live schema newer than N-1"
+		return 1
+	fi
+	mysql_root "DELETE FROM financial_scraper._migrations WHERE id = '999_unknown_to_n1'" || return 1
+	unknown="$(comm -23 <(applied_migrations | cut -f1 | sort) <(ls "$PREVIOUS/scripts/migrations" | sed -n 's/\.up\.sql$//p' | sort) | wc -l)"
+	[ "$unknown" = 0 ] || deploy_script migrate-down "$unknown"
+	release_script schema-check "$NS" "$PREVIOUS/scripts/migrations" || return 1
+	migrations_before="$(applied_migrations)"
+	out="$WORK/full-rollback.log"
+	{
+		release_script record "$NS" "$WORK/revisions" &&
+			release_script release-replicas "$NS" &&
+			# N-1 predates podManagementPolicy: Parallel (immutable): as release-replicas does for the other way round.
+			{ [ "$($K get statefulset redis -n "$NS" -o jsonpath='{.spec.podManagementPolicy}')" != Parallel ] || [ -n "$(grep -s podManagementPolicy "$PREVIOUS/deploy/k8s/infra/redis.yaml")" ] || $K delete statefulset redis -n "$NS" --cascade=orphan; } &&
+			apply_release "$PREVIOUS" "$WORK/digests-previous" &&
+			release_script prune-network-policies "$NS" <"$WORK/app.yaml" &&
+			release_script wait "$NS" &&
+			release_script redis-last "$NS" <"$WORK/app.yaml" &&
+			SMOKE_SKIP="model-evaluator risk-execution decision-consumer" deploy_script smoke-test &&
+			release_script forget "$NS"
+	} 2>&1 | tee "$out"
+	[ "${PIPESTATUS[0]}" = 0 ] || return 1
+	! grep -qi 'db-migrate\|migrations applied' "$out" && [ "$(applied_migrations)" = "$migrations_before" ] || {
+		log "the full rollback ran a migration"
+		return 1
+	}
+	# $WORK/app.yaml is N-1's render: any NetworkPolicy or CronJob still differing from it stayed on N.
+	drift="$($K diff -f "$WORK/app.yaml" 2>/dev/null | grep -E '^diff .*(NetworkPolicy|CronJob).' || true)"
+	[ -z "$drift" ] || {
+		log "NetworkPolicies or CronJobs not back on N-1: $drift"
+		return 1
+	}
+	log "  N-1 applied whole, no migration run; back to N"
+	release "$WORK/digests-current"
 }
 
 # MySQL's clock (UTC, millisecond), the reference of collection_gap.
