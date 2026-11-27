@@ -6,6 +6,7 @@ import {
 	Volume,
 } from "@trading-model/primitives/primitives";
 import { applyInputMask } from "./agent/input-mask";
+import { attentionForward } from "./attention";
 import { MultiAssetWallet } from "./env/multi-asset-wallet";
 import { DEFAULT_MAX_EXPOSURE_FRACTION } from "./env/wallet-config";
 import { EpisodeScores } from "./episode-scores";
@@ -46,7 +47,13 @@ export interface AssetSignal {
 }
 
 /** How the manager sees across assets: the mean, or the mean and the max of every signal field. */
-export type PoolingMode = "mean" | "mean+max";
+export type PoolingMode = "mean" | "mean+max" | "attention";
+
+/** Attention pooling (ADR-0076 step 6): heads and their weights, see `attentionForward`. */
+export interface AttentionPooling {
+	heads: number;
+	weights: ArrayLike<number>;
+}
 
 const sigmoid = (value: number) => 1 / (1 + Math.exp(-value));
 
@@ -75,15 +82,23 @@ const fields = (signal: AssetSignal): number[] => [
 ];
 
 /** Input size of the manager network: the asset's own signal plus the pooled view. */
-export const managerInputDim = (pooling: PoolingMode): number =>
-	SIGNAL_DIM * (pooling === "mean" ? 2 : 3);
+export const managerInputDim = (pooling: PoolingMode, heads = 0): number =>
+	SIGNAL_DIM *
+	(pooling === "mean" ? 2 : pooling === "mean+max" ? 3 : 1 + heads);
 
 /** Permutation-invariant view of the group: per field the mean (and the max). */
 export function poolSignals(
 	signals: readonly AssetSignal[],
-	pooling: PoolingMode
+	pooling: PoolingMode,
+	attention?: AttentionPooling
 ): number[] {
 	const rows = signals.map(fields);
+	if (pooling === "attention") {
+		if (!attention || attention.heads < 1) {
+			throw new Error("attention pooling needs heads >= 1 and weights");
+		}
+		return attentionForward(rows, attention.weights, attention.heads).pooled;
+	}
 	const mean = Array.from(
 		{ length: SIGNAL_DIM },
 		(_, field) => rows.reduce((sum, row) => sum + row[field], 0) / rows.length
@@ -171,12 +186,16 @@ export function replaySector(input: {
 	}[];
 	manager: SectorNetwork;
 	pooling: PoolingMode;
+	/** Required with `pooling: "attention"`. */
+	attention?: AttentionPooling;
 	testFrom: number;
 	simulator: SimulatorParams;
 }): SegmentRatios & { feesPaid: number; executionCostPaid: number } {
 	const { assets, pooling, simulator } = input;
 	const managerNet = input.manager.genome.network;
-	if (managerNet.inputDim !== managerInputDim(pooling)) {
+	if (
+		managerNet.inputDim !== managerInputDim(pooling, input.attention?.heads)
+	) {
 		throw new Error("manager input size does not match the pooling mode");
 	}
 	if (managerNet.outputDim !== MANAGER_OUTPUT_DIM) {
@@ -229,7 +248,7 @@ export function replaySector(input: {
 			padded.set(market.subarray(0, network.inputDim));
 			return toAssetSignal(engine.forward(padded).output);
 		});
-		const pooled = poolSignals(signals, pooling);
+		const pooled = poolSignals(signals, pooling, input.attention);
 		const { weights, exposure } = sectorDecision(
 			signals.map(
 				(signal) =>

@@ -130,3 +130,17 @@ describe("sector replay (ADR-0076 step 4)", () => {
 		).toThrow("fewer than 2 bars");
 	});
 });
+
+describe("attention pooling", () => {
+	it("sizes the manager input from the heads and refuses missing weights", () => {
+		expect(managerInputDim("attention", 2)).toBe(15);
+		const signal = toAssetSignal([0, 0, 0, 0, 0]);
+		expect(() => poolSignals([signal], "attention")).toThrow(/heads/);
+		expect(
+			poolSignals([signal], "attention", {
+				heads: 1,
+				weights: new Float32Array(75),
+			})
+		).toHaveLength(5);
+	});
+});

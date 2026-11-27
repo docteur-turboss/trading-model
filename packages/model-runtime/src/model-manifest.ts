@@ -130,7 +130,7 @@ export const ModelManifestSchema = z.object({
 		)
 		.optional(),
 	/** How a sector manager pools its analysts' signals; absent: `mean+max`. */
-	pooling: z.enum(["mean", "mean+max"]).optional(),
+	pooling: z.enum(["mean", "mean+max", "attention"]).optional(),
 	/** Window and simulator to replay the model (ADR-0079); absent on older manifests. */
 	replay: z
 		.object({
