@@ -1,7 +1,7 @@
 /**
  * Scopes of an API key (ADR-0059): `read` for the GET routes of
  * `PUBLIC_ROUTES`, `audit:read` for the audit trail, `risk:admin` to engage the
- * risk-execution kill switch, `risk:rearm` to re-arm it.
+ * risk-execution kill switch or reduce a position, `risk:rearm` to re-arm it.
  */
 const API_SCOPES = ["read", "audit:read", "risk:admin", "risk:rearm"] as const;
 export type ApiScope = (typeof API_SCOPES)[number];

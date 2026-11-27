@@ -119,24 +119,32 @@ function emptyLayer(fanIn: number, fanOut: number): LayerMemory {
 	};
 }
 
+/** Inference engine on the published weights; throws when they do not fit the network. */
+export function inferenceEngine(
+	network: PolicyGenome["network"],
+	weights: Float32Array
+): FeedForwardEngine {
+	const config = mergeConfig(policyNetworkConfig(network));
+	const sizes = config.neuronsByLayer;
+	const layers = sizes
+		.slice(1)
+		.map((fanOut, idx) => emptyLayer(sizes[idx], fanOut));
+	setWeights(layers, weights);
+	return new FeedForwardEngine(config, layers);
+}
+
 /** A greedy agent on the published weights; throws when they do not fit the network. */
 function greedyAgent(
 	genome: PolicyGenome,
 	weights: Float32Array,
 	simulator: SimulatorParams
 ): TradingAgent {
-	const config = mergeConfig(policyNetworkConfig(genome.network));
-	const sizes = config.neuronsByLayer;
-	const layers = sizes
-		.slice(1)
-		.map((fanOut, idx) => emptyLayer(sizes[idx], fanOut));
-	setWeights(layers, weights);
 	return new TradingAgent(
 		{
 			...policyAgentConfig(genome.network, simulator),
 			stateManagerCfg: { epsilonStart: 0, epsilonMin: 0 },
 		},
-		new FeedForwardEngine(config, layers)
+		inferenceEngine(genome.network, weights)
 	);
 }
 

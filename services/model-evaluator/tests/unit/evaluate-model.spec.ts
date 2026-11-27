@@ -24,7 +24,10 @@ import { replayModel } from "@trading-model/model-runtime/replay";
 import { FileEvaluationStore } from "../../src/adapters/outbound/file-evaluation-store";
 import { createEvaluateModel } from "../../src/application/evaluate-model";
 import { MODEL_REPLAY_SHARPE_GAP } from "../../src/config/metrics";
-import { PublishedModel } from "../../src/domain/model-evaluation";
+import {
+	type EvaluationRecord,
+	PublishedModel,
+} from "../../src/domain/model-evaluation";
 
 const WEIGHTS = new Float32Array([0.5, -1, 2]);
 const BYTES = Buffer.from(WEIGHTS.buffer);
@@ -92,6 +95,16 @@ jest.mock("@trading-model/model-runtime/replay", () => ({
 		buyAndHoldSharpe: 1,
 	})),
 }));
+jest.mock("@trading-model/model-runtime/sector-replay", () => ({
+	replaySector: jest.fn(() => ({
+		sharpe: 2,
+		sortino: 2,
+		calmar: 2,
+		buyAndHoldSharpe: 0,
+		feesPaid: 1,
+		executionCostPaid: 1,
+	})),
+}));
 const EVENT = { symbol: "BTCUSDT", version: MANIFEST.version, sha256: SHA };
 
 describe("evaluate a published model", () => {
@@ -116,6 +129,50 @@ describe("evaluate a published model", () => {
 		});
 		return { evaluate, calls };
 	};
+
+	it("replays a sector over its analysts, and records its ratios", async () => {
+		const bar = (timestamp: number) =>
+			({ timestamp, closeTimestamp: timestamp + 59_999 }) as CandleData;
+		const run = async (candles: CandleData[]) => {
+			const read: string[] = [];
+			const records: EvaluationRecord[] = [];
+			const evaluate = createEvaluateModel({
+				store: {
+					has: async () => false,
+					create: async (record) => records.push(record) > 0,
+				},
+				scraper: {
+					candles: async (symbol) => {
+						read.push(symbol);
+						return candles;
+					},
+				},
+				trainer: {
+					manifest: async (symbol, version) =>
+						symbol === "sector-tech"
+							? ({
+									...MANIFEST,
+									symbol,
+									version,
+									role: "sector",
+									components: [
+										{ symbol: "BTCUSDT", version: MANIFEST.version },
+									],
+									replay: WINDOW,
+								} as ModelManifest)
+							: MANIFEST,
+					weights: async () => ({ bytes: BYTES, sha256: SHA }),
+				},
+			});
+			await evaluate({ ...EVENT, symbol: "sector-tech" } as PublishedModel);
+			return { read, record: records[0] };
+		};
+
+		const { read, record } = await run([bar(0), bar(60_000)]);
+		expect(read).toEqual(["BTCUSDT"]);
+		expect(record).toMatchObject({ symbol: "sector-tech", replay: "done" });
+		MODEL_REPLAY_SHARPE_GAP.reset();
+	});
 
 	it("hands the bus abort signal to the manifest, the weights and the candles", async () => {
 		const seen: (AbortSignal | undefined)[] = [];

@@ -149,5 +149,29 @@ export function createHandlers(
 		}
 		return sendResponse({ status: "rearmed" as const }, HTTP_STATUS.OK);
 	};
-	return { intent, cancel, position, adminStatus, adminEngage, adminRearm };
+	const adminReduce: Handler<"adminReduce"> = async ({ body }, req) => {
+		const actor = actorOf(req);
+		if (!actor) {
+			return needsNamedKey();
+		}
+		const result = await risk.reduce(
+			body.symbol,
+			body.quantity,
+			actor,
+			body.limitPrice
+		);
+		emitMetrics(
+			result.status === "rejected" ? `rejected:${result.reason}` : result.status
+		);
+		return sendResponse(result, HTTP_STATUS.OK);
+	};
+	return {
+		intent,
+		cancel,
+		position,
+		adminStatus,
+		adminEngage,
+		adminRearm,
+		adminReduce,
+	};
 }

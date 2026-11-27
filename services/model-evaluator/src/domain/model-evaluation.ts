@@ -6,6 +6,10 @@ import {
 } from "@trading-model/model-runtime/model-manifest";
 import { replayModel } from "@trading-model/model-runtime/replay";
 import type { SegmentRatios } from "@trading-model/model-runtime/replay-metrics";
+import {
+	replaySector,
+	type SectorNetwork,
+} from "@trading-model/model-runtime/sector-replay";
 import { z } from "zod";
 
 /** What the evaluator reads of `training.model.published` (ADR-0049 §1.1). */
@@ -43,6 +47,76 @@ export type EvaluationRecord = {
 	admissible: boolean;
 } & ReplayOutcome;
 
+/** Bars closed by `window.to`, or undefined when they do not cover the window. */
+function windowBars(
+	window: ReplayWindow,
+	candles: readonly CandleData[]
+): CandleData[] | undefined {
+	const bars = candles.filter((candle) => candle.closeTimestamp <= window.to);
+	return bars[0]?.timestamp === window.from &&
+		bars[bars.length - 1]?.closeTimestamp === window.to
+		? bars
+		: undefined;
+}
+
+/** Float32 needs 4-byte alignment, a Buffer slice may not have it: a copy. */
+const toFloats = (weights: Uint8Array) =>
+	new Float32Array(new Uint8Array(weights).buffer);
+
+/**
+ * Replays a sector (ADR-0076 §3) on the test segment: every asset must cover
+ * the window, else `missing-candles`. Analysts and the manager come with their
+ * weights; the manager is the manifest's own genome.
+ */
+export function sectorOutcome(
+	manifest: ModelManifest,
+	weights: Uint8Array,
+	analysts: readonly {
+		symbol: string;
+		genome: ModelManifest["genome"];
+		weights: Uint8Array;
+		candles: readonly CandleData[];
+	}[]
+): ReplayOutcome {
+	const window = manifest.replay;
+	if (!window) {
+		return { replay: "failed", reason: "no-window" };
+	}
+	const assets: Parameters<typeof replaySector>[0]["assets"][number][] = [];
+	for (const analyst of analysts) {
+		const bars = windowBars(window, analyst.candles);
+		if (!bars) {
+			return { replay: "failed", reason: "missing-candles" };
+		}
+		assets.push({
+			symbol: analyst.symbol,
+			analyst: {
+				genome: analyst.genome,
+				weights: toFloats(analyst.weights),
+			} satisfies SectorNetwork,
+			candles: bars,
+		});
+	}
+	try {
+		const ratios = replaySector({
+			assets,
+			manager: { genome: manifest.genome, weights: toFloats(weights) },
+			pooling: manifest.pooling ?? "mean+max",
+			testFrom: window.testFrom,
+			simulator: {
+				...window.simulator,
+				maxExposureFraction: manifest.riskLimits?.maxExposureFraction,
+			},
+		});
+		return { replay: "done", metrics: { policy: "greedy", ...ratios } };
+	} catch (err) {
+		return {
+			replay: "failed",
+			reason: `replay-error: ${normalizeError(err).message}`,
+		};
+	}
+}
+
 /**
  * Replays the model greedily on the candles read for its window (ADR-0079
  * §3-4): candles closing after `to` are never used, and a window the
@@ -55,18 +129,14 @@ export function replayOutcome(
 	candles: readonly CandleData[],
 	maxExposureFraction?: number
 ): ReplayOutcome {
-	const bars = candles.filter((candle) => candle.closeTimestamp <= window.to);
-	if (
-		bars[0]?.timestamp !== window.from ||
-		bars[bars.length - 1]?.closeTimestamp !== window.to
-	) {
+	const bars = windowBars(window, candles);
+	if (!bars) {
 		return { replay: "failed", reason: "missing-candles" };
 	}
 	try {
 		const ratios = replayModel({
 			genome,
-			// A copy: float32 needs 4-byte alignment, a Buffer slice may not have it.
-			weights: new Float32Array(new Uint8Array(weights).buffer),
+			weights: toFloats(weights),
 			testFrom: window.testFrom,
 			simulator: { ...window.simulator, maxExposureFraction },
 			candles: bars,
