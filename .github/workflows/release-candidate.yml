@@ -1,0 +1,239 @@
+# =============================================================================
+#  release-candidate.yml — Build, scan and push the release images BEFORE the tag
+#  On a pull request to main (the release PR) or by hand: builds the service and
+#  tooling images, pushes them under a provisional :scan-<run id>, scans them
+#  (Trivy, by digest) and only when every scan passed retags them unsigned as
+#  :tree-<git tree of the commit>. release.yml, at the vX.Y.Z tag, only checks
+#  that the tagged commit has the same tree, retags the digest, signs and
+#  verifies (ADR-0038). A failing scan means no tag has been burnt.
+#  Full-history gitleaks runs in ci.yml on the same pull request.
+# =============================================================================
+
+name: Release candidate
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      registry: ${{ steps.version.outputs.registry }}
+      services: ${{ steps.version.outputs.services }}
+      scan_tag: ${{ steps.version.outputs.scan_tag }}
+      tree_tag: ${{ steps.version.outputs.tree_tag }}
+      build_version: ${{ steps.version.outputs.build_version }}
+      images: ${{ steps.version.outputs.images }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The PR head, not refs/pull/N/merge: its tree is the one a squash gives main, its SHA is real.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Resolve registry, services and candidate tag
+        id: version
+        shell: bash
+        env:
+          IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          registry="${IMAGE_REGISTRY:-ghcr.io/$OWNER}"
+          list=$(yq '.env.IMAGES' .github/workflows/deploy.yml)
+          services=$(for i in $list; do [ -d "services/$i" ] && echo "$i"; done | jq -R . | jq -sc .)
+          {
+            echo "scan_tag=scan-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+            echo "tree_tag=tree-$(git rev-parse 'HEAD^{tree}')"
+            echo "build_version=$(jq -r .version package.json)"
+            echo "images=$(for i in $list; do echo "$i"; done | jq -R . | jq -sc .)"
+            echo "registry=${registry,,}"
+            echo "services=$services"
+          } >> "$GITHUB_OUTPUT"
+
+  scan-services:
+    needs: [version]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.version.outputs.services) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The PR head, not refs/pull/N/merge: its tree is the one a squash gives main, its SHA is real.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta (labels)
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ needs.version.outputs.registry }}/${{ matrix.service }}
+          tags: type=raw,value=${{ needs.version.outputs.scan_tag }}
+
+      # Gate before publication: a fixable CRITICAL or HIGH vulnerability stops the job
+      # before the image gets its tree tag. Exceptions: .trivyignore.yaml (ADR-0038).
+      - name: Build and push under the scan tag
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: Dockerfile
+          build-args: |
+            SERVICE=${{ matrix.service }}
+            BUILD_VERSION=${{ needs.version.outputs.build_version }}
+            GIT_SHA=${{ github.event.pull_request.head.sha || github.sha }}
+          push: true
+          sbom: true
+          provenance: mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # No GHA cache: a push to main could have planted layers in its scope (ADR-0038).
+
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_IGNOREFILE: .trivyignore.yaml
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          image-ref: ${{ needs.version.outputs.registry }}/${{ matrix.service }}@${{ steps.build.outputs.digest }}
+          severity: CRITICAL,HIGH
+          # Unfixed CVEs cannot be remedied by a rebuild: block only on those with a fix.
+          ignore-unfixed: true
+          exit-code: "1"
+
+  # Tooling images, built once, pushed under a scan tag and scanned by digest:
+  # spire-tools (deploy/spire): spire-server binary + registration scripts (the
+  # official SPIRE images have no shell), used by the spire-entries sidecar.
+  # backup-tools (deploy/backup): kubectl + age + rclone + mysqlbinlog for the db-backup
+  # and db-backup-incremental CronJobs and restore-k8s.sh.
+  # db-migrate (deploy/migrate): migrate.mjs + migrations + locked mysql2 for the db-migrate Jobs.
+  scan-tools:
+    needs: [version]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - image: spire-tools
+            context: deploy/spire
+            target: bootstrap
+          - image: backup-tools
+            context: deploy/backup
+            target: ""
+          - image: db-migrate
+            context: .
+            file: deploy/migrate/Dockerfile
+            target: ""
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The PR head, not refs/pull/N/merge: its tree is the one a squash gives main, its SHA is real.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta (labels)
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ needs.version.outputs.registry }}/${{ matrix.image }}
+          tags: type=raw,value=${{ needs.version.outputs.scan_tag }}
+
+      # Gate before publication: a fixable CRITICAL or HIGH vulnerability stops the job
+      # before the image gets its tree tag. Exceptions: .trivyignore.yaml (ADR-0038).
+      - name: Build and push under the scan tag
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          target: ${{ matrix.target }}
+          push: true
+          sbom: true
+          provenance: mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # No GHA cache: a cached `microdnf upgrade` layer would hide distro fixes published since.
+
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_IGNOREFILE: .trivyignore.yaml
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          image-ref: ${{ needs.version.outputs.registry }}/${{ matrix.image }}@${{ steps.build.outputs.digest }}
+          severity: CRITICAL,HIGH
+          # Unfixed CVEs cannot be remedied by a rebuild: block only on those with a fix.
+          ignore-unfixed: true
+          exit-code: "1"
+
+  # Publishes the tree tag only when every scan passed (a failed matrix leaves only :scan-* images,
+  # which release.yml ignores): the tree tag is the proof that the scan succeeded.
+  publish:
+    needs: [version, scan-services, scan-tools]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Tag the scanned digests with the tree
+        shell: bash
+        env:
+          REGISTRY: ${{ needs.version.outputs.registry }}
+          SCAN_TAG: ${{ needs.version.outputs.scan_tag }}
+          TREE_TAG: ${{ needs.version.outputs.tree_tag }}
+          IMAGES: ${{ needs.version.outputs.images }}
+        run: |
+          for i in $(jq -r '.[]' <<<"$IMAGES"); do
+            docker buildx imagetools create -t "$REGISTRY/$i:$TREE_TAG" "$REGISTRY/$i:$SCAN_TAG"
+          done
