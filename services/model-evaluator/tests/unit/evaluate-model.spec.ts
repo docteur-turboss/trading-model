@@ -174,6 +174,39 @@ describe("evaluate a published model", () => {
 		MODEL_REPLAY_SHARPE_GAP.reset();
 	});
 
+	it.each([
+		["sector", []],
+		["allocator", []],
+		["allocator", [{ version: MANIFEST.version }]],
+	])(
+		"fails a %s whose components cannot be read: %j",
+		async (role, components) => {
+			const records: EvaluationRecord[] = [];
+			const evaluate = createEvaluateModel({
+				store: {
+					has: async () => false,
+					create: async (record) => records.push(record) > 0,
+				},
+				scraper: NO_CANDLES,
+				trainer: {
+					manifest: async () =>
+						({
+							...MANIFEST,
+							role,
+							components,
+							replay: WINDOW,
+						}) as ModelManifest,
+					weights: async () => ({ bytes: BYTES, sha256: SHA }),
+				},
+			});
+			await evaluate(EVENT as PublishedModel);
+			expect(records[0]).toMatchObject({
+				replay: "failed",
+				reason: "no-components",
+			});
+		}
+	);
+
 	it("replays an allocator over its sectors and their analysts", async () => {
 		const read: string[] = [];
 		const records: EvaluationRecord[] = [];
