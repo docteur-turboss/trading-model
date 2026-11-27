@@ -49,6 +49,28 @@ const status = (): Status => {
 	return { code: res.status, ...JSON.parse(res.body) };
 };
 
+/** Tells hold, no-room, rejected and missing-bar apart: the CI log shows none of them otherwise. */
+function dumpDecisionDiagnostics(): void {
+	const metrics = meshRequest(
+		CALLER.gateway,
+		"https://decision-consumer:3000/metrics"
+	).body;
+	console.error(
+		metrics
+			.split("\n")
+			.filter((line) => /^decision_(intents|skipped)_total/.test(line))
+			.join("\n")
+	);
+	for (const container of [DECIDER, RISK]) {
+		console.error(
+			execFileSync("docker", ["logs", "--tail", "40", container], {
+				encoding: "utf8",
+				stdio: ["ignore", "pipe", "pipe"],
+			})
+		);
+	}
+}
+
 describe("risk-execution E2E", () => {
 	// Leaves the stack clean even when an assertion failed mid-way.
 	afterAll(async () => {
@@ -161,10 +183,15 @@ describe("risk-execution E2E", () => {
 		);
 
 		// `eventually` only returns a defined value: a non-zero position.
-		await eventually(
-			"a paper position opened by the promoted model",
-			() => status().positions[SYMBOL] || undefined,
-			{ timeoutMs: DECISION_TIMEOUT_MS, intervalMs: 5_000 }
-		);
+		try {
+			await eventually(
+				"a paper position opened by the promoted model",
+				() => status().positions[SYMBOL] || undefined,
+				{ timeoutMs: DECISION_TIMEOUT_MS, intervalMs: 5_000 }
+			);
+		} catch (error) {
+			dumpDecisionDiagnostics();
+			throw error;
+		}
 	});
 });
