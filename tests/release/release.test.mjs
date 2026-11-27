@@ -170,3 +170,31 @@ test('--prepare on release/*: one release commit, no tag, no merge, last line ve
     assert.equal(version('.'), expected.slice(1));
   }
 });
+
+test('--prepare, two cycles without merging main back into development: new version, no published entry, PR without conflict', () => {
+  const prepareFromDevelopment = branch => {
+    git('checkout', '-q', '-B', branch, 'development');
+    const { status, out } = release('--prepare');
+    assert.equal(status, 0, out);
+    return out.trim().split('\n').at(-1).slice('version='.length);
+  };
+  git('checkout', '-q', '-B', 'development', 'main');
+  writeJson('services/old/package.json', { name: 'old', version: '3.0.0' });
+  commit(':sparkles:(docs): feat A');
+  const first = prepareFromDevelopment('release/first');
+  git('checkout', '-q', 'main');
+  git('merge', '-q', '--no-ff', '--no-edit', 'release/first');
+  git('tag', '-a', first, '-m', first);
+
+  git('checkout', '-q', 'development');
+  git('rm', '-q', '-r', 'services/old');
+  commit(':bug:(docs): fix B');
+  const second = prepareFromDevelopment('release/second');
+  const [, major, minor, patch] = first.match(/^v(\d+)\.(\d+)\.(\d+)$/).map(Number);
+  assert.equal(second, `v${major}.${minor}.${patch + 1}`);
+  const section = readFileSync(join(repo, 'CHANGELOG.md'), 'utf-8').split('\n## [')[0];
+  assert.match(section, /fix B/);
+  assert.doesNotMatch(section, /feat A/);
+  assert.equal(version('.'), second.slice(1));
+  git('merge-tree', '--write-tree', 'main', 'HEAD'); // throws on a conflict
+});
