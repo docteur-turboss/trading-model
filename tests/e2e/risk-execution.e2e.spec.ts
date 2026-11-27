@@ -51,15 +51,15 @@ const status = (): Status => {
 
 /** Tells hold, no-room, rejected and missing-bar apart: the CI log shows none of them otherwise. */
 function dumpDecisionDiagnostics(): void {
-	const metrics = meshRequest(
-		CALLER.gateway,
-		"https://decision-consumer:3000/metrics"
-	).body;
+	// From the container itself: its own SVID, no ACL or name resolution in between.
+	const res = meshRequest(DECIDER, "https://decision-consumer:3000/metrics");
+	const lines = res.body
+		.split("\n")
+		.filter((line) => /^decision_(intents|skipped)_total/.test(line));
 	console.error(
-		metrics
-			.split("\n")
-			.filter((line) => /^decision_(intents|skipped)_total/.test(line))
-			.join("\n")
+		`decision-consumer /metrics ${res.status}\n${
+			lines.length > 0 ? lines.join("\n") : res.body.slice(0, 500)
+		}`
 	);
 	for (const container of [DECIDER, RISK]) {
 		console.error(
