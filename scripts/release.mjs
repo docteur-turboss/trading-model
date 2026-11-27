@@ -196,9 +196,9 @@ const TYPE_ORDER = [
 ];
 
 function parseArgs() {
-  const args = { dryRun: false, bump: null, version: null, publish: false, prerelease: null };
+  const args = { dryRun: false, bump: null, version: null, publish: false, prepare: false, prerelease: null };
   const argv = process.argv.slice(2);
-  const BOOLEAN_FLAGS = { '--dry-run': 'dryRun', '--publish': 'publish' };
+  const BOOLEAN_FLAGS = { '--dry-run': 'dryRun', '--publish': 'publish', '--prepare': 'prepare' };
   const VALUE_FLAGS = { '--bump': 'bump', '--version': 'version', '--prerelease': 'prerelease' };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
@@ -230,6 +230,10 @@ function parseArgs() {
     console.error('  --publish cannot be combined with --version (it would merge and publish nothing).');
     process.exit(1);
   }
+  if (args.prepare && (args.publish || args.version || args.dryRun)) {
+    console.error('  --prepare cannot be combined with --publish, --version or --dry-run.');
+    process.exit(1);
+  }
   if (args.bump && !['major', 'minor', 'patch'].includes(args.bump)) {
     console.error(`  Invalid bump type: "${args.bump}". Use major, minor, or patch.`);
     process.exit(1);
@@ -242,17 +246,19 @@ function parseArgs() {
 }
 
 function handlePublishMerge(args) {
-  if (!args.publish || args.dryRun) return;
+  if (!(args.publish || args.prepare) || args.dryRun) return;
+  const flag = args.prepare ? '--prepare' : '--publish';
   const branch = run('git rev-parse --abbrev-ref HEAD');
-  if (branch !== 'main') {
-    console.error(`  --publish requires being on main branch (currently on ${branch}).\n`);
+  if (args.prepare ? !branch.startsWith('release/') : branch !== 'main') {
+    console.error(`  ${flag} requires being on ${args.prepare ? 'a release/* branch' : 'main branch'} (currently on ${branch}).\n`);
     process.exit(1);
   }
   // publishRelease runs `git add -A`: a dirty tree would end up in the release commit.
   if (runOrDie('git status --porcelain')) {
-    console.error('  --publish requires a clean working tree (commit or remove your changes).\n');
+    console.error(`  ${flag} requires a clean working tree (commit or remove your changes).\n`);
     process.exit(1);
   }
+  if (args.prepare) return mergeMainIntoRelease();
   console.log('\n  → Merging development into main...');
   const mergeOut = run('git merge development --no-edit');
   if (mergeOut === '' && run('git diff --name-only --diff-filter=U')) {
@@ -260,6 +266,44 @@ function handlePublishMerge(args) {
     process.exit(1);
   }
   console.log('  ✓ Merged development into main\n');
+}
+
+/**
+ * --prepare: merges main into the release/* branch (made from development). The last tag, on main's merge
+ * commit, becomes reachable and CHANGELOG.md / package.json start from main's, so the PR to main has no
+ * conflict. Conflicts on those files are settled here (development's content and deletions, main's version
+ * and CHANGELOG); any other conflict stops the release.
+ */
+function mergeMainIntoRelease() {
+  run('git fetch origin main --quiet'); // no-op without a remote
+  const ref = run('git rev-parse --verify --quiet origin/main') ? 'origin/main' : 'main';
+  console.log(`\n  → Merging ${ref} into the release branch...`);
+  run(`git merge ${ref} --no-ff --no-verify -m ":twisted_rightwards_arrows:(release): fusionner main"`);
+  for (const file of run('git diff --name-only --diff-filter=U').split('\n').filter(Boolean)) {
+    if (file === 'CHANGELOG.md') {
+      runOrDie(`git checkout --theirs -- "${file}"`);
+    } else if (file.endsWith('package.json')) {
+      const ours = run(`git show ":2:${file}"`);
+      const theirs = run(`git show ":3:${file}"`);
+      if (!ours) {
+        runOrDie(`git rm -q -- "${file}"`); // workspace deleted on development
+        continue;
+      }
+      const pkg = JSON.parse(ours);
+      if (theirs) pkg.version = JSON.parse(theirs).version;
+      writeFileSync(join(ROOT, file), `${JSON.stringify(pkg, null, 2)}\n`, 'utf-8');
+    } else {
+      run('git merge --abort');
+      console.error(
+        `  ✖ Merge conflict on ${file}: was the previous release PR squashed? It must be merged with a merge commit.\n`,
+      );
+      process.exit(1);
+    }
+    runOrDie(`git add -- "${file}"`);
+  }
+  if (run('git rev-parse -q --verify MERGE_HEAD')) runOrDie('git commit --no-verify --no-edit');
+  runOrDie(`git merge-base --is-ancestor ${ref} HEAD`);
+  console.log(`  ✓ Merged ${ref}\n`);
 }
 
 function collectCommits(args, lastTag) {
@@ -399,13 +443,17 @@ function printSummary(bumps, oldRootVer, newVersion, rootBump, dryRun) {
 }
 
 function publishRelease(newVersion, args) {
-  if (!args.publish || args.dryRun) return;
-  console.log('\n  ── Publishing release ──\n');
+  if (!(args.publish || args.prepare) || args.dryRun) return;
+  console.log(`\n  ── ${args.prepare ? 'Preparing' : 'Publishing'} release ──\n`);
   console.log('  → Staging files...');
   runOrDie('git add -A');
   const commitMsg = `:rocket:(release): v${newVersion}`;
   console.log(`  → Committing: ${commitMsg}`);
   runOrDie(`git commit --no-verify -m "${commitMsg}"`);
+  if (args.prepare) {
+    console.log(`version=v${newVersion}`); // last line, read by the orchestrator
+    return;
+  }
   console.log(`  → Tagging v${newVersion}...`);
   runOrDie(`git tag -a v${newVersion} -m "${commitMsg}"`);
   console.log('  → Pushing commits and tags...');
