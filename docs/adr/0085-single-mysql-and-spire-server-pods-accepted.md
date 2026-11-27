@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-11
-**Related:** [ADR-0020](./0020-database-topology-as-deployed.md) (MySQL topology, Follow-up closed here), [ADR-0024](./0024-pod-spread-across-nodes.md) (spread and PDBs), [ADR-0031](./0031-point-in-time-recovery-hourly-archives.md) (RPO 1 h), [ADR-0065](./0065-spire-datastore-sqlite-and-4h-svid-ttl.md) (SPIRE datastore, SVID TTL 4 h)
+**Related:** [ADR-0020](./0020-database-topology-as-deployed.md) (MySQL topology, Follow-up closed here), [ADR-0024](./0024-pod-spread-across-nodes.md) (spread and PDBs), [ADR-0031](./0031-point-in-time-recovery-hourly-archives.md) (RPO 1 h), [ADR-0065](./0065-spire-datastore-sqlite-and-4h-svid-ttl.md) (SPIRE datastore, SVID TTL 4 h), [ADR-0092](./0092-blocking-pdb-for-mysql-and-risk-execution.md) (replaces the rejection of B for MySQL: blocking PDB in the base)
 **Verified by:** manual review 2026-11-20 (`deploy/k8s/infra/mysql.yaml`, `deploy/k8s/infra/spire/spire-server.yaml`, `docs/deployment/BACKUP_DR.md`); the restore of MySQL and of the SPIRE volume after the loss of the cluster is the restore drill of `tests/k8s/run-kind.sh`
 
 ## Context
@@ -35,7 +35,7 @@ Reopen this decision when production has at least 2 nodes. B is then the best co
 
 | Alternative | Reason |
 | --- | --- |
-| B, blocking PDB now | Manual step on every node update, against `KUBERNETES.md` and #917, no protection on one node |
+| B, blocking PDB now | Manual step on every node update, against `KUBERNETES.md` and #917, no protection on one node (replaced for MySQL by ADR-0092, 2026-11-26) |
 | C, MySQL replica with failover now | Several days of work, no protection while the replica shares the node of the primary |
 
 ## Consequences

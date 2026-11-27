@@ -1,7 +1,7 @@
 # ============================================================================
 #  image-scan.yml — Trivy scan of the release images between two releases
 # ----------------------------------------------------------------------------
-#  release-candidate.yml scans every image only on a release pull request, so a CVE in a
+#  release-candidate.yml scans every image only on a release PR, so a CVE in a
 #  base image used to surface only at release time (v3.1.0-rc.3 backup-tools,
 #  v3.2.1 db-migrate). This workflow builds the same images locally (no push) and
 #  scans them with the same settings as release-candidate.yml scan-services / scan-tools:
@@ -93,7 +93,7 @@ jobs:
           load: true
           push: false
           tags: image-scan/${{ matrix.service }}:${{ github.sha }}
-          # No GHA cache, as in release-candidate.yml: a cached layer would hide distro fixes published since.
+          # No GHA cache, as in release.yml: a cached layer would hide distro fixes published since.
 
       - name: Scan image (Trivy)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0

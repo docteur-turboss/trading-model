@@ -208,6 +208,20 @@ spec:
     requests:
       storage: 1Gi
 ---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: risk-execution-pdb
+  labels:
+    app.kubernetes.io/component: risk-execution
+    app.kubernetes.io/part-of: trading-model
+spec:
+  # ADR-0092: a voluntary drain is refused until the operator forces it.
+  maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: risk-execution
+---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

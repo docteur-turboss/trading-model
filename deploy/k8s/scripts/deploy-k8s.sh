@@ -621,14 +621,12 @@ release_checks_once() {
   # Alerts already firing before the deploy (deploy.yml records them in
   # VERIFY_BASELINE_FILE) are reported, not blocking: a rollback cannot clear them.
   if [[ -n "$critical" && -s "${VERIFY_BASELINE_FILE:-}" ]]; then
-    local before baseline
-    # `run` names the backup job (daily/incremental) that saw the alert, not its
-    # target: compare without it on both sides, every other label still counts.
-    baseline="$(jq -cS 'del(.run)' "$VERIFY_BASELINE_FILE")" || return 1
+    local before same='([.alertname, .job]) as $k | any($b[]; [.alertname, .job] == $k)'
+    # Same alertname + job = same alert: other labels (instance, pod, run...) change between runs.
     critical="$(jq -cS 'del(.run)' <<<"$critical")" || return 1
-    before="$(grep -xFf <(printf '%s\n' "$baseline") <<<"$critical" | alert_names)"
+    before="$(jq -c --slurpfile b "$VERIFY_BASELINE_FILE" "select($same)" <<<"$critical" | alert_names)" || return 1
     [[ -n "$before" ]] && log "  - firing before the deploy, not blocking: ${before}"
-    critical="$(grep -vxFf <(printf '%s\n' "$baseline") <<<"$critical" || true)"
+    critical="$(jq -c --slurpfile b "$VERIFY_BASELINE_FILE" "select($same | not)" <<<"$critical")" || return 1
   fi
   if [[ -n "$critical" ]]; then
     err "  ✗ critical alert(s) firing: $(alert_names <<<"$critical")"

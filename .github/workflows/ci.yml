@@ -15,14 +15,15 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  # Only a newer commit of the same PR cancels a run: every push (merge to development or main) runs to the end.
+  # Only a newer commit of the same PR cancels a run: every push (merge to development or main,
+  # release tag; github.event_name is the caller's in a called workflow) runs to the end.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Decides once which jobs run (a skipped gate skips every job that needs it) and whether the
   # k8s jobs are worth running: always, except on a pull request touching nothing they deploy or test.
   gate:
-    # Skip the push-to-main run of a release commit: its release pull request ran the CI on the same tree.
+    # The release PR already ran the CI (release.yml no longer replays it at the tag): skip the push-to-main run of the release commit.
     if: ${{ github.event.action != 'edited' && (github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub'))) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -141,7 +142,7 @@ jobs:
           bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - run: bun audit --audit-level=high
-      # The action only scans the commits of the event; a push scans the whole history.
+      # The action only scans the commits of the event; a push (branch or release tag) scans the whole history.
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         if: ${{ github.event_name == 'pull_request' }}
         env:

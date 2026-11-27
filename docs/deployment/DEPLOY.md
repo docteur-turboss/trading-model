@@ -308,7 +308,7 @@ canary or a real rollout (the preflight never starts a pod).
 
 1. Fill the `Controller` and `Contact` fields of the [data processing register](../compliance/data-processing-register.md) (Art. 30(1)(a); first production deploy only, see "Before the first production deploy" above)
 2. `bun run release:publish` (on `main`) bumps the versions, writes the CHANGELOG and pushes the tag `vX.Y.Z` ([release.md](../contributing/release.md))
-3. `release.yml` promotes the images built and scanned by `release-candidate.yml` on the release pull request (same tree as the tag) to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release; its last job, `verify-images`, fails if `deploy.yml` cannot resolve one of them.
+3. `release.yml` checks the tag's tree was built and scanned by `release-candidate.yml` (no CI replay), then publishes the images to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release; its last job, `verify-images`, fails if `deploy.yml` cannot resolve one of them.
 4. The `Deploy` workflow is run against the `production` environment (canary enabled for staged rollout)
 
 ### Upgrading from 3.0.x: rewrite the Redis AOF first
@@ -474,15 +474,14 @@ and is never printed), at least one candle persisted in the last 15 min
 step and triggers "Rollback on failure". Market data may be missing until the first pass
 that sees it, but must be present on the last pass and never disappear after. A critical
 alert already firing before the deploy does not fail the gate in staging: the step "Record
-critical alerts firing before the deploy", before any cluster change, lists them with all
-their labels (`deploy-k8s.sh firing-critical`) into `VERIFY_BASELINE_FILE`, and
+critical alerts firing before the deploy", before any cluster change, lists them
+(`deploy-k8s.sh firing-critical`) into `VERIFY_BASELINE_FILE`, and
 `verify-release` only reports them, since a rollback cannot clear them (e.g. a backup alert
-waiting for a production-only fix). An alert that differs by any label (another instance,
-service, symbol...) still fails, except `run` (which backup job saw it), ignored on both sides. In production that step refuses to start the deploy while a
+waiting for a production-only fix). Same `alertname` + same `job` = same alert, whatever the other labels; another `alertname` or another `job` still fails. In production that step refuses to start the deploy while a
 critical alert fires; a hotfix meant to clear it runs with the `workflow_dispatch` input
 `allow_firing_alerts` (default `false`): the step then logs the alerts and `github.actor` as
 a warning and production uses the baseline as staging does. An alert of the baseline that resolves then fires again during the
-deploy with the same labels stays reported only. Staging skips the market-data
+deploy with the same `alertname` and `job` stays reported only. Staging skips the market-data
 check and ignores `MarketDataStale` (`VERIFY_REQUIRE_FRESH_DATA=false`, set by `deploy.yml`):
 there, missing market data only warns (`Verify market data resumed`).
 
