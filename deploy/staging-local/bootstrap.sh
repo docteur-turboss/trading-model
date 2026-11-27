@@ -14,6 +14,12 @@
 #  identities  creates deploy-app / deploy-cluster (ADR-0041) with the API
 #              server address the runner container sees on the `kind` network,
 #              and stores both kubeconfigs in the GitHub environment `staging`.
+#  rebuild <tag>  deletes and recreates the cluster from scratch, then restores the
+#              SealedSecrets key, deploys <tag> and restores the newest MySQL/MongoDB
+#              backup of the local MinIO. Run by the owner (cluster admin). Needs
+#              BACKUP_AGE_RECIPIENTS, BACKUP_S3_BUCKET, AWS_* / RCLONE_S3_* (as
+#              backup-sealed-secrets-key.sh) and the age identity of the backups
+#              (BACKUP_AGE_IDENTITY, default ~/.trading-staging/backup-age-identity.txt).
 #
 #  Runs with the kind admin context (kind-trading-staging). See
 #  docs/deployment/STAGING_LOCAL.md.
@@ -82,10 +88,37 @@ identities() {
 	echo "KUBECONFIG_STAGING_APP / KUBECONFIG_STAGING_CLUSTER stored (token 168 h: run again before expiry)"
 }
 
+rebuild() {
+	local tag="${1:?usage: $0 rebuild <tag>}" cluster="${CONTEXT#kind-}" typed identity dest
+	identity="${BACKUP_AGE_IDENTITY:-$HOME/.trading-staging/backup-age-identity.txt}"
+	[[ -r $identity ]] || { echo "age identity $identity not readable" >&2; exit 1; }
+	read -r -p "This DELETES the kind cluster '$cluster' (all its data). Type its name to go on: " typed
+	[[ $typed == "$cluster" ]] || { echo "name does not match: nothing touched" >&2; exit 1; }
+	# Key first, off-site: a failed backup must stop before the cluster is deleted.
+	bash "$ROOT/scripts/backup-sealed-secrets-key.sh"
+	kind delete cluster --name "$cluster"
+	kind create cluster --config "$ROOT/deploy/staging-local/kind.yaml"
+	docker update --memory 12g --memory-swap 12g --cpus 12 "${cluster}-control-plane" >/dev/null
+	kubectl config use-context "$CONTEXT" >/dev/null
+	prereqs
+	identities
+	bash "$ROOT/scripts/restore-sealed-secrets-key.sh" --identity "$identity" --offsite
+	# Same workflow, same manifests as every staging release.
+	gh workflow run deploy.yml --ref "$tag" -f environment=staging -f image_tag="$tag"
+	sleep 10
+	gh run watch "$(gh run list --workflow deploy.yml --limit 1 --json databaseId -q '.[0].databaseId')" --exit-status
+	dest="$(mktemp -d)"
+	trap 'rm -rf "$dest"' EXIT
+	bash "$ROOT/scripts/fetch-offsite.sh" --dest "$dest"
+	BACKUP_DIR="$dest" BACKUP_AGE_IDENTITY="$identity" bash "$ROOT/scripts/restore-k8s.sh" --components mongodb-audit,mysql
+	echo "Left to do on GitHub: check the environment 'staging' secrets (kubeconfigs are stored by identities; re-seal the overlay if the key was not restored), then run deploy.yml with preflight_only=true."
+}
+
 case "${1:-}" in
 prereqs | identities) "$1" ;;
+rebuild) shift; rebuild "$@" ;;
 *)
-	echo "usage: $0 prereqs|identities" >&2
+	echo "usage: $0 prereqs|identities|rebuild <tag>" >&2
 	exit 1
 	;;
 esac

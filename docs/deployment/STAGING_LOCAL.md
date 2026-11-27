@@ -355,6 +355,10 @@ While it is down:
 Stop it only when no backup window (02:00 to 04:00 UTC) matters to you, and
 start it before a deploy: `deploy.yml` fails on the self-hosted runner otherwise.
 
+## Rebuild from scratch
+
+`bash deploy/staging-local/bootstrap.sh rebuild <tag>`, run by the owner: asks for the cluster name, backs up the SealedSecrets key off-site, deletes and recreates the cluster, runs `prereqs` and `identities`, restores the key, runs `deploy.yml` for `<tag>`, then restores the newest MySQL/MongoDB backup of MinIO. Needs the variables of `backup-sealed-secrets-key.sh` and `~/.trading-staging/backup-age-identity.txt`. Duration: not measured yet (owner to add after the first run). Check with `deploy.yml` `preflight_only=true`.
+
 ## Renewal and teardown
 
 - The deploy tokens last 168 h: run `bootstrap.sh identities` again before a
