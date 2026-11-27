@@ -830,7 +830,7 @@ services:
   # Compose Redis has no ACL (single dev node): no exporter user.
   redis-exporter:
     logging: *default-logging
-    image: oliver006/redis_exporter:v1.98.0@sha256:2b68665248d909bb25de9d175c648932a8c358ba143e5dbed1eb48f91cc9d2e1
+    image: oliver006/redis_exporter:v1.99.0@sha256:2c0cdc2452096b5af460d870e72fa6ee2ebb971780f443a616885685d2c0ebad
     container_name: trading-redis-exporter
     restart: unless-stopped
     mem_limit: 128m
