@@ -43,8 +43,8 @@ cat >"$WORK/bin/kubectl" <<'STUB'
 # Revisions: $STUB_REVS "dep=rev" (absent: no Deployment). Undo of $STUB_UNDO_FAILS fails.
 # Grace periods: $STUB_GRACE "dep=seconds" (absent: none in the template).
 echo "$*" >>"$STUB_LOG"
-# Rollback prune (issue #3021): the render holds networkpolicy/keep, the live ones are $STUB_NETPOL.
-[[ $* == *--dry-run=client* ]] && { cat >/dev/null; echo networkpolicy/keep; exit 0; }
+# Rollback prune (issue #3021): the render holds networkpolicy/keep, the live ones are $STUB_NETPOL. `apply` only: `create job --dry-run=client` is the pre-migrate backup.
+[ "$1" = apply ] && [[ $* == *--dry-run=client* ]] && { cat >/dev/null; echo networkpolicy/keep; exit 0; }
 [ "$1" = get ] && [ "$2" = networkpolicies ] && { printf 'networkpolicy/%s
 ' $STUB_NETPOL; exit 0; }
 # API server down: `get deployments` fails while the count in $STUB_API_DOWN is above 0.
