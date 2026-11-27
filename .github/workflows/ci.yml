@@ -254,6 +254,8 @@ jobs:
   # The k8s job only deploys staging: production is checked by rendering.
   k8s-overlays:
     needs: gate
+    # Also on the merge push to development (gate skipped, see its if), like test: a green PR can break it once merged.
+    if: ${{ !cancelled() && (needs.gate.result == 'success' || (github.event_name == 'push' && github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
