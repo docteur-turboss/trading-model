@@ -304,10 +304,10 @@ out="$(expiry $(($(date +%s) + 999999)))" && [ -z "$out" ] && ok "valid token: s
 
 # Rollback guard (issue #3021): a live migration the target lacks is refused, never migrated down.
 mkdir -p "$WORK/migs" && : >"$WORK/migs/001_a.up.sql" && : >"$WORK/migs/001_a.down.sql"
-STUB_IDS='001_a
+STUB_MASTER= STUB_IDS='001_a
 ' bash "$SCRIPT" schema-check ns "$WORK/migs" >/dev/null 2>&1 &&
 	ok "schema-check: known schema passes" || ko "schema-check refused a known schema"
-out="$(STUB_IDS='001_a
+out="$(STUB_MASTER= STUB_IDS='001_a
 002_b
 ' bash "$SCRIPT" schema-check ns "$WORK/migs" 2>&1)" &&
 	ko "schema-check accepted a newer schema" || { [[ "$out" == *"002_b"* ]] && ok "schema-check: newer schema refused, names 002_b" || ko "schema-check message: $out"; }

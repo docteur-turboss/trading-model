@@ -803,7 +803,7 @@ upgrade() {
 full_rollback() {
 	local drift unknown migrations_before out
 	log "full rollback N → N-1 (deploy.yml rollback=true)"
-	mysql_root "INSERT INTO financial_scraper._migrations (id, checksum) VALUES ('999_unknown_to_n1', 'x')" || return 1
+	mysql_root "INSERT INTO financial_scraper._migrations (id, name, checksum) VALUES ('999_unknown_to_n1', 'x', 'x')" || return 1
 	if release_script schema-check "$NS" "$PREVIOUS/scripts/migrations" 2>/dev/null; then
 		log "schema-check accepted a live schema newer than N-1"
 		return 1
