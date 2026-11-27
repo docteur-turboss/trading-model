@@ -54,7 +54,7 @@
     "@testcontainers/mysql": "^12.2.2",
     "@testcontainers/redis": "^12.2.2",
     "husky": "^9.1.7",
-    "knip": "6.47.0",
+    "knip": "6.48.0",
     "testcontainers": "^12.2.2",
     "typedoc": "^0.28.20",
     "typescript": "^6.0.3"
