@@ -357,7 +357,7 @@ start it before a deploy: `deploy.yml` fails on the self-hosted runner otherwise
 
 ## Rebuild from scratch
 
-`bash deploy/staging-local/bootstrap.sh rebuild <tag>`, run by the owner: asks for the cluster name, backs up the SealedSecrets key off-site, deletes and recreates the cluster, runs `prereqs` and `identities`, restores the key, runs `deploy.yml` for `<tag>`, then restores the newest MySQL/MongoDB backup of MinIO. Needs the variables of `backup-sealed-secrets-key.sh` and `~/.trading-staging/backup-age-identity.txt`. Duration: not measured yet (owner to add after the first run). Check with `deploy.yml` `preflight_only=true`.
+`bash deploy/staging-local/bootstrap.sh rebuild <tag>`, run by the owner: asks for the cluster name, backs up the SealedSecrets key off-site, deletes and recreates the cluster, runs `prereqs` and `identities`, restores the key, runs `deploy.yml` for `<tag>`, then restores the newest MySQL/MongoDB backup of MinIO. Needs the variables of `backup-sealed-secrets-key.sh` and `~/.trading-staging/backup-age-identity.txt`. No fresh data backup is taken first: up to 24 h of MySQL/MongoDB data after the last scheduled backup is lost. Duration: not measured yet (owner to add after the first run). Check with `deploy.yml` `preflight_only=true`.
 
 ## Renewal and teardown
 

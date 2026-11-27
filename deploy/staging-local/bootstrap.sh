@@ -89,7 +89,7 @@ identities() {
 }
 
 rebuild() {
-	local tag="${1:?usage: $0 rebuild <tag>}" cluster="${CONTEXT#kind-}" typed identity dest
+	local tag="${1:?usage: $0 rebuild <tag>}" cluster="${CONTEXT#kind-}" typed identity before run
 	identity="${BACKUP_AGE_IDENTITY:-$HOME/.trading-staging/backup-age-identity.txt}"
 	[[ -r $identity ]] || { echo "age identity $identity not readable" >&2; exit 1; }
 	read -r -p "This DELETES the kind cluster '$cluster' (all its data). Type its name to go on: " typed
@@ -104,13 +104,23 @@ rebuild() {
 	identities
 	bash "$ROOT/scripts/restore-sealed-secrets-key.sh" --identity "$identity" --offsite
 	# Same workflow, same manifests as every staging release.
+	list_runs() { gh run list --workflow deploy.yml --event workflow_dispatch --branch "$tag" --limit 1 --json databaseId -q '.[0].databaseId // 0'; }
+	before="$(list_runs)"
 	gh workflow run deploy.yml --ref "$tag" -f environment=staging -f image_tag="$tag"
-	sleep 10
-	gh run watch "$(gh run list --workflow deploy.yml --limit 1 --json databaseId -q '.[0].databaseId')" --exit-status
-	dest="$(mktemp -d)"
-	trap 'rm -rf "$dest"' EXIT
-	bash "$ROOT/scripts/fetch-offsite.sh" --dest "$dest"
-	BACKUP_DIR="$dest" BACKUP_AGE_IDENTITY="$identity" bash "$ROOT/scripts/restore-k8s.sh" --components mongodb-audit,mysql
+	# The run we launched is the first id above the one seen before; bounded wait, explicit failure.
+	run="$before"
+	for _ in $(seq 30); do
+		run="$(list_runs)"
+		((run > before)) && break
+		sleep 2
+	done
+	((run > before)) || { echo "deploy.yml run for $tag not found after 60 s" >&2; exit 1; }
+	gh run watch "$run" --exit-status
+	# Global on purpose: an EXIT trap runs after the function's locals are gone (set -u).
+	DEST="$(mktemp -d)"
+	trap 'rm -rf "$DEST"' EXIT
+	bash "$ROOT/scripts/fetch-offsite.sh" --dest "$DEST"
+	BACKUP_DIR="$DEST" BACKUP_AGE_IDENTITY="$identity" bash "$ROOT/scripts/restore-k8s.sh" --components mongodb-audit,mysql
 	echo "Left to do on GitHub: check the environment 'staging' secrets (kubeconfigs are stored by identities; re-seal the overlay if the key was not restored), then run deploy.yml with preflight_only=true."
 }
 
