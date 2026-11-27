@@ -22,8 +22,9 @@ const branch = (name) => ({ type: 'branch', name });
 export const RULES = {
   production: { reviewer: 'strict', policies: [{ type: 'tag', name: 'v*' }] },
   // Tags `v*`: the release deploys its tag (deploy.yml dispatched with --ref vX.Y.Z).
-  staging: { policies: [branch('development'), branch('main'), { type: 'tag', name: 'v*' }], exact: true },
-  // deploy-compose.yml: same host and same tag/branch dispatches as staging.
+  // `release/*`: the orchestrator runs deploy.yml preflight_only from the release branch before its merge.
+  staging: { policies: [branch('development'), branch('main'), branch('release/*'), { type: 'tag', name: 'v*' }], exact: true },
+  // deploy-compose.yml: same host and same tag/branch dispatches as staging, without the release preflight.
   compose: { policies: [branch('development'), branch('main'), { type: 'tag', name: 'v*' }], exact: true },
   // The single approval before any image is published or signed (ADR-0038). No "Prevent self-review": the owner pushes the tags.
   release: { reviewer: 'any', policies: [{ type: 'tag', name: 'v*' }] },
