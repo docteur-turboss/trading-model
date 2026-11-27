@@ -98,6 +98,12 @@ kubectl logs -n trading-model deployment/financial-scraper -c financial-scraper 
 RTO is the time to bring `mysql-0` back with its volume, or to restore the
 last backup (ADR-0020).
 
+**Node maintenance:** `kubectl drain` refuses to evict `mysql-0` and the
+risk-execution pod (PDB `maxUnavailable: 0`, ADR-0092). Force it with
+`kubectl drain <node> --ignore-daemonsets --disable-eviction` (or delete the
+pod): this stops ingestion and trading, so re-arm the kill switch afterwards
+([runbook-risk-execution](runbook-risk-execution.md)).
+
 1. **Pod crashed, node healthy:** the StatefulSet recreates `mysql-0` on the
    same PVC `mysql-data-mysql-0`. Wait for it to be ready
    (`kubectl wait -n trading-model --for=condition=Ready pod/mysql-0 --timeout=300s`).

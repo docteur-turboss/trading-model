@@ -1,15 +1,15 @@
 # ============================================================================
 #  image-scan.yml — Trivy scan of the release images between two releases
 # ----------------------------------------------------------------------------
-#  release.yml scans every image only when a vX.Y.Z tag is pushed, so a CVE in a
+#  release-candidate.yml scans every image only on a release PR, so a CVE in a
 #  base image used to surface only at release time (v3.1.0-rc.3 backup-tools,
 #  v3.2.1 db-migrate). This workflow builds the same images locally (no push) and
-#  scans them with the same settings as release.yml scan-services / scan-tools:
+#  scans them with the same settings as release-candidate.yml scan-services / scan-tools:
 #    - on a pull request to development that touches an image input,
 #    - on every push to development,
 #    - daily, to catch a CVE published after the last build.
-#  Lists: services from deploy.yml IMAGES (like release.yml), tools from the
-#  scan-tools matrix of release.yml, so neither can drift from the release.
+#  Lists: services from deploy.yml IMAGES (like release-candidate.yml), tools from the
+#  scan-tools matrix of release-candidate.yml, so neither can drift from the release.
 # ============================================================================
 name: Image scan
 
@@ -54,9 +54,9 @@ jobs:
           list=$(yq '.env.IMAGES' .github/workflows/deploy.yml)
           # if, not &&: a failed test on the last image (a tool) would fail the loop, so the pipe (pipefail).
           services=$(for i in $list; do if [ -d "services/$i" ]; then echo "$i"; fi; done | jq -R . | jq -sc .)
-          tools=$(yq -o=json -I=0 '.jobs["scan-tools"].strategy.matrix.include' .github/workflows/release.yml)
+          tools=$(yq -o=json -I=0 '.jobs["scan-tools"].strategy.matrix.include' .github/workflows/release-candidate.yml)
           if [ "$services" = "[]" ] || [ "$tools" = "null" ] || [ "$tools" = "[]" ]; then
-            echo "::error::image list not found in deploy.yml IMAGES or release.yml scan-tools"
+            echo "::error::image list not found in deploy.yml IMAGES or release-candidate.yml scan-tools"
             exit 1
           fi
           {

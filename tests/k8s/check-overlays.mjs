@@ -266,10 +266,10 @@ function canarySingletons() {
 const errors = [...canarySingletons()];
 const deployed = deployImages();
 // release.yml derives services from IMAGES; tools stay hard-coded `include` entries.
-const releaseTools = new Set([...readFileSync(".github/workflows/release.yml", "utf8").matchAll(/^ {10}- image: (\S+)$/gm)].map((m) => m[1]));
+const releaseTools = new Set([...readFileSync(".github/workflows/release-candidate.yml", "utf8").matchAll(/^ {10}- image: (\S+)$/gm)].map((m) => m[1]));
 for (const image of deployed) {
 	if (!existsSync(`services/${image}`) && !releaseTools.has(image)) {
-		errors.push(`deploy.yml IMAGES: ${image} is built by release.yml neither as a service (services/${image}/) nor as a tool (- image: ${image})`);
+		errors.push(`deploy.yml IMAGES: ${image} is built by release-candidate.yml neither as a service (services/${image}/) nor as a tool (- image: ${image})`);
 	}
 }
 for (const env of OVERLAYS) {
@@ -410,6 +410,11 @@ for (const env of OVERLAYS) {
 			const replicas = Number(workload?.text.match(/^ {2}replicas: (\d+)$/m)?.[1]);
 			if (min >= replicas) errors.push(`production: PodDisruptionBudget ${pdb.name} requires ${min} of ${replicas} pod(s) of ${workload.name}: node drains would block`);
 		}
+		// ADR-0092: the exception to #917, a drain of these singletons is refused until forced.
+		for (const name of ["mysql-pdb", "risk-execution-pdb"]) {
+			const pdb = docs.find((doc) => doc.kind === "PodDisruptionBudget" && doc.name === name);
+			if (!/^ {2}maxUnavailable: 0$/m.test(pdb?.text ?? "")) errors.push(`production: PodDisruptionBudget ${name} must keep maxUnavailable: 0 (ADR-0092)`);
+		}
 	}
 
 	// Issue #1634: every major of PUBLIC_ROUTES needs an Ingress path to the edge-proxy.
@@ -420,8 +425,8 @@ for (const env of OVERLAYS) {
 
 	if (env.startsWith("staging")) {
 		for (const pdb of docs.filter((doc) => doc.kind === "PodDisruptionBudget")) {
-			if (/^ {2}minAvailable: [1-9]/m.test(pdb.text)) {
-				errors.push(`staging: PodDisruptionBudget ${pdb.name} keeps minAvailable (one replica: drains would block)`);
+			if (/^ {2}(minAvailable: [1-9]|maxUnavailable: 0$)/m.test(pdb.text)) {
+				errors.push(`staging: PodDisruptionBudget ${pdb.name} keeps minAvailable or maxUnavailable 0 (one replica: drains would block)`);
 			}
 		}
 		if (!rendered.includes("nginx.ingress.kubernetes.io/whitelist-source-range")) {

@@ -1,10 +1,11 @@
 # =============================================================================
 #  release.yml — Build & push Docker images on version tag
 #  Triggers on push of tags vX.Y.Z (e.g. v2.0.3, or v2.1.0-rc.1).
-#  Runs the whole CI first (ci.yml) on the tagged commit: no image is pushed
-#  unless every gate passes. Then builds the service images + the tooling
-#  images (spire-tools, the K8s SPIRE entry reconciler; backup-tools, the
-#  db-backup CronJob) and pushes each as :X.Y.Z (no leading v).
+#  Builds nothing: the images (services + spire-tools, backup-tools, db-migrate)
+#  were built, scanned and pushed as :tree-<git tree> by release-candidate.yml
+#  on the release PR. This workflow checks the tagged commit has that tree,
+#  waits for the approval, retags each scanned digest as :X.Y.Z (no leading v)
+#  and signs it (ADR-0038).
 #  :latest moves to the release only when it is the highest stable version:
 #  a backport patch (v1.4.2 after v2.0.0) or a prerelease never takes it.
 #  Registry: repository variable IMAGE_REGISTRY, default ghcr.io/<owner> (the
@@ -27,6 +28,9 @@ permissions:
 jobs:
   version:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read
     outputs:
       tag: ${{ steps.version.outputs.tag }}
       latest: ${{ steps.version.outputs.latest }}
@@ -69,20 +73,30 @@ jobs:
           {
             echo "tag=$version"
             echo "latest=$latest"
-            echo "scan_tag=scan-$GITHUB_RUN_ID"
+            echo "scan_tag=tree-$(git rev-parse "$GITHUB_SHA^{tree}")"
             echo "registry=${registry,,}"
             echo "images=$images"
             echo "services=$services"
           } >> "$GITHUB_OUTPUT"
           echo "Release $version to ${registry,,} (latest: $latest)"
 
-  ci:
-    uses: ./.github/workflows/ci.yml
-    # The kind jobs pull the images of the previous release (release N-1).
-    permissions:
-      contents: read
-      packages: read
-      pull-requests: read # asked by the ci.yml lint job (PR title step, skipped on a tag push)
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Same tree as the scanned candidate, or nothing is promoted: release-candidate.yml did not run on it.
+      - name: Check the candidate images of this tree
+        shell: bash
+        env:
+          REGISTRY: ${{ steps.version.outputs.registry }}
+          SCAN_TAG: ${{ steps.version.outputs.scan_tag }}
+        run: |
+          for i in $(yq '.env.IMAGES' .github/workflows/deploy.yml); do
+            docker buildx imagetools inspect "$REGISTRY/$i:$SCAN_TAG" --format '{{.Manifest.Digest}}' >/dev/null || { echo "::error::No candidate $REGISTRY/$i:$SCAN_TAG: release-candidate.yml has not passed on this tree"; exit 1; }
+          done
 
   # No `environment:` here, on purpose: it would create the environment
   # unprotected. Reading the settings needs ENVIRONMENT_READ_TOKEN
@@ -106,161 +120,18 @@ jobs:
 
   # The only approval point of a release: publication and signature depend on it (ADR-0038).
   approve:
-    needs: [version, ci, check-environment]
+    needs: [version, check-environment]
     runs-on: ubuntu-24.04
     timeout-minutes: 1440
     environment: release
     steps:
       - run: echo "Release ${{ needs.version.outputs.tag }} approved"
 
-  scan-services:
-    needs: [version, approve]
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        service: ${{ fromJSON(needs.version.outputs.services) }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Docker meta (labels)
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ${{ needs.version.outputs.registry }}/${{ matrix.service }}
-          tags: type=raw,value=${{ needs.version.outputs.scan_tag }}
-
-      # Gate before publication: a fixable CRITICAL or HIGH vulnerability stops the job
-      # before the image is promoted to its release tag. Exceptions: .trivyignore.yaml (ADR-0038).
-      - name: Build and push under the scan tag
-        id: build
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          file: Dockerfile
-          build-args: |
-            SERVICE=${{ matrix.service }}
-            BUILD_VERSION=${{ needs.version.outputs.tag }}
-            GIT_SHA=${{ github.sha }}
-          push: true
-          sbom: true
-          provenance: mode=max
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # No GHA cache: a push to main could have planted layers in its scope (ADR-0038).
-
-      - name: Scan image (Trivy)
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        env:
-          TRIVY_IGNOREFILE: .trivyignore.yaml
-          TRIVY_USERNAME: ${{ github.actor }}
-          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          image-ref: ${{ needs.version.outputs.registry }}/${{ matrix.service }}@${{ steps.build.outputs.digest }}
-          severity: CRITICAL,HIGH
-          # Unfixed CVEs cannot be remedied by a rebuild: block only on those with a fix.
-          ignore-unfixed: true
-          exit-code: "1"
-
-  # Tooling images, built once, pushed under a scan tag and scanned by digest:
-  # spire-tools (deploy/spire): spire-server binary + registration scripts (the
-  # official SPIRE images have no shell), used by the spire-entries sidecar.
-  # backup-tools (deploy/backup): kubectl + age + rclone + mysqlbinlog for the db-backup
-  # and db-backup-incremental CronJobs and restore-k8s.sh.
-  # db-migrate (deploy/migrate): migrate.mjs + migrations + locked mysql2 for the db-migrate Jobs.
-  scan-tools:
-    needs: [version, approve]
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      matrix:
-        include:
-          - image: spire-tools
-            context: deploy/spire
-            target: bootstrap
-          - image: backup-tools
-            context: deploy/backup
-            target: ""
-          - image: db-migrate
-            context: .
-            file: deploy/migrate/Dockerfile
-            target: ""
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Docker meta (labels)
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ${{ needs.version.outputs.registry }}/${{ matrix.image }}
-          tags: type=raw,value=${{ needs.version.outputs.scan_tag }}
-
-      # Gate before publication: a fixable CRITICAL or HIGH vulnerability stops the job
-      # before the image is promoted to its release tag. Exceptions: .trivyignore.yaml (ADR-0038).
-      - name: Build and push under the scan tag
-        id: build
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.file }}
-          target: ${{ matrix.target }}
-          push: true
-          sbom: true
-          provenance: mode=max
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # No GHA cache: a cached `microdnf upgrade` layer would hide distro fixes published since.
-
-      - name: Scan image (Trivy)
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        env:
-          TRIVY_IGNOREFILE: .trivyignore.yaml
-          TRIVY_USERNAME: ${{ github.actor }}
-          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          image-ref: ${{ needs.version.outputs.registry }}/${{ matrix.image }}@${{ steps.build.outputs.digest }}
-          severity: CRITICAL,HIGH
-          # Unfixed CVEs cannot be remedied by a rebuild: block only on those with a fix.
-          ignore-unfixed: true
-          exit-code: "1"
-
   # Promotes the scanned digest to X.Y.Z (and latest) only once every scan passed, then
   # signs that same digest (ADR-0038). id-token lives here
   # only; deploy.yml verifies the identity of this workflow.
   sign:
-    needs: [version, approve, scan-services, scan-tools]
+    needs: [version, approve]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
