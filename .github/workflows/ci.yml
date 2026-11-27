@@ -9,8 +9,6 @@ on:
   # see the job conditions); a direct push, any other committer, gets its own run.
   push:
     branches: [main, development]
-  # release.yml runs the whole CI on the tagged commit before pushing images.
-  workflow_call:
 
 permissions:
   contents: read
@@ -25,8 +23,8 @@ jobs:
   # Decides once which jobs run (a skipped gate skips every job that needs it) and whether the
   # k8s jobs are worth running: always, except on a pull request touching nothing they deploy or test.
   gate:
-    # release.yml runs the CI on the tag; skip the push-to-main run of the same release commit.
-    if: ${{ github.event.action != 'edited' && (startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub'))) }}
+    # The release PR already ran the CI (release.yml no longer replays it at the tag): skip the push-to-main run of the release commit.
+    if: ${{ github.event.action != 'edited' && (github.event_name != 'push' || (!startsWith(github.event.head_commit.message, ':rocket:(release)') && !(github.ref == 'refs/heads/development' && github.event.head_commit.committer.name == 'GitHub'))) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -131,7 +129,7 @@ jobs:
   security:
     # Not in pre-push: bun audit needs the network, gitleaks the full history (every push, PR merge to development
     # included, so a leak or a broken allowlist shows before the release tag; PRs scan their commits).
-    if: ${{ github.event.action != 'edited' && (startsWith(github.ref, 'refs/tags/') || github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)')) }}
+    if: ${{ github.event.action != 'edited' && (github.event_name != 'push' || !startsWith(github.event.head_commit.message, ':rocket:(release)')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -471,7 +469,6 @@ jobs:
     outputs:
       previous: ${{ steps.previous.outputs.tag }}
       registry: ${{ steps.previous.outputs.registry }}
-      staging: ${{ steps.staging.outputs.tag }}
     steps:
       # Full history and tags: release N-1 is the last stable tag.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -505,25 +502,6 @@ jobs:
           done
           echo "::error::Release N-1: no stable tag merged in HEAD^1 has published images in $registry"
           exit 1
-      # Release PR (to main, issue #3022): N-1 of k8s (staging-local) = the version staging runs, from the
-      # orchestrator's marker <!-- staging-deployed: vX.Y.Z --> in the PR body (env only, never interpolated).
-      - name: Resolve the staging version (release PR)
-        id: staging
-        if: ${{ github.base_ref == 'main' }}
-        env:
-          PR_BODY: ${{ github.event.pull_request.body }}
-          FALLBACK: ${{ steps.previous.outputs.tag }}
-          REGISTRY: ${{ steps.previous.outputs.registry }}
-        run: |
-          tag="$(printf '%s\n' "$PR_BODY" | sed -nE 's/.*<!-- staging-deployed: (v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?) -->.*/\1/p' | head -1)"
-          if [ -z "$tag" ]; then
-            echo "::warning::No staging-deployed marker in the PR body: k8s (staging-local) starts from $FALLBACK"
-            tag="$FALLBACK"
-          fi
-          git rev-parse -q --verify "refs/tags/$tag" >/dev/null || { echo "::error::Staging version $tag: no such tag"; exit 1; }
-          docker manifest inspect "$REGISTRY/api-gateway:${tag#v}" >/dev/null || { echo "::error::Staging version $tag: no image in $REGISTRY"; exit 1; }
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "Staging version (k8s staging-local N-1): $tag"
       - name: Install cosign
         uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
       - name: Pull release N-1, build release N
@@ -546,14 +524,11 @@ jobs:
     # One job per group of checks (run-kind.sh verify_group): each deploys N-1, upgrades to N,
     # then runs its own checks. fail-fast off: a red group does not hide the others.
     # backup runs the restore drill: 29-30 min on 3 recent runs, 37 min in run 45464740056 (audit 2026-11-24), so 45 left 8 min.
-    # staging-local also builds its images when staging runs another version than N-1.
-    timeout-minutes: ${{ (matrix.group == 'backup' || matrix.group == 'staging-local') && 60 || 45 }}
+    timeout-minutes: ${{ matrix.group == 'backup' && 60 || 45 }}
     strategy:
       fail-fast: false
       matrix:
-        # staging-local (release PR only, issue #3022): the upgrade staging will make, from the version it
-        # runs, with its overlay (partitioned data StatefulSets); its secrets are ci-render.mjs test values.
-        group: ${{ fromJSON(github.base_ref == 'main' && '["network","observability","backup","staging-local"]' || '["network","observability","backup"]') }}
+        group: [network, observability, backup]
     env:
       KIND_VERSION: v0.27.0
       KIND_SHA256: a6875aaea358acf0ac07786b1a6755d08fd640f4c79b7a2e46681cc13f49a04b
@@ -568,9 +543,8 @@ jobs:
       # docs/compliance/dr-exercise-log.md.
       DRILL_TIMINGS_FILE: ${{ github.workspace }}/restore-drill-timings.json
       # Release N-1 resolved by k8s-images: its tag (manifests) and the registry of its images.
-      KIND_PREVIOUS_REF: ${{ matrix.group == 'staging-local' && needs.k8s-images.outputs.staging || needs.k8s-images.outputs.previous }}
+      KIND_PREVIOUS_REF: ${{ needs.k8s-images.outputs.previous }}
       KIND_PREVIOUS_REGISTRY: ${{ needs.k8s-images.outputs.registry }}
-      KIND_OVERLAY: ${{ matrix.group == 'staging-local' && 'staging-local' || 'staging' }}
     permissions:
       contents: read
       packages: read
@@ -597,10 +571,8 @@ jobs:
           fi
       - name: Create the cluster
         run: bash tests/k8s/run-kind.sh cluster
-      # The artifact holds N-1 = the last stable tag: staging-local on another version builds its own below.
       - name: Download the images (release N-1 and N)
         id: download-images
-        if: ${{ env.KIND_PREVIOUS_REF == needs.k8s-images.outputs.previous }}
         continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -608,23 +580,21 @@ jobs:
           path: ${{ runner.temp }}
       # A re-run of this job alone after the 1-day retention finds no artifact (issue #1675): build the images here.
       - name: Log in to GitHub Container Registry (artifact expired)
-        if: ${{ steps.download-images.outcome != 'success' }}
+        if: ${{ steps.download-images.outcome == 'failure' }}
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Install cosign (artifact expired)
-        if: ${{ steps.download-images.outcome != 'success' }}
+        if: ${{ steps.download-images.outcome == 'failure' }}
         uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
       - name: Build the images (artifact expired)
-        if: ${{ steps.download-images.outcome != 'success' }}
+        if: ${{ steps.download-images.outcome == 'failure' }}
         env:
           KIND_IMAGE_ARCHIVE: ${{ runner.temp }}/kind-images.tar
-          STABLE: ${{ needs.k8s-images.outputs.previous }}
         run: |
-          [ "$KIND_PREVIOUS_REF" != "$STABLE" ] ||
-            echo "::warning::kind-images artifact not found (expired after a re-run?): building the images in this job"
+          echo "::warning::kind-images artifact not found (expired after a re-run?): building the images in this job"
           bash tests/k8s/run-kind.sh images
       - name: Load the images into kind
         env:
@@ -650,7 +620,6 @@ jobs:
             fi
           fi
       - name: Verify the group (${{ matrix.group }})
-        if: ${{ matrix.group != 'staging-local' }}
         timeout-minutes: 25
         env:
           SKIP_BACKUP_DRILL: ${{ steps.drill.outputs.skip }}
@@ -682,11 +651,21 @@ jobs:
       KIND_SHA256: a6875aaea358acf0ac07786b1a6755d08fd640f4c79b7a2e46681cc13f49a04b
       KIND: ./kind
       KIND_OVERLAY: staging-local
-      KIND_PREVIOUS_REF: ${{ vars.STAGING_RELEASE_VERSION }}
       KIND_PREVIOUS_REGISTRY: ${{ vars.IMAGE_REGISTRY || format('ghcr.io/{0}', github.repository_owner) }}
     steps:
-      - name: Require the staging release
-        run: test -n "$KIND_PREVIOUS_REF" || { echo "::error::Repository variable STAGING_RELEASE_VERSION is empty"; exit 1; }
+      # N-1 = the version staging runs (issue #3022): the orchestrator's marker <!-- staging-deployed: vX.Y.Z -->
+      # in the PR body, else the repository variable STAGING_RELEASE_VERSION. The body is the one of the event
+      # (opened or synchronize; an edit alone runs no job, a re-run keeps the old body): a new marker needs a push.
+      - name: Resolve the staging release
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          FALLBACK: ${{ vars.STAGING_RELEASE_VERSION }}
+        run: |
+          tag="$(printf '%s\n' "$PR_BODY" | sed -nE 's/.*<!-- staging-deployed: (v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?) -->.*/\1/p' | head -1)"
+          tag="${tag:-$FALLBACK}"
+          test -n "$tag" || { echo "::error::No staging-deployed marker in the PR body and STAGING_RELEASE_VERSION is empty"; exit 1; }
+          echo "KIND_PREVIOUS_REF=$tag" >> "$GITHUB_ENV"
+          echo "Staging release (N-1): $tag"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
