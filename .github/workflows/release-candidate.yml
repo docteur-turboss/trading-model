@@ -51,7 +51,7 @@ jobs:
         run: |
           registry="${IMAGE_REGISTRY:-ghcr.io/$OWNER}"
           list=$(yq '.env.IMAGES' .github/workflows/deploy.yml)
-          services=$(for i in $list; do [ -d "services/$i" ] && echo "$i"; done | jq -R . | jq -sc .)
+          services=$(for i in $list; do if [ -d "services/$i" ]; then echo "$i"; fi; done | jq -R . | jq -sc .)
           {
             echo "scan_tag=scan-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
             echo "tree_tag=tree-$(git rev-parse 'HEAD^{tree}')"
