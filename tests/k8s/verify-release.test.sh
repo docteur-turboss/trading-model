@@ -21,7 +21,7 @@ DEFAULT_ALERTS='{"data":{"result":[]}}'
 echo "$*" >>"$STUB_DIR/kubectl.log"
 case "$*" in
 *cluster-info* | "auth can-i"*) ;;
-*"get secret"*) printf 'secret-key,other' | base64 ;;
+*"get secret"*) printf 'secret-key' | base64 ;;
 *"exec -i"*api-gateway*) cat >"$STUB_DIR/stdin"; printf '%s' "${STUB_CODE:-200}" ;;
 *prometheus-0*"fs_candles_persisted_total"*) echo "${STUB_FRESH:-$DEFAULT_FRESH}" ;;
 *prometheus-0*ALERTS*) echo "${STUB_ALERTS:-$DEFAULT_ALERTS}" ;;
