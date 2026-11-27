@@ -4,13 +4,14 @@ A release is a git tag `vX.Y.Z` pushed to `origin`. The tag triggers the **Relea
 
 ## 1. Cut the tag (`scripts/release.mjs`)
 
-`release:publish` runs from `main` and merges the **local** `development` itself, so `git pull --ff-only origin` both branches first; plain `release` assumes the merge is already done. `release:publish` commits with `git add -A`: the whole working tree enters the release commit, so start clean.
+`release:publish` runs from `development` and writes the version commit on a new branch `release/vX.Y.Z`, so `main` gets no commit of its own: `git pull --ff-only origin` first. Then open the PR `release/vX.Y.Z` → `main`, merge `release/vX.Y.Z` into `development` with a merge commit (no back-merge of content), and tag the merged `main` with `release:tag`. `release:publish` commits with `git add -A`: the whole working tree enters the release commit, so start clean.
 
 | Command | Effect |
 | ------- | ------ |
 | `bun run release --dry-run` | Show the bump and the changelog, write nothing |
 | `bun run release` | Read the gitmoji commits since the last tag, bump the root version, set every `services/*/package.json` to it (the root version is the tag and the image tag; services have no version of their own) and bump the touched `packages/*` versions, prepend `CHANGELOG.md`. Does not commit, tag or push |
-| `bun run release:publish` | Same, then commit `:rocket:(release): vX.Y.Z`, create the annotated tag, `git push --follow-tags`. Refuses to run off `main`; merges `development` into `main` first |
+| `bun run release:publish` | Same, then commit `:rocket:(release): vX.Y.Z` on `release/vX.Y.Z` and push that branch (no tag). Refuses to run off `development` |
+| `bun run release:tag` | On `main`, after the PR is merged: create the annotated tag `v<root version>` on `HEAD`, push it (the Release workflow starts). Refuses to run off `main` |
 | `--bump major\|minor\|patch`, `--version X.Y.Z` | Force the bump (`bun run release --bump minor`; `--version` edits the root and the services `package.json`) |
 | `--prerelease <id>` (alone, or also with `--dry-run` or `--publish`) | Release `X.Y.Z-<id>.N` instead of `X.Y.Z`: commit `:rocket:(release): vX.Y.Z-<id>.N`, tag `vX.Y.Z-<id>.N`. `N` is 1 + the highest tag `vX.Y.Z-<id>.N`; the script runs `git fetch --tags` first (its failure is ignored, so without a reachable remote only local tags count). Cannot be combined with `--version`. An option value that is missing or starts with `-` (`--prerelease --dry-run`) exits 1 before anything is written |
 
@@ -18,7 +19,7 @@ Automatic bump: a breaking commit (`:boom:`, `!:`) is major, a feature commit (`
 
 Prerelease tags never serve as a base. `X.Y.Z` is computed from the last **stable** tag (`git describe --exclude '*-*'`) and the commits since it, the release commits of earlier prereleases excluded; each touched `packages/*` is bumped from its version at that tag. So `v3.0.0` + a feature gives `3.1.0-rc.1`, then `3.1.0-rc.2`, then the stable `3.1.0`, and a library goes `1.0.0 → 1.1.0` once, not once per prerelease. An unknown option stops the script (exit 1) before anything is written. `bun run release:test` (CI `lint` job) runs these cases on a throwaway git repository.
 
-`--publish` stops with exit 1, the failing command and its stderr when `git add`, `commit`, `tag` or `push` fails, and checks with `git ls-remote --tags origin vX.Y.Z` that the tag reached `origin` before printing "published".
+`--publish` and `--tag` stop with exit 1, the failing command and its stderr when `git switch`, `add`, `commit`, `tag` or `push` fails; `--tag` checks with `git ls-remote --tags origin vX.Y.Z` that the tag reached `origin` before printing "published".
 
 ## 2. Workflow "Release"
 

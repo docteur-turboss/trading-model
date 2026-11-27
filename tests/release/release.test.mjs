@@ -118,22 +118,35 @@ test('an option is never taken as the value of the option before it (a dry run s
   }
 });
 
-test('--publish refuses a dirty tree before merging', () => {
+test('--publish refuses a dirty tree and any branch but development', () => {
   git('checkout', '-q', '-B', 'main');
+  assert.match(release('--publish', '--prerelease', 'beta').out, /requires being on development/);
+  git('checkout', '-q', '-B', 'development');
   writeFileSync(join(repo, 'dirty.txt'), 'x');
-  const head = git('rev-parse', 'HEAD');
   const { status, out } = release('--publish', '--prerelease', 'beta');
   rmSync(join(repo, 'dirty.txt'));
   assert.equal(status, 1, out);
   assert.match(out, /clean working tree/);
-  assert.equal(git('rev-parse', 'HEAD'), head);
 });
 
-test('--publish exits 1 with the failing command when the push fails (no remote), never prints "published"', () => {
+test('--publish commits the version on release/vX on a branch cut from development, main untouched; push failure exits 1', () => {
   git('checkout', '-q', '-B', 'main');
-  git('branch', '-f', 'development', 'main');
+  git('checkout', '-q', '-B', 'development');
   const { status, out } = release('--publish', '--prerelease', 'beta');
   assert.equal(status, 1, out);
   assert.match(out, /Command failed: git push/);
-  assert.doesNotMatch(out, /published/);
+  assert.doesNotMatch(out, /pushed/);
+  assert.match(git('log', '-1', '--format=%s', 'release/v3.1.0-beta.1'), /v3\.1\.0-beta\.1/);
+  assert.equal(git('rev-parse', 'main'), git('rev-parse', 'development'));
+});
+
+test('--tag refuses off main; on main it tags the version of package.json and fails without a remote', () => {
+  git('checkout', '-q', 'development');
+  assert.match(release('--tag').out, /requires being on main/);
+  git('checkout', '-q', 'release/v3.1.0-beta.1');
+  git('checkout', '-q', '-B', 'main');
+  const { status, out } = release('--tag');
+  assert.equal(status, 1, out);
+  assert.match(out, /Command failed: git push origin v3\.1\.0-beta\.1/);
+  assert.match(git('tag', '--list', 'v3.1.0-beta.1'), /beta\.1/);
 });
