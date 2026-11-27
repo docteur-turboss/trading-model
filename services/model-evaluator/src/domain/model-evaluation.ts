@@ -7,7 +7,7 @@ import {
 import { replayModel } from "@trading-model/model-runtime/replay";
 import type { SegmentRatios } from "@trading-model/model-runtime/replay-metrics";
 import {
-	replaySector,
+	replaySectors,
 	type SectorNetwork,
 } from "@trading-model/model-runtime/sector-replay";
 import { z } from "zod";
@@ -63,49 +63,79 @@ function windowBars(
 const toFloats = (weights: Uint8Array) =>
 	new Float32Array(new Uint8Array(weights).buffer);
 
-/**
- * Replays a sector (ADR-0076 §3) on the test segment: every asset must cover
- * the window, else `missing-candles`. Analysts and the manager come with their
- * weights; the manager is the manifest's own genome.
- */
-export function sectorOutcome(
-	manifest: ModelManifest,
-	weights: Uint8Array,
+/** A sector as the evaluator reads it: its manager and its analysts with their candles. */
+export interface SectorInput {
+	manager: { genome: ModelManifest["genome"]; weights: Uint8Array };
+	pooling?: ModelManifest["pooling"];
 	analysts: readonly {
 		symbol: string;
 		genome: ModelManifest["genome"];
 		weights: Uint8Array;
 		candles: readonly CandleData[];
-	}[]
+	}[];
+}
+
+/**
+ * Replays a composition (ADR-0076 §3, §7) on the test segment: every asset
+ * must cover the window, else `missing-candles`. An `allocator` manifest is
+ * played over its sectors, any other manifest is the one sector.
+ */
+export function compositionOutcome(
+	manifest: ModelManifest,
+	weights: Uint8Array,
+	sectors: readonly SectorInput[]
 ): ReplayOutcome {
 	const window = manifest.replay;
 	if (!window) {
 		return { replay: "failed", reason: "no-window" };
 	}
-	const assets: Parameters<typeof replaySector>[0]["assets"][number][] = [];
-	for (const analyst of analysts) {
-		const bars = windowBars(window, analyst.candles);
-		if (!bars) {
-			return { replay: "failed", reason: "missing-candles" };
+	const loaded: Parameters<typeof replaySectors>[0]["sectors"][number][] = [];
+	for (const sector of sectors) {
+		const assets: (typeof loaded)[number]["assets"][number][] = [];
+		for (const analyst of sector.analysts) {
+			const bars = windowBars(window, analyst.candles);
+			if (!bars) {
+				return { replay: "failed", reason: "missing-candles" };
+			}
+			assets.push({
+				symbol: analyst.symbol,
+				analyst: {
+					genome: analyst.genome,
+					weights: toFloats(analyst.weights),
+				} satisfies SectorNetwork,
+				candles: bars,
+			});
 		}
-		assets.push({
-			symbol: analyst.symbol,
-			analyst: {
-				genome: analyst.genome,
-				weights: toFloats(analyst.weights),
-			} satisfies SectorNetwork,
-			candles: bars,
+		loaded.push({
+			assets,
+			manager: {
+				genome: sector.manager.genome,
+				weights: toFloats(sector.manager.weights),
+			},
+			pooling: sector.pooling ?? "mean+max",
 		});
 	}
+	const limits = manifest.riskLimits;
 	try {
-		const ratios = replaySector({
-			assets,
-			manager: { genome: manifest.genome, weights: toFloats(weights) },
-			pooling: manifest.pooling ?? "mean+max",
+		const ratios = replaySectors({
+			sectors: loaded,
+			allocator:
+				manifest.role === "allocator"
+					? {
+							network: {
+								genome: manifest.genome,
+								weights: toFloats(weights),
+							},
+							limits: {
+								maxExposureFraction: limits?.maxExposureFraction ?? 1,
+								maxConcentration: limits?.maxConcentration ?? 1,
+							},
+						}
+					: undefined,
 			testFrom: window.testFrom,
 			simulator: {
 				...window.simulator,
-				maxExposureFraction: manifest.riskLimits?.maxExposureFraction,
+				maxExposureFraction: limits?.maxExposureFraction,
 			},
 		});
 		return { replay: "done", metrics: { policy: "greedy", ...ratios } };

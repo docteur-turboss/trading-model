@@ -6,11 +6,12 @@ import {
 } from "@trading-model/model-runtime/model-manifest";
 import { MODEL_REPLAY_SHARPE_GAP } from "../config/metrics";
 import {
+	compositionOutcome,
 	type EvaluationRecord,
 	type PublishedModel,
 	type ReplayOutcome,
 	replayOutcome,
-	sectorOutcome,
+	type SectorInput,
 	toRecord,
 } from "../domain/model-evaluation";
 
@@ -46,28 +47,19 @@ interface Scraper {
 /** Whole evaluation, under the bus handler deadline (85 s) so it stops before its redelivery starts. */
 const EVALUATION_BUDGET_MS = 75_000;
 
-/** Replays a sector: its analysts' manifests, weights and candles are read first (ADR-0076 §3). */
-async function replaySectorModel(
+/** Reads a sector's analysts (manifests, weights, candles) for the window (ADR-0076 §3). */
+async function loadSector(
 	deps: { trainer: Trainer; scraper: Scraper },
 	manifest: ModelManifest,
 	weights: Uint8Array,
+	window: NonNullable<ModelManifest["replay"]>,
 	signal: AbortSignal
-): Promise<ReplayOutcome> {
-	const window = manifest.replay;
-	if (!window) {
-		return { replay: "failed", reason: "no-window" };
-	}
-	if (!isSupportedInterval(window.intervalMs)) {
-		return {
-			replay: "failed",
-			reason: `unsupported-interval: ${window.intervalMs} ms`,
-		};
-	}
+): Promise<SectorInput> {
 	const components = (manifest.components ?? []).flatMap(
 		({ symbol, version }) => (symbol ? [{ symbol, version }] : [])
 	);
 	if (components.length === 0) {
-		return { replay: "failed", reason: "no-components" };
+		throw new Error("no-components");
 	}
 	const analysts = await Promise.all(
 		components.map(async ({ symbol, version }) => {
@@ -96,8 +88,69 @@ async function replaySectorModel(
 			};
 		})
 	);
-	signal.throwIfAborted();
-	return sectorOutcome(manifest, weights, analysts);
+	return {
+		manager: { genome: manifest.genome, weights },
+		pooling: manifest.pooling,
+		analysts,
+	};
+}
+
+/** Replays a sector, or an allocator over its sectors: lower levels are read first (ADR-0076 §7). */
+async function replayComposition(
+	deps: { trainer: Trainer; scraper: Scraper },
+	manifest: ModelManifest,
+	weights: Uint8Array,
+	signal: AbortSignal
+): Promise<ReplayOutcome> {
+	const window = manifest.replay;
+	if (!window) {
+		return { replay: "failed", reason: "no-window" };
+	}
+	if (!isSupportedInterval(window.intervalMs)) {
+		return {
+			replay: "failed",
+			reason: `unsupported-interval: ${window.intervalMs} ms`,
+		};
+	}
+	try {
+		const sectors =
+			manifest.role === "allocator"
+				? await Promise.all(
+						(manifest.components ?? []).map(async ({ symbol, version }) => {
+							if (!symbol) {
+								throw new Error("no-components");
+							}
+							const [sector, sectorWeights] = await Promise.all([
+								deps.trainer.manifest(symbol, version, signal),
+								deps.trainer.weights(symbol, version, signal),
+							]);
+							verifyModel({
+								model: { symbol, version },
+								manifest: sector,
+								weights: sectorWeights.bytes,
+								headerSha256: sectorWeights.sha256,
+							});
+							return loadSector(
+								deps,
+								sector,
+								sectorWeights.bytes,
+								window,
+								signal
+							);
+						})
+					)
+				: [await loadSector(deps, manifest, weights, window, signal)];
+		if (sectors.length === 0) {
+			throw new Error("no-components");
+		}
+		signal.throwIfAborted();
+		return compositionOutcome(manifest, weights, sectors);
+	} catch (err) {
+		if (err instanceof Error && err.message === "no-components") {
+			return { replay: "failed", reason: "no-components" };
+		}
+		throw err;
+	}
 }
 
 /** Reads the window of the manifest, never later than `to`, and replays the model on it. */
@@ -177,8 +230,8 @@ export function createEvaluateModel(deps: {
 			headerSha256: weights.sha256,
 		});
 		const outcome =
-			manifest.role === "sector"
-				? await replaySectorModel(deps, manifest, weights.bytes, signal)
+			manifest.role === "sector" || manifest.role === "allocator"
+				? await replayComposition(deps, manifest, weights.bytes, signal)
 				: await replay(deps.scraper, manifest, weights.bytes, signal);
 		const published = manifest.admission?.criteria?.sharpe;
 		if (outcome.replay === "done" && published !== undefined) {

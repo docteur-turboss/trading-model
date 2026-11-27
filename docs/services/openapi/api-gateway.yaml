@@ -1045,6 +1045,8 @@ paths:
                         properties:
                           maxExposureFraction:
                             type: "number"
+                          maxConcentration:
+                            type: "number"
                         required:
                           - "maxExposureFraction"
                         additionalProperties: false
@@ -1127,6 +1129,7 @@ paths:
                         enum:
                           - "asset"
                           - "sector"
+                          - "allocator"
                       components:
                         type: "array"
                         items:

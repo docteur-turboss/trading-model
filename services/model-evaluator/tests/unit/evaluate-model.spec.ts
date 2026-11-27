@@ -96,7 +96,7 @@ jest.mock("@trading-model/model-runtime/replay", () => ({
 	})),
 }));
 jest.mock("@trading-model/model-runtime/sector-replay", () => ({
-	replaySector: jest.fn(() => ({
+	replaySectors: jest.fn(() => ({
 		sharpe: 2,
 		sortino: 2,
 		calmar: 2,
@@ -171,6 +171,85 @@ describe("evaluate a published model", () => {
 		const { read, record } = await run([bar(0), bar(60_000)]);
 		expect(read).toEqual(["BTCUSDT"]);
 		expect(record).toMatchObject({ symbol: "sector-tech", replay: "done" });
+		MODEL_REPLAY_SHARPE_GAP.reset();
+	});
+
+	it.each([
+		["sector", []],
+		["allocator", []],
+		["allocator", [{ version: MANIFEST.version }]],
+	])(
+		"fails a %s whose components cannot be read: %j",
+		async (role, components) => {
+			const records: EvaluationRecord[] = [];
+			const evaluate = createEvaluateModel({
+				store: {
+					has: async () => false,
+					create: async (record) => records.push(record) > 0,
+				},
+				scraper: NO_CANDLES,
+				trainer: {
+					manifest: async () =>
+						({
+							...MANIFEST,
+							role,
+							components,
+							replay: WINDOW,
+						}) as ModelManifest,
+					weights: async () => ({ bytes: BYTES, sha256: SHA }),
+				},
+			});
+			await evaluate(EVENT as PublishedModel);
+			expect(records[0]).toMatchObject({
+				replay: "failed",
+				reason: "no-components",
+			});
+		}
+	);
+
+	it("replays an allocator over its sectors and their analysts", async () => {
+		const read: string[] = [];
+		const records: EvaluationRecord[] = [];
+		const bar = (timestamp: number) =>
+			({ timestamp, closeTimestamp: timestamp + 59_999 }) as CandleData;
+		const evaluate = createEvaluateModel({
+			store: {
+				has: async () => false,
+				create: async (record) => records.push(record) > 0,
+			},
+			scraper: {
+				candles: async (symbol) => {
+					read.push(symbol);
+					return [bar(0), bar(60_000)];
+				},
+			},
+			trainer: {
+				manifest: async (symbol, version) => {
+					const own = { ...MANIFEST, symbol, version, replay: WINDOW };
+					if (symbol === "allocator:default") {
+						return {
+							...own,
+							role: "allocator",
+							components: [{ symbol: "sector:tech", version }],
+						} as ModelManifest;
+					}
+					return symbol === "sector:tech"
+						? ({
+								...own,
+								role: "sector",
+								components: [{ symbol: "BTCUSDT", version }],
+							} as ModelManifest)
+						: MANIFEST;
+				},
+				weights: async () => ({ bytes: BYTES, sha256: SHA }),
+			},
+		});
+		await evaluate({ ...EVENT, symbol: "allocator:default" } as PublishedModel);
+		expect(read).toEqual(["BTCUSDT"]);
+		expect(records[0]).toMatchObject({
+			symbol: "allocator:default",
+			replay: "done",
+		});
 		MODEL_REPLAY_SHARPE_GAP.reset();
 	});
 
