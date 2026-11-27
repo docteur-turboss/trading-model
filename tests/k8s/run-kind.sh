@@ -805,8 +805,10 @@ upgrade() {
 # deploy.yml with rollback=true (issue #3021), from release N: the schema guard refuses a schema
 # N-1 does not know, then (after an explicit migrate-down, as the runbook says) N-1 is applied
 # whole with no migration, and NetworkPolicies and CronJobs are N-1's. Ends back on N.
-# wait and smoke-test come from N-1's checkout, as deploy.yml runs them from the N-1 tag: N's
-# smoke-test probes from api-gateway, which N-1's NetworkPolicies may refuse (issue #3070).
+# wait, smoke-test and forget come from N-1's checkout, as deploy.yml runs them from the N-1 tag:
+# N's smoke-test probes from api-gateway, which N-1's NetworkPolicies may refuse, and N's forget
+# deletes discovery-server, N-1's probe point (issue #3070). N-1's smoke-test has no probe
+# timeout before #3070: bounded here, so a silent drop fails in 5 min, not at the job timeout.
 full_rollback() {
 	local drift unknown migrations_before out
 	log "full rollback N → N-1 (deploy.yml rollback=true)"
@@ -825,13 +827,14 @@ full_rollback() {
 		release_script record "$NS" "$WORK/revisions" &&
 			release_script release-replicas "$NS" &&
 			# N-1 predates podManagementPolicy: Parallel (immutable): as release-replicas does for the other way round.
-			{ [ "$($K get statefulset redis -n "$NS" -o jsonpath='{.spec.podManagementPolicy}')" != Parallel ] || [ -n "$(grep -s podManagementPolicy "$PREVIOUS/deploy/k8s/infra/redis.yaml")" ] || $K delete statefulset redis -n "$NS" --cascade=orphan; } &&
+			{ [ "$($K get statefulset redis -n "$NS" -o jsonpath='{.spec.podManagementPolicy}')" != Parallel ] || [ -n "$(grep -s podManagementPolicy "$PREVIOUS/deploy/k8s/infra/redis.yaml")" ] || $K delete statefulset redis -n "$NS" --cascade=orphan --timeout=120s; } &&
 			apply_release "$PREVIOUS" "$WORK/digests-previous" &&
 			release_script prune-network-policies "$NS" <"$WORK/app.yaml" &&
 			(cd "$PREVIOUS" && use_kube && bash deploy/k8s/scripts/deploy-release.sh wait "$NS") &&
 			release_script redis-last "$NS" <"$WORK/app.yaml" &&
-			(cd "$PREVIOUS" && use_kube && K8S_NAMESPACE="$NS" SMOKE_SKIP="model-evaluator risk-execution decision-consumer" bash deploy/k8s/scripts/deploy-k8s.sh smoke-test) &&
-			release_script forget "$NS"
+			(cd "$PREVIOUS" && use_kube && K8S_NAMESPACE="$NS" SMOKE_SKIP="model-evaluator risk-execution decision-consumer" timeout 300 bash deploy/k8s/scripts/deploy-k8s.sh smoke-test ||
+				{ [ $? != 124 ] || log "N-1 smoke test still running after 300 s: stopped"; false; }) &&
+			(cd "$PREVIOUS" && use_kube && bash deploy/k8s/scripts/deploy-release.sh forget "$NS")
 	} 2>&1 | tee "$out"
 	[ "${PIPESTATUS[0]}" = 0 ] || return 1
 	! grep -qi 'db-migrate\|migrations applied' "$out" && [ "$(applied_migrations)" = "$migrations_before" ] || {
@@ -839,8 +842,7 @@ full_rollback() {
 		return 1
 	}
 	# $WORK/app.yaml is N-1's render: any NetworkPolicy or CronJob still differing from it stayed on N.
-	# discovery-server is retired in N: `forget` deletes it after the smoke test, so it always differs.
-	drift="$($K diff -f "$WORK/app.yaml" 2>/dev/null | grep -E '^diff .*(NetworkPolicy|CronJob).' | grep -v discovery-server-network-policy || true)"
+	drift="$($K diff -f "$WORK/app.yaml" 2>/dev/null | grep -E '^diff .*(NetworkPolicy|CronJob).' || true)"
 	[ -z "$drift" ] || {
 		log "NetworkPolicies or CronJobs not back on N-1: $drift"
 		return 1
