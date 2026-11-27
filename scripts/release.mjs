@@ -282,11 +282,7 @@ function mergeMainIntoRelease() {
   for (const file of run('git diff --name-only --diff-filter=U').split('\n').filter(Boolean)) {
     if (file === 'CHANGELOG.md') {
       runOrDie(`git checkout --theirs -- "${file}"`);
-    } else if (!file.endsWith('package.json')) {
-      run('git merge --abort');
-      console.error(`  ✖ Merge conflict on ${file}: resolve it on development, then retry.\n`);
-      process.exit(1);
-    } else {
+    } else if (file.endsWith('package.json')) {
       const ours = run(`git show ":2:${file}"`);
       const theirs = run(`git show ":3:${file}"`);
       if (!ours) {
@@ -296,6 +292,12 @@ function mergeMainIntoRelease() {
       const pkg = JSON.parse(ours);
       if (theirs) pkg.version = JSON.parse(theirs).version;
       writeFileSync(join(ROOT, file), `${JSON.stringify(pkg, null, 2)}\n`, 'utf-8');
+    } else {
+      run('git merge --abort');
+      console.error(
+        `  ✖ Merge conflict on ${file}: was the previous release PR squashed? It must be merged with a merge commit.\n`,
+      );
+      process.exit(1);
     }
     runOrDie(`git add -- "${file}"`);
   }
