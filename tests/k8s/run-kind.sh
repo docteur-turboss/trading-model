@@ -831,6 +831,8 @@ full_rollback() {
 			$K -n "$NS" logs "${c%%:*}" -c "${c##*:}" --tail=40 || true
 			$K -n "$NS" logs "${c%%:*}" -c "${c##*:}" --previous --tail=40 || true
 		done
+		# The sentinel logs nothing while it waits for a master: ask it what it sees.
+		$K -n "$NS" exec redis-sentinel-0 -c sentinel -- sh -c 'env | grep -E "^(REDIS_HOSTS|SENTINEL_HOSTS|REDIS_TLS_MODE)="; for h in $REDIS_HOSTS; do echo "== $h"; getent hosts "$h"; REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli -h "$h" --user ha ROLE; REDISCLI_AUTH="$REDIS_INTERNAL_PASSWORD" redis-cli -h "$h" --user ha PING; done' 2>&1 || true
 		$K -n "$NS" get statefulset redis redis-sentinel -o wide || true
 		return 1
 	}
