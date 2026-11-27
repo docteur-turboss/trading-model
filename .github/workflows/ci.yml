@@ -14,7 +14,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # edited has its own group: a title or body edit never cancels the run testing the commit (#3066).
+  group: ${{ github.workflow }}-${{ github.ref }}${{ github.event.action == 'edited' && '-edited' || '' }}
   # Only a newer commit of the same PR cancels a run: every push (merge to development or main,
   # release tag; github.event_name is the caller's in a called workflow) runs to the end.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -713,9 +714,28 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      checks: read # edited: reads the k8s-result of the runs that tested this commit
     steps:
       - env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
           echo "gate, pr-title, lint, security, typecheck, test, db-integration, observability, k8s-overlays, contract, e2e, k8s-images, k8s: $RESULTS"
           case " $RESULTS " in *" failure "* | *" cancelled "*) exit 1 ;; esac
+      # An edited run tests nothing (gate skipped), but its k8s-result is the newest check of the commit, the one
+      # the rulesets read: it carries the verdict of the latest run whose gate ran, and fails while none has
+      # finished (that run's own k8s-result, newer, then replaces it). Without this an edit turned a red PR green (#3066).
+      - name: Verdict of the last tested run (edited)
+        if: ${{ github.event.action == 'edited' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # --slurp refuses --jq: jq reads the pages instead.
+          verdict=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/commits/$SHA/check-runs?filter=all&per_page=100" | jq -r '
+            [.[].check_runs[] | select(.name == "gate" or .name == "k8s-result")
+              | .run = (.details_url | capture("/runs/(?<id>[0-9]+)/").id)] as $c
+            | [$c[] | select(.name == "gate" and .conclusion != "skipped") | .run] as $tested
+            | [$c[] | select(.name == "k8s-result" and (.run | IN($tested[])))] | sort_by(.started_at) | last | .conclusion // "none"')
+          echo "k8s-result of the last tested run of $SHA: $verdict"
+          [ "$verdict" = success ]
