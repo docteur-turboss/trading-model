@@ -21,7 +21,7 @@
 # curl and util-linux).
 FROM bitnami/kubectl:latest@sha256:8919c149c2e3d6860e0143c117900e64d71395172aaef0e01e604bb98c8e7ce0 AS kubectl
 
-FROM mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902 AS mysql
+FROM mysql:8.4.13@sha256:8c233bad33d520a7aae1c1e619c3a9775f4a1ba2d463d692fada04ec7f40be00 AS mysql
 
 FROM oraclelinux:10-slim@sha256:5edf16c62270a7fa3012481efbef1921ba7159dc2441b99ed19eb6c0a88171cf
 COPY --from=mysql /etc/pki/rpm-gpg/RPM-GPG-KEY-mysql /etc/pki/rpm-gpg/RPM-GPG-KEY-mysql
