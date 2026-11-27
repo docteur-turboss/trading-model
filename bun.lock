@@ -42,7 +42,7 @@
     },
     "packages/broker-message": {
       "name": "@trading-model/broker-message",
-      "version": "1.3.1",
+      "version": "1.3.2",
       "dependencies": {
         "@opentelemetry/api": "^1.10.0",
         "@trading-model/common": "*",
@@ -50,7 +50,7 @@
         "@trading-model/http": "*",
         "@trading-model/persistence": "*",
         "@trading-model/primitives": "*",
-        "ioredis": "^6.0.0",
+        "ioredis": "^6.1.0",
         "prom-client": "^15.1.3",
         "zod": "^4.6.7",
       },
@@ -110,7 +110,7 @@
     },
     "packages/http": {
       "name": "@trading-model/http",
-      "version": "1.3.0",
+      "version": "1.3.1",
       "dependencies": {
         "@opentelemetry/api": "^1.10.0",
         "@opentelemetry/exporter-trace-otlp-http": "^0.301.2",
@@ -170,7 +170,7 @@
         "@trading-model/common": "*",
         "@trading-model/contracts": "*",
         "@trading-model/primitives": "*",
-        "ioredis": "^6.0.0",
+        "ioredis": "^6.1.0",
         "mongodb": "^7.9.1",
         "zod": "^4.6.7",
       },
@@ -214,7 +214,7 @@
     },
     "services/api-gateway": {
       "name": "api-gateway",
-      "version": "3.2.0",
+      "version": "3.2.1",
       "dependencies": {
         "@trading-model/common": "*",
         "@trading-model/contracts": "*",
@@ -238,13 +238,13 @@
     },
     "services/audit-logger": {
       "name": "audit-logger",
-      "version": "3.2.0",
+      "version": "3.2.1",
       "bin": {
         "audit-chain": "./dist/application/chain-cli.js",
         "audit-dlq": "./dist/application/dlq-cli.js",
       },
       "dependencies": {
-        "@aws-sdk/client-s3": "^3.1175.0",
+        "@aws-sdk/client-s3": "^3.1176.0",
         "@trading-model/address-manager": "*",
         "@trading-model/broker-message": "*",
         "@trading-model/common": "*",
@@ -270,7 +270,7 @@
     },
     "services/decision-consumer": {
       "name": "decision-consumer",
-      "version": "3.2.0",
+      "version": "3.2.1",
       "dependencies": {
         "@trading-model/address-manager": "*",
         "@trading-model/broker-message": "*",
@@ -298,7 +298,7 @@
     },
     "services/financial-scraper": {
       "name": "financial-scraper",
-      "version": "3.2.0",
+      "version": "3.2.1",
       "bin": {
         "signal-backfill": "./dist/application/signal-backfill.js",
         "order-book-replay": "./dist/application/order-book-replay.js",
@@ -335,7 +335,7 @@
     },
     "services/model-evaluator": {
       "name": "model-evaluator",
-      "version": "3.2.0",
+      "version": "3.2.1",
       "dependencies": {
         "@trading-model/address-manager": "*",
         "@trading-model/broker-message": "*",
@@ -360,7 +360,7 @@
     },
     "services/risk-execution": {
       "name": "risk-execution",
-      "version": "3.2.0",
+      "version": "3.2.1",
       "dependencies": {
         "@trading-model/address-manager": "*",
         "@trading-model/broker-message": "*",
@@ -388,7 +388,7 @@
     },
     "services/trader-trainer": {
       "name": "trader-trainer",
-      "version": "3.2.0",
+      "version": "3.2.1",
       "dependencies": {
         "@trading-model/address-manager": "*",
         "@trading-model/broker-message": "*",
@@ -453,7 +453,7 @@
   "packages": {
     "@aws-sdk/checksums": ["@aws-sdk/checksums@3.1002.6", "", { "dependencies": { "@aws-sdk/core": "^3.981.1", "@aws-sdk/types": "^3.975.1", "@smithy/core": "^3.40.0", "@smithy/types": "^4.20.0", "tslib": "^2.6.2" } }, "sha512-OgxgE64MkHNGtt7YJc2Q+d1maGnYcEkCw5r+UO7cM78iVzyMhXFVMgm5un1FZzk4XB8lv436zYduIWLH9ibdBg=="],
 
-    "@aws-sdk/client-s3": ["@aws-sdk/client-s3@3.1175.0", "", { "dependencies": { "@aws-sdk/checksums": "^3.1002.6", "@aws-sdk/core": "^3.981.1", "@aws-sdk/credential-provider-node": "^3.972.98", "@aws-sdk/middleware-sdk-s3": "^3.972.91", "@aws-sdk/signature-v4-multi-region": "^3.996.52", "@aws-sdk/types": "^3.975.1", "@smithy/core": "^3.40.0", "@smithy/fetch-http-handler": "^5.8.1", "@smithy/node-http-handler": "^4.14.2", "@smithy/types": "^4.20.0", "tslib": "^2.6.2" } }, "sha512-vBbIL3dsLsCLfoq7M8PXAybnPkFz7hbGiy6l+RCA81z6vXS88HfxPuxT+e3iuNjR4gXS7QxRSJa/4oSbsEc/Ag=="],
+    "@aws-sdk/client-s3": ["@aws-sdk/client-s3@3.1176.0", "", { "dependencies": { "@aws-sdk/checksums": "^3.1002.6", "@aws-sdk/core": "^3.981.1", "@aws-sdk/credential-provider-node": "^3.972.98", "@aws-sdk/middleware-sdk-s3": "^3.972.91", "@aws-sdk/signature-v4-multi-region": "^3.996.52", "@aws-sdk/types": "^3.975.1", "@smithy/core": "^3.40.0", "@smithy/fetch-http-handler": "^5.8.1", "@smithy/node-http-handler": "^4.14.2", "@smithy/types": "^4.20.0", "tslib": "^2.6.2" } }, "sha512-ZD0T/34Rx8cyCF7KjT9DpKbeeUjPvdDTgcOzdn/NOHQIQ3GdMc7NIdfea3GUBI+rFaxvlLsQ4auV1eNR8pvkAQ=="],
 
     "@aws-sdk/core": ["@aws-sdk/core@3.981.1", "", { "dependencies": { "@aws-sdk/types": "^3.975.1", "@aws-sdk/xml-builder": "^3.972.43", "@aws/lambda-invoke-store": "^0.3.0", "@smithy/core": "^3.40.0", "@smithy/signature-v4": "^5.7.5", "@smithy/types": "^4.20.0", "bowser": "^2.11.0", "tslib": "^2.6.2" } }, "sha512-sERtJaZjzvBdFMm2uei4k0WwPNUJtIrMBH9h0AEw7G0KkhIbnN3e5ZcwGjbVKClR+rrJCmyL1jhtXkseE7DU4A=="],
 
@@ -701,7 +701,7 @@
 
     "@inquirer/type": ["@inquirer/type@4.2.1", "", { "peerDependencies": { "@types/node": ">=18" }, "optionalPeers": ["@types/node"] }, "sha512-lDkPsnv5M5CcYB2T1qTc3dobNTPkVr4DU3Ic2Q6SW8/qVRHgvzdRdmVZ6YqG9Ag1aJTeMsLU0s0WPRh3CZWDQQ=="],
 
-    "@ioredis/commands": ["@ioredis/commands@2.0.0", "", {}, "sha512-vrx0AE/T0h7cRZwfo1M39Cr+ZhZrkf0V8mQN75wucKCxCLD9l/VX6no3gFvrLqD1IlG/1LtzWovqEw3t0Vr9zg=="],
+    "@ioredis/commands": ["@ioredis/commands@2.4.0", "", {}, "sha512-fyu7ZM5RvtsYZ3pz4DFlPqSGB3aoVD9ir0vL6/TLtRo8EMuC7f0Z+qGBskDkUL/gJs5fzelxityZAfNNUCrVrQ=="],
 
     "@isaacs/nonrecursive-glob-match": ["@isaacs/nonrecursive-glob-match@1.1.0", "", {}, "sha512-GPm/Dbvk5RLmhRnxXIa7nTpK0xtl4E0wj0MslsuNiJ1FIROU+2+9lgUC/dgF7Ey4QCWhfEsgxilMRMCdHPfDfw=="],
 
@@ -1281,8 +1281,6 @@
 
     "cliui": ["cliui@9.0.1", "", { "dependencies": { "string-width": "^7.2.0", "strip-ansi": "^7.1.0", "wrap-ansi": "^9.0.0" } }, "sha512-k7ndgKhwoQveBL+/1tqGJYNz097I7WOvwbmmU2AR5+magtbjPWQTS1C5vzGkBC8Ym8UWRzfKUzUUqFLypY4Q+w=="],
 
-    "cluster-key-slot": ["cluster-key-slot@1.1.1", "", {}, "sha512-rwHwUfXL40Chm1r08yrhU3qpUvdVlgkKNeyeGPOxnW8/SyVDvgRaed/Uz54AqWNaTCAThlj6QAs3TZcKI0xDEw=="],
-
     "co": ["co@4.6.0", "", {}, "sha512-QVb0dM5HvG+uaxitm8wONl7jltx8dqhfU33DcqtOZcLSVIKSDDLDi7+0LbAKiyI8hD9u42m2YxXSkMGWThaecQ=="],
 
     "collect-v8-coverage": ["collect-v8-coverage@1.0.3", "", {}, "sha512-1L5aqIkwPfiodaMgQunkF1zRhNqifHBmtbbbxcr6yVxxBnliw4TDOW6NxpO8DJLgJ16OT+Y4ztZqP6p/FtXnAw=="],
@@ -1533,7 +1531,7 @@
 
     "ini": ["ini@6.0.0", "", {}, "sha512-IBTdIkzZNOpqm7q3dRqJvMaldXjDHWkEDfrwGEQTs5eaQMWV+djAhR+wahyNNMAa+qpbDUhBMVt4ZKNwpPm7xQ=="],
 
-    "ioredis": ["ioredis@6.0.0", "", { "dependencies": { "@ioredis/commands": "2.0.0", "cluster-key-slot": "1.1.1", "debug": "4.4.3", "denque": "2.1.0", "redis-errors": "1.2.0", "standard-as-callback": "2.1.0" } }, "sha512-f+Dtubxfpf6KYFq7WVXJoOLn0bk4TJrMrN9SzeE+jrWrCWj7XX3fA6vkryafhADX+GMymRxgDJDOI33COkJc0w=="],
+    "ioredis": ["ioredis@6.1.0", "", { "dependencies": { "@ioredis/commands": "2.4.0", "debug": "4.4.3", "denque": "2.1.0", "redis-errors": "1.2.0", "standard-as-callback": "2.1.0" } }, "sha512-0ooWUoxEiWEcCA0FFBsmCnYHnjiFgWPQwA144NxpQzLIVkW20JUjAoKtMg+7spFn+6OAI68XwpcLcGKW5xe4UA=="],
 
     "ip-address": ["ip-address@10.7.5", "", {}, "sha512-t2v0rkILYv9WXmSL7TpAaU3HXgaFYOPUcH3QHgwQ++gpJuH3bqyMy4Fvt/DJCTKwzH3Cf+bAp5W/mFL39KPLzA=="],
 

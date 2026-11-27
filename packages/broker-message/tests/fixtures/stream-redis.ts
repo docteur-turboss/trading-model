@@ -163,7 +163,7 @@ export class StreamRedis implements BusRedis {
 				? new Promise((resolve) => setTimeout(() => resolve(null), 10))
 				: null;
 		}
-		return [key, fresh];
+		return [[key, fresh]];
 	}
 
 	private _pending(key: string, rest: string[]): unknown {
