@@ -1,6 +1,6 @@
 {
   "name": "trader-trainer",
-  "version": "3.2.1",
+  "version": "3.3.0",
   "description": "Autonomous agents that train to trade on a currency pair",
   "homepage": "https://github.com/docteur-turboss/trading-model#readme",
   "bugs": {

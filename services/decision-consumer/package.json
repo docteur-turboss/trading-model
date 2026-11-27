@@ -1,6 +1,6 @@
 {
   "name": "decision-consumer",
-  "version": "3.2.1",
+  "version": "3.3.0",
   "description": "Paper decision consumer (ADR-0049 option C): decides on each closed bar with the promoted models and sends the intents to risk-execution",
   "license": "ISC",
   "type": "commonjs",

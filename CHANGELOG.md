@@ -1,3 +1,126 @@
+## [3.3.0] - 2026-11-27
+
+### @trading-model/http (1.3.1 → 1.4.0)
+
+#### Feat
+
+- 78605fd **http:** compter les lignes de log par niveau et alerter sur un pic d'erreurs (#2877)
+
+#### Fix
+
+- bead4a0 **http:** fermer les sockets keep-alive inactifs avant le serveur et activer keep-alive pour le bail K8s (#2930)
+- ff9e765 **http:** baser la readiness du SVID sur l'expiration et celle de l'edge sur la gateway (#2824) (#2913)
+- 8e40f25 **http:** compter chaque tentative échouée dans le circuit et ne pas retenter un 429 (#2869)
+
+#### Perf
+
+- 40be12b **http:** ne plus créer un span OpenTelemetry par middleware Express (#2873)
+
+#### Refactor
+
+- ccab7c2 **http:** déplacer les clients scraper/trainer et signals vers model-runtime (#2685)
+
+### @trading-model/broker-message (1.3.2 → 1.3.3)
+
+#### Fix
+
+- 59db87a **broker:** acquitter et ignorer une entrée de topic inconnu (#2928)
+- c203be5 **broker:** compter dans mm_messages_unrouted_total les messages jetés par la bibliothèque du bus (#2865)
+- 9eb9055 **broker:** garder l'entrée du journal et son messageId quand WAIT refuse une publication (#2838)
+
+#### Perf
+
+- 2e91ef9 **broker:** couvrir les XADD concurrents du journal par un seul WAIT (#2870)
+
+### Root
+
+#### Feat
+
+- 8727c7e **scripts:** tourner les utilisateurs MySQL migrator, retention et exporter avec rotate-secrets.sh (#2902)
+- 086b4e9 **risk-execution:** exporter l'équité et le drawdown, alerter à 70 % de la limite (#2806) (#2905)
+- 5324d57 **risk-execution:** exposer la profondeur et les pertes de l'outbox d'audit en métriques et alertes (#2875)
+
+#### Fix
+
+- af8bbf2 **scripts:** autoriser release/* dans l'environnement staging pour le préflight de la branche de release
+- 228c142 **k8s:** installer metrics-server dans bootstrap.sh prereqs de staging-local et documenter les étapes admin de v3.2.2 (#2926)
+- dbf8866 **k8s:** ajouter un startupProbe à Prometheus et retirer sa boucle SIGHUP (#2914)
+- 6c453f1 **k8s:** écrire l'access log d'edge-proxy sur stdout sans volume non borné (#2823) (#2912)
+- 016d551 **k8s:** défaut ephemeral-storage dans la LimitRange et marge de tas pour les sondes exec (#2820) (#2909)
+- bfab34a **k8s:** remplacer sans coupure le redis-0 partitionné de staging-local par bascule Sentinel (#2886)
+- 8b7b0cc **github-actions:** contrôler Object Lock et région du second bucket lu dans le Secret (#2710)
+- f8906bc **multiple:** passer des budgets d'arrêt explicites à model-evaluator, au collecteur du scraper et à audit-logger (#2822) (#2911)
+- b4387b6 **multiple:** retire message-manager, dlq-service and mongo-dlq now the bus runs in process (ADR-0073 release N+1) (#1451)
+- 179bd3e **risk-execution:** passer au jour suivant après la lecture des prix, différé si les marques sont périmées (#2819) (#2908)
+- c51905a **risk-execution:** lire le prix de référence sur l'intervalle du modèle et le périmer en barres (#2903)
+- e14768d **risk-execution:** répondre 403 au réarmement seulement pour un refus métier et persister avant d'émettre kill_switch.rearmed (#2894)
+- e3e69c1 **risk-execution:** plafonner l'exposition globale à 10 % comme la politique de risque et aligner le défaut du trainer (#2840)
+- b90687e **risk-execution:** envoyer tout ordre sans cours limité au bord de la bande de prix du service (#2815)
+- f928d30 **observability:** pointer les panneaux SLO sur les recording rules slo: (#2878)
+- 88835da **model-runtime:** marquer la PnL à la dernière barre, drawdown depuis 0, erreur sur Q-values non finies (#2839)
+- 7689f7c **model-runtime:** réduire un achat au plafond d'exposition au prix de fill au lieu de le refuser (#2771)
+- d2a1560 **model-runtime:** ancrer les barres de décision frameSkip sur le temps absolu (#2687) (#2761)
+
+#### Perf
+
+- 0afa938 **k8s:** pré-tirer les images N des Deployments Recreate avant l'apply (#2866)
+
+#### Refactor
+
+- 0ad1352 **scripts:** refuser la restauration sans image d'aide épinglée et retirer le cas redis mort (#2611)
+- bb3dbc1 **k8s:** lancer smoke-test et verify-release depuis api-gateway (#2672)
+- 84f0978 **github-actions:** dériver les matrices de release.yml de deploy.yml IMAGES (#2675)
+- 56d3816 **docker:** construire les images de service depuis un seul Dockerfile (ARG SERVICE) et une seule version de Bun (#2812)
+- 2046efa **docker:** remplacer les copies de la sonde HTTPS SVID par /app/probe.js (#2681)
+- 84e955f **model-runtime:** garder un seul défaut d'exposition et une seule copie de verifyModel et de la sélection du manifeste (#2762)
+
+#### Docs
+
+- 5f2e192 **observability:** fonder le SLI de fraîcheur sur fs_candles_persisted_total et retirer la section Burn Rate Alerts de slo.md (#2887)
+- f7d03c3 **docs:** ajouter IdP OIDC, Cloudflare, GitHub et GHCR à l'évaluation des tiers (#2769) (#2898)
+- 78e05cf **docs:** ajouter MiCA titre VI à la matrice réglementaire et corriger MAR, DORA, AMF et admission (#2895)
+- f4a9c53 **operations:** corriger les consignes fausses d'astreinte et des runbooks risk-execution et deployment-failure (#2635) (#2647)
+
+#### Test
+
+- 59b43cd **risk-execution:** tester le refus live et readModelFile, mesurer src/config en couverture (#2893)
+- b16acbd **risk-execution:** vérifier les effets exacts de applyFill, rollDay, limitBreaches et reconciliationDiffs (#2779)
+
+#### Chore
+
+- 76a514f Bump spiffe/spiffe-csi-driver in /deploy/k8s/node-agents (#2780)
+- 4473729 Bump @testcontainers/redis from 12.2.1 to 12.2.2 (#2773)
+- af3ebfd Bump @testcontainers/mysql from 12.2.1 to 12.2.2 (#2774)
+- 90a5e1f Bump oven/bun from 1.4.4 to 1.4.5 in /deploy/migrate (#2778)
+- 6550760 **observability:** sonder le /ping de l'edge-proxy avec le blackbox exporter (#2731) (#2888)
+
+#### Ci
+
+- 8132b5b **k8s:** échouer check-prereqs.sh sans APIService v1beta1.metrics.k8s.io (#2899)
+- b44a348 **k8s:** refuser en production un ingress controller dont l'access log n'est pas désactivé (#2763) (#2896)
+- c261d78 **github-actions:** avertir si le dépôt devient privé et citer la mesure de minutes CI sur 7 jours (#2843) (#2918)
+- f7ad7b9 **github-actions:** muter decision-consumer et étendre model-runtime-env à replay.ts et agent/ (#2742) (#2892)
+- bdf0d70 **github-actions:** lancer le shard de mutation risk-execution-domain sur push development (#2890)
+- 8e1b937 **github-actions:** scanner les images de release avec Trivy hors des tags (#2834)
+- 3439409 **github-actions:** relever le timeout du groupe k8s backup à 60 min (#2682)
+
+#### Security
+
+- 296209c **scripts:** passer RISK_ADMIN_KEY à curl par descripteur dans risk-admin.sh (#2686)
+- 3175155 **k8s:** readOnlyRootFilesystem sur loki et les jobs de deploy/k8s/jobs (#2800) (#2932)
+- d42db43 **k8s:** imposer un spread DoNotSchedule à Redis, Sentinel et mongo-audit en production (#2821) (#2910)
+- 3ce5b41 **risk-execution:** borner la perte cumulée par un plancher absolu d'équité (#2906)
+- 1ea16a8 **docker:** ne jamais tirer trading-model/spire-agent depuis Docker Hub (#2792) (#2901)
+- 5b407ba **docker:** vérifier le certificat serveur de la sonde avec le bundle SPIRE (#2850)
+- cf1d80b **docker:** construire db-migrate sur oven/bun alpine, sans les paquets Debian dont les CVE bloquent le scan de release (#2837)
+
+#### Other
+
+- 6067405 **github-actions:** remettre l'allowlist du spec dlq-client de message-manager pour le scan de l'historique (#2881) (#2884)
+- e888d20 **github-actions:** remettre l'allowlist du spec dlq-client de message-manager pour le scan de l'historique (#2881) (#2884)
+- 3a50e0a **observability:** alerter sur les compteurs de perte du bus, du trainer et de la chaîne d'audit (#2889)
+
+
 ## [3.2.1] - 2026-11-25
 
 ### @trading-model/broker-message (1.3.1 → 1.3.2)
