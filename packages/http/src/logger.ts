@@ -3,11 +3,18 @@ import {
 	type JsonObject,
 	UnixTimestamp,
 } from "@trading-model/primitives/primitives";
+import promClient from "prom-client";
 import { formatLogEntry } from "./console-formatter";
 import { isLogLevelAtLeast, LogLevel } from "./log-types";
 import { getNodeEnv, NODE_ENV } from "./shared/node-env";
 
 export { LogLevel };
+
+const LOG_MESSAGES_TOTAL = new promClient.Counter({
+	name: "log_messages_total",
+	help: "Log lines written, by level",
+	labelNames: ["level"] as const,
+});
 
 /** Writes structured log entries at or above the configured level. */
 export class Logger {
@@ -21,6 +28,8 @@ export class Logger {
 		if (!isLogLevelAtLeast(level, this._logLevel)) {
 			return;
 		}
+		// Counted after the level filter: the metric matches the lines really written.
+		LOG_MESSAGES_TOTAL.inc({ level });
 		console[level](
 			formatLogEntry({
 				label: level.toUpperCase(),

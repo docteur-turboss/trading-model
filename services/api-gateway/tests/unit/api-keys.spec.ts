@@ -1,12 +1,16 @@
 import { describe, expect, it } from "@jest/globals";
-import { parseApiKey, requiredScope } from "../../src/shared/api-keys";
+import {
+	hasRetiredScope,
+	parseApiKey,
+	requiredScope,
+} from "../../src/shared/api-keys";
 import { PUBLIC_ROUTES } from "../../src/shared/public-routes";
 
 describe("parseApiKey", () => {
 	it("reads name, scopes and secret, the secret after the last colon", () => {
-		expect(parseApiKey("ops-alice:read+dlq:write:s3cr3t")).toEqual({
+		expect(parseApiKey("ops-alice:read:s3cr3t")).toEqual({
 			name: "ops-alice",
-			scopes: ["read", "dlq:write"],
+			scopes: ["read"],
 			secret: "s3cr3t",
 		});
 		expect(parseApiKey("grafana:read:abc")).toMatchObject({
@@ -27,6 +31,24 @@ describe("parseApiKey", () => {
 		expect(result.error).not.toContain(":s");
 	});
 
+	it("accepts then ignores the retired dlq:write scope of an N-1 token (#1241)", () => {
+		expect(parseApiKey("ops:read+dlq:write:s3cr3t")).toEqual({
+			name: "ops",
+			scopes: ["read"],
+			secret: "s3cr3t",
+		});
+		expect(parseApiKey("old:dlq:write:s3cr3t")).toEqual({
+			name: "old",
+			scopes: [],
+			secret: "s3cr3t",
+		});
+	});
+
+	it("flags the keys that still declare dlq:write, for the startup warning", () => {
+		expect(hasRetiredScope(["a:read:x", "ops:read+dlq:write:y"])).toBe(true);
+		expect(hasRetiredScope(["a:read+risk:admin:x", "bare"])).toBe(false);
+	});
+
 	it("refuses a bare secret without quoting it", () => {
 		const result = parseApiKey("old-shared-secret") as { error: string };
 
@@ -36,22 +58,15 @@ describe("parseApiKey", () => {
 });
 
 describe("requiredScope", () => {
-	it("needs read for GET and dlq:write otherwise", () => {
+	it("needs read for GET and risk:admin otherwise", () => {
 		expect(requiredScope("GET")).toBe("read");
-		expect(requiredScope("POST")).toBe("dlq:write");
-		expect(requiredScope("DELETE")).toBe("dlq:write");
-		expect(requiredScope("POST", "/v1/risk-execution/admin/kill-switch")).toBe(
-			"risk:admin"
-		);
+		expect(requiredScope("POST")).toBe("risk:admin");
 	});
 
-	it("only DLQ and kill switch routes are public writes: dlq:write covers no other route", () => {
-		const writes = PUBLIC_ROUTES.filter(
-			(route) =>
-				!(route.startsWith("GET ") || route.includes("/risk-execution/"))
-		);
+	it("only kill switch routes are public writes", () => {
+		const writes = PUBLIC_ROUTES.filter((route) => !route.startsWith("GET "));
 
-		expect(writes.every((route) => route.includes("/dlq-service/dlq"))).toBe(
+		expect(writes.every((route) => route.includes("/risk-execution/"))).toBe(
 			true
 		);
 	});

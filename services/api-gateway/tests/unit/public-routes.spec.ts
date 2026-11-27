@@ -16,7 +16,6 @@ describe("isPublicRoute", () => {
 		expect(isPublicRoute("GET", 1, "audit-logger", "/events/abc-123")).toBe(
 			true
 		);
-		expect(isPublicRoute("POST", 1, "dlq-service", "/dlq/replay")).toBe(true);
 	});
 
 	it("matches a legacy registration name on its canonical service", () => {
@@ -39,10 +38,7 @@ describe("isPublicRoute", () => {
 	});
 
 	it("refuses service-to-service routes", () => {
-		expect(isPublicRoute("POST", 1, "message-manager", "/message")).toBe(false);
-		expect(isPublicRoute("DELETE", 1, "message-manager", "/subscribe")).toBe(
-			false
-		);
+		expect(isPublicRoute("POST", 1, "audit-logger", "/message")).toBe(false);
 	});
 
 	it("refuses another method on a public path", () => {

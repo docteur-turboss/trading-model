@@ -25,7 +25,7 @@ import { createServer } from "../../src/application/server";
 
 describe("model-evaluator readiness", () => {
 	function redisCheck(): () => Promise<boolean> {
-		void createServer(jest.fn() as never);
+		void createServer();
 		return MOCK_CREATE_SERVER.mock.calls[0][0].readiness.find(
 			(r: { name: string }) => r.name === "redis"
 		).check;

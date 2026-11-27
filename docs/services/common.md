@@ -51,7 +51,6 @@ Roles and build order: [AGENTS.md](../../AGENTS.md#build-order-dependency-chain)
 | `cache.ts` | `SyncCachePort<T>` — cache abstraction (get/set/delete/clear/has/invalidate with TTL) |
 | `sanitize.ts` | `sanitizeForLog()` — strips PEM blocks and secrets before logging |
 | `safe-stringify.ts` | Cycle-safe JSON stringification |
-| `deterministic-stringify.ts` | Deterministic JSON serialization for cryptographic signing (recursively sorts object keys) |
 | `anonymize-ip.ts` | IP anonymization for privacy-safe logging |
 | `comma-separated.ts` | Parse comma-separated env strings into arrays |
 | `timer-handle.ts` | Timer handle abstraction (clear-safe timers) |
@@ -126,11 +125,10 @@ Provides the platform's SPIFFE trust domain, ID scheme, canonical service identi
 
 ```ts
 import { sleep } from '@trading-model/common/utils/sleep';
-import { deterministicStringify } from '@trading-model/common/utils/deterministic-stringify';
 import { sanitizeForLog } from '@trading-model/common/utils/sanitize';
 ```
 
-`deterministicStringify` produces deterministic JSON for cryptographic signing (recursively sorts object keys; preserves array order; handles primitives, nulls, nested objects). `sanitizeForLog` strips PEM blocks and secrets before logging.
+`sanitizeForLog` strips PEM blocks and secrets before logging.
 
 ## Moved-Out Modules (Where They Are Now)
 

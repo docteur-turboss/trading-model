@@ -22,37 +22,7 @@ updates:
       interval: "weekly"
 
   - package-ecosystem: "docker"
-    directory: "/services/financial-scraper"
-    target-branch: "development"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/services/message-manager"
-    target-branch: "development"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/services/trader-trainer"
-    target-branch: "development"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/services/api-gateway"
-    target-branch: "development"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/services/audit-logger"
-    target-branch: "development"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/services/dlq-service"
+    directory: "/"
     target-branch: "development"
     schedule:
       interval: "weekly"
@@ -109,18 +79,6 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "mysql"
         update-types: ["version-update:semver-major"]
-
-  - package-ecosystem: "docker"
-    directory: "/services/model-evaluator"
-    target-branch: "development"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "docker"
-    directory: "/services/risk-execution"
-    target-branch: "development"
-    schedule:
-      interval: "weekly"
 
   - package-ecosystem: "docker"
     directory: "/deploy/k8s/services"

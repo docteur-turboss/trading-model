@@ -17,8 +17,8 @@ The compose stack keeps `http://localhost:8449` (edge-proxy). It is deployed by 
 
 ## Selection in deploy.yml
 
-- Environment `staging`: deployment limited to the branches `development` and `main`
-  and the tags `v*` (Settings → Environments → "Selected branches and tags", no other
+- Environment `staging`: deployment limited to the branches `development`, `main` and
+  `release/*` (preflight of the release branch) and the tags `v*` (Settings → Environments → "Selected branches and tags", no other
   rule; the release deploys its tag, `--ref vX.Y.Z`). It
   holds `KUBECONFIG_STAGING_*`, `BACKUP_S3_*` and `AUDIT_ANCHOR_*`: without the rule
   a branch pushed by anyone with write access can print them (issue #847).
@@ -61,7 +61,7 @@ that has it (3.0.1 and later); the MySQL wait is in `deploy.yml` itself.
 kind create cluster --config deploy/staging-local/kind.yaml
 docker update --memory 12g --memory-swap 12g --cpus 12 trading-staging-control-plane   # kind has no limit setting (issue #2160)
 docker compose -p trading-staging -f deploy/staging-local/docker-compose.yml --env-file ~/.trading-staging/env up -d minio
-bash deploy/staging-local/bootstrap.sh prereqs      # ingress-nginx, cert-manager, VPA CRD, Sealed Secrets, rwx-csi
+bash deploy/staging-local/bootstrap.sh prereqs      # ingress-nginx, cert-manager, VPA CRD, Sealed Secrets, metrics-server, rwx-csi
 OVERLAY=staging-local bash scripts/init-sealed-secrets.sh   # then commit the overlay's sealed-secrets.yaml
 bash deploy/staging-local/bootstrap.sh identities   # KUBECONFIG_STAGING_APP / _CLUSTER of the environment staging
 ```
@@ -179,7 +179,7 @@ laptop. For production, delete `SEALED_SECRETS_BACKUP_RUNNER` and
 ## Database pods across releases
 
 The staging overlay runs one pod per data StatefulSet (`mysql`, `redis`,
-`redis-sentinel`, `mongo-dlq`, `mongo-audit`) and one per observability StatefulSet (`alertmanager`,
+`redis-sentinel`, `mongo-audit`) and one per observability StatefulSet (`alertmanager`,
 `grafana`, `loki`, `prometheus`; issue #709). A rolling update deletes that pod
 before its replacement starts, so a release that changes their pod template
 (3.1.0: exporter sidecars) would cut the database for the stop, the image pull
@@ -200,10 +200,18 @@ restart, the services do not.
   revision, not the newest one, but a ConfigMap it mounts by a bare name
   (no hash suffix) is read as the last deploy left it (issues #1456, #1460; enforced
   for every partitioned StatefulSet by `tests/k8s/check-overlays.mjs`);
-- the Redis ACL written by `redis-ha.sh` reaches a partitioned `redis-0` only
-  with the planned `redis` / `redis-sentinel` restart: code must not need a
-  new Redis command in the release that grants it, nor a new ACL user
-  (issue #1931);
+- except `redis`: when `redis-0` runs an older template, `deploy-release.sh
+  redis-last` adds `redis-1` on the new one, makes it master by `SENTINEL
+  FAILOVER`, updates `redis-0` as its replica, fails back and returns to one
+  pod and `partition: 1` (issue #2882), so the ACL of `redis-ha.sh` reaches it
+  at each deploy. Writes are held on the old master over each failover, so no
+  bus entry is lost (ADR-0090), except over the first one from a `redis-0`
+  older than ADR-0090 (v3.1.0), whose `ha` user cannot pause: a write taken in
+  the second before clients follow the switch can be lost, once (accepted by
+  the owner, issue #2882). The PVC `redis-data-redis-1` (a full copy of the data)
+  stays after it: delete it to free the disk. `redis-sentinel-0` keeps its
+  template: it holds no service user, only the internal password and the
+  `exporter` user;
 - until restarted, the pods lack what the new template adds. 3.1.0: no
   exporter, so no Prometheus target and no `mysql_up` / `redis_up` /
   `mongodb_up` series. `MySQLDown`, `RedisDown` and `MongoDBDown` stay silent
@@ -211,12 +219,13 @@ restart, the services do not.
   own alerts.
 
 To take a new template, plan the restart (database down meanwhile) outside a
-deploy. Release `redis` and `redis-sentinel` together: a Redis node restarted
-alone waits for the master its sentinel still names, the dead pod (PR #579).
+deploy. `redis` alone needs none (above). For `redis-sentinel`, release `redis`
+with it: a Redis node restarted alone waits for the master its sentinel still
+names, the dead pod (PR #579).
 
 ```bash
 NS=trading-model-staging
-for sts in redis redis-sentinel; do   # or: mysql, mongo-dlq, mongo-audit, grafana, loki (one at a time)
+for sts in redis redis-sentinel; do   # or: mysql, mongo-audit, grafana, loki (one at a time)
   kubectl -n "$NS" patch sts "$sts" -p '{"spec":{"updateStrategy":{"rollingUpdate":{"partition":0}}}}'
 done
 for sts in redis redis-sentinel; do kubectl -n "$NS" rollout status "sts/$sts" --timeout=1800s; done
@@ -260,7 +269,7 @@ as `appendonlydir.bak-7.4-20261123`), template set to 8.10.3, scaled to 1. Once
 
 ### Data tier switch (done 2026-11-23, issue #1982)
 
-The pods of `mysql`, `mongo-dlq`, `mongo-audit`, `redis` and `redis-sentinel`
+The pods of `mysql`, `mongo-audit`, `redis` and `redis-sentinel`
 run the 3.1.0 templates: MySQL requires TLS with the cert-manager CA and its
 users are bound to their client certificates (`run-migrations.sh "$NS"
 user-only`), MongoDB runs with `--keyFile` and `--tlsMode`, `redis-0` has the
@@ -282,6 +291,18 @@ Check that model-evaluator reads its topic in process:
 ```bash
 kubectl -n "$NS" exec redis-0 -c redis -- sh -c 'REDISCLI_AUTH=$REDIS_MESSAGE_MANAGER_PASSWORD redis-cli --user message-manager XINFO CONSUMERS trading-model:message-manager:journal:training.model.published model-evaluator' | grep '^model-evaluator-'
 ```
+
+## Recreate pause (risk-execution, model-evaluator)
+
+Both run one pod with `strategy: Recreate` (ADR-0064, ADR-0049): the old pod stops
+before the new one starts, and the new one pulls its image then (`imagePullPolicy:
+Always`; one pod waited 8.5 min on this node). Meanwhile the risk-execution API is
+down (decision-consumer skips its passes, the admin is cut) and model-evaluator
+leaves bus deliveries waiting. Before the apply, `deploy-release.sh prepull` pulls
+image N onto the node of each current pod through a throwaway pod
+`prepull-<deployment>` (deleted afterwards), so the pause no longer includes the pull.
+A failed pre-pull only warns. The kind job logs how long risk-execution had no
+ready pod during the N-1 to N upgrade (it loads images locally and skips the pre-pull).
 
 ## Between deploys
 

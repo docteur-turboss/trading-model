@@ -26,54 +26,6 @@ scrape_config_files:
   - /etc/prometheus/kubelet-scrape.yml
 
 scrape_configs:
-  - job_name: 'message-manager'
-    scheme: https
-    tls_config:
-      ca_file: /run/spire/svid/bundle.pem
-      cert_file: /run/spire/svid/svid.pem
-      key_file: /run/spire/svid/svid_key.pem
-      server_name: message-manager
-    kubernetes_sd_configs:
-      - role: pod
-        namespaces:
-          own_namespace: true
-    relabel_configs:
-      - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
-        regex: message-manager
-        action: keep
-      - source_labels: [__meta_kubernetes_pod_phase]
-        regex: Running
-        action: keep
-      - source_labels: [__meta_kubernetes_pod_container_port_number]
-        regex: '3000'
-        action: keep
-      - source_labels: [__meta_kubernetes_pod_name]
-        target_label: pod
-
-  - job_name: 'dlq-service'
-    scheme: https
-    tls_config:
-      ca_file: /run/spire/svid/bundle.pem
-      cert_file: /run/spire/svid/svid.pem
-      key_file: /run/spire/svid/svid_key.pem
-      server_name: dlq-service
-    kubernetes_sd_configs:
-      - role: pod
-        namespaces:
-          own_namespace: true
-    relabel_configs:
-      - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
-        regex: dlq-service
-        action: keep
-      - source_labels: [__meta_kubernetes_pod_phase]
-        regex: Running
-        action: keep
-      - source_labels: [__meta_kubernetes_pod_container_port_number]
-        regex: '3000'
-        action: keep
-      - source_labels: [__meta_kubernetes_pod_name]
-        target_label: pod
-
   - job_name: 'api-gateway'
     scheme: https
     tls_config:
@@ -283,9 +235,6 @@ scrape_configs:
     params:
       module: [http_2xx]
     static_configs:
-      - targets: ['https://message-manager:3000/ping']
-        labels:
-          service: message-manager
       - targets: ['https://financial-scraper:3000/ping']
         labels:
           service: financial-scraper
@@ -298,9 +247,6 @@ scrape_configs:
       - targets: ['https://audit-logger:3000/ping']
         labels:
           service: audit-logger
-      - targets: ['https://dlq-service:3000/ping']
-        labels:
-          service: dlq-service
       - targets: ['https://model-evaluator:3000/ping']
         labels:
           service: model-evaluator
@@ -310,6 +256,24 @@ scrape_configs:
       - targets: ['https://decision-consumer:3000/ping']
         labels:
           service: decision-consumer
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # edge-proxy: external entry point, plain HTTP on 8080 (no SVID, no `up`
+  # series): only this probe sees it down (EdgeProxyProbeFailing).
+  - job_name: 'blackbox-edge-proxy'
+    metrics_path: /probe
+    params:
+      module: [http_2xx_no_tls]
+    static_configs:
+      - targets: ['http://edge-proxy:8080/ping']
+        labels:
+          service: edge-proxy
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
@@ -375,24 +339,6 @@ scrape_configs:
     relabel_configs:
       - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
         regex: mysql
-        action: keep
-      - source_labels: [__meta_kubernetes_pod_phase]
-        regex: Running
-        action: keep
-      - source_labels: [__meta_kubernetes_pod_container_port_name]
-        regex: metrics
-        action: keep
-      - source_labels: [__meta_kubernetes_pod_name]
-        target_label: pod
-
-  - job_name: 'mongo-dlq'
-    kubernetes_sd_configs:
-      - role: pod
-        namespaces:
-          own_namespace: true
-    relabel_configs:
-      - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
-        regex: mongodb
         action: keep
       - source_labels: [__meta_kubernetes_pod_phase]
         regex: Running

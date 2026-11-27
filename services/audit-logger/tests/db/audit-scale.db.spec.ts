@@ -5,7 +5,7 @@ import { AuditRepository } from "../../src/adapters/outbound/persistence/audit-r
 /** `AUDIT_SCALE_EVENTS=1000000` reproduces the 10^6 measurement of issue #566. */
 const EVENTS = Number(process.env.AUDIT_SCALE_EVENTS ?? 100_000);
 const BATCH = 10_000;
-const T0 = Date.UTC(2026, 0, 1);
+const T0 = Date.now() - 3 * 3_600_000;
 
 async function timed<T>(run: () => Promise<T>): Promise<[T, number]> {
 	const start = performance.now();
@@ -33,7 +33,7 @@ describe("AuditRepository reads at scale — real MongoDB", () => {
 				Array.from({ length: Math.min(BATCH, EVENTS - from) }, (_, k) => {
 					const i = from + k;
 					return {
-						receivedAt: new Date(T0 + i * 1000),
+						receivedAt: new Date(T0 + i * 100),
 						ttl: new Date(T0 + 3650 * 86_400_000),
 						dataHash: `h${i}`,
 						previousHash: `h${i - 1}`,
@@ -63,7 +63,7 @@ describe("AuditRepository reads at scale — real MongoDB", () => {
 		const [first, firstMs] = await timed(() => repository.getStats());
 		const [second, secondMs] = await timed(() => repository.getStats());
 		const [page, pageMs] = await timed(() =>
-			repository.query({ page: 1 } as never)
+			repository.query({ withTotal: true } as never)
 		);
 		console.info(
 			`events=${EVENTS} full $group=${aggregationMs}ms getStats cold=${firstMs}ms warm=${secondMs}ms unfiltered page=${pageMs}ms`
@@ -79,10 +79,26 @@ describe("AuditRepository reads at scale — real MongoDB", () => {
 		);
 		expect(first.dateRange).toEqual({
 			earliest: new Date(T0),
-			latest: new Date(T0 + (EVENTS - 1) * 1000),
+			latest: new Date(T0 + (EVENTS - 1) * 100),
 		});
 		expect(second.eventsByTopic).toEqual(first.eventsByTopic);
 		expect(page.total).toBe(EVENTS);
+
+		// Filtered page: index order (no SORT stage), documents read close to the limit.
+		for (const filter of [
+			{ "metadata.topic": "topic-3" },
+			{ "metadata.publisher": "svc-1" },
+		]) {
+			const plan = await events
+				.find(filter)
+				.sort({ chainSequence: -1 })
+				.limit(101)
+				.explain("executionStats");
+			expect(JSON.stringify(plan.queryPlanner.winningPlan)).not.toContain(
+				'"SORT"'
+			);
+			expect(plan.executionStats.totalDocsExamined).toBeLessThanOrEqual(101);
+		}
 		await db.dropDatabase();
 	}, 600_000);
 });

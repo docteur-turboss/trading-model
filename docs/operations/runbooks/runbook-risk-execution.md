@@ -1,7 +1,7 @@
 # Runbook: Risk/Execution Kill Switch, Reconciliation, Stale Prices
 
 **Severity:** L1 (`KillSwitchEngaged`, `ReconciliationMismatch`), L2 (`RiskRejectRatioHigh`, `RiskMarketDataStale`, `RiskTickFailing`)
-**Alerts:** `KillSwitchEngaged`, `ReconciliationMismatch`, `RiskRejectRatioHigh`, `RiskMarketDataStale`, `RiskTickFailing`
+**Alerts:** `KillSwitchEngaged`, `ReconciliationMismatch`, `RiskRejectRatioHigh`, `RiskMarketDataStale`, `RiskTickFailing`, `RiskOutboxDropped`, `RiskOutboxPending`, `DecisionIntentsRejected`
 **Decision:** [ADR-0064](../../adr/0064-risk-and-execution-context-before-order-flow.md) · **Policy:** [risk-limits-policy](../../compliance/risk-limits-policy.md) · **Drill log:** [risk-drill-log](../../compliance/risk-drill-log.md)
 
 `risk-execution` owns every order (paper only: simulated broker, no live adapter). The switch state is in `/data/risk-execution/state.json` on its PVC. Nothing re-arms the switch except an operator, by hand.
@@ -64,12 +64,34 @@ A price older than 15 min on an allowed instrument that already had one: that sy
 1. The service reads the last closed candle of each instrument from financial-scraper at every tick: check the `prices.error` log lines, then [runbook-market-data-stale](runbook-market-data-stale.md) for the feed.
 2. When fresh prices flow, re-arm the symbol (and the global switch if engaged).
 
+## RiskDrawdownApproaching
+
+`risk_drawdown_ratio` (drawdown from the high-water mark over `drawdownPct` × allocated capital) stayed above 0.7 for 5 min. At 1 the kill switch engages by itself and only the owner re-arms it.
+
+1. Read `GET /admin/status` (`equity`, positions) and the `risk_equity` gauge: which positions lose.
+2. Decide before the limit: engage a symbol switch by hand, or let the stop act.
+
 ## RiskTickFailing
 
 The periodic tick threw for 5 min (`risk tick failed` log line, counter `risk_tick_failures_total`). Gauges are still republished from memory, so a switch engaged during the failure shows in `KillSwitchEngaged`; what is lost is persistence.
 
 1. Read the `risk tick failed` error: PVC full or read-only (`df` in the pod), broker unreachable, state file unwritable.
-2. Fix the cause, then check `GET /admin/status`. Copy `state.json` out of the pod before restarting (no backup covers the PVC).
+2. Fix the cause, then check `GET /admin/status`. Copy `state.json` out of the pod before restarting (the daily backup may be older).
+
+## RiskOutboxPending
+
+Order or kill switch events the bus refused wait in the outbox file (gauge `risk_outbox_pending`, `risk event kept for replay` and `risk outbox replay stopped` log lines). They replay at every tick and at restart; past 1000 the oldest is dropped (`RiskOutboxDropped`).
+
+1. Find why the bus refuses: Redis down or failing over, or an ACL error (`WRONGPASS`, `NOPERM` in the `risk outbox replay stopped` error).
+2. Fix the bus. The next tick replays the file and the gauge returns to 0.
+
+## RiskOutboxDropped
+
+The outbox hit 1000 events: the oldest were dropped (`risk outbox full: oldest event dropped` error log, counter `risk_outbox_dropped_total`). Those order or kill switch events are missing from the audit chain (ADR-0027).
+
+1. Read the `dropped` field of each log line: it holds the full event (topic, fields, `eventId`).
+2. Fix the bus as in [RiskOutboxPending](#riskoutboxpending).
+3. Record the lost events (order transitions, kill switch changes) in the incident log; they cannot be replayed.
 
 ## Drill
 

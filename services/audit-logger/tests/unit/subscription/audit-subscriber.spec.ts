@@ -9,11 +9,8 @@ jest.mock("@trading-model/http/response-exception", () => {
 
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-import { parseRequest } from "@trading-model/http/api-route/api-route";
-import { AUDIT_API } from "../../../src/adapters/inbound/http/api-routes";
 import { createMessageHandler } from "../../../src/adapters/inbound/subscription/audit-subscriber";
 import type { AuditRepository } from "../../../src/adapters/outbound/persistence/audit-repository";
-import { createNext, createReq, createRes } from "../../helpers/express";
 
 describe("AuditSubscriber", () => {
 	let mockRepo: jest.Mocked<AuditRepository>;
@@ -32,28 +29,33 @@ describe("AuditSubscriber", () => {
 	});
 
 	describe("message handling", () => {
-		it("should record a delivered message and return 200", async () => {
+		it("should reject a message without messageId and write nothing", async () => {
+			await expect(handler({ metadata: { topic: "t" } })).rejects.toThrow(
+				"no messageId"
+			);
+			expect(mockRepo.insert).not.toHaveBeenCalled();
+		});
+
+		it("should record a delivered message", async () => {
 			mockRepo.insert.mockResolvedValue(undefined);
 
-			const req = createReq({
-				body: {
-					metadata: {
-						topic: "order.created",
-						eventType: "OrderCreated",
-						messageId: "msg-123",
-						correlationId: "corr-456",
-						emittedAt: "2024-06-01T12:00:00Z",
-						publisher: {
-							serviceName: "order-service",
-							instanceId: "instance-1",
-						},
+			const message = {
+				metadata: {
+					topic: "order.created",
+					eventType: "OrderCreated",
+					messageId: "msg-123",
+					correlationId: "corr-456",
+					emittedAt: "2024-06-01T12:00:00Z",
+					publisher: {
+						serviceName: "order-service",
+						instanceId: "instance-1",
 					},
-					payload: { orderId: "ord-1" },
-					context: { deliveryAttempt: 1 },
 				},
-			});
+				payload: { orderId: "ord-1" },
+				context: { deliveryAttempt: 1 },
+			};
 
-			const result = await handler(req, createRes(), createNext);
+			await handler(message);
 
 			expect(mockRepo.insert).toHaveBeenCalledWith(
 				expect.objectContaining({
@@ -70,29 +72,24 @@ describe("AuditSubscriber", () => {
 					payload: { orderId: "ord-1" },
 				})
 			);
-			expect(result).toMatchObject({
-				status: 200,
-				data: { status: "recorded" },
-			});
 		});
 
 		it("should accept a flat envelope format", async () => {
 			mockRepo.insert.mockResolvedValue(undefined);
 
-			const req = createReq({
-				body: {
-					metadata: {
-						topic: "trade.executed",
-						publisher: {
-							serviceName: "trade-service",
-							instanceId: "instance-2",
-						},
+			const message = {
+				metadata: {
+					topic: "trade.executed",
+					messageId: "m-0",
+					publisher: {
+						serviceName: "trade-service",
+						instanceId: "instance-2",
 					},
-					payload: { tradeId: "t-1" },
 				},
-			});
+				payload: { tradeId: "t-1" },
+			};
 
-			const result = await handler(req, createRes(), createNext);
+			await handler(message);
 
 			expect(mockRepo.insert).toHaveBeenCalledWith(
 				expect.objectContaining({
@@ -104,43 +101,20 @@ describe("AuditSubscriber", () => {
 					payload: { tradeId: "t-1" },
 				})
 			);
-			expect(result).toMatchObject({ status: 200 });
-		});
-
-		// The route rejects these before the handler (AUDIT_API.receive).
-		it.each([
-			["no topic", { metadata: {}, payload: {} }],
-			["no metadata", { random: "data" }],
-			// The older envelope nested in `message`: no sender uses it.
-			["a nested envelope", { message: { metadata: { topic: "t" } } }],
-		])("rejects an envelope with %s", (_label, body) => {
-			expect(parseRequest(AUDIT_API.receive, { body }).success).toBe(false);
-		});
-
-		it("keeps the metadata fields it does not know", () => {
-			const parsed = parseRequest(AUDIT_API.receive, {
-				body: { metadata: { topic: "t", custom: 1 }, payload: null },
-			});
-
-			expect(parsed).toMatchObject({
-				success: true,
-				input: { body: { metadata: { topic: "t", custom: 1 } } },
-			});
 		});
 
 		it("should handle missing publisher gracefully", async () => {
 			mockRepo.insert.mockResolvedValue(undefined);
 
-			const req = createReq({
-				body: {
-					metadata: {
-						topic: "test.topic",
-					},
-					payload: {},
+			const message = {
+				metadata: {
+					topic: "test.topic",
+					messageId: "m-1",
 				},
-			});
+				payload: {},
+			};
 
-			const result = await handler(req, createRes(), createNext);
+			await handler(message);
 
 			expect(mockRepo.insert).toHaveBeenCalledWith(
 				expect.objectContaining({
@@ -150,7 +124,6 @@ describe("AuditSubscriber", () => {
 					}),
 				})
 			);
-			expect(result).toMatchObject({ status: 200 });
 		});
 
 		it("should use current date when emittedAt is not provided", async () => {
@@ -158,16 +131,15 @@ describe("AuditSubscriber", () => {
 
 			const before = Date.now();
 
-			const req = createReq({
-				body: {
-					metadata: {
-						topic: "test.topic",
-					},
-					payload: {},
+			const message = {
+				metadata: {
+					topic: "test.topic",
+					messageId: "m-1",
 				},
-			});
+				payload: {},
+			};
 
-			await handler(req, createRes(), createNext);
+			await handler(message);
 
 			const insertCall = (mockRepo.insert as jest.Mock<(...args: any[]) => any>)
 				.mock.calls[0][0] as any;

@@ -39,12 +39,10 @@ See [Quick Start Tutorial](docs/getting-started/quickstart.md) for a 10-minute h
 
 | Service                 | Port | Purpose                                                        |
 | ----------------------- | ---- | -------------------------------------------------------------- |
-| `message-manager`       | 8444 | Topic-based pub/sub broker with DLQ routing                    |
 | `financial-scraper`     | 8445 | Market data (Binance) and public signal ingestion              |
 | `trader-trainer`        | 8446 | GA + DQN agent evolution engine                                |
 | `api-gateway`           | 8448 | Single external entry point: auth, rate-limit, cache, proxy    |
 | `audit-logger`          | 8450 | Immutable event traceability (hash-chained audit trail)        |
-| `dlq-service`           | 8452 | Dead letter storage and replay (retired in N+1, ADR-0073)        |
 | `edge-proxy`            | 8449 | nginx: external HTTP entry, `/v1` → api-gateway over mTLS      |
 | `risk-execution`        | 8454 | Order flow owner of ADR-0064: pre-trade checks, kill switch, lifecycle, simulated broker (paper only, no live adapter) |
 | `model-evaluator`       | 8453 | Offline check of trained models on each `training.model.published` (ADR-0049); records one evaluation per model, never promotes |
@@ -90,7 +88,7 @@ bun run commit               # Interactive gitmoji commit CLI
 
 - **Docker Compose:** `docker compose up -d` (all 20+ containers with health-check ordering)
 - **Kubernetes:** via the `deploy.yml` workflow, see `docs/deployment/DEPLOY.md` (HPA, PDBs, NetworkPolicies, SealedSecrets)
-- **Backup:** Daily CronJob → MongoDB (dlq + audit) + MySQL + SPIRE datastore and CA keys (SQLite, ADR-0065) + checkpoints, age-encrypted, mandatory S3 off-site copy; restore drill in CI
+- **Backup:** Daily CronJob → MongoDB (audit) + MySQL + SPIRE datastore and CA keys (SQLite, ADR-0065) + checkpoints, age-encrypted, mandatory S3 off-site copy; restore drill in CI
 - **Secrets:** SealedSecrets (SealedSecret → controller decrypts → standard Secret)
 - **Probes:** `startupProbe` (90s window) + `livenessProbe` + `readinessProbe` on all services
 - **Identity/mTLS:** SPIRE Server + Agent (K8s PSAT / Docker attestor) issuing SVIDs to `spiffe-helper` sidecars (ADR-0011)
@@ -117,11 +115,11 @@ The pre-push git hook is `.husky/pre-push`.
 
 - **OWASP-hardened:** anti-noSQL injection, timed-safe token comparison, log redaction
 - **mTLS between services (ADR-0011):** SPIFFE/SPIRE workload identity — short-lived X.509 SVIDs with automatic rotation. Database traffic: MySQL TLS is required in K8s; MongoDB and Redis/Sentinel accept TLS and still accept clear text until their contract step; Docker Compose stays in clear text ([ADR-0060](docs/adr/0060-database-client-traffic-unencrypted-in-cluster.md))
-- **Secrets:** SealedSecrets + HMAC-signed requests to dlq-service (`@trading-model/crypto`), rotation via `scripts/rotate-secrets.sh`
+- **Secrets:** SealedSecrets + HMAC-signed requests (`@trading-model/crypto`), rotation via `scripts/rotate-secrets.sh`
 
 ## Monitoring
 
-- **Dashboards:** Grafana dashboards (SLO, services, message-manager, trader-trainer, risk-execution)
+- **Dashboards:** Grafana dashboards (SLO, services, trader-trainer, risk-execution)
 - **Alerts:** Prometheus rules in `deploy/k8s/infra/config/alerting.yml` (SLO burn rates + operational, shared by compose and K8s), checked by `scripts/observability-gate.mjs` and unit-tested with promtool (`tests/alerts`) → Alertmanager → Slack/Pushover, with a `Watchdog` dead man's switch ([Alerting](docs/operations/ALERTING.md))
 - **Traces:** OpenTelemetry → OTLP Collector → Jaeger (every service instrumented)
 - **Logs:** structured JSON → Promtail → Loki

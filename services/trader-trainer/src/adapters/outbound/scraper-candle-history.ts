@@ -3,7 +3,7 @@ import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import type { CandleData } from "@trading-model/contracts/market-data.types";
 import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import { HttpClient } from "@trading-model/http/http-client";
-import { fetchCandlePages } from "@trading-model/http/signals/candle-pages";
+import { fetchCandlePages } from "@trading-model/model-runtime/signals/candle-pages";
 import { HostPort } from "@trading-model/primitives/service-identity";
 import type { TradingSymbol } from "../../domain/market-data-types";
 import type { CandleHistoryPort } from "../../domain/ports/candle-history.port";

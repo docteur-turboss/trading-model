@@ -61,11 +61,6 @@ export const CANDLES_PERSISTED_TOTAL = new promClient.Counter({
 	labelNames: ["symbol"] as const,
 });
 
-export const TRADES_PERSISTED_TOTAL = new promClient.Counter({
-	name: "fs_trades_persisted_total",
-	help: "Total trade rows persisted to MySQL",
-});
-
 export const TICKERS_PERSISTED_TOTAL = new promClient.Counter({
 	name: "fs_tickers_persisted_total",
 	help: "Total ticker rows persisted to MySQL",

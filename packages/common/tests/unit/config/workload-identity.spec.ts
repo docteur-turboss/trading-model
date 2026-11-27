@@ -15,7 +15,7 @@ const buildSpiffeId = (name: string): string =>
 describe("workload-identity", () => {
 	describe("isSpiffeId", () => {
 		it("should accept valid SPIFFE IDs", () => {
-			expect(isSpiffeId(buildSpiffeId("dlq-service"))).toBe(true);
+			expect(isSpiffeId(buildSpiffeId("audit-logger"))).toBe(true);
 		});
 
 		it("should reject non-SPIFFE identities", () => {
@@ -64,9 +64,6 @@ describe("workload-identity", () => {
 
 	describe("normalizeServiceName", () => {
 		it("should map legacy registration names onto canonical names", () => {
-			expect(normalizeServiceName("message-delivery-service")).toBe(
-				ServiceId.of("message-manager")
-			);
 			expect(normalizeServiceName("audit-logger-service")).toBe(
 				ServiceId.of("audit-logger")
 			);

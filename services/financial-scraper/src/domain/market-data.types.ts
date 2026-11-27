@@ -2,7 +2,6 @@ export type {
 	CandleData,
 	OrderBookData,
 	TickerData,
-	TradeData,
 } from "@trading-model/contracts/market-data.types";
 export {
 	MarketType,

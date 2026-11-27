@@ -39,12 +39,6 @@ export const RedisEnvSchema = z.object({
 	JOURNAL_MIN_REPLICAS: z.coerce.number().int().min(0).default(0),
 });
 
-/** Redis settings of a bus service, plus its transport (ADR-0073, read by `busJournalFromEnv`). */
-export const BusEnvSchema = RedisEnvSchema.extend({
-	/** `library`: Redis Streams in process; `http`: through message-manager; unset: library when Redis is set (N-1 rule). */
-	BUS_TRANSPORT: z.enum(["library", "http"]).optional(),
-});
-
 const DEFAULT_SENTINEL_MASTER_NAME = "mymaster";
 
 /** Environment variables a service reads to reach Redis. */

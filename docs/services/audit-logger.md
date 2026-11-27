@@ -47,7 +47,8 @@ List and filter audit events, newest first. Parameters and responses are declare
 | `correlationId` | string                | Filter by correlation ID                        |
 | `startDate`     | ISO date or date-time | `receivedAt` at or after                        |
 | `endDate`       | ISO date or date-time | `receivedAt` at or before                       |
-| `page`          | integer ≥ 1           | Page number (default: 1)                        |
+| `before`        | integer ≥ 1           | Cursor: events with `chainSequence` below it (`nextCursor` of the previous page) |
+| `withTotal`     | boolean               | `true` adds `total` (a count, slow on a large trail; default: `false`) |
 | `limit`         | integer ≥ 1           | Results per page (default: 100, capped at 1000) |
 
 **Response:** `200 OK`
@@ -73,15 +74,16 @@ List and filter audit events, newest first. Parameters and responses are declare
       "payload": { "modelId": "model-123" }
     }
   ],
-  "total": 1234,
-  "page": 1,
+  "nextCursor": 1135,
   "limit": 100
 }
 ```
 
+`nextCursor` is `null` on the last page; `total` only appears with `withTotal=true`.
+
 **`GET /v1/events/stats`**
 
-Aggregate audit statistics.
+Aggregate audit statistics. `eventsByTopic` and `eventsByPublisher` cover the last 24 h only (`totalEvents` is the whole collection).
 
 **Response:** `200 OK`
 
@@ -110,21 +112,11 @@ Get a single audit event by its message ID.
 
 ### Message Ingestion
 
-**`POST /message`**
-
-Receive an event bus message for audit logging (called internally by the message-manager).
-
-**Response:** `200 OK`
-
-```json
-{
-  "status": "recorded"
-}
-```
+No HTTP route: the service consumes the bus in process (`BrokerMessage.intents`, ADR-0073) and records each message.
 
 Every event is appended to a hash chain (`chainSequence`, `previousHash`, `dataHash`; `chainSequence` and `metadata.messageId` are unique indexes). Messages arrive concurrently, so an instance writes its inserts one at a time. If another replica takes the same sequence first, the insert retries on the new tail (up to 5 attempts). A redelivered message (same `messageId`) is recorded once (`audit_events_stored_total{status="duplicate"}`).
 
-audit-logger subscribes to the audit, training and dlq topics at startup (not market data: MySQL keeps it, ADR-0027): it reads them from the bus in process (`brokerMessage.on`, ADR-0073), and through message-manager's subscribe route (its ACL must allow it) while message-manager exists; both paths record the same way.
+audit-logger consumes the audit, training and dlq topics from startup (not market data: MySQL keeps it, ADR-0027), as consumer group `audit-logger` of the journal.
 
 ## Architecture
 

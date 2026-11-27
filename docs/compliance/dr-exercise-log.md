@@ -45,7 +45,7 @@ What the drills measure, their steps and budget: [BACKUP_DR.md](../deployment/BA
 |---|---|---|---|
 | Detection and decision | | | |
 | Fetch from the off-site bucket | | | |
-| Restore MongoDB (audit, dlq) | | | |
+| Restore MongoDB (audit) | | | |
 | Restore MySQL (market data) | | | |
 | Restore SPIRE datastore and CA keys | | | |
 | Restore checkpoints | | | |
@@ -68,7 +68,7 @@ What the drills measure, their steps and budget: [BACKUP_DR.md](../deployment/BA
 |---|---|
 | **Type** | Automated drill |
 | **Environment** | kind (`ci.yml`, job `k8s`, run 41643357917), GitHub-hosted runner |
-| **Scenario** | The drill times every step: audit and dlq databases, markers, `market_candles` and the SPIRE server volume destroyed, restored from the in-cluster S3 to an instant |
+| **Scenario** | The drill times every step: audit database, markers, `market_candles` and the SPIRE server volume destroyed, restored from the in-cluster S3 to an instant |
 | **Data restored from** | the backup run of the drill (kind: daily dump plus incremental archives, `--until` the recorded instant) |
 
 kind (seconds):

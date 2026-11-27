@@ -15,6 +15,7 @@ import {
 	JOURNAL_PENDING_ENTRIES,
 	MESSAGES_DELIVERED_TOTAL,
 	MESSAGES_DLQ_TOTAL,
+	MESSAGES_UNROUTED_TOTAL,
 	PUBLISHER_REJECTED_TOTAL,
 } from "../../../src/bus/metrics";
 import { publishToBus } from "../../../src/bus/publisher";
@@ -37,6 +38,10 @@ function bus() {
 	return { redis, journal, streams: new DeadStreams(journal) };
 }
 
+const pendingOf = (redis: StreamRedis) =>
+	redis.streams.get(`p:journal:${TOPIC}`)?.groups.get(GROUP.service)?.pending
+		.size;
+
 async function until(check: () => boolean): Promise<void> {
 	for (let i = 0; i < 100 && !check(); i++) {
 		await new Promise((resolve) => setTimeout(resolve, 10));
@@ -58,8 +63,11 @@ describe("publishToBus", () => {
 
 	it("should drop a message nobody subscribes to, and refuse it when a subscriber is required", async () => {
 		const { journal, redis } = bus();
+		const unrouted = jest.spyOn(MESSAGES_UNROUTED_TOTAL, "inc");
 
 		await publishToBus(journal, "p", METADATA);
+		expect(unrouted.mock.calls).toEqual([[{ topic: METADATA.topic }]]);
+		unrouted.mockClear();
 		await expect(
 			publishToBus(journal, "p", {
 				...METADATA,
@@ -67,6 +75,7 @@ describe("publishToBus", () => {
 			} as never)
 		).rejects.toThrow("No subscriber");
 
+		expect(unrouted).not.toHaveBeenCalled();
 		expect(redis.streams.size).toBe(0);
 	});
 
@@ -76,6 +85,51 @@ describe("publishToBus", () => {
 		redis.failures.set("XADD", new Error("OOM command not allowed"));
 
 		await expect(publishToBus(journal, "p", METADATA)).rejects.toThrow("OOM");
+		expect(redis.streams.get(`p:journal:${TOPIC}`)?.entries).toHaveLength(0);
+	});
+
+	it("should deliver a write refused by WAIT once: the resend keeps the messageId", async () => {
+		const { journal, redis } = bus();
+		const refusing = new RedisMessageJournal({
+			redis,
+			keyPrefix: "p",
+			minReplicas: 1,
+		});
+		await journal.register(GROUP);
+		redis.waitRefusals = 1;
+		const handled = new Set<string>();
+		let calls = 0;
+		const c = new BusConsumer({
+			journal,
+			deadStreams: new DeadStreams(journal),
+			service: GROUP.service,
+			handle: async (m) => {
+				calls++;
+				handled.add(m.metadata.messageId as string);
+			},
+			onDeadLetter: jest.fn(),
+		});
+		await c.start([TOPIC]);
+
+		await publishToBus(refusing, "p", METADATA);
+		await until(() => calls === 2 && pendingOf(redis) === 0);
+		await c.stop();
+
+		// Two deliveries of one messageId: the consumer's dedup (deliverToListeners) emits it once.
+		expect(redis.streams.get(`p:journal:${TOPIC}`)?.entries).toHaveLength(2);
+		expect(calls).toBe(2);
+		expect(handled.size).toBe(1);
+	});
+
+	it("should not resend a write that failed for another reason than WAIT", async () => {
+		const { journal, redis } = bus();
+		await journal.register(GROUP);
+		redis.failures.set("XADD", new Error("READONLY"));
+
+		await expect(publishToBus(journal, "p", METADATA)).rejects.toThrow(
+			"READONLY"
+		);
+		expect(redis.streams.get(`p:journal:${TOPIC}`)?.entries).toHaveLength(0);
 	});
 });
 
@@ -97,9 +151,6 @@ describe("BusConsumer", () => {
 			}),
 		};
 	}
-	const pendingOf = (redis: StreamRedis) =>
-		redis.streams.get(`p:journal:${TOPIC}`)?.groups.get(GROUP.service)?.pending
-			.size;
 
 	it("should acknowledge a handled message", async () => {
 		const handled: unknown[] = [];
@@ -150,25 +201,6 @@ describe("BusConsumer", () => {
 				?.pending.size
 		).toBe(0);
 		rejected.mockRestore();
-	});
-
-	it("should deliver a dlq.entry.added entry published by message-manager", async () => {
-		const handled: unknown[] = [];
-		const topic = "dlq.entry.added";
-		const parts = bus();
-		const { consumer: c, journal } = consumer(async (m) => {
-			handled.push(m.payload);
-		}, parts);
-		await c.start([topic]);
-		await publishToBus(journal, "dead", {
-			...METADATA,
-			topic,
-			publisher: { ...METADATA.publisher, serviceName: "message-manager" },
-		} as never);
-		await until(() => handled.length === 1);
-		await c.stop();
-
-		expect(handled).toEqual(["dead"]);
 	});
 
 	it("should run the handler in the publisher trace and count the delivery", async () => {
@@ -470,6 +502,25 @@ describe("BusConsumer", () => {
 		expect(pendingOf(parts.redis)).toBe(0);
 	});
 
+	it("should claim and handle an entry the retired message-manager read but never acknowledged (#1241)", async () => {
+		const parts = bus();
+		await parts.journal.register(GROUP);
+		await publishToBus(parts.journal, "in-flight", METADATA);
+		// Same stream and group as message-manager N-1, another consumer name.
+		await parts.journal.readNew(GROUP, "message-manager-n-1", 1);
+		const handled: unknown[] = [];
+		const { consumer: c } = consumer(async (m) => {
+			handled.push(m.payload);
+		}, parts);
+
+		await c.start([TOPIC]);
+		await until(() => handled.length === 1 && pendingOf(parts.redis) === 0);
+		await c.stop();
+
+		expect(handled).toEqual(["in-flight"]);
+		expect(pendingOf(parts.redis)).toBe(0);
+	});
+
 	it("should keep delivering when pruning consumers fails", async () => {
 		const handled: unknown[] = [];
 		const { consumer: c, journal } = consumer(async (m) => {
@@ -551,6 +602,20 @@ describe("DeadStreams", () => {
 			await journal.readNew({ ...GROUP, service: "other" }, "c", 10)
 		).toHaveLength(1);
 		expect(await journal.readNew(GROUP, "c", 10)).toHaveLength(1);
+	});
+
+	it("should page the list with an exclusive cursor", async () => {
+		const { streams } = bus();
+		for (let i = 1; i <= 150; i++) {
+			await streams.deadLetter(GROUP, `${i}-0`, createMockMessage("x"), "R", 1);
+		}
+
+		const first = await streams.list(TOPIC);
+		const second = await streams.list(TOPIC, first[99]?.id);
+
+		expect(first).toHaveLength(100);
+		expect(second).toHaveLength(50);
+		expect(new Set([...first, ...second].map((l) => l.id)).size).toBe(150);
 	});
 
 	it("should delete an entry, and say when it does not exist", async () => {

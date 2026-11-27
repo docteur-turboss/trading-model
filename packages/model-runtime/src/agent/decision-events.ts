@@ -4,6 +4,8 @@ import type { FeatureVector } from "../feature-vector";
 interface MarketStep {
 	price: number;
 	features: FeatureVector;
+	/** Open time of the bar, in ms: anchors the `frameSkip` cadence. */
+	timestamp?: number;
 }
 
 /** The decision gene of a genome (ADR-0076 §5). */
@@ -57,9 +59,28 @@ function fires(
 }
 
 /**
- * Bars the agent decides on, in order: every `frameSkip` bars, or in
- * `on_event` mode the bars where a detector fires, at least `minGap` bars
- * after the previous decision.
+ * Absolute bar number of each step: its open time over the bar interval (the
+ * smallest gap between two steps). Steps without timestamps, or fewer than
+ * two, fall back to their index.
+ */
+function barNumbers(steps: readonly MarketStep[]): number[] {
+	const times = steps.map((step) => step.timestamp ?? Number.NaN);
+	let interval = Number.POSITIVE_INFINITY;
+	for (let index = 1; index < times.length; index++) {
+		const gap = times[index] - times[index - 1];
+		interval = gap > 0 ? Math.min(interval, gap) : interval;
+	}
+	return Number.isFinite(interval) && !times.some(Number.isNaN)
+		? times.map((time) => Math.round(time / interval))
+		: steps.map((_, index) => index);
+}
+
+/**
+ * Bars the agent decides on, in order: the bars whose absolute bar number
+ * (open time / interval) is a multiple of `frameSkip`, so training, replay
+ * and a live sliding window decide on the same bars whatever their first
+ * bar; or in `on_event` mode the bars where a detector fires, at least
+ * `minGap` bars after the previous decision.
  */
 export function decisionBars(
 	steps: readonly MarketStep[],
@@ -68,8 +89,10 @@ export function decisionBars(
 	const bars: number[] = [];
 	const gene = horizon.decision;
 	if (!(gene && isEventDriven(horizon))) {
-		for (let index = 0; index < steps.length; index += horizon.frameSkip) {
-			bars.push(index);
+		for (const [index, bar] of barNumbers(steps).entries()) {
+			if (bar % horizon.frameSkip === 0) {
+				bars.push(index);
+			}
 		}
 		return bars;
 	}
@@ -109,7 +132,11 @@ export function barsSinceInput(barsSince?: number): number | undefined {
 export function playEpisode<Step extends MarketStep>(
 	steps: readonly Step[],
 	horizon: HorizonGenome,
-	agent: { step(step: Step, barsSince?: number): void; pnl(): number },
+	agent: {
+		step(step: Step, barsSince?: number): void;
+		/** PnL of the wallet, marked to `mark`'s price when given. */
+		pnl(mark?: Step): number;
+	},
 	pnlCurve: number[]
 ): { pnl: number; decisions: number } {
 	const eventDriven = isEventDriven(horizon);
@@ -119,7 +146,11 @@ export function playEpisode<Step extends MarketStep>(
 	let lastPnl = startPnl;
 	for (let index = 0; index < steps.length; index++) {
 		if (bars[rank] !== index) {
-			pnlCurve.push(0);
+			// The last bar marks the wallet to its close even without a decision.
+			const pnl =
+				index === steps.length - 1 ? agent.pnl(steps[index]) : lastPnl;
+			pnlCurve.push(pnl - lastPnl);
+			lastPnl = pnl;
 			continue;
 		}
 		agent.step(

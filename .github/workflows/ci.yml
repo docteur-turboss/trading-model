@@ -32,6 +32,11 @@ jobs:
     outputs:
       k8s: ${{ steps.changes.outputs.k8s }}
     steps:
+      # The free CI minutes hold only while the repository is public; a private one is allowed, not silent.
+      - if: ${{ github.event.repository.private }}
+        env:
+          PRIVATE: ${{ github.event.repository.private }}
+        run: echo "::warning::Repository private=$PRIVATE, Actions minutes are billed (docs/deployment/KUBERNETES.md)"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -47,10 +52,10 @@ jobs:
           # deploy/: manifests, tool images, migrate; tests/k8s/: the kind runner; scripts/: the deploy, migration,
           # backup/restore (incl. verify-restore-k8s.sh) and sealed-secrets scripts the jobs call; tests/backup/: audit-chain.js and
           # drill-timings.sh of the restore drill (same filter as the drill step); tests/e2e/binance-stub/: the stub run-kind.sh
-          # loads in the cluster; services/*/Dockerfile: the images kind builds;
+          # loads in the cluster; Dockerfile: the images kind builds;
           # ci.yml: this job definition. services/*/src and packages/*/src alone: unit/e2e jobs cover them.
           if [ "$EVENT" = pull_request ] && ! git diff --name-only "$BASE...$GITHUB_SHA" |
-            grep -qE '^(deploy/|tests/k8s/|scripts/[^/]*(deploy-|backup|restore|migrat|fetch-offsite|retention|sealed-secrets|split-cluster)|tests/(backup|e2e/binance-stub)/|services/[^/]+/Dockerfile$|.github/workflows/ci.yml$)'; then
+            grep -qE '^(deploy/|tests/k8s/|scripts/[^/]*(deploy-|backup|restore|migrat|fetch-offsite|retention|sealed-secrets|split-cluster)|tests/(backup|e2e/binance-stub)/|Dockerfile$|.github/workflows/ci.yml$)'; then
             k8s=false
           fi
           echo "k8s=$k8s" >> "$GITHUB_OUTPUT"
@@ -332,9 +337,6 @@ jobs:
       MONGO_EXPORTER_PASSWORD: ci-mongo-exporter
       MONGO_BACKUP_PASSWORD: ci-mongo-backup
       MONGO_AUDIT_PASSWORD: ci-mongo-audit
-      MONGO_DLQ_PASSWORD: ci-mongo-dlq
-      DLQ_AUTH_HMAC_SECRET: test-hmac-secret-for-e2e-0123456789
-      DLQ_ALLOWED_SERVICES: message-manager,admin,e2e-test-runner
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -381,8 +383,8 @@ jobs:
         run: >-
           docker compose -f docker-compose.yml -f docker-compose.build.yml -f tests/e2e/docker-compose.e2e.yml
           up -d --wait --wait-timeout 600
-          message-manager financial-scraper trader-trainer
-          api-gateway audit-logger dlq-service model-evaluator risk-execution decision-consumer edge-proxy
+          financial-scraper trader-trainer
+          api-gateway audit-logger model-evaluator risk-execution decision-consumer edge-proxy
       # Issue #844: no container of the started stack may publish on every interface.
       - name: "No port published on 0.0.0.0 or ::"
         run: |
@@ -426,7 +428,7 @@ jobs:
           name: zap-baseline-report
           path: zap-out/zap-report.html
           if-no-files-found: warn
-      # Last: restarts message-manager to check the mesh heals.
+      # Last: restarts the scraper to check the mesh heals.
       - name: Resilience (service restarts)
         run: bun run test:e2e -- resilience
       - name: Dump service logs
@@ -507,8 +509,8 @@ jobs:
     runs-on: ubuntu-24.04
     # One job per group of checks (run-kind.sh verify_group): each deploys N-1, upgrades to N,
     # then runs its own checks. fail-fast off: a red group does not hide the others.
-    # Not measured per group yet: first runs decide the timeout (the single job was 30 min measured, 48 min on PR #460).
-    timeout-minutes: 45
+    # backup runs the restore drill: 29-30 min on 3 recent runs, 37 min in run 45464740056 (audit 2026-11-24), so 45 left 8 min.
+    timeout-minutes: ${{ matrix.group == 'backup' && 60 || 45 }}
     strategy:
       fail-fast: false
       matrix:
@@ -597,7 +599,7 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # A failing git diff must run the drill, never skip it.
             changed=$(git diff --name-only HEAD^1 HEAD) || changed='?'
-            if ! printf '%s\n' "$changed" | grep -qE '^(\?|scripts/[^/]*(backup|restore|sealed-secrets|fetch-offsite|retention|migrat)|deploy/(backup|mongo|spire|compose/spire|k8s/jobs|k8s/spire|k8s/scripts|migrate)/|deploy/k8s/infra/(mongo|mysql)|services/(audit-logger|dlq-service)/|tests/(backup|k8s)/|\.github/workflows/(ci|backup-test))'; then
+            if ! printf '%s\n' "$changed" | grep -qE '^(\?|scripts/[^/]*(backup|restore|sealed-secrets|fetch-offsite|retention|migrat)|deploy/(backup|mongo|spire|compose/spire|k8s/jobs|k8s/spire|k8s/scripts|migrate)/|deploy/k8s/infra/(mongo|mysql)|services/audit-logger/|tests/(backup|k8s)/|\.github/workflows/(ci|backup-test))'; then
               echo "skip=true" >> "$GITHUB_OUTPUT"
             fi
           fi

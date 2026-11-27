@@ -30,6 +30,7 @@ paths = [
   '''packages/http/tests/unit/config/http-tls-loader\.spec\.ts$''',
   '''packages/certificate-utils/tests/generate-key-pair\.spec\.ts$''',
   '''services/certificate-authority/tests/unit/ca\.spec\.ts$''',
+  # fichier retiré, gardé pour le scan de l'historique (ci.yml --log-opts=--all)
   '''services/message-manager/tests/unit/messaging/core/dlq-client\.spec\.ts$''',
 ]
 

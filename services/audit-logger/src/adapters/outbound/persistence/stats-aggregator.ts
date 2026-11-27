@@ -6,7 +6,10 @@ import type { AuditEventDocument, AuditStats } from "./audit-repository";
 
 type Counts = Array<{ _id: string; count: number }>;
 
-/** One scan of the collection for both breakdowns. */
+/** Breakdowns cover this window only: a pass over the whole trail grows with its age. */
+const WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** One pass over the window (`receivedAt` index) for both breakdowns. */
 async function aggregateCounts(
 	col: Collection<AuditEventDocument>
 ): Promise<{ topics: Counts; publishers: Counts }> {
@@ -15,6 +18,7 @@ async function aggregateCounts(
 	];
 	const [facets] = await col
 		.aggregate<{ topics: Counts; publishers: Counts }>([
+			{ $match: { receivedAt: { $gte: new Date(Date.now() - WINDOW_MS) } } },
 			{ $facet: { topics: group("topic"), publishers: group("publisher") } },
 		])
 		.toArray();
@@ -50,7 +54,7 @@ function toMap(
 }
 
 /**
- * The per-topic and per-publisher counts need a pass over the collection, so
+ * The per-topic and per-publisher counts need a pass over the last 24 h, so
  * they are computed at most once per `REFRESH_MS` and served from memory
  * (stale while refreshing, in the background). The total and the date range
  * stay live and cost the same whatever the collection size.

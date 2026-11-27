@@ -5,5 +5,5 @@ module.exports = jestConfig(__dirname, {
   tsJest: { tsconfig: { skipLibCheck: true, module: 'commonjs', moduleResolution: 'bundler' } },
   moduleNameMapper: { '^(\\.{1,2}/.*)\\.js$': '$1' },
   // Process wiring (bootstrap, server, container, env): exercised by the E2E and k8s jobs.
-  coveragePathIgnorePatterns: ['/node_modules/', 'src/application/(index|server|telemetry)\.ts', 'src/config/', 'src/infrastructure/config/'],
+  coveragePathIgnorePatterns: ['/node_modules/', 'src/application/(index|server|telemetry)\.ts', 'src/config/container\.ts'],
 });

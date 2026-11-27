@@ -99,8 +99,8 @@ jobs:
       - name: Resolve image digests
         shell: bash
         run: |
-          map="message-manager:message-manager financial-scraper:financial-scraper
-            trader-trainer:trader-trainer api-gateway:api-gateway audit-logger:audit-logger dlq-service:dlq-service
+          map="financial-scraper:financial-scraper
+            trader-trainer:trader-trainer api-gateway:api-gateway audit-logger:audit-logger
             model-evaluator:model-evaluator risk-execution:risk-execution decision-consumer:decision-consumer spire-bootstrap:spire-tools migrate:db-migrate"
           { echo "services:"; } > "$RUNNER_TEMP/next.yml"
           missing=""; unsigned=""

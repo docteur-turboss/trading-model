@@ -1,7 +1,6 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { getLogger } from "@trading-model/contracts/logger-registry";
 import { isEventDriven } from "@trading-model/model-runtime/agent/decision-events";
-import { contiguousCandles } from "@trading-model/model-runtime/features/feature-builder";
 import {
 	MODEL_ADMISSION_TOTAL,
 	MODEL_ARTIFACTS_TOTAL,
@@ -115,6 +114,7 @@ export class ModelArtifactService {
 						version: manifest.version,
 						sha256: manifest.weights.sha256,
 						admissible: manifest.admission?.admissible ?? false,
+						minSharpe: manifest.admission?.thresholds.minSharpe,
 					},
 				});
 				getLogger().info("Best agent rehydrated", {
@@ -184,7 +184,12 @@ export class ModelArtifactService {
 				context: { symbol: result.symbol, version: stored.version, admissible },
 			});
 			return {
-				ref: { version: stored.version, sha256: stored.sha256, admissible },
+				ref: {
+					version: stored.version,
+					sha256: stored.sha256,
+					admissible,
+					minSharpe: admission?.thresholds.minSharpe,
+				},
 				lastModel: { createdAt: Date.parse(stored.createdAt), normalization },
 			};
 		} catch (err) {
@@ -203,19 +208,14 @@ export class ModelArtifactService {
 		symbol: TradingSymbol,
 		last: WindowSet | undefined
 	): ModelReplayWindow | undefined {
-		// The steps start after the last gap (window-splitter): so does the window.
-		const candles = contiguousCandles(
-			this._dataBuffer.getSymbolState(symbol)?.candles ?? []
-		);
 		const testFrom = last?.test?.[0]?.timestamp;
-		if (candles.length === 0 || testFrom === undefined) {
+		if (!last?.replay || testFrom === undefined) {
 			return;
 		}
 		const costs = this._deps.dailyCosts(symbol);
 		return {
-			from: candles[0].timestamp,
+			...last.replay,
 			testFrom,
-			to: candles[candles.length - 1].closeTimestamp,
 			...(costs && {
 				intervalMs: DAY_MS,
 				simulator: { ...SIMULATOR_PARAMS, ...costs },

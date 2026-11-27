@@ -1,6 +1,7 @@
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { TlsPaths } from "@trading-model/common/config/tls-paths";
 import { HTTP_STATUS } from "@trading-model/contracts/http-status";
+import { CandleInterval } from "@trading-model/contracts/market-data.types";
 import { HttpClient } from "@trading-model/http/http-client";
 import { isHttpClientError } from "@trading-model/http/http-client-errors";
 import {
@@ -50,7 +51,8 @@ export class ScraperPrices implements PricePort {
 	}
 
 	async latest(
-		symbols: readonly string[]
+		symbols: readonly string[],
+		barMs?: number
 	): Promise<Record<string, MarketPrice>> {
 		const target = await FIND_A_SERVICE(
 			ServiceInstanceName.FinancialScraperService
@@ -66,7 +68,12 @@ export class ScraperPrices implements PricePort {
 			retryCount: PRICE_RETRY_COUNT,
 		};
 		const now = this._now();
-		const oldest = now - HARD_CEILINGS.haltAgeMs;
+		// The model's bar (1m, 1d...) filters the read; an unknown length reads any bar.
+		const interval = CandleInterval.values().find(
+			(value) => CandleInterval.toMs(value) === barMs
+		);
+		const oldest =
+			now - (interval ? 2 * (barMs as number) : HARD_CEILINGS.haltAgeMs);
 		const keep = (symbol: string, close: number, closeTimestamp: string) => {
 			const at = Date.parse(closeTimestamp);
 			// A candle still open has a close time in the future: not a price yet.
@@ -77,7 +84,7 @@ export class ScraperPrices implements PricePort {
 		try {
 			const page = await this._http.get(
 				URLString.of(
-					`https://${address}/v2/candles/latest?symbols=${encodeURIComponent(symbols.join(","))}`
+					`https://${address}/v2/candles/latest?symbols=${encodeURIComponent(symbols.join(","))}${interval ? `&interval=${interval}` : ""}`
 				),
 				options,
 				Page

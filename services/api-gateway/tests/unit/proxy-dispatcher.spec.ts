@@ -7,6 +7,7 @@ import {
 } from "../../src/application/proxy-dispatcher";
 import {
 	type ProxyDeps,
+	ProxyOverloadedError,
 	UpstreamResponseTooLargeError,
 	UpstreamTimeoutError,
 } from "../../src/domain/ports/gateway.port";
@@ -102,6 +103,14 @@ describe("proxyAndCache", () => {
 		const res = await proxyAndCache(GET, TARGET, CTX, d);
 		expect(res.status).toBe(HTTP_STATUS.GATEWAY_TIMEOUT);
 		expect(res.data).toEqual({ error: "Upstream timeout" });
+	});
+
+	it("answers 503 with Retry-After when the proxy is overloaded", async () => {
+		const d = deps();
+		d.forward.mockRejectedValue(new ProxyOverloadedError(1));
+		const res = await proxyAndCache(GET, TARGET, CTX, d);
+		expect(res.status).toBe(HTTP_STATUS.SERVICE_UNAVAILABLE);
+		expect(res.headers).toEqual({ "Retry-After": "1" });
 	});
 
 	it("answers 502 when the upstream answer is too large", async () => {

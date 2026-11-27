@@ -1,5 +1,4 @@
 import { execFileSync } from "node:child_process";
-import { createHash, createHmac } from "node:crypto";
 
 /**
  * Services only accept SPIFFE mTLS clients (ADR-0011), so the host cannot call
@@ -25,12 +24,10 @@ export const CALLER = {
 
 /** Every application container and its compose healthcheck. */
 export const SERVICE_CONTAINERS = [
-	"trading-message",
 	"trading-scraper",
 	"trading-trainer",
 	"trading-gateway",
 	"trading-audit",
-	"trading-dlq",
 	"trading-edge",
 ] as const;
 
@@ -124,48 +121,6 @@ export function containerHealth(container: string): string {
 		["inspect", "--format", "{{.State.Health.Status}}", container],
 		{ encoding: "utf8" }
 	).trim();
-}
-
-function deterministicStringify(value: unknown): string {
-	return JSON.stringify(value, (_key: string, val: unknown): unknown => {
-		if (typeof val === "object" && val !== null) {
-			if (val instanceof Date) {
-				return val.toISOString();
-			}
-			if (!Array.isArray(val)) {
-				const sorted: Record<string, unknown> = {};
-				for (const key of Object.keys(val as object).sort()) {
-					sorted[key] = (val as Record<string, unknown>)[key];
-				}
-				return sorted;
-			}
-		}
-		return val;
-	});
-}
-
-/** Listed in DLQ_ALLOWED_SERVICES by the E2E overlay. */
-const DLQ_SERVICE_NAME = "e2e-test-runner";
-const DLQ_HMAC_SECRET =
-	process.env.DLQ_AUTH_HMAC_SECRET ?? "test-hmac-secret-for-e2e-0123456789";
-
-/** HMAC headers dlq-service requires; `path` includes the query string. */
-export function signedDlqHeaders(
-	body: unknown,
-	method: string,
-	path: string,
-	secret = DLQ_HMAC_SECRET
-): Record<string, string> {
-	const timestamp = Date.now().toString();
-	const bodyHash = createHash("sha256")
-		.update(deterministicStringify(body ?? {}))
-		.digest("hex");
-	const payload = `${DLQ_SERVICE_NAME}:${timestamp}:${bodyHash}:${method}:${path}`;
-	return {
-		"x-service-name": DLQ_SERVICE_NAME,
-		"x-timestamp": timestamp,
-		"x-signature": createHmac("sha256", secret).update(payload).digest("hex"),
-	};
 }
 
 /** Polls `probe` until it returns a value; a throwing probe counts as not ready yet. */

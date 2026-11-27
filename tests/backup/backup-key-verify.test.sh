@@ -132,10 +132,10 @@ backup_run() {
 	OUTPUTS=()
 	MANIFEST_ENTRIES=()
 	mkdir -p "$BACKUP_DIR/mongodb/$ts" "$BACKUP_DIR/mysql" "$BACKUP_DIR/checkpoints" "$BACKUP_DIR/spire" "$BACKUP_DIR/risk"
-	IFS=',' read -ra parts <<<"${3:-mongodb,mongodb-audit,mysql,checkpoints,spire,risk}"
+	IFS=',' read -ra parts <<<"${3:-mongodb-audit,mysql,checkpoints,spire,risk}"
 	for part in "${parts[@]}"; do
 		case "$part" in
-		mongodb | mongodb-audit) write_dump "$part" "$BACKUP_DIR/mongodb/$ts/$part.archive.gz.age" plain "$part $ts" ;;
+		mongodb-audit) write_dump "$part" "$BACKUP_DIR/mongodb/$ts/$part.archive.gz.age" plain "$part $ts" ;;
 		mysql) write_dump mysql "$BACKUP_DIR/mysql/financial_scraper_$ts.sql.gz.age" plain "mysql $ts" ;;
 		checkpoints) write_dump checkpoints "$BACKUP_DIR/checkpoints/checkpoints_$ts.tar.gz.age" plain "checkpoints $ts" ;;
 		spire) write_dump spire "$BACKUP_DIR/spire/keys_$ts.json.age" plain "{\"spire\":\"$ts\"}" ;;
@@ -167,7 +167,7 @@ verify() {
 	pass "$name"
 }
 verify "operator key decrypts the newest run" 0 "Run: 2026-11-02_020000 (2026-11-02 02:00:00 UTC)" --identity "$WORK/operator.txt" --dir "$RUNS"
-verify "escrow key decrypts the newest run" 0 "Result: PASS (6 component(s) decrypted)" --identity "$WORK/escrow.txt" --dir "$RUNS"
+verify "escrow key decrypts the newest run" 0 "Result: PASS (5 component(s) decrypted)" --identity "$WORK/escrow.txt" --dir "$RUNS"
 verify "the report names the key" 0 "Key: ${ESCROW}" --identity "$WORK/escrow.txt" --dir "$RUNS"
 verify "a foreign key fails" 1 "does not decrypt with ${FOREIGN}" --identity "$WORK/foreign.txt" --dir "$RUNS"
 verify "--timestamp verifies an older run" 0 "Run: 2026-11-01_020000" --identity "$WORK/escrow.txt" --dir "$RUNS" --timestamp 2026-11-01_020000

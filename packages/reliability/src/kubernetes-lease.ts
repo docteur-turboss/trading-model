@@ -150,6 +150,7 @@ export function kubernetesLeaseApi(name: string): LeaseApi {
 	const client = axios.create({
 		baseURL: `https://kubernetes.default.svc/apis/coordination.k8s.io/v1/namespaces/${namespace}/leases/${name}`,
 		httpsAgent: new https.Agent({
+			keepAlive: true,
 			ca: readFileSync(`${SERVICE_ACCOUNT_DIR}/ca.crt`),
 		}),
 		timeout: API_TIMEOUT_MS,

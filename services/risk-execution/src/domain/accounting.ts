@@ -63,6 +63,9 @@ export function limitBreaches(
 	if (state.hwm - eq >= limits.drawdownPct * cap) {
 		out.push({ symbol: null, reason: "drawdown" });
 	}
+	if (eq < (1 - limits.cumulativeLossPct) * cap) {
+		out.push({ symbol: null, reason: "cumulative_loss" });
+	}
 	for (const symbol of Object.keys(state.day.symbols)) {
 		if (symbolLoss(state, symbol) >= limits.symbolDailyLossPct * cap) {
 			out.push({ symbol, reason: "daily_loss_symbol" });
@@ -71,10 +74,26 @@ export function limitBreaches(
 	return out;
 }
 
-/** Starts a new UTC day when the date changed: day start equity and per-symbol start values. */
-export function rollDay(state: RiskState, now: number): void {
+/**
+ * Starts a new UTC day when the date changed: day start equity and per-symbol start values.
+ * Deferred while a held position's mark is older than its max age: the baseline is never priced on stale marks.
+ */
+export function rollDay(
+	state: RiskState,
+	now: number,
+	haltAgeMs: number
+): void {
 	const date = utcDate(now);
 	if (state.day.date === date) {
+		return;
+	}
+	const staleHeld = Object.entries(state.positions).some(([sym, qty]) => {
+		const mark = state.marks[sym];
+		return (
+			qty !== 0 && Boolean(mark) && now - mark.at > (mark.maxAgeMs ?? haltAgeMs)
+		);
+	});
+	if (staleHeld) {
 		return;
 	}
 	state.day = {

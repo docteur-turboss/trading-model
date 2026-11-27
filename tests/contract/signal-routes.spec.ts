@@ -2,7 +2,7 @@ import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { ResponseProtocol } from "@trading-model/http/response-protocol";
 import express from "express";
-import { ScraperSignalHistory } from "../../packages/http/src/signals/scraper-signal-history";
+import { ScraperSignalHistory } from "../../packages/model-runtime/src/signals/scraper-signal-history";
 import { FINANCIAL_ROUTES } from "../../services/financial-scraper/src/adapters/inbound/http/routes";
 import { MySqlSignalStore } from "../../services/financial-scraper/src/adapters/outbound/persistence/signal-store";
 

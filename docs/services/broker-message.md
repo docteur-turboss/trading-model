@@ -1,14 +1,16 @@
 # @trading-model/broker-message — Message Bus
 
-Inter-service messaging library: the Redis Streams bus used in process ([ADR-0073](../adr/0073-message-bus-as-a-redis-streams-library.md)), plus the HTTP client of **message-manager** until release N+1.
+Message bus library: publish to and consume from the Redis Streams journal, in process (ADR-0073).
 
 ## Overview
 
-**@trading-model/broker-message** publishes and consumes typed, validated messages. Since ADR-0073 (release N) a service that sets its `REDIS_*` variables talks to the bus directly in Redis; without them it keeps the HTTP path through message-manager. Both paths share the same streams and consumer groups. It also provides an in-process event emitter, a fluent metadata builder and Zod schemas for all payloads.
+**@trading-model/broker-message** is the inter-service messaging SDK for the platform. It provides topic-based publish/consume over the Redis Streams journal (one stream per topic, one consumer group per service, dead streams), a fluent metadata builder, and Zod-based schema validation for all message payloads.
+
+Every microservice uses this package to send and receive typed, validated messages through the bus; no broker service sits in between.
 
 ## Bus library (`src/bus/`)
 
-Opt-in: `busJournalFromEnv(env)` (`@trading-model/broker-message/create-message-manager`) follows `BUS_TRANSPORT`: `library` returns a `RedisMessageJournal` and throws without Redis settings, `http` returns `undefined`; unset, it returns the journal only when a Redis setting is present (`REDIS_URL` or `REDIS_SENTINELS`, `REDIS_SENTINEL_MASTER_NAME`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_SENTINEL_PASSWORD`, `REDIS_TLS_MODE`, `REDIS_TLS_CA`, `REDIS_TLS_SERVERNAME`, plus `JOURNAL_MIN_REPLICAS`). `createServiceMessageManager` passes it to `BrokerMessage`. Keys keep the prefix `trading-model:message-manager`.
+`busJournalFromEnv(env)` (`@trading-model/broker-message/create-message-manager`) returns a `RedisMessageJournal` and throws without Redis settings (`REDIS_URL` or `REDIS_SENTINELS`, `REDIS_SENTINEL_MASTER_NAME`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_SENTINEL_PASSWORD`, `REDIS_TLS_MODE`, `REDIS_TLS_CA`, `REDIS_TLS_SERVERNAME`, plus `JOURNAL_MIN_REPLICAS`). `createServiceMessageManager` passes it to `BrokerMessage`. Keys keep the prefix `trading-model:message-manager`.
 
 | Export (`@trading-model/broker-message/bus/…`) | Role |
 | ---------------------------------------------- | ---- |
@@ -19,7 +21,7 @@ Opt-in: `busJournalFromEnv(env)` (`@trading-model/broker-message/create-message-
 | `metrics` | `mm_messages_delivered_total`, `mm_messages_dlq_total`, `mm_journal_*`, `bus_dead_letters`, `bus_publisher_rejected_total` |
 | `backoff`, `delivery-error-classifier`, `delivery-metadata-extractor`, `message-factory` | Retry delay, error classification, delivery metadata, message construction |
 
-Dead letters are read, replayed and deleted with the `audit-dlq` CLI of audit-logger (`dlq-cli.js <operator> list|replay|delete`), see [runbook-dlq-backlog](../operations/runbooks/runbook-dlq-backlog.md). Replicas of a service share the group: one of them gets each entry, message-manager's workers included, never both.
+Dead letters are read, replayed and deleted with the `audit-dlq` CLI of audit-logger (`dlq-cli.js <operator> list|replay|delete`), see [runbook-message-bus-outage](../operations/runbooks/runbook-message-bus-outage.md). Replicas of a service share the group: one of them gets each entry, never both.
 
 ## Dependencies
 
@@ -27,7 +29,7 @@ Dead letters are read, replayed and deleted with the `audit-dlq` CLI of audit-lo
 - `@trading-model/primitives` — branded messaging/service types
 - `@trading-model/contracts` — message envelope contracts (`message.types`)
 - `@trading-model/common` — error classes, config re-exports (`event.types`, `services.types`, `tls-paths`)
-- `@trading-model/address-manager` — Service resolution (finds Message Delivery Service)
+- `@trading-model/persistence` — Redis connection and the journal client
 - `express` — Express `Router`, `Application` types
 - `zod` — Runtime schema validation for metadata and payloads
 
@@ -44,73 +46,30 @@ import BrokerMessage from '@trading-model/broker-message';
 
 ```ts
 constructor({
-  addressManagerClient,
-  tlsPaths,
-  callbackPath,
+  journal,        // RedisMessageJournal; `busJournalFromEnv(env)` builds it from REDIS_URL / REDIS_SENTINELS and throws without them
   instanceId,
   serviceName,
 }: {
+  journal: RedisMessageJournal;
   instanceId: InstanceId;
-  callbackPath: string;    // default: 'message'
-  tlsPaths: TlsPaths;      // { key, cert, ca } — SVID files written by spiffe-helper (ADR-0011)
-  addressManagerClient: addressManagerClient;
   serviceName: ServiceInstanceName;
 })
 ```
 
-> Prefer the `createServiceMessageManager(addressManagerClient, env)` factory, which builds `tlsPaths` from the service env (`TLS_CERT_PATH`, `TLS_KEY_PATH`, `TLS_CA_PATH`) and reads `INSTANCE_ID`, `SERVICE_NAME`, `MESSAGE_CALLBACK_PATH`.
+> Prefer `createServiceMessageManager(env)` (`@trading-model/broker-message/create-message-manager`), which reads `INSTANCE_ID`, `SERVICE_NAME` and the Redis settings from the service env.
 
 ### Public Methods
 
-| Method                 | Description                                          |
-| ---------------------- | ---------------------------------------------------- |
-| `intents(topics)`      | Subscribes to a list of topics (`EventEnumMap[]`)    |
-| `stopMessageManager()` | Unsubscribes from all topics and cleans up listeners |
-| `on(event, listener)`  | Registers a listener for a broker event              |
+| Method                          | Description                                                                                          |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `intents(topics, handle)`       | Consumes the topics in this process; each message is schema-checked, deduplicated by `messageId`, then passed to `handle`. A throw retries, then dead-letters |
+| `stopMessageManager()`          | Stops the consumer loops                                                                             |
+| `post.indirect(payload, meta)`  | Publishes with an `XADD`; resolves once the entry is durable                                         |
 
 ### Publishing
 
 ```ts
-const message = new BrokerMessage({...});
-
-// Indirect send via the broker (async pub/sub)
-await message.post.indirect(payload, metadata);
-```
-
-## HTTP client of message-manager (to be removed with [#1241](https://github.com/docteur-turboss/trading-model/issues/1241))
-
-Served: none (each subscriber mounts its own `POST /message` route). Calls made to message-manager:
-
-| Method | Path                              | Source                                      | Purpose                                |
-| ------ | --------------------------------- | ------------------------------------------- | -------------------------------------- |
-| POST   | `https://{host}:{port}/subscribe` | `MessageManagerClient.subscribeToTopics`    | Subscribe to a topic                   |
-| DELETE | `https://{host}:{port}/subscribe` | `MessageManagerClient.unSubscribeToTopic`   | Unsubscribe from a topic               |
-| POST   | `https://{host}:{port}/message`   | `MessageManagerClient.publishAsyncMessage`  | Publish an asynchronous message        |
-
-### MessageManagerClient
-
-Internal HTTP client communicating with the message-manager.
-
-- **Import**: `@trading-model/broker-message/message-manager-client`
-
-```ts
-class MessageManagerClient {
-  constructor(httpClient, config: MessageManagerConfig, addressManagerClient);
-
-  subscribeToTopics(topics: EventEnumMap[]): Promise<void>;
-  unSubscribeToTopic(topics: EventEnumMap[]): Promise<void>;
-  publishAsyncMessage<T>(payload: T, metadata: MessageMetadata): Promise<void>;
-}
-```
-
-#### MessageManagerConfig
-
-```ts
-type MessageManagerConfig = {
-  serviceName: ServiceInstanceName;
-  callbackPath: string;
-  instanceId: string;
-};
+await broker.post.indirect(payload, metadata);
 ```
 
 ## MetadataBuilder
@@ -144,25 +103,6 @@ const metadata = new HELPER.metadataBuilder('training.model.published', 'trainin
 | `MessagePayloadSchema`  | Discriminated payload validation by event type |
 
 Supported event validators: `exampleEvent`, `testEvent`, `fetchRecentTrades`, `fetch24hrTickerStats`, `fetchCandlestickSeries`, `fetchOrderBookSnapshot`, `fetchPriceTickerSnapshot`, `fetchOrderBookTickerSnapshot`.
-
-## EventManager
-
-Typed EventEmitter for local broker event handling.
-
-- **Import**: `@trading-model/broker-message/event-manager-client`
-
-```ts
-EVENT_MANAGER.on(eventName, callback); // returns a cleanup function
-EVENT_MANAGER.emit(eventName, data);
-```
-
-```ts
-import { EVENT_MANAGER } from '@trading-model/broker-message';
-
-EVENT_MANAGER.on('training.model.published', data => {
-  console.log(data.trades);
-});
-```
 
 ## Key Interfaces
 
@@ -213,33 +153,22 @@ interface Message<T = unknown> {
 
 ```typescript
 import BrokerMessage, { HELPER } from '@trading-model/broker-message';
-import AddressManager from '@trading-model/address-manager';
-
-const am = new AddressManager({/* config */});
-const { stop: stopAM } = am.start();
+import { busJournalFromEnv } from '@trading-model/broker-message/create-message-manager';
 
 const broker = new BrokerMessage({
+  journal: busJournalFromEnv(ENV),
   instanceId: 'instance-1',
-  serviceName: 'trader-trainer',
-  tlsPaths: {
-    ca: '/var/run/secrets/spiffe/bundle.pem',
-    cert: '/var/run/secrets/spiffe/svid.pem',
-    key: '/var/run/secrets/spiffe/svid_key.pem',
-  },
-  addressManagerClient: am,
+  serviceName: 'audit-logger',
 });
 
-await broker.intents(['training.model.published', 'dlq.entry.added']);
-
-const cleanup = broker.on('training.model.published', data => {
-  console.log('Received trades:', data.trades);
+await broker.intents(['training.model.published'], async ({ metadata, payload }) => {
+  console.log(metadata.topic, payload);
 });
 
 const metadata = new HELPER.metadataBuilder('training.model.published', 'training.model.published', publisher).toJSON();
 
 await broker.post.indirect({ price: 50000 }, metadata);
-
-cleanup();
 await broker.stopMessageManager();
-stopAM();
 ```
+
+Dead letters wait in the dead stream of their topic; the audit-logger `dlq-cli` lists, replays and deletes them.

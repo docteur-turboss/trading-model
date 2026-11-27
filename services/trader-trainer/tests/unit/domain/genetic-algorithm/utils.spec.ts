@@ -124,9 +124,9 @@ describe("EpisodeScores - maxDrawdown", () => {
 		expect(new EpisodeScores([3, -5, 2, -4, 10]).maxDrawdown()).toBe(7);
 	});
 
-	test("should count from the first episode, not from zero", () => {
-		expect(new EpisodeScores([-5]).maxDrawdown()).toBe(0);
-		expect(new EpisodeScores([-5, -2]).maxDrawdown()).toBe(2);
+	test("should count a loss on the first episode as a drawdown", () => {
+		expect(new EpisodeScores([-5]).maxDrawdown()).toBe(5);
+		expect(new EpisodeScores([-5, -2]).maxDrawdown()).toBe(7);
 	});
 });
 

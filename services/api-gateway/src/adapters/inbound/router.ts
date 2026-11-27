@@ -110,7 +110,7 @@ const createCatchAllRoute = (env: Env) => {
 
 		res.locals.routeLabel = pattern;
 
-		const scope = requiredScope(req.method, pattern);
+		const scope = requiredScope(req.method);
 		if (!authOf(req).apiKeyScopes.includes(scope)) {
 			return sendResponse(
 				{ error: "Forbidden", reason: `API key lacks the ${scope} scope` },

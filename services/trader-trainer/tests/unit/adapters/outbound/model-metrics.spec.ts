@@ -172,7 +172,7 @@ describe("metrics of a trained model", () => {
 		);
 
 		expect(manifest.metrics).toEqual({
-			metricsVersion: 6,
+			metricsVersion: 7,
 			generation: 4,
 			fitness: 1.5 as Fitness,
 			sharpe: expect.any(Number),
@@ -234,6 +234,19 @@ describe("admission of a model (ADR-0069)", () => {
 			minSortino: 1.5,
 			minCalmar: 1,
 		});
+	});
+
+	it("raises the Sharpe threshold with the attempt rank", () => {
+		const meta = testMeta(100);
+		const first = assessAdmission(meta, bars([5, 4, 3, 2]), 1);
+		const late = assessAdmission(meta, bars([5, 4, 3, 2]), 1e30);
+		expect(first?.admissible).toBe(true);
+		expect(first?.thresholds.minSharpe).toBe(1);
+		expect(late?.criteria).toEqual(first?.criteria);
+		expect(late?.thresholds.minSharpe).toBeGreaterThan(
+			first?.criteria.sharpe as number
+		);
+		expect(late?.admissible).toBe(false);
 	});
 
 	it("is never admissible when the model made no decision", () => {

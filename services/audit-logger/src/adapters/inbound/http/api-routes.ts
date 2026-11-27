@@ -50,31 +50,7 @@ const AuditEvent = z.object({
 	payload: z.unknown(),
 });
 
-/**
- * Metadata as delivered: the topic is required, every other field is kept as
- * sent (the audit records messages, it does not judge them).
- */
-const DeliveredMetadata = z.looseObject({ topic: z.string().min(1) });
-
-/** A delivery from message-manager (http-message-delivery.ts). */
-const DeliveredEnvelope = z.looseObject({
-	metadata: DeliveredMetadata,
-	payload: z.unknown().optional(),
-});
-
 export const AUDIT_API = {
-	receive: defineRoute({
-		method: "POST",
-		path: "/message",
-		summary:
-			"Record a message delivered by message-manager (audit, training and dlq topics are subscribed)",
-		body: DeliveredEnvelope,
-		responses: {
-			/** Acknowledges the delivery, a redelivery included (same messageId). */
-			200: z.object({ status: z.literal("recorded") }),
-			400: ErrorResponse,
-		},
-	}),
 	listEvents: defineRoute({
 		method: "GET",
 		path: "/v1/events",
@@ -86,20 +62,22 @@ export const AUDIT_API = {
 			/** Inclusive bounds on `receivedAt`. */
 			startDate: DATE.optional(),
 			endDate: DATE.optional(),
-			/** `false` omits `total` (no count). Absent or any other value: counted. */
+			/** `true` adds `total` (a count, O(n) on a broad filter). Default: no count. */
 			withTotal: z
 				.enum(["true", "false"])
 				.optional()
-				.transform((value) => value !== "false"),
-			page: z.coerce.number().int().min(1).optional(),
+				.transform((value) => value === "true"),
+			/** Cursor: the `nextCursor` of the previous page. */
+			before: z.coerce.number().int().min(1).optional(),
 			limit: z.coerce.number().int().min(1).optional(),
 		}),
 		responses: {
 			200: z.object({
 				docs: z.array(AuditEvent),
-				/** Absent when `withTotal=false`. Without filter: an estimate. */
+				/** Only with `withTotal=true`. Without filter: an estimate. */
 				total: z.number().int().optional(),
-				page: z.number().int(),
+				/** `before` of the next page; null on the last one. */
+				nextCursor: z.number().int().nullable(),
 				limit: z.number().int(),
 			}),
 			400: ErrorResponse,
@@ -111,7 +89,7 @@ export const AUDIT_API = {
 		summary: "Event counts by topic and publisher",
 		responses: {
 			200: z.object({
-				/** Live count (estimate). The two breakdowns are refreshed at most every 60 s, so their sums can differ from it. */
+				/** Live count (estimate). The two breakdowns cover the last 24 h only and are refreshed at most every 60 s, so their sums can differ from it. */
 				totalEvents: z.number().int(),
 				eventsByTopic: z.record(z.string(), z.number().int()),
 				eventsByPublisher: z.record(z.string(), z.number().int()),

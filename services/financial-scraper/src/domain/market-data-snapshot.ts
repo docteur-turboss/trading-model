@@ -8,7 +8,6 @@ import type {
 	CandleData,
 	OrderBookData,
 	TickerData,
-	TradeData,
 } from "./market-data.types";
 
 /** What a scrape cycle asks a market data source for one symbol. */
@@ -18,7 +17,6 @@ export interface SnapshotRequest {
 	candleLimit?: Limit;
 	/** Open time of the first candle to fetch; absent fetches the latest ones. */
 	candleStartTime?: UnixTimestamp;
-	tradeLimit?: Limit;
 	orderBookLimit?: Limit;
 	/** Fires when the cycle must stop: in-flight requests are cancelled and not retried. */
 	signal?: AbortSignal;
@@ -31,7 +29,6 @@ export interface SnapshotRequest {
  */
 export interface MarketDataSnapshot {
 	orderBook?: OrderBookData;
-	recentTrades?: TradeData[];
 	candles?: CandleData[];
 	ticker24h?: TickerData[];
 	fetchedAt: number;

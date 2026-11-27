@@ -23,13 +23,11 @@ replica counts first, to scale back to them afterwards.
 kubectl get deployment -n trading-model -o wide   # note the replica counts
 # MySQL: market data
 kubectl scale deployment -n trading-model financial-scraper financial-scraper-collector --replicas=0
-# MongoDB DLQ
-kubectl scale deployment -n trading-model dlq-service --replicas=0
 # MongoDB audit trail
 kubectl scale deployment -n trading-model audit-logger --replicas=0
 ```
 
-`trader-trainer` and `message-manager` do not write these databases but read
+`trader-trainer` does not write these databases but read
 what is corrupted: scale `trader-trainer` to 0 as well while market data is
 suspect.
 
@@ -46,8 +44,6 @@ kubectl exec -n trading-model mysql-0 -c mysql -- \
   > corrupted_mysql_$(date +%Y%m%d_%H%M%S).sql
 
 # MongoDB dumps stay inside the pod (/tmp): copy them out with kubectl cp
-kubectl exec -n trading-model mongo-dlq-0 -c mongodb -- \
-  mongodump --db dlq --out /tmp/dump_$(date +%Y%m%d_%H%M%S)
 kubectl exec -n trading-model mongo-audit-0 -c mongodb -- \
   mongodump --db audit --out /tmp/dump_audit_$(date +%Y%m%d_%H%M%S)
 
@@ -113,18 +109,6 @@ BACKUP_DIR=./restore K8S_NAMESPACE=trading-model BACKUP_AGE_IDENTITY=~/backup-ke
 - Use `--into-scratch` when only some documents are corrupted: compare, copy
   the healthy ones back, then drop the scratch databases. Details:
   [BACKUP_DR.md, Restoring part of MongoDB](../../deployment/BACKUP_DR.md#restoring-part-of-mongodb---ns---into-scratch).
-- Whole `dlq` database: [runbook-database-failover.md, Full data loss: DLQ](runbook-database-failover.md#full-data-loss-dlq).
-- Verify: `/dlq` needs an HMAC signature on top of mTLS, so go through the
-  gateway with `examples/manage-dlq.sh` (gateway API key +
-  `DLQ_AUTH_HMAC_SECRET`):
-
-```bash
-kubectl port-forward -n trading-model svc/edge-proxy 8449:8080 &
-API_GATEWAY=http://localhost:8449 ADMIN_TOKEN=<AUTH_TOKENS value> \
-  DLQ_AUTH_HMAC_SECRET=<dlq-service secret> \
-  bash examples/manage-dlq.sh | head -20
-```
-
 **MongoDB audit trail** (`mongo-audit`, hash chain anchored in S3, ADR-0027):
 never edit `audit_events` / `audit_chain_state` by hand and never restore part
 of `audit.*` in place (`restore-k8s.sh` refuses it). Use `--into-scratch` to

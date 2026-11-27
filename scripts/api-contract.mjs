@@ -56,9 +56,7 @@ const API_MAJOR_VERSION = 1;
 /** Services the gateway proxies to, by canonical (SPIFFE) name. */
 const PROXIED_SERVICES = [
 	"audit-logger",
-	"dlq-service",
 	"financial-scraper",
-	"message-manager",
 	"model-evaluator",
 	"risk-execution",
 	"trader-trainer",
@@ -67,10 +65,7 @@ const PROXIED_SERVICES = [
 /** Routes of proxied services that the gateway does not expose (PUBLIC_ROUTES). */
 const INFRASTRUCTURE_PATHS = new Set(["/metrics", "/health", "/health/ready", "/ping", "/status"]);
 const SERVICE_TO_SERVICE = {
-	"audit-logger": ["POST /message"],
-	"model-evaluator": ["POST /message"],
 	"risk-execution": ["POST /intents", "POST /orders/:clientOrderId/cancel", "GET /positions/:symbol", "GET /admin/status"],
-	"message-manager": ["POST /message", "POST /message/replay", "POST /subscribe", "DELETE /subscribe"],
 	// Model weights: never through the gateway (ADR-0022).
 	"trader-trainer": ["GET /models/:symbol/:version/weights"],
 	"financial-scraper": ["GET /v2/candles/latest"],
@@ -78,18 +73,10 @@ const SERVICE_TO_SERVICE = {
 
 /**
  * Who calls each service-to-service route, and the call that proves it: a
- * pattern searched in the caller's non-test sources. A broker callback
- * (`POST /message`) is called by message-manager for the services that
- * subscribe, so its proof is the owner's subscription (`intents(`).
+ * pattern searched in the caller's non-test sources.
  */
 const CALLERS = {
-	"message-manager POST /message": { caller: "packages/broker-message", call: /\}\/message`/ },
-	"message-manager POST /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
-	"message-manager DELETE /subscribe": { caller: "packages/broker-message", call: /\}\/subscribe`/ },
-	"message-manager POST /message/replay": { caller: "services/dlq-service", call: /"\/message\/replay"/ },
-	"audit-logger POST /message": { caller: "services/audit-logger", call: /\.intents\(/ },
-	"model-evaluator POST /message": { caller: "services/model-evaluator", call: /\.intents\(/ },
-	"trader-trainer GET /models/:symbol/:version/weights": { caller: "packages/http", call: /\/weights`/ },
+	"trader-trainer GET /models/:symbol/:version/weights": { caller: "packages/model-runtime", call: /\/weights`/ },
 	"financial-scraper GET /v2/candles/latest": { caller: "services/risk-execution", call: /\/v2\/candles\/latest/ },
 	"risk-execution POST /intents": { caller: "services/decision-consumer", call: /\/intents`/ },
 	"risk-execution GET /positions/:symbol": { caller: "services/decision-consumer", call: /\/positions\// },
@@ -242,7 +229,7 @@ const SOURCE_PATHS = join(ROOT, "scripts/api-contract.tsconfig.json");
 	}
 	const probe = Bun.resolveSync(
 		"@trading-model/http/api-route/api-route",
-		join(ROOT, "services/dlq-service/src")
+		join(ROOT, "services/audit-logger/src")
 	);
 	if (!probe.replaceAll("\\", "/").includes("/packages/http/src/")) {
 		console.error(`@trading-model/* resolves to ${probe}, not to the sources: run through \`bun run api:check\``);
@@ -582,7 +569,7 @@ const SECURITY_SCHEMES = {
 			in: "header",
 			name: "x-signature",
 			description:
-				"Hex HMAC-SHA256(secret, '<x-service-name>:<x-timestamp>:<sha256 hex of the JSON body, or of {} without body>:<METHOD>:<path the service receives, /v1/dlq...>'), see examples/manage-dlq.sh",
+				"Hex HMAC-SHA256(secret, '<x-service-name>:<x-timestamp>:<sha256 hex of the JSON body, or of {} without body>:<METHOD>:<service path>')",
 		},
 	},
 };
@@ -636,8 +623,8 @@ function schemaOperation(lines, method, path, { tag, entry, operation: key }, ga
 	}
 	if (gateway) {
 		responses["401"] ??= { $ref: "#/components/responses/Unauthorized" };
-		// The API key lacks the scope of the route: read for GET, dlq:write otherwise (ADR-0059).
-		responses["403"] ??= { description: "API key without the scope of the route (read for GET, dlq:write otherwise)" };
+		// The API key lacks the scope of the route: read (ADR-0059).
+		responses["403"] ??= { description: "API key without the scope of the route (read)" };
 		responses["404"] ??= { $ref: "#/components/responses/NotFound" };
 	}
 	op.responses = responses;

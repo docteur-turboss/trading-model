@@ -73,6 +73,17 @@ export function createWorkerRunner(overrides?: {
 						resolve({
 							...result,
 							bestFitnessMeta: reviveMeta(result.bestFitnessMeta),
+							...(result.symbols && {
+								symbols: Object.fromEntries(
+									Object.entries(result.symbols).map(([symbol, entry]) => [
+										symbol,
+										{
+											...entry,
+											bestFitnessMeta: reviveMeta(entry.bestFitnessMeta),
+										},
+									])
+								),
+							}),
 						});
 					});
 				} else {

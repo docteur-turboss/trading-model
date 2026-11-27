@@ -29,6 +29,9 @@ spec:
       defaultRequest:
         cpu: 10m
         memory: 32Mi
+        ephemeral-storage: 64Mi
       default:
         cpu: 250m
         memory: 256Mi
+        # Bounds writable layer + logs + emptyDir: an overflow evicts this pod, not a neighbour on DiskPressure. The ResourceQuota has no ephemeral-storage entry.
+        ephemeral-storage: 2Gi

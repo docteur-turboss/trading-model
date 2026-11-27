@@ -15,7 +15,6 @@ jest.mock("../../src/infrastructure/config/env", () => ({
 		APP_VERSION: "1.0.0",
 		SERVICE_NAME: "audit-logger-service",
 		INSTANCE_ID: "test-instance",
-		MESSAGE_CALLBACK_PATH: "message",
 	},
 }));
 

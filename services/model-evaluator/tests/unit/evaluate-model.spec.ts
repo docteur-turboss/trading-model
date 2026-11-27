@@ -19,14 +19,12 @@ import {
 } from "@jest/globals";
 import type { CandleData } from "@trading-model/contracts/market-data.types";
 import { DAY_MS } from "@trading-model/model-runtime/features/feature-builder";
+import { ModelManifest } from "@trading-model/model-runtime/model-manifest";
 import { replayModel } from "@trading-model/model-runtime/replay";
 import { FileEvaluationStore } from "../../src/adapters/outbound/file-evaluation-store";
 import { createEvaluateModel } from "../../src/application/evaluate-model";
 import { MODEL_REPLAY_SHARPE_GAP } from "../../src/config/metrics";
-import {
-	ModelManifest,
-	PublishedModel,
-} from "../../src/domain/model-evaluation";
+import { PublishedModel } from "../../src/domain/model-evaluation";
 
 const WEIGHTS = new Float32Array([0.5, -1, 2]);
 const BYTES = Buffer.from(WEIGHTS.buffer);
@@ -373,7 +371,7 @@ describe("evaluate a published model", () => {
 				weights: async () => ({ bytes: BYTES, sha256: SHA }),
 			},
 		});
-		await expect(other(EVENT)).rejects.toThrow(/not the published/);
+		await expect(other(EVENT)).rejects.toThrow(/not the expected/);
 		const short = createEvaluateModel({
 			store: new FileEvaluationStore(dir),
 			scraper: NO_CANDLES,

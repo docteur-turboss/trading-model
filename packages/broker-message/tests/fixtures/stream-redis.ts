@@ -16,6 +16,8 @@ export class StreamRedis implements BusRedis {
 	private _seq = 0;
 	/** Commands to fail, by name: the next call of each throws this error. */
 	readonly failures = new Map<string, Error>();
+	/** Number of next WAIT calls answered with 0 replicas. */
+	waitRefusals = 0;
 
 	async sadd(key: string, ...members: string[]): Promise<number> {
 		const set = this.sets.get(key) ?? new Set<string>();
@@ -74,7 +76,7 @@ export class StreamRedis implements BusRedis {
 			case "EXISTS":
 				return this.streams.has(key) ? 1 : 0;
 			case "WAIT":
-				return Number(key);
+				return this.waitRefusals-- > 0 ? 0 : Number(key);
 			case "XINFO":
 				if (key === "STREAM") {
 					const stream = this.streams.get(rest[0] as string);
@@ -195,9 +197,19 @@ export class StreamRedis implements BusRedis {
 
 	private _range(key: string, rest: string[]): unknown {
 		const [from = "-", to = "+"] = rest;
-		return (this.streams.get(key)?.entries ?? []).filter(
-			([id]) => (from === "-" || id >= from) && (to === "+" || id <= to)
-		);
+		const seq = (id: string) => Number.parseInt(id, 10);
+		const exclusive = from.startsWith("(");
+		const start = exclusive ? from.slice(1) : from;
+		const count =
+			rest[2] === "COUNT" ? Number(rest[3]) : Number.POSITIVE_INFINITY;
+		return (this.streams.get(key)?.entries ?? [])
+			.filter(
+				([id]) =>
+					(start === "-" ||
+						(exclusive ? seq(id) > seq(start) : seq(id) >= seq(start))) &&
+					(to === "+" || seq(id) <= seq(to))
+			)
+			.slice(0, count);
 	}
 
 	private _del(key: string, id: string): number {

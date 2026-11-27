@@ -85,7 +85,6 @@ jest.mock("../../../src/domain/genetic-algorithm/ga-runner", () => {
 					archive: [{}],
 					stagnation: 0,
 					elapsedMs: 1000,
-					bestGenome: { id: "gen-1" },
 				});
 			}
 			if (mockRunImpl) {
@@ -795,6 +794,31 @@ describe("Trainer — model publication", () => {
 			// The test segment is the newest part of the window, and opens after `from`.
 			expect(window.testFrom).toBeGreaterThan(window.from);
 			expect(window.testFrom).toBeLessThan(window.to);
+		});
+
+		it("a candle arriving after the split does not move the stored replay window", async () => {
+			const genome = await trainedGenome();
+			const models = fakeStore();
+			const symbol = TradingSymbol.of("BTCUSDT");
+			const before = dataBuffer.getSymbolState(symbol)!.candles.at(-1)!;
+			mockRunImpl = () => {
+				dataBuffer.addCandle(symbol, {
+					...before,
+					timestamp: before.closeTimestamp,
+					closeTimestamp: before.closeTimestamp + 60000,
+				} as typeof before);
+				return Promise.resolve(genome);
+			};
+			const trainer = makeTrainer(dataBuffer, {
+				settings: TEST_TRAINING_SETTINGS,
+				models,
+			});
+
+			await trainer.train(symbol);
+
+			expect(models.save.mock.calls[0][0].window.to).toBe(
+				before.closeTimestamp
+			);
 		});
 
 		it("stopTraining ends the session in flight, then stores and publishes its model (ADR-0058)", async () => {

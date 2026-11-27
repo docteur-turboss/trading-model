@@ -10,18 +10,15 @@ import {
 	selectLatestClosedCandles,
 } from "../../outbound/persistence/schema/candles.schema";
 import { selectTickerBy } from "../../outbound/persistence/schema/ticker24h.schema";
-import { selectTradesBy } from "../../outbound/persistence/schema/trades.schema";
 import { MySqlSignalStore } from "../../outbound/persistence/signal-store";
 import {
 	encodeCursor,
 	MAX_SIGNALS_PER_ANSWER,
+	MAX_SINCE_WINDOW_MS,
 	SCRAPER_API,
 } from "./api-routes";
 
-/**
- * 200 with the rows as JSON. `toJsonWire` sends BIGINT trade ids as decimal
- * strings (plain JSON.stringify throws on a bigint).
- */
+/** 200 with the rows as JSON. */
 function json(body: unknown) {
 	return sendResponse(JSON.stringify(body, toJsonWire), HTTP_STATUS.OK);
 }
@@ -51,15 +48,6 @@ async function page(select: PageQuery, { limit, ...window }: MarketDataPage) {
 	});
 }
 
-function _registerTradeRoutes(router: Router): void {
-	mountRoute(router, SCRAPER_API.tradesBySymbol, ({ params, query }) =>
-		page((window) => selectTradesBy.symbol(params.symbol, window), query)
-	);
-	mountRoute(router, SCRAPER_API.tradesAt, ({ params, query }) =>
-		page((window) => selectTradesBy.timestamp(params.timestamp, window), query)
-	);
-}
-
 function _registerTickerRoutes(router: Router): void {
 	mountRoute(router, SCRAPER_API.tickersBySymbol, ({ params, query }) =>
 		page((window) => selectTickerBy.symbol(params.symbol, window), query)
@@ -74,14 +62,23 @@ function _registerCandleRoutes(router: Router): void {
 		page((window) => selectCandlesBy.symbol(params.symbol, window), query)
 	);
 	mountRoute(router, SCRAPER_API.candlesLatest, async ({ query }) =>
-		json({ rows: await selectLatestClosedCandles(query.symbols, new Date()) })
+		json({
+			rows: await selectLatestClosedCandles(query.symbols, new Date(), query),
+		})
 	);
-	mountRoute(router, SCRAPER_API.candlesSince, ({ params, query }) =>
-		page(
+	mountRoute(router, SCRAPER_API.candlesSince, ({ params, query }) => {
+		const { to } = query;
+		if (to === undefined || to > params.timestamp + MAX_SINCE_WINDOW_MS) {
+			return sendResponse(
+				{ error: "`to` is required and at most 7 days after the date" },
+				HTTP_STATUS.BAD_REQUEST
+			);
+		}
+		return page(
 			(window) => selectCandlesBy.timestamp.after(params.timestamp, window),
 			query
-		)
-	);
+		);
+	});
 }
 
 function _registerSignalRoutes(router: Router): void {
@@ -143,11 +140,10 @@ function _registerSignalRoutes(router: Router): void {
 	});
 }
 
-/** Create an Express Router with all financial-data query endpoints (trades, tickers, candles, signals). */
+/** Create an Express Router with all financial-data query endpoints (tickers, candles, signals). */
 export const FINANCIAL_ROUTES = (): Router => {
 	const router = Router();
 
-	_registerTradeRoutes(router);
 	_registerTickerRoutes(router);
 	_registerCandleRoutes(router);
 	_registerSignalRoutes(router);
