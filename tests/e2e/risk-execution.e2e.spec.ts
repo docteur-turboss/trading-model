@@ -190,7 +190,11 @@ describe("risk-execution E2E", () => {
 				{ timeoutMs: DECISION_TIMEOUT_MS, intervalMs: 5_000 }
 			);
 		} catch (error) {
-			dumpDecisionDiagnostics();
+			try {
+				dumpDecisionDiagnostics();
+			} catch (dumpError) {
+				console.error("diagnostics unavailable:", dumpError);
+			}
 			throw error;
 		}
 	});
