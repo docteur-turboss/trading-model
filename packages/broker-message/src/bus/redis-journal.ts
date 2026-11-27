@@ -265,7 +265,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 		count: number,
 		blockMs?: number
 	): Promise<JournalEntry[]> {
-		let reply: [stream: string, entries: StreamReply] | null;
+		let reply: [stream: string, entries: StreamReply][] | null;
 		try {
 			reply = (await this._reader(group, blockMs).call(
 				"XREADGROUP",
@@ -283,8 +283,7 @@ export class RedisMessageJournal implements MessageJournalPort {
 			await this._recoverNoGroup(err, group);
 			return [];
 		}
-		// ioredis `call` hands one stream back as [name, entries], not [[name, entries]].
-		return this._parse(group, reply?.[1] ?? null, () => 1);
+		return this._parse(group, reply?.[0]?.[1] ?? null, () => 1);
 	}
 
 	async claimDue(
