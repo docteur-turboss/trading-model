@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-11
 **Related:** [ADR-0033](./0033-offsite-backup-bucket-object-lock.md) (same fail-before-change deploy model)
-**Verified by:** manual review 2026-11-05
+**Verified by:** manual review 2026-11-05; `tests/k8s/check-overlays.mjs` (image lists), `.github/workflows/release-candidate.yml`
 
 ## Context
 
@@ -23,6 +23,8 @@
    **Who approves (issue #2401, decision of the owner 2026-11-23, #2369).** The orchestrator approves `release` itself, under the owner's account (`POST actions/runs/<id>/pending_deployments`, `state=approved`, comment "Release <version> publiée par l'orchestrateur"), only for tags it pushed after the cross-review of the release PR and its merge to `main`. A tag pushed by hand is approved by hand. The reviewer still stops any `v*` tag or run the orchestrator did not start; only the owner can push such a tag (ruleset 27860882, #2183). **Accepted risk:** no person acts between the merge to `main` and the signature, so a faulty automatic cross-review publishes and signs. Check: `scripts/check-environment-protection.mjs release` (reviewer and `v*` tag rule stay in place).
 
 8. **No build cache, scanned = promoted = signed.** Release builds use no `type=gha` cache (a push to `main` could plant layers in its scope). There is a single build per image (issue #2656, replaces the second no-cache build of #2364, which could differ from the scanned one); `sign` promotes the scanned digest with `docker buildx imagetools create` (same digest, tags `X.Y.Z` and `latest`) and signs that digest. The `scan-<run id>` tags are left in the registry.
+
+9. **Build and scan before the tag; no CI replay (issue #3012).** Jobs `scan-services` and `scan-tools` moved to `release-candidate.yml` (release PR to `main`, or manual): they push the scanned images unsigned as `tree-<git tree of the commit>`. `release.yml` no longer calls `ci.yml`: its `version` job requires, for every `IMAGES` entry, an image tagged `tree-<git rev-parse $GITHUB_SHA^{tree}>`, so a tag whose tree was not built and scanned stops before the approval. The identity of the tree replaces the replay (squash or merge commits differ, the tree does not). `sign` retags that digest and signs it; signature, `latest` rule and approval stay in `release.yml` alone. Accepted risk: the release PR must have run CI and the candidate on the final tree; a main that moved between the PR and the merge changes the tree and fails `version` (re-run the candidate on `main` by hand).
 
 ## Alternatives Considered
 
