@@ -38,7 +38,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # The PR head, not refs/pull/N/merge: its tree is the one a squash gives main, its SHA is real.
+          # The PR head, not refs/pull/N/merge: its tree is the one the merge commit gives main (release PRs are never squashed), its SHA is real.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
@@ -76,7 +76,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # The PR head, not refs/pull/N/merge: its tree is the one a squash gives main, its SHA is real.
+          # The PR head, not refs/pull/N/merge: its tree is the one the merge commit gives main (release PRs are never squashed), its SHA is real.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
@@ -171,7 +171,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # The PR head, not refs/pull/N/merge: its tree is the one a squash gives main, its SHA is real.
+          # The PR head, not refs/pull/N/merge: its tree is the one the merge commit gives main (release PRs are never squashed), its SHA is real.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
