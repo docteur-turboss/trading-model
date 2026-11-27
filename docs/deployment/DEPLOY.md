@@ -307,8 +307,8 @@ canary or a real rollout (the preflight never starts a pod).
 ### Each production release
 
 1. Fill the `Controller` and `Contact` fields of the [data processing register](../compliance/data-processing-register.md) (Art. 30(1)(a); first production deploy only, see "Before the first production deploy" above)
-2. `bun run release:publish` (on `main`) bumps the versions, writes the CHANGELOG and pushes the tag `vX.Y.Z` ([release.md](../contributing/release.md))
-3. `release.yml` checks the tag's tree was built and scanned by `release-candidate.yml` (no CI replay), then publishes the images to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release; its last job, `verify-images`, fails if `deploy.yml` cannot resolve one of them.
+2. Branch `release/vX.Y.Z` from `development`, `bun scripts/release.mjs --prepare` (version commit), PR to `main`, check `release-candidate / publish` green, merge commit, then tag that merge commit `vX.Y.Z` and push the tag ([release.md](../contributing/release.md))
+3. `release.yml` takes the digests scanned by the newest `release-candidate.yml` run of the tag's tree (no CI replay), then publishes those digests to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release; its last job, `verify-images`, fails if `deploy.yml` cannot resolve one of them.
 4. The `Deploy` workflow is run against the `production` environment (canary enabled for staged rollout)
 
 ### Upgrading from 3.0.x: rewrite the Redis AOF first

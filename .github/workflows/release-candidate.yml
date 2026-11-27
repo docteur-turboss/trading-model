@@ -2,10 +2,11 @@
 #  release-candidate.yml — Build, scan and push the release images BEFORE the tag
 #  On a pull request to main (the release PR) or by hand: builds the service and
 #  tooling images, pushes them under a provisional :scan-<run id>, scans them
-#  (Trivy, by digest) and only when every scan passed retags them unsigned as
-#  :tree-<git tree of the commit>. release.yml, at the vX.Y.Z tag, only checks
-#  that the tagged commit has the same tree, retags the digest, signs and
-#  verifies (ADR-0038). A failing scan means no tag has been burnt.
+#  (Trivy, by digest), records each green digest as artifact digest-<image> and
+#  only when every scan passed retags them unsigned as :tree-<git tree of the
+#  commit>. release.yml, at the vX.Y.Z tag, takes the recorded digests of the
+#  newest run of the same tree, retags, signs and verifies them (ADR-0038).
+#  A failing scan means no tag has been burnt.
 #  Full-history gitleaks runs in ci.yml on the same pull request.
 # =============================================================================
 
@@ -95,6 +96,7 @@ jobs:
         with:
           images: ${{ needs.version.outputs.registry }}/${{ matrix.service }}
           tags: type=raw,value=${{ needs.version.outputs.scan_tag }}
+          labels: org.opencontainers.image.revision=${{ github.event.pull_request.head.sha || github.sha }}
 
       # Gate before publication: a fixable CRITICAL or HIGH vulnerability stops the job
       # before the image gets its tree tag. Exceptions: .trivyignore.yaml (ADR-0038).
@@ -127,6 +129,18 @@ jobs:
           # Unfixed CVEs cannot be remedied by a rebuild: block only on those with a fix.
           ignore-unfixed: true
           exit-code: "1"
+
+      # Written only after a green scan: release.yml signs this digest, never a tag read later.
+      - name: Record the scanned digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: echo "$DIGEST" > digest
+
+      - name: Upload the scanned digest
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digest-${{ matrix.service }}
+          path: digest
 
   # Tooling images, built once, pushed under a scan tag and scanned by digest:
   # spire-tools (deploy/spire): spire-server binary + registration scripts (the
@@ -177,6 +191,7 @@ jobs:
         with:
           images: ${{ needs.version.outputs.registry }}/${{ matrix.image }}
           tags: type=raw,value=${{ needs.version.outputs.scan_tag }}
+          labels: org.opencontainers.image.revision=${{ github.event.pull_request.head.sha || github.sha }}
 
       # Gate before publication: a fixable CRITICAL or HIGH vulnerability stops the job
       # before the image gets its tree tag. Exceptions: .trivyignore.yaml (ADR-0038).
@@ -207,6 +222,18 @@ jobs:
           ignore-unfixed: true
           exit-code: "1"
 
+      # Written only after a green scan: release.yml signs this digest, never a tag read later.
+      - name: Record the scanned digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: echo "$DIGEST" > digest
+
+      - name: Upload the scanned digest
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digest-${{ matrix.image }}
+          path: digest
+
   # Publishes the tree tag only when every scan passed (a failed matrix leaves only :scan-* images,
   # which release.yml ignores): the tree tag is the proof that the scan succeeded.
   publish:
@@ -226,14 +253,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
+      - name: Download the scanned digests
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: digest-*
+
       - name: Tag the scanned digests with the tree
         shell: bash
         env:
           REGISTRY: ${{ needs.version.outputs.registry }}
-          SCAN_TAG: ${{ needs.version.outputs.scan_tag }}
           TREE_TAG: ${{ needs.version.outputs.tree_tag }}
           IMAGES: ${{ needs.version.outputs.images }}
         run: |
           for i in $(jq -r '.[]' <<<"$IMAGES"); do
-            docker buildx imagetools create -t "$REGISTRY/$i:$TREE_TAG" "$REGISTRY/$i:$SCAN_TAG"
+            docker buildx imagetools create -t "$REGISTRY/$i:$TREE_TAG" "$REGISTRY/$i@$(cat "digest-$i/digest")"
           done
