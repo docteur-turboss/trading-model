@@ -104,8 +104,9 @@ branch rule anyone with write access can push a branch whose workflow names the
 environment and prints its secrets):
 
 - `staging` (`KUBECONFIG_STAGING_*`, `BACKUP_S3_*`, `AUDIT_ANCHOR_*`): "Selected
-  branches and tags" with exactly the branches `development` and `main` and the
-  tag rule `v*` (the release deploys its tag).
+  branches and tags" with exactly the branches `development`, `main` and
+  `release/*` (the orchestrator runs `preflight_only` from the release branch
+  before its merge) and the tag rule `v*` (the release deploys its tag).
   A required reviewer is advised, not checked.
 - `release` (approval of `release.yml` before any image is published or signed): a required
   reviewer and the tag rule `v*`. "Prevent self-review" stays off while the owner pushes
