@@ -817,6 +817,8 @@ full_rollback() {
 	{
 		release_script record "$NS" "$WORK/revisions" &&
 			release_script release-replicas "$NS" &&
+			# N-1 predates podManagementPolicy: Parallel (immutable): as release-replicas does for the other way round.
+			{ [ "$($K get statefulset redis -n "$NS" -o jsonpath='{.spec.podManagementPolicy}')" != Parallel ] || [ -n "$(grep -s podManagementPolicy "$PREVIOUS/deploy/k8s/infra/redis.yaml")" ] || $K delete statefulset redis -n "$NS" --cascade=orphan; } &&
 			apply_release "$PREVIOUS" "$WORK/digests-previous" &&
 			release_script wait "$NS" &&
 			release_script redis-last "$NS" <"$WORK/app.yaml" &&

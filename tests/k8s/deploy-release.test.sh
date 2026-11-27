@@ -284,6 +284,16 @@ out="$(STUB_WAIT_FAILS=1 STUB_PODS=node-1 bash "$SCRIPT" prepull ns <"$WORK/rend
 	[[ $out == *"::warning::Pre-pull"* ]] && grep -q '^delete pod prepull-risk-execution' "$WORK/log" &&
 	ok "a failed pre-pull only warns" || ko "prepull failure: $out"
 
+# Rollback guard (issue #3021): a live migration the target lacks is refused, never migrated down.
+mkdir -p "$WORK/migs" && : >"$WORK/migs/001_a.up.sql" && : >"$WORK/migs/001_a.down.sql"
+STUB_MASTER= STUB_IDS='001_a
+' bash "$SCRIPT" schema-check ns "$WORK/migs" >/dev/null 2>&1 &&
+	ok "schema-check: known schema passes" || ko "schema-check refused a known schema"
+out="$(STUB_MASTER= STUB_IDS='001_a
+002_b
+' bash "$SCRIPT" schema-check ns "$WORK/migs" 2>&1)" &&
+	ko "schema-check accepted a newer schema" || { [[ "$out" == *"002_b"* ]] && ok "schema-check: newer schema refused, names 002_b" || ko "schema-check message: $out"; }
+
 # Token expiry check of the "Configure kubeconfigs" step of deploy.yml (issue #1978): fake kubeconfigs holding only a JWT.
 jwt() { printf '{"exp":%s}' "$1" | base64 -w0 | tr '+/' '-_' | tr -d '='; }
 mkdir -p "$WORK/kube" "$WORK/bin"
@@ -301,16 +311,6 @@ out="$(expiry 1700000000)" && ko "expired token accepted" ||
 out="$(expiry $(($(date +%s) + 3600)))" && [[ "$out" == *"::warning::KUBECONFIG_STAGING_APP token expires on"* ]] && ok "token expiring in 1 h: warning" || ko "soon: $out"
 out="$(expiry $(($(date +%s) + 999999)))" && [ -z "$out" ] && ok "valid token: silent" || ko "valid: $out"
 
-
-# Rollback guard (issue #3021): a live migration the target lacks is refused, never migrated down.
-mkdir -p "$WORK/migs" && : >"$WORK/migs/001_a.up.sql" && : >"$WORK/migs/001_a.down.sql"
-STUB_MASTER= STUB_IDS='001_a
-' bash "$SCRIPT" schema-check ns "$WORK/migs" >/dev/null 2>&1 &&
-	ok "schema-check: known schema passes" || ko "schema-check refused a known schema"
-out="$(STUB_MASTER= STUB_IDS='001_a
-002_b
-' bash "$SCRIPT" schema-check ns "$WORK/migs" 2>&1)" &&
-	ko "schema-check accepted a newer schema" || { [[ "$out" == *"002_b"* ]] && ok "schema-check: newer schema refused, names 002_b" || ko "schema-check message: $out"; }
 
 bash "$SCRIPT" bogus >/dev/null 2>&1 && ko "unknown command accepted" || ok "unknown command refused"
 
