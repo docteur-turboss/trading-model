@@ -51,3 +51,14 @@ if grep -q '^staging: risk-execution-config sets EXECUTION_MODE=live outside pro
 else
   echo "  ✗ unexpected failure:"; echo "$out"; exit 1
 fi
+# ADR-0064 §10 (issue #2879): risk-execution switched to RollingUpdate would run two writers of its volume.
+rm -r "$TMP/deploy" && cp -r "$ROOT/deploy" "$TMP/deploy"
+sed -i 's/^    type: Recreate$/    type: RollingUpdate/' "$TMP/deploy/k8s/services/risk-execution.yaml"
+if out="$(cd "$TMP" && node "$ROOT/tests/k8s/check-overlays.mjs" 2>&1)"; then
+  echo "  ✗ risk-execution RollingUpdate accepted"; exit 1
+fi
+if grep -q '^staging: Deployment risk-execution must stay replicas: 1, strategy Recreate' <<<"$out"; then
+  echo "  ✓ risk-execution RollingUpdate refused"
+else
+  echo "  ✗ unexpected failure:"; echo "$out"; exit 1
+fi
