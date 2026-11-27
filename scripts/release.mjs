@@ -406,10 +406,23 @@ function publishRelease(newVersion, args) {
   console.log(`  ✓ ${branch} pushed. Merge it into main (PR) and into development (merge commit), then on main: bun run release:tag\n`);
 }
 
-/** Tags the commit of main that carries the version of the root package.json, pushes the tag and checks it reached origin. */
+/**
+ * Tags the version commit of `release/vX.Y.Z` (not the merge commit of main: development receives the branch, so only that
+ * commit is reachable from both, which `lastStableTag` needs). Refuses a main that is not origin/main, and a squashed PR.
+ */
 function tagRelease() {
   const tag = `v${JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8')).version}`;
-  runOrDie(`git tag -a ${tag} -m ":rocket:(release): ${tag}"`);
+  runOrDie('git fetch origin main --quiet');
+  if (runOrDie('git rev-parse HEAD') !== runOrDie('git rev-parse origin/main')) {
+    console.error('  ✗ HEAD is not origin/main: run `git pull --ff-only` first.\n');
+    process.exit(1);
+  }
+  const sha = runOrDie(`git log -1 --format=%H --fixed-strings --grep=":rocket:(release): ${tag}" HEAD`);
+  if (!sha) {
+    console.error(`  ✗ No version commit of ${tag} in main: merge the release PR with a merge commit (not squash).\n`);
+    process.exit(1);
+  }
+  runOrDie(`git tag -a ${tag} -m ":rocket:(release): ${tag}" ${sha}`);
   runOrDie(`git push origin ${tag}`);
   if (!runOrDie(`git ls-remote --tags origin ${tag}`)) {
     console.error(`\n  ✗ Tag ${tag} is not on origin after the push.`);

@@ -140,13 +140,29 @@ test('--publish commits the version on release/vX on a branch cut from developme
   assert.equal(git('rev-parse', 'main'), git('rev-parse', 'development'));
 });
 
-test('--tag refuses off main; on main it tags the version of package.json and fails without a remote', () => {
+test('--tag refuses off main; full flow: publish, merge into main and development, tag, next publish restarts from that tag', () => {
   git('checkout', '-q', 'development');
   assert.match(release('--tag').out, /requires being on main/);
-  git('checkout', '-q', 'release/v3.1.0-beta.1');
-  git('checkout', '-q', '-B', 'main');
-  const { status, out } = release('--tag');
-  assert.equal(status, 1, out);
-  assert.match(out, /Command failed: git push origin v3\.1\.0-beta\.1/);
-  assert.match(git('tag', '--list', 'v3.1.0-beta.1'), /beta\.1/);
+  const remote = mkdtempSync(join(tmpdir(), 'release-origin-'));
+  try {
+    git('init', '-q', '--bare', remote);
+    git('remote', 'add', 'origin', remote);
+    git('push', '-q', 'origin', 'main', 'development');
+    assert.equal(release('--publish').status, 0);
+    git('checkout', '-q', 'main');
+    git('commit', '-q', '--allow-empty', '--no-verify', '-m', 'local only');
+    assert.match(release('--tag').out, /HEAD is not origin\/main/);
+    git('reset', '-q', '--hard', 'origin/main');
+    git('merge', '-q', '--no-ff', '--no-verify', '-m', 'merge release PR', 'release/v3.1.0');
+    git('push', '-q', 'origin', 'main');
+    assert.equal(release('--tag').status, 0);
+    assert.equal(git('rev-parse', 'v3.1.0^{commit}'), git('rev-parse', 'release/v3.1.0'));
+    git('checkout', '-q', 'development');
+    git('merge', '-q', '--no-ff', '--no-verify', '-m', 'merge release/v3.1.0', 'release/v3.1.0');
+    commit(':bug:(common): fix after release');
+    assert.match(release('--dry-run').out, /Since tag: v3\.1\.0/);
+  } finally {
+    rmSync(remote, { recursive: true, force: true });
+  }
 });
+

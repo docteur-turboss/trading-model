@@ -239,7 +239,6 @@ git push -u origin feature/my-feature
 
 # Release (maintainer)
 git checkout main && git pull
-git merge development
 bun run release:tag       # on main after the release PR: tag vX.Y.Z → Release workflow, see release.md
 ```
 
