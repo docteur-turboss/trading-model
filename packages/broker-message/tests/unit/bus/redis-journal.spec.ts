@@ -334,8 +334,10 @@ describe("RedisMessageJournal", () => {
 		const { journal, redis } = setup(async (command) =>
 			command === "XREADGROUP"
 				? [
-						"p:journal:test.topic",
-						[["1-0", [...stored(message), "only", "audit-logger"]]],
+						[
+							"p:journal:test.topic",
+							[["1-0", [...stored(message), "only", "audit-logger"]]],
+						],
 					]
 				: "OK"
 		);
@@ -352,8 +354,7 @@ describe("RedisMessageJournal", () => {
 	it("should read new entries as first deliveries", async () => {
 		const message = createMockMessage("payload");
 		const { journal, redis } = setup(async () => [
-			"p:journal:test.topic",
-			[["1-0", stored(message)]],
+			["p:journal:test.topic", [["1-0", stored(message)]]],
 		]);
 
 		const entries = await journal.readNew(GROUP, "replica-1", 5);
