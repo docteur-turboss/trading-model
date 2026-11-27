@@ -825,7 +825,15 @@ full_rollback() {
 			SMOKE_SKIP="model-evaluator risk-execution decision-consumer" deploy_script smoke-test &&
 			release_script forget "$NS"
 	} 2>&1 | tee "$out"
-	[ "${PIPESTATUS[0]}" = 0 ] || return 1
+	[ "${PIPESTATUS[0]}" = 0 ] || {
+		# The rollout diagnostics omit the redis and sentinel containers: show why N-1 Redis did not settle.
+		for c in redis-0:redis redis-sentinel-0:sentinel; do
+			$K -n "$NS" logs "${c%%:*}" -c "${c##*:}" --tail=40 || true
+			$K -n "$NS" logs "${c%%:*}" -c "${c##*:}" --previous --tail=40 || true
+		done
+		$K -n "$NS" get statefulset redis redis-sentinel -o wide || true
+		return 1
+	}
 	! grep -qi 'db-migrate\|migrations applied' "$out" && [ "$(applied_migrations)" = "$migrations_before" ] || {
 		log "the full rollback ran a migration"
 		return 1
