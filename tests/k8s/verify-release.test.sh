@@ -21,7 +21,7 @@ DEFAULT_ALERTS='{"data":{"result":[]}}'
 echo "$*" >>"$STUB_DIR/kubectl.log"
 case "$*" in
 *cluster-info* | "auth can-i"*) ;;
-*"get secret"*) printf 'secret-key,other' | base64 ;;
+*"get secret"*gateway-canary-key*) printf 'secret-key' | base64 ;;
 *"exec -i"*api-gateway*) cat >"$STUB_DIR/stdin"; printf '%s' "${STUB_CODE:-200}" ;;
 *prometheus-0*"fs_candles_persisted_total"*) echo "${STUB_FRESH:-$DEFAULT_FRESH}" ;;
 *prometheus-0*ALERTS*) echo "${STUB_ALERTS:-$DEFAULT_ALERTS}" ;;
@@ -38,7 +38,7 @@ run() { : >"$WORK/kubectl.log"; : >"$WORK/sleep.log"; bash "$DEPLOY" verify-rele
 
 echo "healthy release"
 if run; then pass "passes"; else failed "should pass"; cat "$WORK/out"; fi
-grep -qx "secret-key" "$WORK/stdin" && pass "first gateway key sent on stdin" || failed "key not sent"
+grep -qx "secret-key" "$WORK/stdin" && pass "canary key sent on stdin" || failed "key not sent"
 grep -q "secret-key" "$WORK/kubectl.log" && failed "key on a command line" || pass "key not on a command line"
 
 echo "API call fails"
