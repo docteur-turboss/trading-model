@@ -1,7 +1,8 @@
 # =============================================================================
 #  release-candidate.yml — Build, scan and push the release images BEFORE the tag
 #  On a pull request to main (the release PR) or by hand: builds the service and
-#  tooling images, scans them (Trivy, by digest) and pushes them unsigned as
+#  tooling images, pushes them under a provisional :scan-<run id>, scans them
+#  (Trivy, by digest) and only when every scan passed retags them unsigned as
 #  :tree-<git tree of the commit>. release.yml, at the vX.Y.Z tag, only checks
 #  that the tagged commit has the same tree, retags the digest, signs and
 #  verifies (ADR-0038). A failing scan means no tag has been burnt.
@@ -29,10 +30,15 @@ jobs:
       registry: ${{ steps.version.outputs.registry }}
       services: ${{ steps.version.outputs.services }}
       scan_tag: ${{ steps.version.outputs.scan_tag }}
+      tree_tag: ${{ steps.version.outputs.tree_tag }}
+      build_version: ${{ steps.version.outputs.build_version }}
+      images: ${{ steps.version.outputs.images }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # The PR head, not refs/pull/N/merge: its tree is the one a squash gives main, its SHA is real.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
       - name: Resolve registry, services and candidate tag
@@ -46,7 +52,10 @@ jobs:
           list=$(yq '.env.IMAGES' .github/workflows/deploy.yml)
           services=$(for i in $list; do [ -d "services/$i" ] && echo "$i"; done | jq -R . | jq -sc .)
           {
-            echo "scan_tag=tree-$(git rev-parse 'HEAD^{tree}')"
+            echo "scan_tag=scan-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+            echo "tree_tag=tree-$(git rev-parse 'HEAD^{tree}')"
+            echo "build_version=$(jq -r .version package.json)"
+            echo "images=$(for i in $list; do echo "$i"; done | jq -R . | jq -sc .)"
             echo "registry=${registry,,}"
             echo "services=$services"
           } >> "$GITHUB_OUTPUT"
@@ -66,6 +75,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # The PR head, not refs/pull/N/merge: its tree is the one a squash gives main, its SHA is real.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
       - name: Set up Docker Buildx
@@ -86,7 +97,7 @@ jobs:
           tags: type=raw,value=${{ needs.version.outputs.scan_tag }}
 
       # Gate before publication: a fixable CRITICAL or HIGH vulnerability stops the job
-      # before the image can be promoted at the tag. Exceptions: .trivyignore.yaml (ADR-0038).
+      # before the image gets its tree tag. Exceptions: .trivyignore.yaml (ADR-0038).
       - name: Build and push under the scan tag
         id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -95,8 +106,8 @@ jobs:
           file: Dockerfile
           build-args: |
             SERVICE=${{ matrix.service }}
-            BUILD_VERSION=${{ needs.version.outputs.scan_tag }}
-            GIT_SHA=${{ github.sha }}
+            BUILD_VERSION=${{ needs.version.outputs.build_version }}
+            GIT_SHA=${{ github.event.pull_request.head.sha || github.sha }}
           push: true
           sbom: true
           provenance: mode=max
@@ -146,6 +157,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # The PR head, not refs/pull/N/merge: its tree is the one a squash gives main, its SHA is real.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
       - name: Set up Docker Buildx
@@ -166,7 +179,7 @@ jobs:
           tags: type=raw,value=${{ needs.version.outputs.scan_tag }}
 
       # Gate before publication: a fixable CRITICAL or HIGH vulnerability stops the job
-      # before the image can be promoted at the tag. Exceptions: .trivyignore.yaml (ADR-0038).
+      # before the image gets its tree tag. Exceptions: .trivyignore.yaml (ADR-0038).
       - name: Build and push under the scan tag
         id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -193,3 +206,34 @@ jobs:
           # Unfixed CVEs cannot be remedied by a rebuild: block only on those with a fix.
           ignore-unfixed: true
           exit-code: "1"
+
+  # Publishes the tree tag only when every scan passed (a failed matrix leaves only :scan-* images,
+  # which release.yml ignores): the tree tag is the proof that the scan succeeded.
+  publish:
+    needs: [version, scan-services, scan-tools]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Tag the scanned digests with the tree
+        shell: bash
+        env:
+          REGISTRY: ${{ needs.version.outputs.registry }}
+          SCAN_TAG: ${{ needs.version.outputs.scan_tag }}
+          TREE_TAG: ${{ needs.version.outputs.tree_tag }}
+          IMAGES: ${{ needs.version.outputs.images }}
+        run: |
+          for i in $(jq -r '.[]' <<<"$IMAGES"); do
+            docker buildx imagetools create -t "$REGISTRY/$i:$TREE_TAG" "$REGISTRY/$i:$SCAN_TAG"
+          done

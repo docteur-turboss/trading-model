@@ -1041,7 +1041,7 @@ the off-site bucket is intact. Cluster creation and DNS propagation add to the
 
 | Where | What |
 | ----- | ---- |
-| `ci.yml`, job `k8s` (pull requests touching the filter of its "Decide the restore drill" step, every release through `workflow_call`, pushes to main and development) | Kind restore drill with PITR and loss of the cluster (`tests/k8s/run-kind.sh`, `verify_backup`): backup, [run manifest](#run-manifest), [off-site fetch](#from-the-off-site-bucket), [point-in-time restore](#point-in-time-restore---until-adr-0031), then checks of the audit chain, dead letters, markers, `market_candles` and the SPIRE bundle |
+| `ci.yml`, job `k8s` (pull requests touching the filter of its "Decide the restore drill" step, pushes to main and development) | Kind restore drill with PITR and loss of the cluster (`tests/k8s/run-kind.sh`, `verify_backup`): backup, [run manifest](#run-manifest), [off-site fetch](#from-the-off-site-bucket), [point-in-time restore](#point-in-time-restore---until-adr-0031), then checks of the audit chain, dead letters, markers, `market_candles` and the SPIRE bundle |
 | `backup-test.yml`, job `sealed-secrets-key` (weekly, on changes to the scripts) | Key backup and restore across two kind clusters (`tests/backup/sealed-secrets-key.test.sh`, `tests/k8s/sealed-secrets-key-drill.sh`), see `docs/deployment/sealed-secrets.md` |
 | `backup-test.yml` (weekly, on changes to the scripts) | Library tests of `tests/backup/` ([encryption](#automated-backup-system), [off-site immutability](#off-site-immutability), [PITR chains](#point-in-time-archives-adr-0031), [partial backups and manifest](#run-manifest), [off-site fetch](#from-the-off-site-bucket)) |
 
