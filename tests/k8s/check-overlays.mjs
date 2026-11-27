@@ -34,6 +34,8 @@
 //     kind of the application overlay is in deploy-identity/app-role.yaml (or,
 //     for the cluster-scope ones, cluster-role.yaml), every kind of the
 //     node-agents overlay in node-role.yaml or cluster-role.yaml
+//   - risk-execution stays replicas: 1, strategy Recreate, no HPA: one writer
+//     of its volume, the rollout pause is accepted (ADR-0064 §10, issue #2879)
 //   - mongo-audit runs a bootstrap script that adds every pod to the replica set (issue #2197)
 // Usage: node tests/k8s/check-overlays.mjs   (needs kubectl)
 import { execFileSync } from "node:child_process";
@@ -321,6 +323,11 @@ for (const env of OVERLAYS) {
 	if (riskValue("EXECUTION_MODE") === "live" && env !== "production") errors.push(`${env}: risk-execution-config sets EXECUTION_MODE=live outside production (ADR-0064 §6)`);
 	if ((riskValue("DEPLOYMENT_ENV") === "production") !== (env === "production")) errors.push(`${env}: risk-execution-config DEPLOYMENT_ENV=${riskValue("DEPLOYMENT_ENV")}, only the production overlay may be production`);
 	if (env !== "production" && /BROKER_API_(KEY|SECRET)/.test(rendered)) errors.push(`${env}: live broker keys outside the production overlay (ADR-0064 §6)`);
+	// ADR-0064 §10 (issue #2879): one writer of the risk-execution volume, the rollout pause is accepted.
+	const riskDeployment = docs.find((d) => d.kind === "Deployment" && d.name === "risk-execution")?.text ?? "";
+	if (!/^ {4}type: Recreate$/m.test(riskDeployment) || !/^ {2}replicas: 1$/m.test(riskDeployment) || hpaTargets(docs).has("risk-execution")) {
+		errors.push(`${env}: Deployment risk-execution must stay replicas: 1, strategy Recreate, no HPA: a second pod would write the same state (ADR-0064 §10)`);
+	}
 
 	// Issue #2821: replica-set members of production never share a node.
 	for (const name of ["redis", "redis-sentinel", "mongo-audit"]) {
