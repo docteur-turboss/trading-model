@@ -20,6 +20,7 @@ Open the **Actions** tab → **Deploy** → **Run workflow**, then select:
 | `environment` | `staging` or `production` |
 | `image_tag` | Required: release to deploy, `v1.2.3` or `1.2.3` (prerelease `v1.2.3-rc.1` or `1.2.3-rc.1` too). Staging also accepts `latest` (the highest stable release); production refuses anything but a release, before the cluster is reached. Resolved to image digests before anything is applied |
 | `canary` | Run canary + smoke test with automatic rollback on failure |
+| `rollback` | Full rollback: `image_tag` is the previous release; applies the whole overlay of that tag and waits, smoke and verify-release as an upgrade, with no backup, migration or canary. Refused when the live schema has migrations that tag lacks (run `migrate-down` first, never automatic). Deployments get annotation `trading-model.dev/rollback-of` |
 | `preflight_only` | Run every prerequisite guard and a server-side dry-run of the apply, change nothing: see [Preflight](#preflight) |
 
 ### Preflight
@@ -307,8 +308,8 @@ canary or a real rollout (the preflight never starts a pod).
 ### Each production release
 
 1. Fill the `Controller` and `Contact` fields of the [data processing register](../compliance/data-processing-register.md) (Art. 30(1)(a); first production deploy only, see "Before the first production deploy" above)
-2. `bun run release:publish` (on `main`) bumps the versions, writes the CHANGELOG and pushes the tag `vX.Y.Z` ([release.md](../contributing/release.md))
-3. `release.yml` checks the tag's tree was built and scanned by `release-candidate.yml` (no CI replay), then publishes the images to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release; its last job, `verify-images`, fails if `deploy.yml` cannot resolve one of them.
+2. `bun run release:publish` (on `development`) bumps the versions and writes the CHANGELOG on `release/vX.Y.Z`; after its PR is merged into `main`, `bun run release:tag` pushes the tag `vX.Y.Z` ([release.md](../contributing/release.md))
+3. `release.yml` takes the digests scanned by the newest `release-candidate.yml` run of the tag's tree (no CI replay), then publishes those digests to `ghcr.io/<owner>` as `X.Y.Z`, and as `latest` when it is the highest stable release; its last job, `verify-images`, fails if `deploy.yml` cannot resolve one of them.
 4. The `Deploy` workflow is run against the `production` environment (canary enabled for staged rollout)
 
 ### Upgrading from 3.0.x: rewrite the Redis AOF first
@@ -407,7 +408,9 @@ What the rollback restores:
   the namespace: nothing prunes them, so every ReplicaSet revision finds its
   own. A configuration change alone also rolls the Deployments that read it.
 
-What it does not restore (still at N+1 after a rollback):
+The automatic rollback restores Deployments and Redis only. For a complete return to N-1, run `Deploy` again with `rollback: true` and the N-1 tag (it applies everything N-1 defines: StatefulSets, NetworkPolicies, CronJobs, HPAs, PDBs, ConfigMaps; `tests/k8s/run-kind.sh upgrade` runs it). Objects that exist only in N are not deleted, except NetworkPolicies (`deploy-release.sh prune-network-policies`): N's `default-deny-all` would cut N-1 pods off DNS.
+
+What the automatic rollback does not restore (still at N+1):
 
 - the other Deployments (`spire-server`, whose `spire-entries` sidecar runs the
   `spire-tools` image of the release, and the infrastructure ones);
