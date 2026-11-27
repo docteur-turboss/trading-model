@@ -46,7 +46,7 @@ const ALLOWED_UNSET = {
   MONGO_DLQ_USERNAME: "same one-off import",
   BROKER_API_KEY: "live keys exist in the production Secret only and no live adapter ships yet (ADR-0064 §6): the code refuses to start paper mode when they are present",
   BROKER_API_SECRET: "same as BROKER_API_KEY",
-  DECISION_SKIP_ADMISSION: "test waiver set only by tests/e2e/docker-compose.e2e.yml, never by a deployment; refused when NODE_ENV=production (ADR-0092)",
+  DECISION_SKIP_ADMISSION: "test waiver set only by tests/e2e/docker-compose.e2e.yml, never by a deployment; refused when NODE_ENV=production (ADR-0093)",
 };
 
 /** Profiles: what a real deployment can set. Tests and docs are not profiles. */

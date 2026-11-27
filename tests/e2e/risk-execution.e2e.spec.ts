@@ -131,7 +131,7 @@ describe("risk-execution E2E", () => {
 		expect(after.positions).toEqual(before.positions);
 	});
 
-	// ADR-0092: no hand-made intent. The model published by the trainer is promoted by recreating
+	// ADR-0093: no hand-made intent. The model published by the trainer is promoted by recreating
 	// decision-consumer (same compose project and files) with its `symbol@version`.
 	it("opens a paper position from a promoted model", async () => {
 		await admin("kill-switch/rearm");

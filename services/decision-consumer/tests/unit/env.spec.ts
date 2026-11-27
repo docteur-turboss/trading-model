@@ -22,7 +22,7 @@ const loadEnv = () => {
 	return require("../../src/infrastructure/config/env").ENV;
 };
 
-describe("DECISION_SKIP_ADMISSION (ADR-0092)", () => {
+describe("DECISION_SKIP_ADMISSION (ADR-0093)", () => {
 	afterEach(() => {
 		process.env = { ...ORIGINAL };
 	});

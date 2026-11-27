@@ -167,7 +167,7 @@ ADR-0087. Paper only: no broker key, no kill switch, no mode choice (ADR-0064 §
 | --- | --- | --- | --- | --- | --- |
 | `PROMOTED_MODELS` | string | _(empty)_ | no | Models promoted by hand, `symbol@version` separated by commas, one version per symbol (ADR-0087 §2). Empty: nothing decides. A promoted model that is not `admissible` (ADR-0069) decides nothing | DCN |
 | `DECISION_TICK_MS` | number | `10000` | no | Period of the pass over the promoted models; each decides once per closed bar of its manifest interval (1 min or 1 day) | DCN |
-| `DECISION_SKIP_ADMISSION` | boolean (`true`/`1`) | `false` | no | Test waiver of the admission gate, set only by `tests/e2e/docker-compose.e2e.yml` (ADR-0092); the service refuses to start with it when `NODE_ENV=production`. `risk-execution` reads it too (its own admission check) | DCN, RX |
+| `DECISION_SKIP_ADMISSION` | boolean (`true`/`1`) | `false` | no | Test waiver of the admission gate, set only by `tests/e2e/docker-compose.e2e.yml` (ADR-0093); the service refuses to start with it when `NODE_ENV=production`. `risk-execution` reads it too (its own admission check) | DCN, RX |
 | `DECISION_WINDOW_BARS` | number | `500` | no | Bars of the window a decision is computed on (at least 50): features normalise from its first bar | DCN |
 
 ## Financial Scraper — Market data

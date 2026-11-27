@@ -24,7 +24,7 @@ This guide covers deploying the Trading Model platform on Kubernetes. The K8s ma
   refuses, listing what is missing, before the first apply
 - A CNI that enforces NetworkPolicies
 - Production with 2 nodes or more: reopen [ADR-0085](../adr/0085-single-mysql-and-spire-server-pods-accepted.md)
-  (option B: `minAvailable: 1` on `mysql-pdb` and `spire-server-pdb` in the production overlay)
+  (option B: `minAvailable: 1` on `spire-server-pdb` in the production overlay; `mysql-pdb` already blocks drains, ADR-0092)
 - One environment per cluster: the node agents (SPIRE agent, promtail) serve a
   single application namespace
 - Self-hosted nodes: data disk encrypted with LUKS2 + Clevis/Tang
@@ -75,7 +75,7 @@ bash deploy/k8s/scripts/run-migrations.sh trading-model-staging
 ### Staging secrets, PDBs and access (issue #417)
 
 - **Secrets:** staging reads a SealedSecret (`overlays/staging/sealed-secrets.yaml`, placeholders `AgCHANGE_ME` in git). Until a human seals it on the staging cluster with `OVERLAY=staging bash scripts/init-sealed-secrets.sh` (then commits the file), `deploy.yml` refuses to deploy staging ("placeholder SealedSecrets"). The CI `k8s` job replaces it with a Secret of public test values (`tests/k8s/ci-render.mjs`): kind has no controller.
-- **PDBs:** every PodDisruptionBudget uses `maxUnavailable: 1` in staging (single replicas: `minAvailable: 2` would block `kubectl drain`). HPAs are pinned to 1 pod, so every RollingUpdate Deployment surges first (`maxUnavailable: 0`, `maxSurge: 1`, issue #699): `maxUnavailable: 1` would stop the only pod before its replacement is ready. `tests/k8s/check-overlays.mjs` fails on a Deployment that can run one pod with an effective `maxUnavailable` above 0.
+- **PDBs:** every PodDisruptionBudget uses `maxUnavailable: 1` in staging (single replicas: `minAvailable: 2`, or the `maxUnavailable: 0` of `mysql-pdb` and `risk-execution-pdb` (ADR-0092), would block `kubectl drain`). HPAs are pinned to 1 pod, so every RollingUpdate Deployment surges first (`maxUnavailable: 0`, `maxSurge: 1`, issue #699): `maxUnavailable: 1` would stop the only pod before its replacement is ready. `tests/k8s/check-overlays.mjs` fails on a Deployment that can run one pod with an effective `maxUnavailable` above 0.
 - **Staging access:** both Ingresses carry `nginx.ingress.kubernetes.io/whitelist-source-range`, set in `overlays/staging/kustomization.yaml`. The committed value (`192.0.2.0/24`, TEST-NET-1) lets nobody in: replace it with the operators' CIDRs, comma separated.
 
 The CI `k8s` job runs the same sequence on kind for release N-1 (the last stable
@@ -295,11 +295,12 @@ current stack, and the S3 price is a list price, not a quote.
 | Server (*estimate*, sized on the current stack) | 4 000 € over 36 months | 111.11 |
 | Electricity (upper bound) | 1 000 W at high load × 730 h = 730 kWh × 0.25 €/kWh | 182.50 |
 | Off-site backup and audit anchor buckets, S3 Object Lock (*estimate*) | ≤ 100 GB stored (staging holds 5.8 GB on 2026-11-23) × about 0.007-0.015 €/GB (Backblaze B2 6.95 $/TB, Scaleway Multi-AZ about 0.0146 €/GB) | ≤ 2 |
-| **Total** | | **about 296** |
+| AI agents (Claude Max subscription: orchestrator sessions, reviews, audits) | flat subscription, owner, 2026-11-26; 1 170 PRs merged 2026-10-26 to 2026-11-25, about 0.09 € per merged PR; the orchestrator weekly cap of 1 100 $ is at API list price and is not billed | 100 |
+| **Total** | | **about 396** |
 
 Allocated capital of the first live tier: 10 000 USDT (`RISK_ALLOCATED_CAPITAL`),
 about 9 000 € at 1 USDT ≈ 0.90 € (*estimate*). Minimal return to pay the
-infrastructure: 296 / 9 000 ≈ **3.3 % per month** net of fees, about 47 % per
+infrastructure and the AI agents: 396 / 9 000 ≈ **4.4 % per month** net of fees, about 68 % per
 year compounded. The electricity line is an upper bound (1 000 W is the high
 load, not the average): measure the average draw to lower it. The threshold
 falls in proportion to the capital, and more symbols share the same fixed cost.
@@ -325,7 +326,7 @@ The other external dependencies are free under the conditions below.
 - 20Gi PVC (`data-mysql-0`)
 - Retention: CronJob `db-retention` purges market data and signals older than `RETENTION_DAYS` as MySQL user `retention` (key `MYSQL_RETENTION_PASSWORD` of `trading-model-secrets`, to seal before the first production deploy; `db-migrate-user` runs again after the migrations to grant it per table). Operation: [BACKUP_DR.md](BACKUP_DR.md#retention-job), ADR-0051
 - Schema from the `db-migrate` Job (`run-migrations.sh`), the same migrations as compose: no second copy of the schema. The Job runs the released `db-migrate` image (`deploy/migrate`: `migrate.mjs`, `scripts/migrations`, `mysql2` locked by its `bun.lock`; pinned by digest by `deploy.yml`): nothing is installed at run time. It connects as the MySQL user `migrator` (DDL/DML on `financial_scraper` only, password `MYSQL_MIGRATE_PASSWORD`), created or updated on every deploy by the idempotent Job `db-migrate-user` (the only one that reads `MYSQL_ROOT_PASSWORD`; works on a database initialised before the user existed). The password must match `[A-Za-z0-9_.@%+=-]`
-- PodDisruptionBudget: maxUnavailable 1 (one pod accepted by ADR-0085, RTO 4 h of `BACKUP_DR.md`: `minAvailable` would block `kubectl drain`)
+- PodDisruptionBudget: maxUnavailable 0, an exception to the non-blocking PDBs of #917 ([ADR-0092](../adr/0092-blocking-pdb-for-mysql-and-risk-execution.md), also on `risk-execution-pdb`): a drain is refused until the operator forces it ([runbook](../operations/runbooks/runbook-database-failover.md#loss-of-mysql-0-pod-or-node)); staging keeps maxUnavailable 1
 
 ### MongoDB (Replica Set)
 

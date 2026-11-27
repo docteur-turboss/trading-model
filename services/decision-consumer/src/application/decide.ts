@@ -91,7 +91,7 @@ export function createDecisionTick(deps: {
 	audit: Audit;
 	/** Bars of the window the model decides on (features normalise from its first bar). */
 	windowBars: number;
-	/** E2E only (ADR-0092): load a model whose manifest is not `admissible`. */
+	/** E2E only (ADR-0093): load a model whose manifest is not `admissible`. */
 	skipAdmission?: boolean;
 	now?: () => number;
 }) {

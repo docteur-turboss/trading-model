@@ -1,4 +1,4 @@
-# ADR-0092: Admission Waiver Limited to the E2E Overlay
+# ADR-0093: Admission Waiver Limited to the E2E Overlay
 
 **Status:** Accepted
 **Date:** 2026-11
