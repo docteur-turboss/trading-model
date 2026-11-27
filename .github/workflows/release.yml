@@ -68,7 +68,7 @@ jobs:
           registry="${IMAGE_REGISTRY:-ghcr.io/$OWNER}"
           # Single source of the image list: deploy.yml IMAGES. Services have a services/<name> directory; tools do not.
           list=$(yq '.env.IMAGES' .github/workflows/deploy.yml)
-          services=$(for i in $list; do [ -d "services/$i" ] && echo "$i"; done | jq -R . | jq -sc .)
+          services=$(for i in $list; do if [ -d "services/$i" ]; then echo "$i"; fi; done | jq -R . | jq -sc .)
           images=$(for i in $list; do echo "$i"; done | jq -R . | jq -sc .)
           {
             echo "tag=$version"
