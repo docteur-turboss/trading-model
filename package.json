@@ -13,6 +13,7 @@
     "commit": "bun scripts/commit.mjs",
     "release": "bun scripts/release.mjs",
     "release:publish": "bun scripts/release.mjs --publish",
+    "release:tag": "bun scripts/release.mjs --tag",
     "release:test": "node --test tests/release/release.test.mjs",
     "lint": "bunx @biomejs/biome check .",
     "lint:fix": "bunx @biomejs/biome check . --write",

@@ -43,7 +43,8 @@ function version(path) {
   return JSON.parse(readFileSync(join(repo, path, 'package.json'), 'utf-8')).version;
 }
 
-before(() => {
+function initRepo() {
+  if (repo) rmSync(repo, { recursive: true, force: true });
   repo = mkdtempSync(join(tmpdir(), 'release-'));
   git('init', '-q');
   mkdirSync(join(repo, 'scripts'));
@@ -54,7 +55,11 @@ before(() => {
   commit(':tada:(common): initial');
   git('tag', '-a', 'v3.0.0', '-m', 'v3.0.0');
   commit(':sparkles:(common): add a feature');
-});
+  git('branch', '-q', '-M', 'main');
+  git('branch', 'development');
+}
+
+before(initRepo);
 
 after(() => rmSync(repo, { recursive: true, force: true }));
 
@@ -118,25 +123,29 @@ test('an option is never taken as the value of the option before it (a dry run s
   }
 });
 
-test('--publish refuses a dirty tree before merging', () => {
+test('--publish refuses a dirty tree and any branch but development', () => {
   git('checkout', '-q', '-B', 'main');
+  assert.match(release('--publish', '--prerelease', 'beta').out, /requires being on development/);
+  git('checkout', '-q', '-B', 'development');
   writeFileSync(join(repo, 'dirty.txt'), 'x');
-  const head = git('rev-parse', 'HEAD');
   const { status, out } = release('--publish', '--prerelease', 'beta');
   rmSync(join(repo, 'dirty.txt'));
   assert.equal(status, 1, out);
   assert.match(out, /clean working tree/);
-  assert.equal(git('rev-parse', 'HEAD'), head);
 });
 
-test('--publish exits 1 with the failing command when the push fails (no remote), never prints "published"', () => {
+test('--publish commits the version on release/vX on a branch cut from development, main untouched; push failure exits 1', () => {
   git('checkout', '-q', '-B', 'main');
-  git('branch', '-f', 'development', 'main');
+  git('checkout', '-q', '-B', 'development');
   const { status, out } = release('--publish', '--prerelease', 'beta');
   assert.equal(status, 1, out);
   assert.match(out, /Command failed: git push/);
-  assert.doesNotMatch(out, /published/);
+  assert.doesNotMatch(out, /pushed/);
+  assert.match(git('log', '-1', '--format=%s', 'release/v3.1.0-beta.1'), /v3\.1\.0-beta\.1/);
+  assert.equal(git('rev-parse', 'main'), git('rev-parse', 'development'));
 });
+
+
 
 test('--prepare refuses main, development, a dirty release/* tree, and --publish / --version / --dry-run', () => {
   const head = git('rev-parse', 'HEAD');
@@ -197,4 +206,32 @@ test('--prepare, two cycles without merging main back into development: new vers
   assert.doesNotMatch(section, /feat A/);
   assert.equal(version('.'), second.slice(1));
   git('merge-tree', '--write-tree', 'main', 'HEAD'); // throws on a conflict
+});
+
+test('--tag refuses off main; full flow: publish, merge into main and development, tag, next publish restarts from that tag', () => {
+  initRepo();
+  git('checkout', '-q', 'development');
+  assert.match(release('--tag').out, /requires being on main/);
+  const remote = mkdtempSync(join(tmpdir(), 'release-origin-'));
+  try {
+    git('init', '-q', '--bare', remote);
+    git('remote', 'add', 'origin', remote);
+    git('push', '-q', 'origin', 'main', 'development');
+    const pub = release('--publish');
+    assert.equal(pub.status, 0, pub.out);
+    git('checkout', '-q', 'main');
+    git('commit', '-q', '--allow-empty', '--no-verify', '-m', 'local only');
+    assert.match(release('--tag').out, /HEAD is not origin\/main/);
+    git('reset', '-q', '--hard', 'origin/main');
+    git('merge', '-q', '--no-ff', '--no-verify', '-m', 'merge release PR', 'release/v3.1.0');
+    git('push', '-q', 'origin', 'main');
+    assert.equal(release('--tag').status, 0);
+    assert.equal(git('rev-parse', 'v3.1.0^{commit}'), git('rev-parse', 'release/v3.1.0'));
+    git('checkout', '-q', 'development');
+    git('merge', '-q', '--no-ff', '--no-verify', '-m', 'merge release/v3.1.0', 'release/v3.1.0');
+    commit(':bug:(common): fix after release');
+    assert.match(release('--dry-run').out, /Since tag: v3\.1\.0/);
+  } finally {
+    rmSync(remote, { recursive: true, force: true });
+  }
 });

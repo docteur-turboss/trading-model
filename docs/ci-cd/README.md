@@ -18,7 +18,7 @@ The jobs, steps and versions live in `.github/workflows/*.yml`: read the file, n
 | SealedSecrets Key Backup | `sealed-secrets-key-backup.yml` | daily cron, manual | Seal and copy the controller keys off-site ([ADR-0035](../adr/0035-sealed-secrets-key-daily-backup-by-github-actions.md)) |
 | Secret Rotation Reminder | `secret-rotation-reminder.yml` | quarterly cron, manual | Open a "Quarterly secret rotation" issue unless one is open |
 
-The release tag is put on the merge commit of the `release/*` PR ([release.md](../contributing/release.md)). Nothing is promoted unless `release-candidate.yml` passed on the tag's tree. `sign` must cover the same images as `deploy.yml` `IMAGES` (`tests/k8s/check-overlays.mjs`).
+The release tag is put on the version commit of `release/vX.Y.Z` (`bun run release:tag`) ([release.md](../contributing/release.md)). Nothing is promoted unless `release-candidate.yml` passed on the tag's tree. `sign` must cover the same images as `deploy.yml` `IMAGES` (`tests/k8s/check-overlays.mjs`).
 
 ## Docker Image Tags
 
