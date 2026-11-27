@@ -408,7 +408,7 @@ What the rollback restores:
   the namespace: nothing prunes them, so every ReplicaSet revision finds its
   own. A configuration change alone also rolls the Deployments that read it.
 
-The automatic rollback restores Deployments and Redis only. For a complete return to N-1, run `Deploy` again with `rollback: true` and the N-1 tag (it applies everything N-1 defines: StatefulSets, NetworkPolicies, CronJobs, HPAs, PDBs, ConfigMaps; `tests/k8s/run-kind.sh upgrade` runs it). Objects that exist only in N are not deleted, except NetworkPolicies (`deploy-release.sh prune-network-policies`): N's `default-deny-all` would cut N-1 pods off DNS.
+The automatic rollback restores Deployments and Redis only. For a complete return to N-1, run `Deploy` again with `rollback: true` and the N-1 tag (it applies everything N-1 defines: StatefulSets, NetworkPolicies, CronJobs, HPAs, PDBs, ConfigMaps; `tests/k8s/run-kind.sh upgrade` runs it). Objects that exist only in N are not deleted, except NetworkPolicies (`deploy-release.sh prune-network-policies`, run with `schema-check` from the workflow's own revision, so any published tag is a valid target): N's `default-deny-all` would cut N-1 pods off DNS.
 
 What the automatic rollback does not restore (still at N+1):
 
