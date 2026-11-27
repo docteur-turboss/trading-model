@@ -173,7 +173,7 @@ describe("intent contract: decision-consumer → risk-execution", () => {
 			price: 60_000,
 			// A sale: a buy would fall in the duplicate window of the first test (frozen clock).
 			// Sized on the 0.01 held after that first test: run alone, nothing is sold.
-			order: { side: "sell", quantity: 0.01 },
+			position: 0,
 		});
 		const weights = new Uint8Array(8);
 		const sha256 = createHash("sha256").update(weights).digest("hex");

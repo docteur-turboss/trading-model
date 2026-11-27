@@ -197,20 +197,20 @@ export function replayModel(input: {
 	};
 }
 
-/** The order a model wants on the last closed bar of a window (ADR-0087). */
+/** The position a model targets on the last closed bar of a window (ADR-0087 §3). */
 export interface LastBarDecision {
 	/** Open time of the bar decided on: the caller checks it is the bar it expects. */
 	barTimestamp: number;
 	/** Close of that bar. */
 	price: number;
-	/** Undefined when the model holds, does not decide on this bar, or cannot trade. */
-	order?: { side: "buy" | "sell"; quantity: number };
+	/** Simulated position (coin) after the last bar: what the model holds, whether or not it traded on this bar. */
+	position: number;
 }
 
 /**
  * Plays the model greedily over `candles` (cleaned as in the replay) on a
- * simulated wallet and returns what it does on the last bar: the quantity is
- * the wallet's move, so `share` and the exposure cap of the genome apply. The
+ * simulated wallet and returns the position it holds after the last bar, so
+ * `share` and the exposure cap of the genome apply. The
  * wallet starts at the window's first bar, so the same window gives the same
  * answer. Undefined when the window has no step.
  */
@@ -228,16 +228,11 @@ export function decideOnLastBar(input: {
 		return undefined;
 	}
 	const agent = greedyAgent(input.genome, input.weights, input.simulator);
-	let delta = 0;
 	playEpisode(
 		steps,
 		input.genome.rl.horizon,
 		{
-			step: (step, barsSince) => {
-				const before = Number(agent.wallet.getPosition());
-				stepOf(agent, step, barsSince);
-				delta = step === last ? Number(agent.wallet.getPosition()) - before : 0;
-			},
+			step: (step, barsSince) => stepOf(agent, step, barsSince),
 			pnl: () => Number(agent.wallet.getPnL()),
 		},
 		[]
@@ -245,9 +240,6 @@ export function decideOnLastBar(input: {
 	return {
 		barTimestamp: last.timestamp,
 		price: Number(last.price),
-		order:
-			delta === 0
-				? undefined
-				: { side: delta > 0 ? "buy" : "sell", quantity: Math.abs(delta) },
+		position: Number(agent.wallet.getPosition()),
 	};
 }
